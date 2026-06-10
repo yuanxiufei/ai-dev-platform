@@ -1,0 +1,29 @@
+[project]
+name = "ai-models"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+# ── 依赖策略 ──
+# 采用"按需安装"策略，避免强制安装重型 ML 框架（torch ~2.5GB）。
+# - 未注释的依赖：必装（轻量）
+# - 已注释的依赖：按需安装（GPU 环境才需要）
+#
+# 使用场景：
+#   - 仅 GGUF 模型 → pip install llama-cpp-python 即可
+#   - safetensors 模型 → 取消注释 torch/transformers/diffusers/accelerate 后安装
+dependencies = [
+    # ── safetensors 格式（GPU 模型）─ Qwen-VL / Qwen-Coder / CogVideoX ──
+    # 需要 NVIDIA GPU + CUDA，约 ~5GB 磁盘空间
+    # "torch>=2.4.0",
+    # "transformers>=4.45.0",
+    # "diffusers>=0.30.0",
+    # "accelerate>=0.33.0",
+
+    # ── GGUF 格式（本地量化模型）─ Gemma 31B 等 ──
+    # 支持纯 CPU 推理，约 ~50MB 磁盘空间
+    "llama-cpp-python>=0.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
