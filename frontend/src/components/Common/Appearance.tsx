@@ -1,4 +1,5 @@
-import { Monitor, Moon, Sun } from "lucide-react"
+import { Monitor, Moon, Sun, Globe } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { type Theme, useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ const ICON_MAP: Record<Theme, LucideIcon> = {
 export const SidebarAppearance = () => {
   const { isMobile } = useSidebar()
   const { setTheme, theme } = useTheme()
+  const { i18n } = useTranslation()
   const Icon = ICON_MAP[theme]
 
   return (
@@ -60,6 +62,14 @@ export const SidebarAppearance = () => {
             <Monitor className="mr-2 h-4 w-4" />
             System
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => i18n.changeLanguage("zh")}>
+            <Globe className="mr-2 h-4 w-4" />
+            中文
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
+            <Globe className="mr-2 h-4 w-4" />
+            English
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </SidebarMenuItem>
@@ -68,6 +78,7 @@ export const SidebarAppearance = () => {
 
 export const Appearance = () => {
   const { setTheme } = useTheme()
+  const { i18n } = useTranslation()
 
   return (
     <div className="flex items-center justify-center">
@@ -97,6 +108,14 @@ export const Appearance = () => {
           <DropdownMenuItem onClick={() => setTheme("system")}>
             <Monitor className="mr-2 h-4 w-4" />
             System
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => i18n.changeLanguage("zh")}>
+            <Globe className="mr-2 h-4 w-4" />
+            中文
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
+            <Globe className="mr-2 h-4 w-4" />
+            English
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
