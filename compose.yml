@@ -171,15 +171,17 @@ services:
       # Enable redirection for HTTP and HTTPS
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-http.middlewares=https-redirect
 
-  frontend:
-    image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
+  # ===== 四个前端服务 =====
+
+  video-client:
+    image: '${DOCKER_IMAGE_VIDEO_CLIENT?Variable not set}:${TAG-latest}'
     restart: always
     networks:
       - traefik-public
       - default
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: video-client/Dockerfile
       args:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
         - NODE_ENV=production
@@ -188,18 +190,104 @@ services:
       - traefik.docker.network=traefik-public
       - traefik.constraint-label=traefik-public
 
-      - traefik.http.services.${STACK_NAME?Variable not set}-frontend.loadbalancer.server.port=80
+      - traefik.http.services.${STACK_NAME?Variable not set}-video-client.loadbalancer.server.port=80
 
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.rule=Host(`dashboard.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-http.rule=Host(`video.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-http.entrypoints=http
 
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.rule=Host(`dashboard.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.entrypoints=https
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls=true
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-https.rule=Host(`video.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-https.tls.certresolver=le
 
-      # Enable redirection for HTTP and HTTPS
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-client-http.middlewares=https-redirect
+
+  video-admin:
+    image: '${DOCKER_IMAGE_VIDEO_ADMIN?Variable not set}:${TAG-latest}'
+    restart: always
+    networks:
+      - traefik-public
+      - default
+    build:
+      context: .
+      dockerfile: video-admin/Dockerfile
+      args:
+        - VITE_API_URL=https://api.${DOMAIN?Variable not set}
+        - NODE_ENV=production
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+
+      - traefik.http.services.${STACK_NAME?Variable not set}-video-admin.loadbalancer.server.port=80
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-http.rule=Host(`video-admin.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-http.entrypoints=http
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-https.rule=Host(`video-admin.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-https.tls.certresolver=le
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-video-admin-http.middlewares=https-redirect
+
+  studio-client:
+    image: '${DOCKER_IMAGE_STUDIO_CLIENT?Variable not set}:${TAG-latest}'
+    restart: always
+    networks:
+      - traefik-public
+      - default
+    build:
+      context: .
+      dockerfile: studio-client/Dockerfile
+      args:
+        - VITE_API_URL=https://api.${DOMAIN?Variable not set}
+        - NODE_ENV=production
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+
+      - traefik.http.services.${STACK_NAME?Variable not set}-studio-client.loadbalancer.server.port=80
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-http.rule=Host(`studio.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-http.entrypoints=http
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-https.rule=Host(`studio.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-https.tls.certresolver=le
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-client-http.middlewares=https-redirect
+
+  studio-admin:
+    image: '${DOCKER_IMAGE_STUDIO_ADMIN?Variable not set}:${TAG-latest}'
+    restart: always
+    networks:
+      - traefik-public
+      - default
+    build:
+      context: .
+      dockerfile: studio-admin/Dockerfile
+      args:
+        - VITE_API_URL=https://api.${DOMAIN?Variable not set}
+        - NODE_ENV=production
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+
+      - traefik.http.services.${STACK_NAME?Variable not set}-studio-admin.loadbalancer.server.port=80
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-http.rule=Host(`studio-admin.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-http.entrypoints=http
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-https.rule=Host(`studio-admin.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-https.tls.certresolver=le
+
+      - traefik.http.routers.${STACK_NAME?Variable not set}-studio-admin-http.middlewares=https-redirect
 volumes:
   app-db-data:
   redis-data:

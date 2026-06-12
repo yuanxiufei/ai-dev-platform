@@ -1,25 +1,37 @@
 # 🚀 AI Fullstack Platform
 
-基于 FastAPI + React 的 AI 全栈开发平台，集成代码生成、视频生成、异步任务处理等 AI 能力。
+基于 FastAPI + Vue 3 / React 19 的 AI 全栈开发平台，集成代码生成、视频生成、异步任务处理等 AI 能力。
 
 ## 系统架构
 
 ```
-                ┌──────────────────┐
-                │   React 前端     │  (TypeScript + Tailwind)
-                └────────┬─────────┘
-                         ↓
-           ┌──────────────────────────┐
-           │   FastAPI API 网关       │  (REST + OpenAPI)
-           └──────────┬───────────────┘
-                      ↓
-           ┌──────────────────┐
-           │   Redis 消息队列  │
-           └────────┬─────────┘
-     ┌──────────────┴──────────────┐
-     ↓                             ↓
- 代码生成 Worker              视频生成 Worker
- (Qwen2.5-Coder)             (CogVideoX)
+  ┌──────────────────────────────────────────────┐
+  │                  pnpm Monorepo               │
+  │                                              │
+  │  ┌──────────────┐  ┌──────────────┐         │
+  │  │  video-client │  │  video-admin │         │
+  │  │   (Vue 3)    │  │  (React 19)  │         │
+  │  │   端口 5174   │  │   端口 5176   │         │
+  │  └──────┬───────┘  └──────┬───────┘         │
+  │  ┌──────┴───────┐  ┌──────┴───────┐         │
+  │  │ studio-client│  │ studio-admin │         │
+  │  │   (Vue 3)    │  │   (Vue 3)    │         │
+  │  │   端口 5173   │  │   端口 5175   │         │
+  │  └──────┬───────┘  └──────┬───────┘         │
+  └─────────┼──────────────────┼─────────────────┘
+            └────────┬─────────┘
+                     ↓
+       ┌──────────────────────────┐
+       │   FastAPI API 网关       │  (REST + OpenAPI)
+       └──────────┬───────────────┘
+                  ↓
+       ┌──────────────────┐
+       │   Redis 消息队列  │
+       └────────┬─────────┘
+ ┌──────────────┴──────────────┐
+ ↓                             ↓
+代码生成 Worker              视频生成 Worker
+(Qwen2.5-Coder)             (CogVideoX)
 ```
 
 ## 技术栈
@@ -32,12 +44,15 @@
 - 🔑 **JWT** — 用户认证与鉴权
 - 📫 **邮件** — 密码重置等邮件功能
 
-### 前端
-- 🚀 **React 19** + **TypeScript**
-- ⚡ **Vite 7** — 构建工具
-- 🎨 **Tailwind CSS 4** + **Radix UI** — 组件与样式
-- 🌗 **深色模式** 支持
-- 🧪 **Playwright** — E2E 测试
+### 前端（pnpm Monorepo）
+- 🌐 **4 个前端项目** — C 端 + 管理端 × 视频/代码两条业务线
+- ⚡ **Vite 5 / 6 / 7** — 各项目独立版本
+- 🎨 **Tailwind CSS 4** — 原子化样式
+- 🖥️ **Vue 3** + **TypeScript** — video-client / studio-client / studio-admin
+- ⚛️ **React 19** + **TypeScript** — video-admin
+- 🧩 **Radix UI** / **shadcn/ui** 风格组件 — video-admin
+- 🌗 **深色模式** 支持（各项目独立实现）
+- 🧪 **Playwright** — E2E 测试（video-admin）
 
 ### 任务队列
 - 🔴 **Redis 7** — 消息代理
@@ -61,7 +76,7 @@
 | 工具 | 用途 |
 |------|------|
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | 数据库 / Redis / 容器化 |
-| [Bun](https://bun.sh/) | 前端运行时 |
+| [pnpm](https://pnpm.io/) | 前端包管理 |
 | [uv](https://docs.astral.sh/uv/) | Python 包管理 |
 
 ### 方式一：Docker Compose（一键启动）
@@ -74,7 +89,10 @@ docker compose watch
 
 | 服务 | 地址 |
 |------|------|
-| 前端 | http://localhost:5173 |
+| Studio Client（C 端） | http://localhost:5173 |
+| Video Client（C 端） | http://localhost:5174 |
+| Studio Admin（管理端） | http://localhost:5175 |
+| Video Admin（管理端） | http://localhost:5176 |
 | API 文档 | http://localhost:8000/docs |
 | 数据库管理 | http://localhost:8080 |
 | Traefik 面板 | http://localhost:8090 |
@@ -100,10 +118,21 @@ uv run python app/initial_data.py
 # 3. 启动后端（终端 1）
 uv run fastapi dev app/main.py
 
-# 4. 启动前端（终端 2）
-cd ../frontend
-bun install
-bun run dev
+# 4. 安装前端依赖（首次）
+pnpm install
+
+# 5. 启动前端（按需选择）
+# 终端 2：Studio Client（C 端 AI 编辑器）
+pnpm dev:studio-client
+
+# 终端 3：Video Client（C 端视频生成）
+pnpm dev:video-client
+
+# 终端 4：Studio Admin（管理端）
+pnpm dev:studio-admin
+
+# 终端 5：Video Admin（管理端）
+pnpm dev:video-admin
 ```
 
 ### 默认账户
@@ -123,19 +152,49 @@ bun run dev
 ai-fullstack-platform/
 ├── backend/                    # FastAPI 后端
 │   ├── app/
-│   │   ├── api/               # API 路由（用户、认证、CRUD）
+│   │   ├── api/
+│   │   │   ├── main.py         # 路由注册入口
+│   │   │   └── routes/
+│   │   │       ├── video/      # 视频业务 API
+│   │   │       │   ├── admin/  # 管理端路由
+│   │   │       │   └── client/ # C 端路由
+│   │   │       └── studio/     # 代码业务 API
+│   │   │           ├── admin/  # 管理端路由（项目/模板）
+│   │   │           └── client/ # C 端路由（会话/模型/对话）
 │   │   ├── core/              # 配置、JWT、数据库连接
 │   │   ├── models.py          # SQLModel 数据模型
 │   │   └── initial_data.py    # 初始化数据脚本
 │   ├── scripts/prestart.sh    # 数据库迁移脚本
 │   └── pyproject.toml
 │
-├── frontend/                   # React 前端
+├── video-client/               # Vue 3 C 端 — 视频生成
 │   ├── src/
-│   │   ├── routes/            # 页面路由
-│   │   ├── components/        # UI 组件
-│   │   └── client/            # 自动生成的 API 客户端
-│   ├── vite.config.ts
+│   ├── vite.config.ts          # 端口 5174
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+│
+├── video-admin/                # React 19 管理端 — 视频管理
+│   ├── src/
+│   ├── vite.config.ts          # 端口 5176
+│   ├── Dockerfile
+│   ├── Dockerfile.playwright
+│   ├── nginx.conf
+│   └── package.json
+│
+├── studio-client/              # Vue 3 C 端 — AI 编辑器（含 Tauri）
+│   ├── src/
+│   ├── src-tauri/              # Tauri 桌面端
+│   ├── vite.config.ts          # 端口 5173
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+│
+├── studio-admin/               # Vue 3 管理端 — 项目管理 & 模板
+│   ├── src/
+│   ├── vite.config.ts          # 端口 5175
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   └── package.json
 │
 ├── queue/                      # 任务队列
@@ -166,14 +225,16 @@ ai-fullstack-platform/
 ├── compose.yml                 # Docker Compose 编排
 ├── compose.override.yml        # 本地开发覆盖配置
 ├── .env                        # 环境变量
+├── pnpm-workspace.yaml         # pnpm monorepo 配置
 ├── pyproject.toml              # Python 工作区配置
-└── package.json                # 前端工作区配置
+└── package.json                # 前端工作区根配置（dev/build 脚本）
 ```
 
 ---
 
 ## 核心 API
 
+### 用户 / 认证
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/v1/login/access-token` | 用户登录 |
@@ -181,8 +242,28 @@ ai-fullstack-platform/
 | `GET` | `/api/v1/users/me` | 获取当前用户 |
 | `PATCH` | `/api/v1/users/me` | 更新当前用户 |
 | `POST` | `/api/v1/password-recovery/{email}` | 密码找回 |
+
+### 视频业务 (Video)
+| 方法 | 路径 | 说明 |
+|------|------|------|
 | `GET` | `/api/v1/items/` | 获取项目列表 |
 | `POST` | `/api/v1/items/` | 创建项目 |
+
+### 代码 / AI 业务 (Studio)
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/studio/projects` | 创建项目 |
+| `GET` | `/studio/projects` | 项目列表 |
+| `POST` | `/studio/templates` | 创建模板 |
+| `GET` | `/studio/templates` | 模板列表 |
+| `POST` | `/studio/sessions` | 创建会话 |
+| `GET` | `/studio/sessions` | 会话列表 |
+| `POST` | `/studio/models` | 模型管理 |
+| `POST` | `/studio/chat` | AI 对话 |
+
+### 运维
+| 方法 | 路径 | 说明 |
+|------|------|------|
 | `GET` | `/api/v1/utils/health-check/` | 健康检查 |
 
 完整 API 见 Swagger 文档：http://localhost:8000/docs

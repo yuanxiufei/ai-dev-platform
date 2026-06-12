@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
+
+WORKDIR /app
+
+# Install pnpm via corepack
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+
+# Copy workspace root configs
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Copy target project package.json
+COPY video-admin/package.json ./video-admin/
+
+# Install only this project's deps
+RUN pnpm install --frozen-lockfile --filter video-admin
+
+# Copy project source
+COPY video-admin/ ./video-admin/
+
+WORKDIR /app/video-admin
+
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}

@@ -1,8 +1,9 @@
 {
-  "name": "frontend",
+  "name": "video-admin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",

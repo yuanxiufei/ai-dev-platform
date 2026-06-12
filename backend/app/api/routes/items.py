@@ -7,7 +7,7 @@ from sqlmodel import col, func, select
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
 
-router = APIRouter(prefix="/items", tags=["items"])
+router = APIRouter(prefix="/items", tags=["items"])  # 模板占位：video-admin 临时管理界面，后续替换为视频业务
 
 
 @router.get("/", response_model=ItemsPublic)

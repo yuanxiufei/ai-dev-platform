@@ -2,7 +2,10 @@ services:
 
   # Local services are available on their ports, but also available on:
   # http://api.localhost.tiangolo.com: backend
-  # http://dashboard.localhost.tiangolo.com: frontend
+  # http://video.localhost.tiangolo.com: video-client
+  # http://video-admin.localhost.tiangolo.com: video-admin
+  # http://studio.localhost.tiangolo.com: studio-client
+  # http://studio-admin.localhost.tiangolo.com: studio-admin
   # etc. To enable it, update .env, set:
   # DOMAIN=localhost.tiangolo.com
   proxy:
@@ -101,13 +104,48 @@ services:
       - "1080:1080"
       - "1025:1025"
 
-  frontend:
+  # ===== 四个前端本地开发 =====
+
+  video-client:
+    restart: "no"
+    ports:
+      - "5174:80"
+    build:
+      context: .
+      dockerfile: video-client/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - NODE_ENV=development
+
+  video-admin:
+    restart: "no"
+    ports:
+      - "5176:80"
+    build:
+      context: .
+      dockerfile: video-admin/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - NODE_ENV=development
+
+  studio-client:
     restart: "no"
     ports:
       - "5173:80"
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: studio-client/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - NODE_ENV=development
+
+  studio-admin:
+    restart: "no"
+    ports:
+      - "5175:80"
+    build:
+      context: .
+      dockerfile: studio-admin/Dockerfile
       args:
         - VITE_API_URL=http://localhost:8000
         - NODE_ENV=development
@@ -115,7 +153,7 @@ services:
   playwright:
     build:
       context: .
-      dockerfile: frontend/Dockerfile.playwright
+      dockerfile: video-admin/Dockerfile.playwright
       args:
         - VITE_API_URL=http://backend:8000
         - NODE_ENV=production
@@ -132,8 +170,8 @@ services:
       - PLAYWRIGHT_HTML_HOST=0.0.0.0
       - CI=${CI}
     volumes:
-      - ./frontend/blob-report:/app/frontend/blob-report
-      - ./frontend/test-results:/app/frontend/test-results
+      - ./video-admin/blob-report:/app/video-admin/blob-report
+      - ./video-admin/test-results:/app/video-admin/test-results
     ports:
       - 9323:9323
 

@@ -1,0 +1,5 @@
+packages:
+  - 'video-client'
+  - 'video-admin'
+  - 'studio-admin'
+  - 'studio-client'
