@@ -39,5 +39,16 @@
   "error": "错误",
   "success": "成功",
   "warning": "警告",
-  "info": "信息"
+  "info": "信息",
+  "user": {
+    "profile": "个人资料",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "theme": {
+    "toggle": "切换主题"
+  },
+  "language": {
+    "toggle": "切换语言"
+  }
 }

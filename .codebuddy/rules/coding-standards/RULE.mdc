@@ -1,0 +1,74 @@
+---
+description: Python后端代码规范、FastAPI启动初始化流程、环境变量配置、全局单例模式
+alwaysApply: true
+enabled: true
+updatedAt: 2026-06-13T12:17:00.000Z
+provider: 
+---
+
+# 代码规范与启动配置规则
+
+## Python后端规范
+
+1. 导入顺序：标准库 → 第三方 → 项目内部
+2. 所有函数必须标注参数和返回值类型
+3. 错误处理使用 HTTPException，不在路由里裸 raise
+4. 分页统一格式：请求 `?page=1&size=20`，响应 `{"data": [...], "total": N, "page": N, "size": N}`
+
+## FastAPI启动初始化流程 (backend/app/main.py lifespan)
+
+1. 初始化ApiGateway (从环境变量加载API密钥)
+2. 初始化ModelDownloadManager (从MODELS_DIR加载)
+3. 初始化ModelScheduler (从registry注册本地模型)
+4. 初始化ModelRouter (注入gateway + fallback_model)
+5. 初始化AutoOptimizer (注入scheduler)
+6. 打印启动日志：providers配置数、模型数
+
+## 环境变量配置
+
+**API密钥（通过环境变量注入）**：
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `AZURE_OPENAI_API_KEY`
+- `REPLICATE_API_KEY`
+- `ZHIPU_API_KEY`
+- `QWEN_API_KEY`
+
+**模型配置**：
+- `MODELS_DIR` — 默认 `models/`
+- `MODEL_PREFER_LOCAL` — 默认 `true`
+
+**调度配置**：
+- `MODEL_REQUEST_TIMEOUT=30`
+- `MODEL_MAX_RETRIES=2`
+- `MODEL_FALLBACK_ENABLED=true`
+
+**优化配置**：
+- `AUTO_OPTIMIZE_ENABLED=true`
+- `AUTO_OPTIMIZE_INTERVAL_HOURS=24`
+
+## 全局单例模式
+
+- **ModelRouter**: `init_model_router()` / `get_model_router()`
+- **ApiGateway**: `init_api_gateway()` / `get_api_gateway()`
+- **ModelDownloadManager**: `init_downloader()` / `get_downloader()`
+- **ModelScheduler**: `init_scheduler()` / `get_scheduler()`
+- **AutoOptimizer**: `init_optimizer()` / `get_optimizer()`
+
+## 系统路由
+
+```
+GET    /api/v1/system/health                    — 基本健康检查
+GET    /api/v1/system/health/detailed           — 详细健康检查（DB+模型+网关+路由）
+GET    /api/v1/system/health/stats              — 系统统计（数据库记录数+存储使用）
+GET    /api/v1/system/models                    — 全局模型列表
+GET    /api/v1/system/models/{name}             — 模型详情
+POST   /api/v1/system/models/download           — 下载模型
+POST   /api/v1/system/models/{name}/load        — 加载模型
+POST   /api/v1/system/models/{name}/unload      — 卸载模型
+GET    /api/v1/system/models/providers           — API提供商列表
+POST   /api/v1/system/models/providers           — 配置API密钥
+GET    /api/v1/system/models/usage-stats         — 使用统计
+POST   /api/v1/system/models/optimize            — 触发自动优化
+```

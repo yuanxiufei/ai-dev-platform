@@ -1,0 +1,18 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "AI 视频工坊" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e8]
+        - generic [ref=e10]: AI 视频工坊
+      - navigation [ref=e11]:
+        - link "生成" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - generic [ref=e15]: 生成
+        - link "作品" [ref=e16] [cursor=pointer]:
+          - /url: /gallery
+          - img [ref=e17]
+          - generic [ref=e19]: 作品
+  - main [ref=e20]
+  - contentinfo [ref=e21]: © 2026 AI Video Studio · 让创意化作影像

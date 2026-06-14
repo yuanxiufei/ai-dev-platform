@@ -1,0 +1,88 @@
+---
+description: AI全栈平台项目架构总览、目录结构、核心设计原则与模型调度回退链
+alwaysApply: true
+enabled: true
+updatedAt: 2026-06-13T12:17:00.000Z
+provider: 
+---
+
+# AI Fullstack Platform — 项目架构与核心设计规范
+
+## 项目定位
+
+AI Fullstack Platform 是一个包含两个子项目的全栈AI平台：
+- **Studio**: AI编程工具（截图转代码、自然语言生成全栈项目、AI对话辅助编程）
+- **Video**: 视频生成工具（文字转视频、UI演示视频、视频管理平台）
+
+## 目录结构
+
+```
+backend/app/core/          — 核心基础设施
+  model_router.py          — ModelRouter + UnifiedModelInterface (模型调度入口)
+  api_gateway.py           — ApiGateway + 多Provider适配器 (OpenAI/Claude/DeepSeek/Replicate/智谱/通义千问)
+  fallback_chain.py        — FallbackChain 五层回退逻辑
+  model_downloader.py      — 模型下载管理器 (HuggingFace/ModelScope双源)
+  config.py                — 全局配置 (含模型相关配置)
+
+ai_models/                 — 模型管理层
+  registry.py              — 注册中心 (本地+远程模型)
+  scheduler.py             — 动态评分调度器
+  api_proxy.py             — 第三方API统一代理
+  optimizer.py             — 自动优化引擎
+  downloader.py            — 模型下载器
+
+backend/app/api/routes/    — API路由
+  studio/                  — Studio路由 (projects/templates/chat/sessions/models)
+  video/                   — Video路由 (videos/analytics/moderation/browse/generate/play)
+  system/                  — 系统路由 (models管理/health检查)
+
+backend/app/models/        — 数据模型
+  studio_models.py         — StudioProject, StudioTemplate, ChatSession, ChatMessage
+  video_models.py          — VideoTask, VideoAsset
+  system_models.py         — ModelDownload, ModelUsageStat, ApiCredential
+```
+
+## 核心设计原则
+
+1. **能力导向**：模型按能力分类（代码生成/视频生成/视觉理解），不按厂商分类
+2. **回退链**：本地模型 → 第三方API → 内置基础模型，三者自动切换（五层回退）
+3. **统一接口**：所有模型调用走同一套 API 契约 (ModelRequest/ModelResponse)，屏蔽底层差异
+4. **自主实现**：所有代码自研，MIT许可证
+
+## 模型调度回退链（优先级从高到低）
+
+```
+Layer 1: 用户指定模型（preferred_model）→ 直接使用
+Layer 2: 本地最优模型（按DynamicScore排序的前3个）
+Layer 3: 本地次优模型（降级尝试）
+Layer 4: 第三方API（OpenAI → Claude → DeepSeek → Replicate → 智谱 → 通义千问）
+Layer 5: 内置基础模型（永远可用，确保系统不中断）
+```
+
+## DynamicScore 评分公式
+
+```
+DynamicScore = base_priority × availability_factor × performance_factor
+- availability_factor: 0=不可用, 0.5=降级, 1=完全可用
+- performance_factor: 成功率(60%权重) × 速度因子(40%权重)
+```
+
+## 数据流
+
+```
+用户请求 → FastAPI路由 → ModelRouter.generate(ModelRequest) → Scheduler.rank(capability) → FallbackChain执行 → 返回ModelResponse
+```
+
+## API 前缀
+
+所有API挂载在 `/api/v1/` 下，前端通过 FastAPI 后端统一调度。
+
+## 支持的第三方API提供商
+
+- **openai**: GPT-4o, GPT-4-turbo, GPT-3.5, o1, o3
+- **anthropic**: Claude Sonnet 4, Claude 3 Opus
+- **deepseek**: DeepSeek-V3, DeepSeek-Coder
+- **azure**: Azure OpenAI Service
+- **replicate**: CogVideoX, Stable Video Diffusion
+- **zhipu**: GLM-4 Plus, GLM-4V (国内)
+- **qwen**: 通义千问 Max/Plus (国内)

@@ -18,6 +18,8 @@ from app.api.routes.studio import (
     sessions_router,
     templates_router,
 )
+from app.api.routes.system import models_router as system_models_router
+from app.api.routes.system import health_router as system_health_router
 from app.api.routes import items, private
 from app.core.config import settings
 
@@ -27,6 +29,10 @@ api_router = APIRouter()
 api_router.include_router(login_router)       # POST /login/access-token
 api_router.include_router(users_router)       # CRUD /users
 api_router.include_router(utils_router)       # GET /health-check/
+
+# ===== 系统管理 API =====
+api_router.include_router(system_models_router)  # /system/models — 全局模型管理
+api_router.include_router(system_health_router)  # /system/health — 系统健康检查
 
 # ===== video-admin 后台 =====
 api_router.include_router(items.router)        # 模板占位，后续替换

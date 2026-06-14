@@ -1,0 +1,102 @@
+---
+description: Video视频生成工具的后端API设计规范、功能模块、视频生成流程与WebSocket实时进度
+alwaysApply: false
+enabled: true
+updatedAt: 2026-06-13T12:17:00.000Z
+provider: 
+---
+
+# Video 项目 — 后端实现规范与API设计
+
+## 功能模块
+
+| 模块 | 管理端(admin) | C端(client) | 优先级 |
+|------|:---:|:---:|:---:|
+| 视频 CRUD | ✅ | — | P0 |
+| 视频生成 | ✅ | ✅ | P0 |
+| 视频浏览/搜索 | — | ✅ | P0 |
+| 视频播放 | — | ✅ | P0 |
+| 数据分析 | ✅ | — | P1 |
+| 内容审核 | ✅ | — | P1 |
+| 模型下载/切换 | ✅ | ✅ | P1 |
+| 生成任务队列 | ✅ | ✅ | P1 |
+
+## 数据流
+
+```
+用户输入（文本提示词）
+→ POST /videos/generate
+→ ModelRouter调度
+→ 异步执行（VideoTask队列）
+→ 视频文件生成
+→ 存储文件系统
+→ WebSocket实时推送进度
+```
+
+## API 端点
+
+### 管理端 - 视频管理
+```
+GET    /api/v1/videos                            — 视频列表（分页）
+POST   /api/v1/videos                            — 创建视频记录
+GET    /api/v1/videos/{id}                       — 视频详情
+PUT    /api/v1/videos/{id}                       — 更新视频信息
+DELETE /api/v1/videos/{id}                       — 删除视频
+```
+
+### 管理端 - 数据分析
+```
+GET    /api/v1/videos/analytics/overview         — 整体数据概览
+GET    /api/v1/videos/analytics/{id}             — 单个视频分析
+```
+
+### 管理端 - 内容审核
+```
+GET    /api/v1/videos/moderation/queue           — 审核队列
+POST   /api/v1/videos/moderation/{id}/approve    — 批准
+POST   /api/v1/videos/moderation/{id}/reject     — 驳回
+```
+
+### C端
+```
+GET    /api/v1/videos/browse                     — 浏览（分页+标签筛选）
+GET    /api/v1/videos/search                     — 搜索
+GET    /api/v1/videos/{id}/play                  — 播放（自动增加观看计数）
+GET    /api/v1/videos/{id}/subtitles             — 字幕
+POST   /api/v1/videos/generate                   — 发起生成任务
+GET    /api/v1/videos/generate/{task_id}         — 查询任务状态
+WS     /api/v1/videos/generate/{task_id}/ws      — WebSocket实时进度
+```
+
+## 视频生成流程
+
+1. 用户提交 GenerateRequest(prompt, model_name?, num_frames, fps, style)
+2. 自动选择最优视频模型（scheduler.get_best_model("video_gen")）
+3. 创建VideoTask记录(status=PENDING)
+4. 异步后台执行：ModelRouter.generate(ModelRequest(capability=VIDEO_GENERATION))
+5. 实时更新progress(0-100)到数据库
+6. WebSocket推送进度给前端
+7. 完成后更新output_path/thumbnail_path/duration
+8. 失败则记录error_message
+
+## 实时进度推送 (WebSocket)
+
+端点：`/api/v1/videos/generate/{task_id}/ws`
+
+- 每秒轮询数据库获取最新进度
+- 进度变化时推送JSON: `{"task_id", "status", "progress", "output_path", "error_message"}`
+- status为COMPLETED/FAILED时推送done=True并断开
+
+## 内容审核流程
+
+1. 视频上传后 `is_approved=False`
+2. 管理员查看审核队列 GET `/moderation/queue`
+3. 批准：`is_approved=True, is_public=True`
+4. 驳回：`is_approved=False, is_public=False`（不公开）
+
+## 视频生成远程模型
+
+| 注册名 | API模型 | Priority |
+|--------|---------|----------|
+| replicate-cogvideox | lucataco/cogvideox-5b | 30 |
+| replicate-svd | stability-ai/stable-video-diffusion | 28 |

@@ -197,7 +197,7 @@ ai-fullstack-platform/
 │   ├── nginx.conf
 │   └── package.json
 │
-├── queue/                      # 任务队列
+├── task_queue/                  # 任务队列
 │   ├── celery_app.py          # Celery 配置
 │   └── redis_config.py        # Redis 连接
 │

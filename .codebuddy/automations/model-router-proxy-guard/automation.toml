@@ -1,0 +1,11 @@
+name = "Smart Router Proxy 守护"
+prompt = """
+检查 Smart Model Router Proxy 是否在运行（检测端口 9020 是否被占用）。
+如果没在跑，用 PowerShell 后台启动：
+powershell Start-Process -NoNewWindow python -ArgumentList "tools/model-router-cli/model_router_cli.py proxy"
+如果已经在跑，直接结束，无需任何操作。
+"""
+scheduleType = "recurring"
+rrule = "FREQ=HOURLY;INTERVAL=1"
+cwds = ["d:/code/ai-fullstack-platform"]
+status = "ACTIVE"

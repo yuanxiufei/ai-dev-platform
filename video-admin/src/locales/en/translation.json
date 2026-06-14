@@ -39,5 +39,16 @@
   "error": "Error",
   "success": "Success",
   "warning": "Warning",
-  "info": "Info"
+  "info": "Info",
+  "user": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "theme": {
+    "toggle": "Toggle theme"
+  },
+  "language": {
+    "toggle": "Toggle language"
+  }
 }

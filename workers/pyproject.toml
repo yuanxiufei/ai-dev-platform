@@ -5,8 +5,12 @@ requires-python = ">=3.10"
 dependencies = [
     "celery[redis]>=5.4.0",
     "ai-models",
-    "queue",
+    "task-queue",
 ]
+
+[tool.uv.sources]
+ai-models = { workspace = true }
+task-queue = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

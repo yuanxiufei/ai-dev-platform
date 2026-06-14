@@ -94,6 +94,30 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
 
+    # ── AI 模型相关配置 ──────────────────────────────
+    MODELS_DIR: str = "models"               # 本地模型存放目录
+    DEFAULT_MODEL: str = "gemma-31b"         # 默认使用的模型
+    MODEL_PREFER_LOCAL: bool = True          # 是否优先使用本地模型
+
+    # 第三方 API 密钥（可通过环境变量注入）
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    DEEPSEEK_API_KEY: str = ""
+    AZURE_OPENAI_API_KEY: str = ""
+    REPLICATE_API_KEY: str = ""
+    ZHIPU_API_KEY: str = ""
+    QWEN_API_KEY: str = ""
+    OLLAMA_API_KEY: str = "ollama-local"  # Ollama 本地运行无需密钥，使用占位值
+
+    # 模型调度配置
+    MODEL_REQUEST_TIMEOUT: int = 30          # 单次请求超时（秒）
+    MODEL_MAX_RETRIES: int = 2               # 最大重试次数
+    MODEL_FALLBACK_ENABLED: bool = True      # 是否启用回退链
+
+    # 自动优化配置
+    AUTO_OPTIMIZE_ENABLED: bool = True       # 是否启用自动优化
+    AUTO_OPTIMIZE_INTERVAL_HOURS: int = 24   # 优化间隔（小时）
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (

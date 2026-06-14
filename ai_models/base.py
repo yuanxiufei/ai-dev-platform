@@ -52,6 +52,28 @@ class ModelType(str, Enum):
     TEXT_GENERATION = "text_generation"    # 通用文本生成
 
 
+class ModelStrength(str, Enum):
+    """模型擅长方向 —— 用于 sub-capability 粒度路由。
+
+    同一个 CODE_GENERATION 能力下，不同模型擅长不同子方向：
+      - UI_DESIGN:     擅长 UI 页面设计与布局（HTML/CSS/Vue/React 组件）
+      - FRONTEND_CODE: 擅长前端工程代码（状态管理、路由、组件通信）
+      - BACKEND_CODE:  擅长后端代码（API、数据库、中间件）
+      - GENERAL_CODE:  通用代码生成（全能型）
+      - VISION_DENSE:  擅长密集视觉理解（截图→代码、OCR）
+      - SHORT_VIDEO:   擅长短视频生成
+      - LONG_VIDEO:    擅长长视频生成
+    """
+
+    UI_DESIGN = "ui_design"              # UI页面设计
+    FRONTEND_CODE = "frontend_code"       # 前端工程代码
+    BACKEND_CODE = "backend_code"         # 后端代码
+    GENERAL_CODE = "general_code"         # 通用代码
+    VISION_DENSE = "vision_dense"         # 密集视觉理解
+    SHORT_VIDEO = "short_video"           # 短视频生成
+    LONG_VIDEO = "long_video"             # 长视频生成
+
+
 class ModelFormat(str, Enum):
     """Model file format — determines which loader to use.
 
@@ -86,6 +108,7 @@ class ModelConfig:
     max_tokens: int = 4096             # 最大输出 token 数
     temperature: float = 0.7           # 生成温度（0=确定性, 越高越随机）
     priority: int = 0                  # 同类型多模型时的优先级（越大越优先）
+    strengths: list[str] = field(default_factory=list)  # 擅长方向（ModelStrength 值列表）
     extra: dict[str, Any] = field(default_factory=dict)  # 扩展字段（未来新增参数用）
 
     def to_dict(self) -> dict[str, Any]:
@@ -98,6 +121,7 @@ class ModelConfig:
             "device": self.device,
             "dtype": self.dtype,
             "priority": self.priority,
+            "strengths": self.strengths,
         }
 
     @property

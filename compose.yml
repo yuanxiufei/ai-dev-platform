@@ -73,9 +73,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
     volumes:
       - ./workers:/app/workers:ro
-      - ./queue:/app/queue:ro
+      - ./task_queue:/app/task_queue:ro
     working_dir: /app
-    command: celery -A queue.celery_app worker --loglevel=info
+    command: celery -A task_queue.celery_app worker --loglevel=info
 
   prestart:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'

@@ -6,7 +6,7 @@ Uses:
 """
 
 import logging
-from queue.celery_app import celery_app
+from task_queue.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ Code Generation Worker — 代码生成异步任务
 """
 
 import logging
-from queue.celery_app import celery_app
+from task_queue.celery_app import celery_app
 from ai_models.registry import list_by_type, ModelType
 from ai_models.coder_model import CodeGenerationModel
 

@@ -1,0 +1,105 @@
+---
+description: Studio AI编程工具的后端API设计规范、功能模块、对话流程与模型注册
+alwaysApply: false
+enabled: true
+updatedAt: 2026-06-13T12:17:00.000Z
+provider: 
+---
+
+# Studio 项目 — 后端实现规范与API设计
+
+## 功能模块
+
+| 模块 | 管理端(admin) | C端(client) | 优先级 |
+|------|:---:|:---:|:---:|
+| 项目管理 CRUD | ✅ | ✅(只读) | P0 |
+| 模板市场 | ✅ | ✅ | P0 |
+| AI 对话编程 | — | ✅ | P0 |
+| 会话管理 | — | ✅ | P0 |
+| 代码生成（截图→代码） | ✅ | ✅ | P1 |
+| 全栈项目生成 | ✅ | ✅ | P1 |
+| 模型管理（下载/切换） | ✅ | ✅ | P1 |
+| 部署管理 | ✅ | — | P2 |
+
+## 数据流
+
+```
+用户输入（截图/文本描述）
+→ POST /studio/chat 或 POST /studio/projects
+→ ModelRouter 选择最优模型（本地优先→API回退）
+→ 生成代码/响应
+→ 返回前端展示
+```
+
+## API 端点
+
+### 项目管理
+```
+GET    /api/v1/studio/projects                  — 项目列表（分页+筛选）
+POST   /api/v1/studio/projects                  — 创建项目
+GET    /api/v1/studio/projects/{id}             — 项目详情
+PUT    /api/v1/studio/projects/{id}             — 更新项目
+DELETE /api/v1/studio/projects/{id}             — 删除项目
+POST   /api/v1/studio/projects/generate         — AI生成项目
+POST   /api/v1/studio/projects/{id}/build       — 构建项目
+POST   /api/v1/studio/projects/{id}/deploy      — 部署项目
+```
+
+### 模板管理
+```
+GET    /api/v1/studio/templates                 — 模板列表
+GET    /api/v1/studio/templates/{id}            — 模板详情
+POST   /api/v1/studio/templates                 — 创建模板（管理端）
+POST   /api/v1/studio/templates/{id}/use        — 使用模板创建项目
+```
+
+### AI 对话
+```
+POST   /api/v1/studio/chat                      — 发送消息（支持SSE流式）
+GET    /api/v1/studio/chat/{session_id}/messages — 历史消息
+POST   /api/v1/studio/chat/stream               — SSE流式对话
+```
+
+### 会话管理
+```
+GET    /api/v1/studio/sessions                  — 会话列表
+POST   /api/v1/studio/sessions                  — 创建会话
+PUT    /api/v1/studio/sessions/{id}             — 重命名会话
+DELETE /api/v1/studio/sessions/{id}             — 删除会话
+```
+
+### 模型管理
+```
+GET    /api/v1/studio/models                    — 模型列表
+POST   /api/v1/studio/models/download           — 下载模型
+```
+
+## 对话流程
+
+1. 用户发送消息 → 获取/创建ChatSession
+2. 保存用户消息(ChatMessage, role=user)
+3. 构建ModelRequest(capability=CODE_GENERATION或VISION_LANGUAGE)
+4. get_model_router().generate(request) → 自动回退
+5. 保存助手消息(ChatMessage, role=assistant + metadata含model_used/provider/latency)
+6. HTTP响应或SSE流式输出
+
+## 本地模型注册
+
+| 模型名 | 能力 | 格式 | Priority | 硬件 |
+|--------|------|------|----------|------|
+| qwen25-coder-7b | 代码生成 | Safetensors | 10 | CUDA |
+| gemma-31b | 代码生成 | GGUF | 20 | CPU |
+| qwen25-vl-7b | 视觉理解 | Safetensors | 10 | CUDA |
+| cogvideox-5b | 视频生成 | Safetensors | 10 | CUDA |
+
+## 远程API模型
+
+| 注册名 | API模型 | 能力 | Priority |
+|--------|---------|------|----------|
+| openai-gpt4o | GPT-4o | 代码生成 | 35 |
+| openai-o3 | o3 | 代码生成 | 38 |
+| claude-sonnet | Claude Sonnet 4 | 代码生成 | 36 |
+| deepseek-v3 | DeepSeek-V3 | 代码生成 | 34 |
+| zhipu-glm4 | GLM-4 Plus | 代码生成 | 32 |
+| openai-gpt4o-vision | GPT-4o Vision | 视觉理解 | 35 |
+| replicate-cogvideox | CogVideoX-5B | 视频生成 | 30 |

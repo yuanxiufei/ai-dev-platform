@@ -13,6 +13,11 @@ const router = createRouter({
       component: () => import('@/pages/projects/ProjectList.vue'),
     },
     {
+      path: '/projects/new',
+      name: 'project-new',
+      component: () => import('@/pages/projects/ProjectNew.vue'),
+    },
+    {
       path: '/projects/:id',
       name: 'project-detail',
       component: () => import('@/pages/projects/ProjectDetail.vue'),

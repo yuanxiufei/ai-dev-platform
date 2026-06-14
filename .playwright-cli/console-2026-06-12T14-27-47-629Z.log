@@ -1,0 +1,24 @@
+[     301ms] [WARNING] [Vue warn]: Property "cn" was accessed during render but is not defined on instance. 
+  at <AuthLayout> 
+  at <Login onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:2405
+[     301ms] [WARNING] [Vue warn]: Unhandled error during execution of render function 
+  at <AuthLayout> 
+  at <Login onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:2405
+[     301ms] [WARNING] [Vue warn]: Unhandled error during execution of component update 
+  at <RouterView> 
+  at <App> @ http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:2405
+[     303ms] TypeError: _ctx.cn is not a function
+    at Proxy._sfc_render (http://localhost:5177/src/layouts/AuthLayout.vue:24:35)
+    at renderComponentRoot (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:6944:17)
+    at ReactiveEffect.componentUpdateFn [as fn] (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:8517:46)
+    at ReactiveEffect.run (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:708:19)
+    at setupRenderEffect (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:8652:5)
+    at mountComponent (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:8424:7)
+    at processComponent (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:8376:9)
+    at patch (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:7873:11)
+    at ReactiveEffect.componentUpdateFn [as fn] (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:8524:11)
+    at ReactiveEffect.run (http://localhost:5177/node_modules/.vite/deps/chunk-OK5QOA52.js?v=902bd1ad:708:19)

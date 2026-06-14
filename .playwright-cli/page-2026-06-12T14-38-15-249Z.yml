@@ -1,0 +1,62 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "AI 视频工坊" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e8]
+        - generic [ref=e10]: AI 视频工坊
+      - navigation [ref=e11]:
+        - link "生成" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - generic [ref=e15]: 生成
+        - link "作品" [ref=e16] [cursor=pointer]:
+          - /url: /gallery
+          - img [ref=e17]
+          - generic [ref=e19]: 作品
+  - main [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - img [ref=e24]
+          - generic [ref=e27]: AI 驱动 · 一句话生成短视频
+        - heading "让创意化作影像" [level=1] [ref=e28]
+        - paragraph [ref=e29]: 输入你的想法，AI 自动生成高质感短视频，支持多种风格与比例
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: 描述你的视频创意
+          - textbox "例如：一个宇航员在火星上种花的科幻短片，夕阳下的红色沙漠..." [ref=e34]
+        - generic [ref=e35]:
+          - generic [ref=e36]: 视频风格
+          - generic [ref=e37]:
+            - button "电影质感 史诗级电影风格" [ref=e38]:
+              - generic [ref=e39]: 电影质感
+              - generic [ref=e40]: 史诗级电影风格
+            - button "动漫风 二次元手绘风格" [ref=e41]:
+              - generic [ref=e42]: 动漫风
+              - generic [ref=e43]: 二次元手绘风格
+            - button "写实 照片级真实画质" [ref=e44]:
+              - generic [ref=e45]: 写实
+              - generic [ref=e46]: 照片级真实画质
+            - button "3D 渲染 三维建模质感" [ref=e47]:
+              - generic [ref=e48]: 3D 渲染
+              - generic [ref=e49]: 三维建模质感
+            - button "Vlog 生活记录风格" [ref=e50]:
+              - generic [ref=e51]: Vlog
+              - generic [ref=e52]: 生活记录风格
+            - button "复古 80s 怀旧胶片感" [ref=e53]:
+              - generic [ref=e54]: 复古
+              - generic [ref=e55]: 80s 怀旧胶片感
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - img [ref=e58]
+            - text: 时长：15s
+          - slider [ref=e61] [cursor=pointer]: "15"
+          - generic [ref=e62]:
+            - generic [ref=e63]: 5s
+            - generic [ref=e64]: 30s
+            - generic [ref=e65]: 60s
+        - button "开始生成" [disabled] [ref=e66]:
+          - img [ref=e67]
+          - text: 开始生成
+  - contentinfo [ref=e69]: © 2026 AI Video Studio · 让创意化作影像
