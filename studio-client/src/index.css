@@ -13,6 +13,13 @@
   --color-ide-border: #33334a;
   --color-ide-border-focus: #4f46e5;
 
+  /* Utility aliases */
+  --color-ide-bg-secondary: #2a2a3b;
+  --color-ide-bg-tertiary: #313145;
+  --color-ide-hover: #2a2a3d;
+  --color-ide-selection: #35354a;
+  --color-ide-text-secondary: #a6adc8;
+
   /* Text */
   --color-ide-text: #cdd6f4;
   --color-ide-text-dim: #939ab7;

@@ -35,7 +35,7 @@ import { useShortcuts, type CommandPaletteItem } from '@/composables/useShortcut
 import { usePlugins } from '@/composables/usePlugins'
 import { Search, Inbox, FilePlus, FolderOpen, Save, Undo2, Redo, Copy, ClipboardPaste, PanelLeftClose, PanelBottomClose, ZoomIn, ZoomOut, FileSearch, Terminal, MessageSquare, Settings, GitBranch, Code, Sparkles, Play, Square, Pause, ChevronsRight, ChevronRight, ChevronsLeft, SkipForward, CircleDot, Variable, Eye, Layers, Lightbulb, Wand2, TestTube2, Bug, Zap, FileText, Plus, Download, CheckCircle2, ArrowUpFromLine, ArrowDownToLine, GitBranchPlus, GitCommit, RotateCcw } from 'lucide-vue-next'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<(e:'update:visible',val:boolean)=>void,(e:'execute',cmdId:string)=>void>()
 const { getFiltered, getCategories } = useShortcuts()
 const { allCommands } = usePlugins()
@@ -66,7 +66,7 @@ function gi(icon?:string): any {
 }
 function fk(k:string): string { return k.replace(/Ctrl/g,'\u2318').replace(/Shift/g,'\u21E7').replace(/Alt/g,'\u2325') }
 
-watch(() => ({} as any).visible ?? false, (val:boolean) => { if(val) { q=''; selectedIdx=0; nextTick(() => inputRef.value?.focus()) } })
+watch(() => props.visible, (val: boolean) => { if(val) { q.value = ''; selectedIdx.value = 0; nextTick(() => inputRef.value?.focus()) } })
 </script>
 
 <style scoped>.command-palette-enter-active,.command-palette-leave-active{transition:all .15s ease}.command-palette-enter-from,.command-palette-leave-to{opacity:0;transform:translateY(-10px)}</style>

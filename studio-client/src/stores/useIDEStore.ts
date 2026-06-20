@@ -239,6 +239,7 @@ export const useIDEStore = defineStore('ide', () => {
   // ─── Activity Bar Items ────────────────────────
   const activityItems = computed<ActivityItem[]>(() => [
     { id: 'explorer', icon: 'Files', label: '资源管理器', badge: undefined },
+    { id: 'studio', icon: 'Sparkles', label: 'AI Studio', badge: undefined },
     { id: 'search', icon: 'Search', label: '搜索', badge: undefined },
     { id: 'git', icon: 'GitBranch', label: '源代码管理', badge: '9' },
     { id: 'debug', icon: 'Bug', label: '运行和调试', badge: undefined },
