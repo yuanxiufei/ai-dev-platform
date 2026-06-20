@@ -3,11 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listProjects, deleteProject } from '@/api/studio'
 import type { Project } from '@/types/studio'
-import { Plus, Trash2, ExternalLink, LayoutGrid } from 'lucide-vue-next'
+import { Plus, Trash2, ExternalLink, LayoutGrid, Search } from 'lucide-vue-next'
 
 const router = useRouter()
 const projects = ref<Project[]>([])
 const loading = ref(true)
+const searchText = ref('')
 
 onMounted(async () => {
   try {
@@ -20,6 +21,14 @@ onMounted(async () => {
   }
 })
 
+const filteredProjects = computed(() => {
+  if (!searchText.value) return projects.value
+  const q = searchText.value.toLowerCase()
+  return projects.value.filter(
+    (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)),
+  )
+})
+
 const statusLabel: Record<string, string> = {
   draft: '草稿',
   building: '构建中',
@@ -29,11 +38,11 @@ const statusLabel: Record<string, string> = {
 }
 
 const statusColor: Record<string, string> = {
-  draft: 'bg-gray-500/20 text-gray-400',
-  building: 'bg-yellow-500/20 text-yellow-400',
-  deploying: 'bg-blue-500/20 text-blue-400',
-  running: 'bg-green-500/20 text-green-400',
-  failed: 'bg-red-500/20 text-red-400',
+  draft: 'bg-gray-500/15 text-gray-400',
+  building: 'bg-yellow-500/15 text-yellow-400',
+  deploying: 'bg-blue-500/15 text-blue-400',
+  running: 'bg-green-500/15 text-green-400',
+  failed: 'bg-red-500/15 text-red-400',
 }
 
 const handleDelete = async (id: string) => {
@@ -45,45 +54,60 @@ const handleDelete = async (id: string) => {
 const goCreate = () => {
   router.push('/projects/new')
 }
+
+const goDetail = (id: string) => {
+  router.push(`/projects/${id}`)
+}
+</script>
+
+<script lang="ts">
+import { computed } from 'vue'
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface-950">
-    <!-- 顶部导航 -->
-    <header class="border-b border-white/10 bg-surface-900/50 backdrop-blur">
-      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
-            <LayoutGrid class="w-4 h-4 text-white" />
-          </div>
-          <h1 class="text-lg font-semibold">AI Studio</h1>
+  <div class="h-full max-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="shrink-0 h-14 border-b border-white/8 bg-surface-900/50 backdrop-blur flex items-center justify-between px-6">
+      <div class="flex items-center gap-3">
+        <LayoutGrid class="w-5 h-5 text-brand-400" />
+        <h2 class="text-sm font-semibold text-gray-200">我的项目</h2>
+        <span class="text-xs text-gray-600">{{ projects.length }} 个</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+          <input
+            v-model="searchText"
+            placeholder="搜索项目..."
+            class="w-48 rounded-lg bg-white/5 border border-white/8 pl-8 pr-3 py-1.5 text-xs text-gray-300 placeholder-gray-500 focus:outline-none focus:border-brand-500/30 transition-colors"
+          />
         </div>
         <button
-          class="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 px-4 py-2.5 text-sm font-medium transition-colors"
+          class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-purple-500 hover:shadow-lg hover:shadow-brand-500/15 px-3.5 py-1.5 text-xs font-medium text-white transition-all"
           @click="goCreate"
         >
-          <Plus class="w-4 h-4" />
+          <Plus class="w-3.5 h-3.5" />
           创建项目
         </button>
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+    <main class="flex-1 overflow-y-auto p-6">
       <!-- 加载 -->
       <div v-if="loading" class="py-20 text-center text-gray-500">
         <div class="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto mb-4" />
-        加载中…
+        加载中...
       </div>
 
       <!-- 空状态 -->
       <div v-else-if="!projects.length" class="py-20 text-center">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
-          <LayoutGrid class="w-8 h-8 text-gray-600" />
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-500/10 to-purple-500/10 flex items-center justify-center">
+          <LayoutGrid class="w-8 h-8 text-brand-400/60" />
         </div>
-        <p class="text-gray-400 text-lg">还没有项目</p>
+        <p class="text-gray-400 text-lg font-medium">还没有项目</p>
         <p class="text-gray-600 text-sm mt-1">创建你的第一个 AI 项目开始吧</p>
         <button
-          class="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 px-5 py-2.5 text-sm font-medium transition-colors"
+          class="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-500 hover:shadow-lg hover:shadow-brand-500/20 px-5 py-2.5 text-sm font-medium text-white transition-all"
           @click="goCreate"
         >
           <Plus class="w-4 h-4" />
@@ -91,19 +115,25 @@ const goCreate = () => {
         </button>
       </div>
 
+      <!-- 搜索无结果 -->
+      <div v-else-if="!filteredProjects.length" class="py-20 text-center">
+        <Search class="w-10 h-10 text-gray-600 mx-auto mb-3" />
+        <p class="text-gray-400 text-sm">未找到匹配的项目</p>
+      </div>
+
       <!-- 项目卡片网格 -->
       <div v-else class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         <div
-          v-for="project in projects"
+          v-for="project in filteredProjects"
           :key="project.id"
-          class="group rounded-xl border border-white/10 bg-surface-800 hover:border-brand-500/30 transition-all duration-300 cursor-pointer"
-          @click="router.push(`/projects/${project.id}`)"
+          class="group rounded-xl border border-white/8 bg-surface-800 hover:border-brand-500/20 transition-all duration-300 cursor-pointer overflow-hidden"
+          @click="goDetail(project.id)"
         >
           <!-- 卡片头 -->
           <div class="flex items-center justify-between p-5 pb-3">
-            <h3 class="font-semibold text-gray-100 truncate">{{ project.name }}</h3>
+            <h3 class="font-semibold text-gray-100 truncate text-sm">{{ project.name }}</h3>
             <span
-              :class="['rounded-full px-2.5 py-0.5 text-xs font-medium', statusColor[project.status] || statusColor.draft]"
+              :class="['rounded-full px-2.5 py-0.5 text-[11px] font-medium', statusColor[project.status] || statusColor.draft]"
             >
               {{ statusLabel[project.status] || project.status }}
             </span>
@@ -120,7 +150,7 @@ const goCreate = () => {
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 class="rounded-lg p-1.5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                @click.stop="router.push(`/projects/${project.id}`)"
+                @click.stop="goDetail(project.id)"
               >
                 <ExternalLink class="w-3.5 h-3.5" />
               </button>

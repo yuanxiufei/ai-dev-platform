@@ -40,6 +40,7 @@ class ModelCapability(str, Enum):
     VIDEO_GENERATION = "video_gen"     # 视频生成（Video 核心）
     TEXT_GENERATION = "text_gen"        # 通用文本/对话
     EMBEDDING = "embedding"             # 文本嵌入
+    TOOL_USE = "tool_use"              # 工具调用 / Function Calling（Agent 核心）
 
 
 # ── 统一请求/响应契约 ─────────────────────────────────────
@@ -56,8 +57,14 @@ class ModelRequest:
     preferred_model: str | None = None   # 用户指定模型（优先级最高）
     stream: bool = False
     images: list[bytes] | None = None    # 截图→代码 场景
-    history: list[dict[str, str]] | None = None  # 对话历史
+    history: list[dict[str, Any]] | None = None  # 对话历史（含 tool role 消息）
     task_type: str = ""                  # 子任务类型（ui_design/frontend_code/backend_code/general_code）
+
+    # ── 工具 / Function Calling 支持 ──
+    tools: list[dict[str, Any]] = field(default_factory=list)
+    """OpenAI Function Calling 格式的工具定义列表"""
+    tool_choice: str | dict[str, Any] | None = None
+    """工具选择策略: "auto" | "none" | {"type":"function", "function":{"name":"..."}}"""
 
 
 @dataclass
@@ -68,9 +75,24 @@ class ModelResponse:
     provider: str  # local | openai | anthropic | replicate | fallback
     tokens_used: int | None = None
     latency_ms: int = 0
-    finish_reason: str = "stop"  # stop | length | error
+    finish_reason: str = "stop"  # stop | length | tool_calls | error
     is_fallback: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    # ── 工具调用结果 ──
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    """
+    LLM 返回的工具调用请求，格式（OpenAI 兼容）：
+    [
+        {
+            "id": "call_abc123",
+            "type": "function",
+            "function": {"name": "get_weather", "arguments": '{"city":"Beijing"}'}
+        },
+        ...
+    ]
+    当 finish_reason == "tool_calls" 时此字段有效。
+    """
 
 
 # ── 候选模型接口 ──────────────────────────────────────────
@@ -217,42 +239,119 @@ class ModelRouter:
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         """
-        统一生成入口
+        统一生成入口（v2 — 流水线架构）
 
-        流程：
-        1. 检查 preferred_model → 直接尝试
-        2. 根据 task_type 加成匹配模型
-        3. 依次遍历回退链节点
-        4. 记录使用统计
+        流程（通过 PipelineScheduler 编排）：
+        1. InputValidationStage — 校验输入
+        2. ContentSafetyCheckStage — 安全检查
+        3. TaskBoostStage — 子任务模型加成
+        4. ModelSelectionStage — 重建回退链
+        5. ModelInferenceStage — 执行推理（含完整回退链）
+        6. ResultDecorateStage — 结果后处理
+        7. UsageRecordStage — 记录使用统计
+        """
+        from app.core.pipeline import PipelineContext, get_pipeline
+        from app.core.pipeline_stages import (
+            InputValidationStage,
+            ContentSafetyCheckStage,
+            TaskBoostStage,
+            ModelSelectionStage,
+            ModelInferenceStage,
+            ResultDecorateStage,
+            UsageRecordStage,
+        )
+
+        # 获取或创建流水线（单例缓存）
+        pipeline = get_pipeline("model_generation")
+
+        # 首次初始化时注册阶段（后续调用复用）
+        if not pipeline.stages:
+            pipeline.add_stage(InputValidationStage())
+            pipeline.add_stage(ContentSafetyCheckStage())
+            pipeline.add_stage(TaskBoostStage())
+            pipeline.add_stage(ModelSelectionStage())
+            pipeline.add_stage(ModelInferenceStage())
+            pipeline.add_stage(ResultDecorateStage())
+            pipeline.add_stage(UsageRecordStage())
+            logger.info("Model generation pipeline initialized with %d stages", len(pipeline.stages))
+
+        # 构建流水线上下文
+        context = PipelineContext(
+            metadata={
+                "model_request": request,
+                "model_router": self,
+                "capability": request.capability.value,
+            },
+        )
+
+        # 执行流水线
+        context = await pipeline.execute(context)
+
+        # 检查结果
+        if context.final_output:
+            return context.final_output
+
+        # 如果流水线未产生输出，检查是否有阻止原因
+        if context.metadata.get("content_blocked"):
+            from app.core.model_router import ModelCapability
+            reason = context.metadata.get("block_reason", "unknown")
+            return ModelResponse(
+                content=f"⚠️ 内容安全检查未通过：{reason}",
+                model_used="safety_filter",
+                provider="system",
+                finish_reason="error",
+                is_fallback=True,
+            )
+
+        # 回退到旧的直接生成逻辑（兼容性）
+        return await self._generate_legacy(request)
+
+    async def _do_generate(self, request: ModelRequest) -> ModelResponse:
+        """
+        实际执行模型推理（由 ModelInferenceStage 调用）
+
+        包含完整的五层回退链：
+        1. 用户指定模型
+        2. 本地最优模型
+        3. 本地次优模型
+        4. 第三方 API
+        5. 内置兜底模型
         """
         # 1. 用户指定模型优先
         if request.preferred_model:
             response = await self._try_specific_model(request.preferred_model, request)
             if response:
-                await self._record_usage(request, response)
                 return response
             logger.info(f"Preferred model '{request.preferred_model}' unavailable, falling back")
 
-        # 1.5 子任务类型加成（在重建链之前调整评分）
+        # 2. 子任务类型加成
         self._apply_task_boost(request.task_type)
 
-        # 2. 重建回退链（确保动态评分最新）
+        # 3. 重建回退链
         self._rebuild_chain()
 
-        # 3. 依次尝试回退链
+        # 4. 依次尝试回退链
         chain_errors: list[str] = []
         for node in self._fallback_chain:
             response = await node.try_generate(request)
             if response:
                 response.is_fallback = (node.name != "local_primary")
-                await self._record_usage(request, response)
                 return response
             chain_errors.append(f"{node.name}: all models exhausted")
 
-        # 4. 理论上不应该到这里（fallback_model 永远可用）
+        # 5. 理论上不应该到这里（fallback_model 永远可用）
         raise ModelExhaustedError(
             f"All models exhausted. Chain: {' → '.join(chain_errors)}"
         )
+
+    async def _generate_legacy(self, request: ModelRequest) -> ModelResponse:
+        """
+        旧版生成逻辑（兼容性回退）
+
+        当流水线架构未能产生输出时使用。
+        """
+        return await self._do_generate(request)
+
 
     async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
         """流式生成入口"""

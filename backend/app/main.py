@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import sentry_sdk
@@ -95,6 +96,318 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("AutoOptimizer init skipped: %s", e)
 
+    # 初始化 Agent 系统（ToolRegistry + MCP）
+    try:
+        from app.core.tools.registry import init_tool_registry, get_tool_registry
+
+        registry = init_tool_registry()
+
+        # 自动注册内置工具
+        import app.core.tools.builtin  # noqa: F401 — 触发 @register_tool 装饰器
+
+        logger.info("ToolRegistry initialized (%d tools)", registry.count)
+
+        # 加载 MCP 服务器配置
+        import json as _json
+        mcp_configs = _json.loads(settings.MCP_SERVERS or "[]")
+        if mcp_configs:
+            from app.core.mcp import MCPManager, MCPServerConfig, MCPTransport
+
+            transport_map = {
+                "sse": MCPTransport.SSE,
+                "stdio": MCPTransport.STDIO,
+                "streamable_http": MCPTransport.STREAMABLE_HTTP,
+            }
+
+            manager = MCPManager()
+            for srv in mcp_configs:
+                transport = transport_map.get(srv.get("transport", "sse"), MCPTransport.SSE)
+                config = MCPServerConfig(
+                    name=srv.get("name", ""),
+                    transport=transport,
+                    url=srv.get("url", ""),
+                    command=srv.get("command", ""),
+                    args=srv.get("args", []),
+                    env=srv.get("env", {}),
+                    tool_prefix=srv.get("tool_prefix", ""),
+                    headers=srv.get("headers", {}),
+                    auto_discover=srv.get("auto_discover", True),
+                    timeout_seconds=srv.get("timeout", 30.0),
+                )
+                manager.add_server(config)
+
+            result = await manager.connect_all()
+            logger.info(
+                "MCP Manager: %d/%d servers connected, %d tools discovered",
+                result.connected, result.total_servers, result.tools_discovered,
+            )
+
+            if result.connected > 0:
+                await manager.register_to_toolset()
+    except Exception as e:
+        logger.warning("Agent system init skipped: %s", e)
+
+    # 初始化 Worktree 管理器（Git Worktree 并行开发环境 — 借鉴 Roo Code）
+    try:
+        from app.core.agent.worktree import init_worktree_manager, WorktreeConfig
+
+        wt_config = WorktreeConfig(
+            repo_root=os.getcwd(),
+            worktrees_dir=os.getenv("WORKTREES_DIR", ".worktrees"),
+            max_active_worktrees=int(os.getenv("MAX_ACTIVE_WORKTREES", "5")),
+            auto_cleanup_minutes=int(os.getenv("WORKTREE_AUTO_CLEANUP_MINUTES", "60")),
+        )
+        wt_mgr = init_worktree_manager(wt_config)
+        wt_list = await wt_mgr.list_worktrees()
+        logger.info(
+            "WorktreeManager initialized: %d worktrees (max: %d)",
+            len(wt_list), wt_config.max_active_worktrees,
+        )
+    except Exception as e:
+        logger.warning("WorktreeManager init skipped: %s", e)
+
+    # 初始化 Code Completion 引擎（FIM 补全 + 上下文感知 — 借鉴 Continue）
+    try:
+        from app.core.tools.code_completion import init_completion_engine, register_code_completion_tools
+
+        engine = init_completion_engine()
+        register_code_completion_tools()
+        logger.info("CodeCompletion engine initialized (FIM + ContextAssembler + Ranker + Cache)")
+    except Exception as e:
+        logger.warning("CodeCompletion engine init skipped: %s", e)
+
+    # 初始化 Memory 核心层（向量化长期记忆 — 借鉴 Open WebUI Memory）
+    try:
+        from app.core.memory import init_memory_store, init_embedding_service
+
+        emb_svc = init_embedding_service()
+        mem_store = init_memory_store()
+        logger.info(
+            "MemoryStore initialized (provider=%s, dim=%d)",
+            emb_svc.provider_name, emb_svc.dim,
+        )
+    except Exception as e:
+        logger.warning("MemoryStore init skipped: %s", e)
+
+    # 初始化 Reflection 管理器（LLM 自省/反思 — 借鉴 Trae Agent reflect）
+    try:
+        from app.core.agent.reflection import init_reflection_manager, ReflectionConfig
+
+        reflect_cfg = ReflectionConfig(
+            enabled=os.getenv("REFLECTION_ENABLED", "true").lower() == "true",
+            reflect_on_error=os.getenv("REFLECTION_ON_ERROR", "true").lower() == "true",
+            save_to_memory=os.getenv("REFLECTION_SAVE_TO_MEMORY", "true").lower() == "true",
+        )
+        reflect_mgr = init_reflection_manager(reflect_cfg)
+        logger.info(
+            "ReflectionManager initialized (enabled=%s, on_error=%s)",
+            reflect_cfg.enabled, reflect_cfg.reflect_on_error,
+        )
+    except Exception as e:
+        logger.warning("ReflectionManager init skipped: %s", e)
+
+    # ═══ P1: Redis 分布式缓存 —————————————————————
+    try:
+        from app.core.cache import init_redis_client, init_rate_limiter, init_cache_manager
+
+        redis = await init_redis_client()
+        if redis:
+            limit = init_rate_limiter(
+                window_seconds=settings.REDIS_RATE_LIMIT_WINDOW,
+                max_requests=settings.REDIS_RATE_LIMIT_PER_IP,
+            )
+            logger.info("DistributedRateLimiter initialized (redis, window=%ds, max=%d)",
+                        settings.REDIS_RATE_LIMIT_WINDOW, settings.REDIS_RATE_LIMIT_PER_IP)
+        else:
+            limit = init_rate_limiter(
+                window_seconds=settings.REDIS_RATE_LIMIT_WINDOW,
+                max_requests=settings.REDIS_RATE_LIMIT_PER_IP,
+            )
+            logger.info("DistributedRateLimiter initialized (in-memory fallback)")
+
+        cache_mgr = init_cache_manager()
+        logger.info("CacheManager initialized")
+    except Exception as e:
+        logger.warning("Redis/Cache init skipped: %s", e)
+
+    # ═══ P2: Celery 任务队列 ———————————————————————
+    try:
+        from app.core.task_queue import celery_app as _celery_app  # noqa: F401
+        logger.info("Celery task queue initialized")
+    except Exception as e:
+        logger.warning("Task queue init skipped: %s", e)
+
+    # ═══ P3: Prometheus Metrics ———————————————————
+    try:
+        from app.core.metrics import init_metrics
+        init_metrics()
+    except Exception as e:
+        logger.warning("Metrics init skipped: %s", e)
+
+    # ═══ GPU 控制层 (P2) —————————————————————————
+    try:
+        from app.core.gpu import init_gpu_detector, init_gpu_allocator, init_gpu_monitor
+        if settings.GPU_ENABLED:
+            detector = init_gpu_detector()
+            devices = detector.detect_all()
+            logger.info("GPU Detector initialized (%d GPU(s) found)", len(devices))
+            allocator = init_gpu_allocator()
+            allocator.refresh_devices()
+            logger.info("GPU Allocator initialized (%d GPU(s), %d MB VRAM)",
+                        allocator.total_gpu_count, allocator.total_vram_mb)
+            monitor = init_gpu_monitor(interval_seconds=settings.GPU_MONITOR_INTERVAL)
+            await monitor.start()
+            logger.info("GPU Monitor started (interval=%ss)", settings.GPU_MONITOR_INTERVAL)
+    except Exception as e:
+        logger.warning("GPU layer init skipped: %s", e)
+
+    # ═══ 系统资源采集器 (P2) —————————————————————
+    try:
+        from app.core.resources import init_resource_collector
+        if settings.RESOURCE_COLLECTOR_ENABLED:
+            collector = init_resource_collector(
+                interval_seconds=settings.RESOURCE_COLLECTOR_INTERVAL,
+            )
+            await collector.start()
+            logger.info("ResourceCollector started (interval=%ss)",
+                        settings.RESOURCE_COLLECTOR_INTERVAL)
+    except Exception as e:
+        logger.warning("ResourceCollector init skipped: %s", e)
+
+    # ═══ 模型目录 (P2) ———————————————————————————
+    try:
+        from app.core.catalog import init_catalog
+        if settings.CATALOG_ENABLED:
+            catalog = init_catalog(
+                catalog_file=settings.CATALOG_FILE if settings.CATALOG_FILE else None,
+            )
+            logger.info("Model Catalog initialized (%d model sets)", len(catalog.model_sets))
+    except Exception as e:
+        logger.warning("Model Catalog init skipped: %s", e)
+
+    # ═══ Auth 增强 (P2) ——————————————————————————
+    try:
+        from app.core.auth import init_api_key_manager, init_refresh_token_manager
+        api_key_mgr = init_api_key_manager()
+        logger.info("ApiKeyManager initialized")
+        refresh_mgr = init_refresh_token_manager(
+            ttl_seconds=settings.REFRESH_TOKEN_TTL_HOURS * 3600,
+        )
+        logger.info("RefreshTokenManager initialized (ttl=%dh)", settings.REFRESH_TOKEN_TTL_HOURS)
+    except Exception as e:
+        logger.warning("Auth enhancement init skipped: %s", e)
+
+    # ═══ 远程代理 (P2) ———————————————————————————
+    try:
+        from app.core.remote import (
+            init_remote_session_manager,
+            init_port_forward_manager,
+            init_workspace_trust_manager,
+        )
+        if settings.REMOTE_AGENT_ENABLED:
+            session_mgr = init_remote_session_manager()
+            logger.info("RemoteSessionManager initialized")
+        if settings.PORT_FORWARD_ENABLED:
+            pf_mgr = init_port_forward_manager(
+                port_range_start=settings.PORT_FORWARD_RANGE_START,
+                port_range_end=settings.PORT_FORWARD_RANGE_END,
+            )
+            logger.info("PortForwardManager initialized (range=%d-%d)",
+                        settings.PORT_FORWARD_RANGE_START,
+                        settings.PORT_FORWARD_RANGE_END)
+        if settings.WORKSPACE_TRUST_ENABLED:
+            trust_mgr = init_workspace_trust_manager()
+            logger.info("WorkspaceTrustManager initialized")
+    except Exception as e:
+        logger.warning("Remote agent init skipped: %s", e)
+
+    # ═══ EventBus 分布式协调 (P2) ————————————————
+    try:
+        from app.core.event_coordinator import create_coordinator
+        coordinator = create_coordinator(
+            coordinator_type=settings.EVENT_COORDINATOR_TYPE,
+            redis_url=settings.EVENT_COORDINATOR_REDIS_URL,
+        )
+        await coordinator.start()
+        from app.core.event_bus import get_event_bus
+        bus = get_event_bus()
+        if bus:
+            bus.set_coordinator(coordinator)
+            logger.info("EventBus distributed coordinator set (%s)",
+                        settings.EVENT_COORDINATOR_TYPE)
+    except Exception as e:
+        logger.warning("EventBus coordinator init skipped: %s", e)
+
+    # ═══ 配置热加载 (P2) ———————————————————————
+    try:
+        from app.core.config_reloader import init_config_reloader
+        if settings.CONFIG_WATCH_ENABLED:
+            init_config_reloader(
+                env_file=".env",
+                watch_interval=settings.CONFIG_WATCH_INTERVAL,
+                auto_watch=True,
+            )
+            logger.info("ConfigReloader started (interval=%ss)", settings.CONFIG_WATCH_INTERVAL)
+    except Exception as e:
+        logger.warning("ConfigReloader init skipped: %s", e)
+
+    # ═══ PTY 终端后端 (P2) ————————————————————
+    try:
+        from app.core.terminal import init_pty_backend
+        if settings.TERMINAL_ENABLED:
+            init_pty_backend()
+            logger.info("PTY Backend initialized")
+    except Exception as e:
+        logger.warning("PTY Backend init skipped: %s", e)
+
+    # ═══ Benchmark 引擎 (P2) ———————————————————
+    try:
+        from app.core.benchmark import init_benchmark_engine
+        if settings.BENCHMARK_ENABLED:
+            init_benchmark_engine(
+                max_concurrent=settings.BENCHMARK_MAX_CONCURRENT,
+            )
+            logger.info("Benchmark Engine initialized (max_concurrent=%d)",
+                        settings.BENCHMARK_MAX_CONCURRENT)
+    except Exception as e:
+        logger.warning("Benchmark Engine init skipped: %s", e)
+
+    # ═══ 统一存储管理 (P2) —————————————————————
+    try:
+        from app.core.storage import init_storage_manager
+        init_storage_manager(
+            storage_root=settings.STORAGE_ROOT,
+            max_storage_gb=settings.STORAGE_MAX_GB,
+            max_workspace_gb=settings.STORAGE_MAX_WORKSPACE_GB,
+            models_dir=settings.MODELS_DIR,
+            data_dir=os.path.join(settings.STORAGE_ROOT, "data") if settings.STORAGE_ROOT else "data",
+        )
+        logger.info("StorageManager initialized (root=%s, max=%dGB)",
+                     settings.STORAGE_ROOT, settings.STORAGE_MAX_GB)
+    except Exception as e:
+        logger.warning("StorageManager init skipped: %s", e)
+
+    # ═══ Checkpoint 检查点系统 (P2) —————————————
+    try:
+        from app.core.checkpoint import init_checkpoint_manager
+        if settings.CHECKPOINT_ENABLED:
+            init_checkpoint_manager(
+                repo_path=os.getcwd(),
+                max_checkpoints=settings.CHECKPOINT_MAX_COUNT,
+            )
+            logger.info("CheckpointManager initialized (max=%d)", settings.CHECKPOINT_MAX_COUNT)
+    except Exception as e:
+        logger.warning("CheckpointManager init skipped: %s", e)
+
+    # ═══ Guardrails 护栏系统 (P2) ———————————————
+    try:
+        from app.core.guardrails import init_guardrails
+        if settings.GUARDRAILS_ENABLED:
+            init_guardrails()
+            logger.info("GuardrailsManager initialized")
+    except Exception as e:
+        logger.warning("GuardrailsManager init skipped: %s", e)
+
     logger.info("✓ All components initialized. Server ready.")
     yield
     # ═══ SHUTDOWN ═══
@@ -105,6 +418,44 @@ async def lifespan(app: FastAPI):
         gateway = get_api_gateway()
         import asyncio
         asyncio.ensure_future(gateway.close())
+    except Exception:
+        pass
+    try:
+        from app.core.cache import close_redis_client
+        import asyncio
+        asyncio.ensure_future(close_redis_client())
+    except Exception:
+        pass
+    # Shutdown GPU monitor
+    try:
+        from app.core.gpu import get_gpu_monitor
+        monitor = get_gpu_monitor()
+        if monitor:
+            await monitor.stop()
+    except Exception:
+        pass
+    # Shutdown resource collector
+    try:
+        from app.core.resources import get_resource_collector
+        collector = get_resource_collector()
+        if collector:
+            await collector.stop()
+    except Exception:
+        pass
+    # Shutdown config reloader
+    try:
+        from app.core.config_reloader import get_config_reloader
+        reloader = get_config_reloader()
+        if reloader:
+            reloader.stop_watching()
+    except Exception:
+        pass
+    # Shutdown PTY backend
+    try:
+        from app.core.terminal import get_pty_backend
+        backend = get_pty_backend()
+        if backend:
+            backend.shutdown_all()
     except Exception:
         pass
     logger.info("Server stopped.")
@@ -129,5 +480,23 @@ if settings.all_cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# ── P0: 全局 HTTP 中间件注册 —————————————————————
+from app.middleware import register_global_middleware, register_exception_handlers
+register_global_middleware(app)
+register_exception_handlers(app)
+
+# ── P3: Prometheus /metrics 端点 ——————————————————
+from app.core.metrics import is_metrics_enabled as _metrics_enabled
+if _metrics_enabled():
+    from app.core.metrics import generate_latest, CONTENT_TYPE_LATEST
+    from starlette.responses import Response
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_endpoint() -> Response:
+        return Response(
+            content=generate_latest(),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

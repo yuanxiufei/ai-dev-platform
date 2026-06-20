@@ -1,27 +1,128 @@
 @import 'tailwindcss';
 
+/* ============================================
+   CodeBuddy IDE — Unified Theme (IDE + Studio)
+   ============================================ */
+
 @theme {
+  /* IDE Core Colors (VSCode-inspired dark theme) */
+  --color-ide-bg: #1e1e2e;
+  --color-ide-surface: #252536;
+  --color-ide-surface-hover: #2d2d42;
+  --color-ide-surface-active: #35354a;
+  --color-ide-border: #33334a;
+  --color-ide-border-focus: #4f46e5;
+
+  /* Text */
+  --color-ide-text: #cdd6f4;
+  --color-ide-text-dim: #939ab7;
+  --color-ide-text-bright: #eff1f5;
+
+  /* Accent */
+  --color-ide-accent: #89b4fa;
+  --color-ide-accent-hover: #74c7ec;
+  --color-ide-success: #a6e3a1;
+  --color-ide-warning: #f9e2af;
+  --color-ide-error: #f38ba8;
+  --color-ide-info: #94e2d5;
+
+  /* Sidebar activity bar */
+  --color-activity-bg: #181825;
+  --color-activity-hover: #252536;
+  --color-activity-active: #35354a;
+
+  /* Status bar */
+  --color-statusbar-bg: #181825;
+  --color-statusbar-text: #a6adc8;
+
+  /* Editor */
+  --color-editor-bg: #1e1e2e;
+  --color-tab-active: #1e1e2e;
+  --color-tab-inactive: #252536;
+  --color-tab-hover: #2d2d42;
+  --color-tab-border: #33334a;
+
+  /* Terminal */
+  --color-terminal-bg: #11111b;
+  --color-terminal-fg: #cdd6f4;
+  --color-terminal-green: #a6e3a1;
+  --color-terminal-red: #f38ba8;
+  --color-terminal-yellow: #f9e2af;
+  --color-terminal-blue: #89b4fa;
+
+  /* Panel sizes */
+  --sidebar-width: 48px;
+  --menubar-height: 32px;
+  --statusbar-height: 24px;
+  --tabbar-height: 36px;
+
+  /* Studio brand colors (kept for Studio pages) */
   --color-brand-400: #6366f1;
   --color-brand-500: #4f46e5;
   --color-brand-600: #4338ca;
+  --color-purple-400: #a78bfa;
+  --color-purple-500: #8b5cf6;
   --color-surface-800: #1e1b2e;
   --color-surface-900: #15131d;
   --color-surface-950: #0e0c15;
 }
 
-body {
-  background-color: var(--color-surface-950);
-  color: #e2e8f0;
+/* ============================================
+   Global Reset & Base Styles
+   ============================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px; line-height: 1.4;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-ide-bg); color: var(--color-ide-text);
 }
 
-/* 滚动条 */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #45475a66; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #585b7066; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+::selection { background-color: #89b4fa33; }
+*:focus-visible { outline: 1px solid var(--color-ide-accent); outline-offset: -1px; }
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.resize-handle { position: absolute; background: transparent; z-index: 10; transition: background 0.15s; }
+.resize-handle:hover, .resize-handle.active { background: var(--color-ide-accent); }
+.resize-handle-h { top: 0; bottom: 0; width: 4px; cursor: col-resize; }
+.resize-handle-v { left: 0; right: 0; height: 4px; cursor: row-resize; }
+
+/* Fade animations */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.slide-left-enter-active, .slide-left-leave-active { transition: transform 0.2s ease, opacity 0.2s ease; }
+.slide-left-enter-from { transform: translateX(-100%); opacity: 0; }
+.slide-left-leave-to { transform: translateX(-100%); opacity: 0; }
+
+.context-menu-item { padding: 4px 24px 4px 32px; cursor: default; white-space: nowrap; }
+.context-menu-item:hover { background: var(--color-ide-accent) !important; color: #fff !important; }
+
+/* Monaco editor overrides */
+.monaco-editor .margin { background-color: var(--color-editor-bg) !important; }
+.monaco-editor, .monaco-editor-background, .monaco-editor .inputarea.ime-input { background-color: var(--color-editor-bg) !important; }
+
+/* Studio-specific utility classes */
+.text-gradient-brand { background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.glass { background: rgba(30,27,46,0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.bg-grid { background-image: linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px); background-size: 40px 40px; }
+
+/* Transition helpers for all elements */
+* { transition-property: none; }
+*:focus-visible { outline: none; }
+
+@keyframes thinking-dot { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+.animate-thinking-dot { animation: thinking-dot 1.4s ease-in-out infinite; }

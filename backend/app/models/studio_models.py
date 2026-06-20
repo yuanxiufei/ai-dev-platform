@@ -116,6 +116,14 @@ class ChatMessage(SQLModel, table=True):
     role: MessageRole
     content: str = Field(sa_column=Column("content", Text))
 
+    # ── 工具调用支持 ──
+    tool_call_id: str | None = Field(default=None, max_length=200)
+    """当 role=tool 时，关联的 tool_call ID（OpenAI tool role 必需）"""
+    tool_calls: dict | None = Field(default=None, sa_column=Column("tool_calls", Text))
+    """当 role=assistant 且调用了工具时，存储工具调用请求列表"""
+    name: str | None = Field(default=None, max_length=100)
+    """当 role=tool 时，工具名称（用于日志/调试）"""
+
     # 元数据：token 数、模型名、生成耗时等
     metadata_: dict | None = Field(default=None, sa_column=Column("metadata", Text))
 

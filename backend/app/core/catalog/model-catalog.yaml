@@ -1,0 +1,221 @@
+# Model Catalog
+# Auto-generated from HuggingFace + ModelScope.
+# Edit this file to add/remove model sets.
+# See app/core/catalog/loader.py for the loading logic.
+
+version: "1.0"
+updated: "2026-06-20"
+
+model_sets:
+  # ═══════════ Code Generation ═══════════
+  - name: "Qwen2.5-Coder-7B-Instruct"
+    description: "阿里巴巴通义千问团队的代码生成模型，支持92种编程语言"
+    icon: "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct/resolve/main/icon.png"
+    homepage: "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct"
+    organization: "Alibaba Qwen"
+    release_date: "2025-01-15"
+    order: 10
+    categories: ["code_generation", "chat"]
+    specs:
+      - model_source_key: "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
+        source: "huggingface"
+        quantization: "Q4_K_M"
+        size_gb: 4.7
+        vram_required_gb: 6.0
+        backend: "llama.cpp"
+        context_length: 32768
+        capabilities: ["code_generation", "chat"]
+        benchmark_score: 85.2
+        license: "Apache-2.0"
+        language: ["zh", "en", "multi"]
+        tags: ["qwen", "coder", "gguf"]
+
+  - name: "DeepSeek-Coder-V2-Lite-Instruct"
+    description: "DeepSeek代码生成模型，MoE架构，16B参数（2.4B激活）"
+    icon: ""
+    homepage: "https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+    organization: "DeepSeek"
+    release_date: "2024-12-20"
+    order: 20
+    categories: ["code_generation", "chat"]
+    specs:
+      - model_source_key: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+        source: "huggingface"
+        quantization: "FP16"
+        size_gb: 32.0
+        vram_required_gb: 36.0
+        backend: "transformers"
+        context_length: 163840
+        capabilities: ["code_generation", "chat"]
+        benchmark_score: 88.5
+        license: "MIT"
+        language: ["zh", "en", "multi"]
+        tags: ["deepseek", "coder", "moe"]
+
+  - name: "CodeLlama-7B-Instruct"
+    description: "Meta的代码专用Llama模型，微调于代码生成任务"
+    icon: ""
+    homepage: "https://huggingface.co/codellama/CodeLlama-7b-Instruct-hf"
+    organization: "Meta"
+    release_date: "2024-08-24"
+    order: 30
+    categories: ["code_generation"]
+    specs:
+      - model_source_key: "codellama/CodeLlama-7b-Instruct-hf"
+        source: "huggingface"
+        quantization: "FP16"
+        size_gb: 13.5
+        vram_required_gb: 16.0
+        backend: "transformers"
+        context_length: 16384
+        capabilities: ["code_generation"]
+        benchmark_score: 72.3
+        license: "Llama 2 Community"
+        language: ["en", "multi"]
+        tags: ["meta", "llama", "code"]
+
+  # ═══════════ Chat / General ═══════════
+  - name: "Qwen2.5-7B-Instruct"
+    description: "通义千问2.5通用对话模型，128K上下文"
+    icon: ""
+    homepage: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct"
+    organization: "Alibaba Qwen"
+    release_date: "2025-01-10"
+    order: 40
+    categories: ["chat", "code_generation"]
+    specs:
+      - model_source_key: "Qwen/Qwen2.5-7B-Instruct-GGUF"
+        source: "huggingface"
+        quantization: "Q4_K_M"
+        size_gb: 4.7
+        vram_required_gb: 6.0
+        backend: "llama.cpp"
+        context_length: 131072
+        capabilities: ["chat", "code_generation"]
+        benchmark_score: 82.1
+        license: "Apache-2.0"
+        language: ["zh", "en", "multi"]
+        tags: ["qwen", "chat", "gguf"]
+
+  - name: "Gemma-3-27B-IT"
+    description: "Google Gemma 3指令微调模型，27B参数，128K上下文"
+    icon: ""
+    homepage: "https://huggingface.co/google/gemma-3-27b-it"
+    organization: "Google"
+    release_date: "2025-03-12"
+    order: 50
+    categories: ["chat", "code_generation"]
+    specs:
+      - model_source_key: "google/gemma-3-27b-it-GGUF"
+        source: "huggingface"
+        quantization: "Q4_K_M"
+        size_gb: 16.8
+        vram_required_gb: 20.0
+        backend: "llama.cpp"
+        context_length: 131072
+        capabilities: ["chat", "code_generation"]
+        benchmark_score: 86.7
+        license: "Gemma"
+        language: ["en", "multi"]
+        tags: ["google", "gemma", "chat"]
+
+  # ═══════════ Vision Language ═══════════
+  - name: "Qwen2.5-VL-7B-Instruct"
+    description: "通义千问视觉语言模型，支持图文理解和视频理解"
+    icon: ""
+    homepage: "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct"
+    organization: "Alibaba Qwen"
+    release_date: "2025-02-20"
+    order: 60
+    categories: ["vision_language", "chat"]
+    specs:
+      - model_source_key: "Qwen/Qwen2.5-VL-7B-Instruct-GGUF"
+        source: "huggingface"
+        quantization: "Q4_K_M"
+        size_gb: 5.2
+        vram_required_gb: 8.0
+        backend: "llama.cpp"
+        context_length: 32768
+        capabilities: ["vision_language", "chat"]
+        benchmark_score: 79.5
+        license: "Apache-2.0"
+        language: ["zh", "en", "multi"]
+        tags: ["qwen", "vision", "multimodal"]
+
+  # ═══════════ Video Generation ═══════════
+  - name: "CogVideoX-5B"
+    description: "智谱AI开源视频生成模型，5B参数，支持文生视频"
+    icon: ""
+    homepage: "https://huggingface.co/THUDM/CogVideoX-5b"
+    organization: "Zhipu AI / THUDM"
+    release_date: "2024-09-15"
+    order: 70
+    categories: ["video_generation"]
+    specs:
+      - model_source_key: "THUDM/CogVideoX-5b"
+        source: "huggingface"
+        quantization: "FP16"
+        size_gb: 10.0
+        vram_required_gb: 12.0
+        backend: "diffusers"
+        context_length: 226
+        capabilities: ["video_generation"]
+        benchmark_score: null
+        license: "Apache-2.0"
+        language: ["en"]
+        tags: ["video", "diffusion", "cogvideo"]
+
+  - name: "Stable-Video-Diffusion"
+    description: "Stability AI图像转视频扩散模型"
+    icon: ""
+    homepage: "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt"
+    organization: "Stability AI"
+    release_date: "2024-05-15"
+    order: 80
+    categories: ["video_generation"]
+    specs:
+      - model_source_key: "stabilityai/stable-video-diffusion-img2vid-xt"
+        source: "huggingface"
+        quantization: "FP16"
+        size_gb: 5.2
+        vram_required_gb: 8.0
+        backend: "diffusers"
+        context_length: 25
+        capabilities: ["video_generation"]
+        benchmark_score: null
+        license: "Stability AI Community"
+        language: ["en"]
+        tags: ["video", "diffusion", "svd"]
+
+  # ═══════════ Embedding / RAG ═══════════
+  - name: "BGE-M3"
+    description: "BAAI多语言嵌入模型，支持100+语言，密集+稀疏混合检索"
+    icon: ""
+    homepage: "https://huggingface.co/BAAI/bge-m3"
+    organization: "BAAI"
+    release_date: "2024-03-05"
+    order: 90
+    categories: ["embedding"]
+    specs:
+      - model_source_key: "BAAI/bge-m3"
+        source: "huggingface"
+        quantization: "FP16"
+        size_gb: 2.2
+        vram_required_gb: 3.0
+        backend: "transformers"
+        context_length: 8192
+        capabilities: ["embedding", "rag"]
+        benchmark_score: 81.6
+        license: "MIT"
+        language: ["zh", "en", "multi"]
+        tags: ["embedding", "retrieval", "multilingual"]
+
+draft_models:
+  - name: "Qwen3-Coder"
+    description: "通义千问下一代纯代码模型，预期2026年Q3发布"
+    expected_release: "2026-Q3"
+    source_url: "https://qwenlm.github.io/blog/"
+  - name: "DeepSeek-V4"
+    description: "DeepSeek下一代通用大模型"
+    expected_release: "2026-H2"
+    source_url: "https://deepseek.com/"

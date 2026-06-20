@@ -20,7 +20,33 @@ dependencies = [
     "pyjwt<3.0.0,>=2.8.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
     "celery[redis]>=5.4.0",
+    "ai-models",
+    # ── RAG 检索增强生成 ──
+    "faiss-cpu>=1.8.0",
+    "sentence-transformers>=3.0.0",
+    "jieba>=0.42.1",
+    "rank-bm25>=0.2.2",
+    "pypdf>=5.0.0",
+    "markitdown>=0.0.1a3",
+    "llama-cpp-python>=0.3.0",
+    # ── Cron 定时任务 ──
+    "apscheduler<4.0.0,>=3.10.4",
+    # ── 插件系统依赖 ──
+    "watchfiles>=0.24.0",
+    # ── 知识库持久化 ──
+    "aiosqlite>=0.20.0",
+    # ── URL 内容提取 ──
+    "readability-lxml>=0.8.1",
+    # ── Prometheus 指标导出 ──
+    "prometheus-client>=0.20.0",
+    # ── GPU/系统资源监控 ──
+    "psutil>=5.9.0",
+    # ── 模型目录 ──
+    "pyyaml>=6.0.1",
 ]
+
+[project.scripts]
+ai-platform = "app.cli:main"
 
 [dependency-groups]
 dev = [
