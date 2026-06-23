@@ -51,7 +51,6 @@ class LoadModelRequest(BaseModel):
 @router.get("")
 def list_all_models(
     session: SessionDep,
-    user: CurrentUser,
     capability: str | None = None,
 ):
     """
@@ -92,14 +91,16 @@ def list_all_models(
 
     # 远程模型
     for name, config in remote_configs.items():
+        # Ollama 等本地服务虽然走 API，但实际运行在本机
+        is_actually_local = config.extra.get("is_local_api", False) if config.extra else False
         models.append({
             "name": name,
             "display_name": config.display_name,
             "capability": config.model_type.value,
             "provider": config.provider,
             "priority": config.priority,
-            "is_local": False,
-            "is_remote": True,
+            "is_local": is_actually_local,
+            "is_remote": not is_actually_local,
             "requires_api_key": config.requires_api_key,
             "max_tokens": config.max_tokens,
         })
@@ -151,14 +152,18 @@ def get_model_detail(
     # 查找远程模型
     remote_config = get_remote_config(model_name)
     if remote_config:
+        is_actually_local = (
+            remote_config.extra.get("is_local_api", False)
+            if remote_config.extra else False
+        )
         return {
             "name": model_name,
             "display_name": remote_config.display_name,
             "capability": remote_config.model_type.value,
             "provider": remote_config.provider,
             "priority": remote_config.priority,
-            "is_local": False,
-            "is_remote": True,
+            "is_local": is_actually_local,
+            "is_remote": not is_actually_local,
             "api_model_id": remote_config.api_model_id,
             "requires_api_key": remote_config.requires_api_key,
             "max_tokens": remote_config.max_tokens,

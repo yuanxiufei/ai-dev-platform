@@ -1,6 +1,14 @@
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# 将项目根目录加入 sys.path，确保 ai_models 包可导入
+# main.py → app/ → backend/ → 项目根目录 (ai-fullstack-platform/)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import sentry_sdk
 from fastapi import FastAPI
@@ -73,18 +81,21 @@ async def lifespan(app: FastAPI):
         from app.core.model_router import (
             init_model_router,
             build_local_model_adapters,
+            build_api_model_adapters,
             ModelCapability,
         )
         from app.core.api_gateway import get_api_gateway
 
         gateway = get_api_gateway()
         local_models = build_local_model_adapters()
+        api_models = build_api_model_adapters(api_gateway=gateway)
         init_model_router(
             local_models=local_models,
             api_gateway=gateway,
             fallback_model=None,  # 自动创建内置兜底
+            api_models=api_models,
         )
-        logger.info("ModelRouter initialized with %d local + API models", len(local_models))
+        logger.info("ModelRouter initialized with %d local + %d API models", len(local_models), len(api_models))
     except Exception as e:
         logger.warning("ModelRouter init skipped: %s", e)
 
@@ -344,11 +355,18 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.config_reloader import init_config_reloader
         if settings.CONFIG_WATCH_ENABLED:
-            init_config_reloader(
+            def _reload_providers_on_env_change() -> None:
+                """.env 变更后刷新 Provider 密钥/端点"""
+                gw = get_api_gateway()
+                if gw and hasattr(gw, '_registry'):
+                    gw._registry.force_reload()
+
+            reloader = init_config_reloader(
                 env_file=".env",
                 watch_interval=settings.CONFIG_WATCH_INTERVAL,
                 auto_watch=True,
             )
+            reloader.on_reload(_reload_providers_on_env_change)
             logger.info("ConfigReloader started (interval=%ss)", settings.CONFIG_WATCH_INTERVAL)
     except Exception as e:
         logger.warning("ConfigReloader init skipped: %s", e)
@@ -548,6 +566,9 @@ if settings.STANDALONE_API_AUTH_ENABLED:
             "/metrics",
             "/api/v1/standalone",  # standalone 自身管理接口
             "/api/v1/auth",  # 登录接口
+            "/api/v1/agent",  # Agent 对话（前端核心功能）
+            "/api/v1/plugin-marketplace",  # 插件市场（前端）
+            "/api/v1/studio",  # Studio 前端路由
         ],
     )
     app.add_middleware(ApiAuthMiddleware, config=_api_auth_config)
@@ -566,3 +587,6 @@ if _metrics_enabled():
         )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+

@@ -47,16 +47,27 @@ _BUILTIN_PROVIDERS: dict[str, str] = {
 
 
 def _default_configs() -> list[ProviderConfig]:
-    """默认提供商配置（密钥从环境变量注入）"""
-    env_keys = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-        "replicate": "REPLICATE_API_KEY",
-        "zhipu": "ZHIPU_API_KEY",
-        "qwen": "QWEN_API_KEY",
-        "ollama": "OLLAMA_API_KEY",
-        "azure": "AZURE_OPENAI_API_KEY",
+    """默认提供商配置（密钥从 os.environ 注入，确保 load_dotenv 已执行）"""
+    # 显式加载 .env：确保在任何进程上下文中都能读到密钥
+    # 路径：providers/__init__.py → core/ → app/ → backend/ → root/
+    from pathlib import Path as _Path
+    _dotenv_path = _Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
+    if _dotenv_path.exists():
+        from dotenv import load_dotenv as _load_dotenv
+        _load_dotenv(_dotenv_path, override=True)
+
+    # ⚠️ 必须用 os.getenv 读取密钥（而非 settings）
+    # 因为 pydantic-settings 会缓存启动时的值，
+    # 经 load_dotenv(override=True) 后 os.getenv 能读到最新值
+    api_keys: dict[str, str] = {
+        "openai": os.getenv("OPENAI_API_KEY", ""),
+        "anthropic": os.getenv("ANTHROPIC_API_KEY", ""),
+        "deepseek": os.getenv("DEEPSEEK_API_KEY", ""),
+        "replicate": os.getenv("REPLICATE_API_KEY", ""),
+        "zhipu": os.getenv("ZHIPU_API_KEY", ""),
+        "qwen": os.getenv("QWEN_API_KEY", ""),
+        "ollama": os.getenv("OLLAMA_API_KEY", ""),
+        "azure": os.getenv("AZURE_OPENAI_API_KEY", ""),
     }
 
     configs = [
@@ -127,11 +138,11 @@ def _default_configs() -> list[ProviderConfig]:
         ),
     ]
 
-    # 环境变量注入密钥
+    # 密钥注入（优先从 settings 读取，fallback 到 os.getenv）
     for cfg in configs:
-        env_var = env_keys.get(cfg.name)
-        if env_var:
-            cfg.api_key = os.getenv(env_var, "")
+        key = api_keys.get(cfg.name)
+        if key is not None:
+            cfg.api_key = key
 
     return configs
 
@@ -331,6 +342,105 @@ class ProviderRegistry:
 
     # ── 动态管理 ────────────────────────────────────────
 
+    def _get_provider_class_map(self) -> dict[str, type[BaseProvider]]:
+        """获取 Provider 类名→类对象的映射（降级到内置映射）"""
+        return _get_provider_class_map()
+
+    def force_reload(self) -> int:
+        """强制重新加载所有 Provider（用于 .env 热更新后刷新密钥/端点）
+
+        与 auto_discover 的关键区别：
+        - 不检查 _initialized（始终允许重新加载）
+        - 会实例化之前因缺少密钥而被跳过的 Provider
+        - 更新已有 Provider 的配置 + 重建 HTTP 客户端
+        """
+        # 重新加载 .env 到 os.environ（确保 override）
+        from pathlib import Path as _Path
+        _dotenv_path = _Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
+        if _dotenv_path.exists():
+            from dotenv import load_dotenv as _load_dotenv
+            _load_dotenv(_dotenv_path, override=True)
+
+        # 重新生成配置（读 os.environ，获取最新值）
+        self._configs = _default_configs()
+        config_map = {c.name: c for c in self._configs}
+
+        # 关闭所有现有客户端的 HTTP 连接
+        for p in self._providers:
+            try:
+                p._client = None
+            except Exception:
+                pass
+
+        # 加载 Provider 类映射
+        available_classes = _get_provider_class_map()
+
+        loaded = 0
+        processed_names: set[str] = set()
+
+        # 1. 更新已在 _provider_map 中的 Provider
+        for provider_name, provider_inst in list(self._provider_map.items()):
+            processed_names.add(provider_name)
+            new_config = config_map.get(provider_name)
+            if not new_config:
+                continue
+            no_auth = new_config.extra_config.get("no_auth_required", False)
+            if not new_config.api_key and not no_auth:
+                # 密钥仍然缺失 → 移除该 Provider
+                self._providers = [p for p in self._providers if p.name != provider_name]
+                del self._provider_map[provider_name]
+                logger.info("Provider '%s' removed (still no API key)", provider_name)
+                continue
+
+            # 更新配置
+            provider_inst.config = new_config
+            provider_inst.priority = new_config.priority
+            provider_inst.strengths = new_config.strengths
+            provider_inst.is_available = True
+            loaded += 1
+            logger.info(
+                "Provider '%s' reloaded: base_url=%s, api_key=%s",
+                provider_name,
+                new_config.base_url,
+                "***" if new_config.api_key else "(none)",
+            )
+
+        # 2. 实例化之前不存在的新 Provider（首次获得密钥）
+        for cfg_name, cfg in config_map.items():
+            if cfg_name in processed_names:
+                continue
+            no_auth = cfg.extra_config.get("no_auth_required", False)
+            if not cfg.api_key and not no_auth:
+                continue  # 仍无密钥，跳过
+
+            cls = available_classes.get(_BUILTIN_PROVIDERS.get(cfg_name, ""))
+            if not cls:
+                logger.warning("No provider class for '%s', skipping", cfg_name)
+                continue
+            try:
+                provider = cls(cfg)
+                self._providers.append(provider)
+                self._provider_map[cfg.name] = provider
+                loaded += 1
+                logger.info(
+                    "Provider '%s' newly instantiated: base_url=%s, api_key=%s",
+                    cfg_name, cfg.base_url,
+                    "***" if cfg.api_key else "(none)",
+                )
+            except Exception as e:
+                logger.error("Failed to instantiate '%s': %s", cfg_name, e)
+
+        # 按优先级重新排序
+        self._providers.sort(key=lambda p: p.priority, reverse=True)
+        # 标记已初始化（防止后续 auto_discover 覆盖）
+        self._initialized = True
+
+        logger.info(
+            "ProviderRegistry force_reload: %d providers total (%d from %d configs)",
+            loaded, len(self._providers), len(self._configs),
+        )
+        return loaded
+
     def update_key(self, name: str, api_key: str) -> bool:
         """动态更新 Provider API 密钥"""
         config = self.get_config(name)
@@ -417,6 +527,56 @@ def _get_all_provider_subclasses() -> list[Type[BaseProvider]]:
 
     _collect(BP)
     return subclasses
+
+
+def _get_provider_class_map() -> dict[str, Type[BaseProvider]]:
+    """获取 {类名: Provider类} 映射（优先动态加载，降级到内置映射）"""
+    classes: dict[str, Type[BaseProvider]] = {}
+
+    # 尝试动态加载
+    providers_package = "app.core.providers"
+    try:
+        package = importlib.import_module(providers_package)
+        package_path = os.path.dirname(package.__file__ or "")
+        for _, module_name, _ in pkgutil.iter_modules([package_path]):
+            if module_name in ("base", "__init__"):
+                continue
+            try:
+                mod = importlib.import_module(f"{providers_package}.{module_name}")
+                for name, obj in inspect.getmembers(mod, inspect.isclass):
+                    if (
+                        issubclass(obj, BaseProvider)
+                        and obj is not BaseProvider
+                        and obj.__module__ == mod.__name__
+                    ):
+                        classes[name] = obj
+            except Exception as e:
+                logger.debug("Failed to load provider module '%s': %s", module_name, e)
+    except ImportError:
+        pass
+
+    # 降级：使用内置映射加载
+    if not classes:
+        provider_imports = {
+            "openai": "app.core.providers.openai",
+            "anthropic": "app.core.providers.anthropic",
+            "deepseek": "app.core.providers.deepseek",
+            "replicate": "app.core.providers.replicate",
+            "zhipu": "app.core.providers.zhipu",
+            "qwen": "app.core.providers.qwen",
+            "ollama": "app.core.providers.ollama",
+        }
+        for name, module_path in provider_imports.items():
+            try:
+                mod = importlib.import_module(module_path)
+                class_name = _BUILTIN_PROVIDERS[name]
+                cls = getattr(mod, class_name, None)
+                if cls and issubclass(cls, BaseProvider):
+                    classes[class_name] = cls
+            except Exception as e:
+                logger.debug("Failed to load builtin provider '%s': %s", name, e)
+
+    return classes
 
 
 # ── 全局注册表单例 ────────────────────────────────────────

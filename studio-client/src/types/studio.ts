@@ -84,6 +84,19 @@ export interface DiffHunk {
   lines: string[]
 }
 
+// 模型选项（用于模型选择器）
+export interface ModelOption {
+  name: string
+  display_name: string
+  capability: string
+  format?: string
+  provider?: string
+  priority: number
+  is_local: boolean
+  is_downloaded?: boolean
+  is_remote?: boolean
+}
+
 // 分页
 export interface ApiPageResponse<T = unknown> {
   data: T[]

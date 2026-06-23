@@ -18,7 +18,7 @@ class QwenProvider(BaseProvider):
     """通义千问 API 适配器（OpenAI 兼容格式，支持 Function Calling）"""
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        model_name = self.config.models[0] if self.config.models else "qwen-max"
+        model_name = self._get_model_name(request)
         messages = self._build_messages(request)
 
         body: dict = {

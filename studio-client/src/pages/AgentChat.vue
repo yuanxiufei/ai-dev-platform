@@ -15,9 +15,9 @@
  */
 import { ref, nextTick, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { agentChatStreamUrl } from '@/api/agent'
+import { agentChatStreamUrl, listAvailableModels } from '@/api/agent'
 import { getProject } from '@/api/studio'
-import type { ChatMessage, ToolCallRecord, SSEEventType, SSEEvent } from '@/types/studio'
+import type { ChatMessage, ToolCallRecord, SSEEventType, SSEEvent, ModelOption } from '@/types/studio'
 import {
   Bot, User, Wrench, Loader2, Check, X, Zap,
   PanelRightOpen, PanelRightClose, Send, Square, RotateCcw,
@@ -55,9 +55,11 @@ const totalLatencyMs = ref(0)
 // 模式选择
 const chatMode = ref<'craft' | 'ask' | 'plan' | 'agent'>('craft')
 const preferredModel = ref('')
+const availableModels = ref<ModelOption[]>([])
+const showModelPicker = ref(false)
 
-// 面板开关
-const hasStarted = ref(false)
+// 面板开关 — 默认为 true，独立 /chat 页面直接显示对话界面
+const hasStarted = ref(true)
 const showRightPanel = ref(false)
 const showHistoryPanel = ref(false)
 
@@ -127,18 +129,29 @@ function saveCurrentSession() {
 // ════════════════════════════════════════════════
 onMounted(() => {
   loadSessions()
-  if (projectId.value) {
-    getProject(projectId.value).then(res => {
-      messages.value.push({
-        id: crypto.randomUUID(),
-        role: 'system',
-        content: `当前项目：${res.data.name}。你可以使用 AI 助手来讨论、修改和生成代码。`,
-        timestamp: new Date().toISOString(),
-      })
-      hasStarted.value = true
-    }).catch(() => {})
-  }
+  loadModels()
 })
+
+/** 加载可用模型列表（直接 fetch，绕过 axios 401 拦截） */
+async function loadModels() {
+  try {
+    const token = localStorage.getItem('token')
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch('/api/v1/system/models', { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    availableModels.value = data.models || []
+  } catch {
+    // 静默失败
+  }
+}
+
+function selectModel(name: string) {
+  preferredModel.value = name
+  showModelPicker.value = false
+  showToast(`已切换模型：${name || '自动选择'}`)
+}
 
 // ════════════════════════════════════════════════
 // 工具函数
@@ -206,7 +219,6 @@ function newChat() {
   saveCurrentSession()
   messages.value = []
   sessionId.value = crypto.randomUUID()
-  hasStarted.value = false
   agentState.value = 'idle'
   currentToolCalls.value = []
   collectedDiffs.value = []
@@ -491,7 +503,7 @@ function onInputKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full max-h-screen bg-surface-950 text-white">
+  <div class="flex flex-col h-full w-full overflow-hidden bg-[var(--color-ide-bg)] text-[var(--color-ide-text)]">
 
     <!-- ═════ Toast ═════ -->
     <Transition name="toast">
@@ -551,11 +563,112 @@ function onInputKeydown(e: KeyboardEvent) {
 
       <!-- 右区：模型 + 统计 + 操作 -->
       <div class="flex items-center gap-2 shrink-0">
-        <!-- 模型信息 -->
-        <div v-if="lastModelUsed && !isStreaming" class="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.05] text-[11px] text-gray-500">
-          <Cpu class="w-3 h-3 text-purple-400/50" />
-          <span>{{ lastModelUsed }}</span>
-          <span v-if="lastProvider" class="text-gray-600">{{ lastProvider }}</span>
+        <!-- 模型选择器 -->
+        <div class="relative hidden sm:block" data-model-picker>
+          <button
+            @click="showModelPicker = !showModelPicker"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px] text-gray-400 hover:text-gray-200 hover:border-white/[0.12] transition-all cursor-pointer"
+            title="切换模型"
+          >
+            <Cpu class="w-3 h-3" :class="preferredModel ? 'text-brand-400' : 'text-purple-400/50'" />
+            <span class="max-w-[120px] truncate">{{ preferredModel || (lastModelUsed || '自动选择') }}</span>
+            <ChevronRight class="w-3 h-3 transition-transform duration-200" :class="{ 'rotate-90': showModelPicker }" />
+          </button>
+
+          <!-- 下拉面板 -->
+          <Transition name="fade">
+            <!-- 遮罩层：点击关闭 -->
+            <div
+              v-if="showModelPicker"
+              class="fixed inset-0 z-40"
+              @click="showModelPicker = false"
+            />
+          </Transition>
+          <Transition name="fade">
+            <div
+              v-if="showModelPicker"
+              class="absolute right-0 top-full mt-1.5 w-72 rounded-xl bg-surface-950/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl z-50 overflow-hidden"
+              @click.stop
+            >
+              <div class="p-2 border-b border-white/[0.06] flex items-center justify-between">
+                <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">可用模型</span>
+                <span class="text-[10px] text-gray-600">{{ availableModels.length }} 个</span>
+              </div>
+
+              <!-- 自动选择选项 -->
+              <button
+                @click="selectModel('')"
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-white/[0.04] transition-colors group"
+                :class="!preferredModel ? 'bg-brand-500/8 text-brand-300' : 'text-gray-400'"
+              >
+                <Zap class="w-4 h-4 shrink-0" :class="!preferredModel ? 'text-brand-400' : 'text-gray-600 group-hover:text-gray-400'" />
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-medium truncate">自动选择</div>
+                  <div class="text-[10px] text-gray-600 truncate">由调度器根据能力自动分配</div>
+                </div>
+                <Check v-if="!preferredModel" class="w-3.5 h-3.5 text-brand-400 shrink-0" />
+              </button>
+
+              <!-- 本地模型分组 -->
+              <template v-if="availableModels.filter(m => m.is_local).length > 0">
+                <div class="px-3 py-1.5 text-[10px] font-semibold text-emerald-400/70 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles class="w-3 h-3" /> 本地模型
+                </div>
+                <div class="max-h-40 overflow-y-auto custom-scroll">
+                  <button
+                    v-for="m in availableModels.filter(m => m.is_local)"
+                    :key="m.name"
+                    @click="selectModel(m.name)"
+                    class="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-white/[0.04] transition-colors group"
+                    :class="preferredModel === m.name ? 'bg-brand-500/8 text-brand-300' : 'text-gray-400'"
+                  >
+                    <Cpu class="w-4 h-4 shrink-0" :class="preferredModel === m.name ? 'text-brand-400' : 'text-emerald-500/60 group-hover:text-emerald-400'" />
+                    <div class="min-w-0 flex-1">
+                      <div class="text-xs font-medium truncate">{{ m.display_name || m.name }}</div>
+                      <div class="flex items-center gap-1.5">
+                        <span v-if="m.is_downloaded !== false" class="text-[10px] text-emerald-500/70">已就绪</span>
+                        <span v-else class="text-[10px] text-amber-500/70">未下载</span>
+                        <span v-if="m.format" class="text-[10px] text-gray-600">{{ m.format }}</span>
+                        <span class="text-[10px] text-gray-700">{{ m.capability }}</span>
+                      </div>
+                    </div>
+                    <Check v-if="preferredModel === m.name" class="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                  </button>
+                </div>
+              </template>
+
+              <!-- 远程 API 模型分组 -->
+              <template v-if="availableModels.filter(m => !m.is_local).length > 0">
+                <div class="px-3 py-1.5 text-[10px] font-semibold text-blue-400/70 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe class="w-3 h-3" /> 远程 API
+                </div>
+                <div class="max-h-40 overflow-y-auto custom-scroll">
+                  <button
+                    v-for="m in availableModels.filter(m => !m.is_local)"
+                    :key="m.name"
+                    @click="selectModel(m.name)"
+                    class="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-white/[0.04] transition-colors group"
+                    :class="preferredModel === m.name ? 'bg-brand-500/8 text-brand-300' : 'text-gray-400'"
+                  >
+                    <Globe class="w-4 h-4 shrink-0" :class="preferredModel === m.name ? 'text-brand-400' : 'text-blue-500/60 group-hover:text-blue-400'" />
+                    <div class="min-w-0 flex-1">
+                      <div class="text-xs font-medium truncate">{{ m.display_name || m.name }}</div>
+                      <div class="flex items-center gap-1.5">
+                        <span v-if="m.provider" class="text-[10px] text-blue-400/60">{{ m.provider }}</span>
+                        <span class="text-[10px] text-gray-600">{{ m.capability }}</span>
+                        <span class="text-[10px] text-gray-700">p{{ m.priority }}</span>
+                      </div>
+                    </div>
+                    <Check v-if="preferredModel === m.name" class="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                  </button>
+                </div>
+              </template>
+
+              <div v-if="availableModels.length === 0" class="px-4 py-6 text-center text-[11px] text-gray-600">
+                暂无可用模型
+              </div>
+            </div>
+          </Transition>
         </div>
 
         <!-- 延迟 -->
@@ -684,14 +797,14 @@ function onInputKeydown(e: KeyboardEvent) {
 
           <!-- 底部输入 -->
           <div class="shrink-0 border-t border-white/[0.06] p-4 bg-surface-900/30">
-            <div class="max-w-3xl mx-auto">
+            <div class="w-full mx-auto max-w-3xl">
               <div class="relative">
                 <textarea
                   ref="textareaEl"
                   v-model="inputText"
                   rows="1"
                   placeholder="描述你想让 AI 做什么..."
-                  class="chat-textarea"
+                  class="chat-textarea w-full"
                   @keydown="onInputKeydown"
                 ></textarea>
                 <div class="absolute right-2 bottom-2 flex items-center gap-1.5">
@@ -851,7 +964,7 @@ function onInputKeydown(e: KeyboardEvent) {
 
           <!-- 底部输入区 -->
           <footer class="shrink-0 border-t border-white/[0.06] bg-surface-900/50 backdrop-blur p-4">
-            <div class="max-w-3xl mx-auto">
+            <div class="w-full mx-auto">
               <div class="relative">
                 <textarea
                   ref="textareaEl"
@@ -859,7 +972,7 @@ function onInputKeydown(e: KeyboardEvent) {
                   rows="1"
                   :placeholder="isStreaming ? 'AI 正在回复...' : '输入消息... Shift+Enter 换行'"
                   :disabled="isStreaming"
-                  class="chat-textarea"
+                  class="chat-textarea w-full"
                   @keydown="onInputKeydown"
                 ></textarea>
                 <div class="absolute right-2 bottom-2 flex items-center gap-1.5">
@@ -974,6 +1087,9 @@ function onInputKeydown(e: KeyboardEvent) {
 
 .toast-enter-active, .toast-leave-active { transition: all 0.35s cubic-bezier(.4,0,.2,1); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-12px) translateX(-50%); }
+
+.fade-enter-active, .fade-leave-active { transition: all 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
 
 .slide-left-enter-active, .slide-left-leave-active,
 .slide-right-enter-active, .slide-right-leave-active {

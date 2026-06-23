@@ -19,7 +19,7 @@ class AnthropicProvider(BaseProvider):
     """Anthropic Claude API 适配器 —— 支持 Tool Use"""
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        model_name = self.config.models[0] if self.config.models else "claude-sonnet-4-20250514"
+        model_name = self._get_model_name(request)
 
         messages: list[dict] = []
         if request.history:

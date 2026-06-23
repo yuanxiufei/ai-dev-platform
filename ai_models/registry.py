@@ -259,18 +259,174 @@ register_remote(RemoteModelConfig(
     strengths=[ModelStrength.GENERAL_CODE.value],
 ))
 
-# Ollama 本地 Gemma 4 26B — UI 页面的绝佳选择
+# ═════ Ollama 本地模型（无需 API 密钥）═════
+
 register_remote(RemoteModelConfig(
-    name="ollama-gemma4-26b",
-    display_name="Gemma 4 26B IT (Ollama·UI专用)",
+    name="ollama-qwen3-coder-30b",
+    display_name="Qwen3-Coder 30B (Ollama·主力编程)",
     model_type=ModelType.CODE_GENERATION,
     provider="ollama",
-    api_model_id="hf.co/unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_M",
-    priority=40,               # 最高优先级 — UI 页面能力强
-    max_tokens=4096,
+    api_model_id="qwen3-coder:30b",
+    priority=50,  # 最高优先级
+    max_tokens=8192,
     temperature=0.3,
-    requires_api_key=False,    # Ollama 本地运行，无需密钥
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value, ModelStrength.BACKEND_CODE.value, ModelStrength.FRONTEND_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-qwen3-32b",
+    display_name="Qwen3 32B (Ollama·通用)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="ollama",
+    api_model_id="qwen3:32b",
+    priority=45,
+    max_tokens=8192,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-deepseek-r1",
+    display_name="DeepSeek-R1 132B (Ollama·推理)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="ollama",
+    api_model_id="deepseek-r1",
+    priority=48,
+    max_tokens=8192,
+    temperature=0.6,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-gemma4-31b",
+    display_name="Gemma 4 31B IT (Ollama·代码)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="ollama",
+    api_model_id="gemma4:31b",
+    priority=44,
+    max_tokens=8192,
+    temperature=0.3,
+    requires_api_key=False,
     strengths=[ModelStrength.UI_DESIGN.value, ModelStrength.FRONTEND_CODE.value, ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-gemma4-26b",
+    display_name="Gemma 4 26B IT (Ollama·备用)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="ollama",
+    api_model_id="gemma4:26b",
+    priority=40,
+    max_tokens=8192,
+    temperature=0.3,
+    requires_api_key=False,
+    strengths=[ModelStrength.FRONTEND_CODE.value, ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-llama3.1-8b",
+    display_name="Llama3.1 8B (Ollama·极速)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="ollama",
+    api_model_id="llama3.1:8b",
+    priority=38,
+    max_tokens=4096,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-qwen25-coder",
+    display_name="Qwen2.5-Coder (Ollama·轻量快)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="ollama",
+    api_model_id="qwen2.5-coder",
+    priority=42,
+    max_tokens=8192,
+    temperature=0.3,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value, ModelStrength.BACKEND_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-deepseek-coder-v2",
+    display_name="DeepSeek-Coder V2 (Ollama·长上下文)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="ollama",
+    api_model_id="deepseek-coder-v2",
+    priority=43,
+    max_tokens=16384,
+    temperature=0.3,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value, ModelStrength.BACKEND_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-deepseek-coder",
+    display_name="DeepSeek-Coder (Ollama·极速)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="ollama",
+    api_model_id="deepseek-coder",
+    priority=41,
+    max_tokens=8192,
+    temperature=0.3,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-gemma3-27b",
+    display_name="Gemma3 27B (Ollama·备用)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="ollama",
+    api_model_id="gemma3:27b",
+    priority=37,
+    max_tokens=8192,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+# 视觉模型
+register_remote(RemoteModelConfig(
+    name="ollama-minicpm-v-8b",
+    display_name="MiniCPM-V 8B (Ollama·截图分析)",
+    model_type=ModelType.VISION_LANGUAGE,
+    provider="ollama",
+    api_model_id="minicpm-v:8b",
+    priority=36,
+    max_tokens=4096,
+    temperature=0.4,
+    requires_api_key=False,
+    strengths=[ModelStrength.VISION_DENSE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="ollama-llama3.2-vision-11b",
+    display_name="Llama3.2 Vision 11B (Ollama·视觉)",
+    model_type=ModelType.VISION_LANGUAGE,
+    provider="ollama",
+    api_model_id="llama3.2-vision",
+    priority=35,
+    max_tokens=4096,
+    temperature=0.4,
+    requires_api_key=False,
+    strengths=[ModelStrength.VISION_DENSE.value],
     extra={"is_local_api": True},
 ))
 

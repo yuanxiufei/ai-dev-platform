@@ -77,3 +77,22 @@ export const callAgentTool = (name: string, args: Record<string, unknown>) =>
     `/agent/tools/${encodeURIComponent(name)}`,
     { arguments: args },
   )
+
+/* ========== 模型选择 ========== */
+
+export interface ModelOption {
+  name: string
+  display_name: string
+  capability: string
+  format?: string
+  provider?: string
+  priority: number
+  is_local: boolean
+  is_downloaded?: boolean
+  is_remote?: boolean
+}
+
+export const listAvailableModels = (capability?: string) =>
+  apiClient.get<{ models: ModelOption[]; total: number }>('/system/models', {
+    params: capability ? { capability } : {},
+  })

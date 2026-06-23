@@ -132,23 +132,33 @@ class FallbackNode:
         self.models = models
 
     async def try_generate(self, request: ModelRequest) -> ModelResponse | None:
-        """依次尝试该节点的所有模型"""
+        """依次尝试该节点的所有模型（遇到 error 继续回退下一个模型）"""
         for model in self.models:
             if not model.is_available:
+                logger.debug("FallbackNode[%s]: model '%s' not available, skipping", self.name, getattr(model, 'name', type(model).__name__))
                 continue
             try:
                 start = time.perf_counter()
+                logger.info("FallbackNode[%s]: trying model '%s'...", self.name, getattr(model, 'name', type(model).__name__))
                 response = await asyncio.wait_for(
                     model.generate(request),
                     timeout=30.0
                 )
                 response.latency_ms = int((time.perf_counter() - start) * 1000)
+                # 如果模型返回错误（如未加载），继续尝试下一个模型
+                if response.finish_reason == "error":
+                    logger.warning(
+                        "Model %s returned error: %s, trying next",
+                        model.name, response.content[:100],
+                    )
+                    model.last_error = response.content[:200]
+                    continue
                 return response
             except asyncio.TimeoutError:
-                logger.warning(f"Model {model.name} timed out")
+                logger.warning(f"Model {model.name} timed out (30s)")
                 model.last_error = "timeout"
             except Exception as e:
-                logger.warning(f"Model {model.name} failed: {e}")
+                logger.warning(f"Model {model.name} FAILED: {type(e).__name__}: {e}")
                 model.last_error = str(e)
         return None
 
@@ -180,11 +190,13 @@ class ModelRouter:
         api_gateway,  # ApiGateway 实例
         fallback_model: ICandidateModel,
         usage_recorder=None,  # 使用统计记录器
+        api_models=None,  # 远程API模型适配器（支持按名选择）
     ):
         self.local_models = local_models
         self.api_gateway = api_gateway
         self.fallback_model = fallback_model
         self.usage_recorder = usage_recorder
+        self.api_models = api_models or []
 
         # 构建回退链
         self._fallback_chain: list[FallbackNode] = []
@@ -330,12 +342,23 @@ class ModelRouter:
         # 3. 重建回退链
         self._rebuild_chain()
 
+        # 诊断：打印回退链状态
+        for node in self._fallback_chain:
+            available_in_node = [m.name for m in node.models if m.is_available]
+            logger.info(
+                "FallbackChain[%s]: %d models (%d available): %s",
+                node.name, len(node.models), len(available_in_node),
+                available_in_node[:5] if available_in_node else "(none)",
+            )
+
         # 4. 依次尝试回退链
         chain_errors: list[str] = []
         for node in self._fallback_chain:
+            logger.info("FallbackChain: trying node '%s' (%d models)...", node.name, len(node.models))
             response = await node.try_generate(request)
             if response:
                 response.is_fallback = (node.name != "local_primary")
+                logger.info("FallbackChain: SUCCESS from node '%s' → model=%s", node.name, response.model_used)
                 return response
             chain_errors.append(f"{node.name}: all models exhausted")
 
@@ -361,18 +384,52 @@ class ModelRouter:
     async def _try_specific_model(
         self, model_name: str, request: ModelRequest
     ) -> ModelResponse | None:
-        """尝试指定模型"""
-        all_models = (
-            self.local_models
-            + (self.api_gateway.get_candidates() if self.api_gateway else [])
-            + [self.fallback_model]
-        )
-        for model in all_models:
+        """尝试指定模型（本地 + 远程API）"""
+        logger.info(f"ModelRouter: Trying preferred model '{model_name}'")
+
+        # 1. 先在 API 模型适配器中查找（ollama-xxx, openai-gpt4o 等）
+        if self.api_models:
+            for model in self.api_models:
+                if model.name == model_name:
+                    try:
+                        logger.info(
+                            f"ModelRouter: Found preferred model '{model_name}' "
+                            f"(provider={getattr(model, 'provider_name', '?')}, "
+                            f"api_model={getattr(model, 'api_model_id', '?')}), calling..."
+                        )
+                        return await model.generate(request)
+                    except Exception as e:
+                        logger.warning(f"API model {model_name} failed: {e}")
+                        return None
+
+        # 2. 在本地模型中查找（safetensors/GGUF）
+        for model in self.local_models:
             if model.name == model_name:
                 try:
+                    logger.info(f"ModelRouter: Found local model '{model_name}', calling...")
                     return await model.generate(request)
                 except Exception as e:
-                    logger.warning(f"Specific model {model_name} failed: {e}")
+                    logger.warning(f"Local model {model_name} failed: {e}")
+                    return None
+
+        # 3. 在 API Gateway 候选中按 provider 查找（兜底）
+        if self.api_gateway:
+            api_candidates = self.api_gateway.get_candidates()
+            for model in api_candidates:
+                if model.name == model_name or getattr(model, 'api_model_id', None) == model_name:
+                    try:
+                        logger.info(f"ModelRouter: Found API candidate '{model_name}'")
+                        return await model.generate(request)
+                    except Exception as e:
+                        logger.warning(f"API candidate {model_name} failed: {e}")
+                        return None
+
+        available_names = (
+            [m.name for m in (self.api_models or [])]
+            + [m.name for m in self.local_models]
+            + [m.name for m in (self.api_gateway.get_candidates() if self.api_gateway else [])]
+        )
+        logger.warning(f"ModelRouter: Preferred model '{model_name}' not found. Available: {available_names[:10]}")
         return None
 
     async def _record_usage(self, request: ModelRequest, response: ModelResponse):
@@ -413,6 +470,7 @@ def init_model_router(
     api_gateway=None,
     fallback_model: ICandidateModel | None = None,
     usage_recorder=None,
+    api_models=None,  # 新增：远程API模型适配器
 ) -> ModelRouter:
     """初始化全局模型路由器"""
     global _global_router
@@ -426,8 +484,10 @@ def init_model_router(
         api_gateway=api_gateway,
         fallback_model=fallback_model,
         usage_recorder=usage_recorder,
+        api_models=api_models,
     )
-    logger.info("ModelRouter initialized with %d local models", len(local_models))
+    total = len(local_models) + (len(api_models) if api_models else 0)
+    logger.info(f"ModelRouter initialized with {len(local_models)} local + {len(api_models or [])} API models")
     return _global_router
 
 
@@ -567,6 +627,90 @@ def build_local_model_adapters() -> list[LocalModelAdapter]:
 
     except Exception as e:
         logger.warning(f"Failed to build local model adapters: {e}")
+
+    return adapters
+
+
+# ── API 远程模型适配器（支持按模型名单独选择）───────────
+
+class ApiModelAdapter(ICandidateModel):
+    """将远程 API 模型包装为 ICandidateModel，支持 _try_specific_model 按名选择"""
+
+    def __init__(self, remote_config, api_gateway=None):
+        """
+        Args:
+            remote_config: ai_models.registry.RemoteModelConfig 实例
+            api_gateway: ApiGateway 实例（用于实际调用）
+        """
+        self.name = remote_config.name  # 如 "ollama-qwen3-coder-30b"
+        self.provider_name = remote_config.provider  # 如 "ollama"
+        self.api_model_id = remote_config.api_model_id  # 如 "qwen3-coder:30b"
+        self.display_name = remote_config.display_name
+        self.priority = remote_config.priority
+        self.strengths = remote_config.strengths
+        self.dynamic_score = float(remote_config.priority)
+        self.is_available = True
+        self.last_error = None
+        self._remote_config = remote_config
+        self._api_gateway = api_gateway
+
+    async def generate(self, request: ModelRequest) -> ModelResponse:
+        """通过对应的 Provider 调用远程模型"""
+        if not self._api_gateway:
+            raise RuntimeError(f"No api_gateway set for {self.name}")
+
+        # 构建新请求，覆盖模型名为实际的 api_model_id
+        specific_request = ModelRequest(
+            capability=request.capability,
+            prompt=request.prompt,
+            system_prompt=request.system_prompt,
+            max_tokens=self._remote_config.max_tokens or request.max_tokens,
+            temperature=self._remote_config.temperature or request.temperature,
+            preferred_model=None,  # 不再递归选择
+            stream=request.stream,
+            images=request.images,
+            history=request.history,
+            task_type=request.task_type,
+            tools=request.tools,
+            tool_choice=request.tool_choice,
+            extra_params={"api_model_id": self.api_model_id},
+        )
+
+        logger.info(
+            f"ApiModelAdapter: Calling provider={self.provider_name} "
+            f"model={self.api_model_id} (alias={self.name})"
+        )
+
+        try:
+            response = await self._api_gateway.generate(
+                specific_request, provider=self.provider_name
+            )
+            return response
+        except Exception as e:
+            self.is_available = False
+            self.last_error = str(e)
+            logger.error(f"ApiModelAdapter({self.name}) failed: {e}")
+            raise
+
+    async def generate_stream(self, request: ModelRequest):
+        response = await self.generate(request)
+        yield response.content
+
+
+def build_api_model_adapters(api_gateway=None) -> list[ApiModelAdapter]:
+    """从 registry 的远程配置构建 API 模型适配器列表"""
+    adapters = []
+    try:
+        from ai_models.registry import get_all_remote_configs
+
+        remote_configs = get_all_remote_configs()
+        for name, config in remote_configs.items():
+            adapter = ApiModelAdapter(config, api_gateway=api_gateway)
+            adapters.append(adapter)
+            logger.debug(f"ApiModelAdapter built: {name} → {config.provider}/{config.api_model_id}")
+
+    except Exception as e:
+        logger.warning(f"Failed to build API model adapters: {e}")
 
     return adapters
 

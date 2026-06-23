@@ -65,6 +65,7 @@ class BaseProvider(ICandidateModel):
                 base_url=self.config.base_url,
                 timeout=httpx.Timeout(60.0, connect=10.0),
                 headers=self._build_headers(),
+                trust_env=False,  # 禁用系统代理检测（WinINET/WPAD），避免读取已关闭的代理导致连接失败
             )
         return self._client
 
@@ -74,6 +75,15 @@ class BaseProvider(ICandidateModel):
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
         }
+
+    def _get_model_name(self, request: ModelRequest) -> str:
+        """获取实际要调用的模型名（支持 ApiModelAdapter 覆盖）"""
+        return (
+            (request.extra_params or {}).get("api_model_id")
+            or self.config.models[0]
+            if self.config.models
+            else self.name
+        )
 
     async def health_check(self) -> bool:
         """验证 API 密钥是否有效"""

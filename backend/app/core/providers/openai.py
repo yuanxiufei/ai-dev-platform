@@ -19,7 +19,7 @@ class OpenAIProvider(BaseProvider):
     """OpenAI API 适配器 —— 支持 Function Calling"""
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        model_name = self.config.models[0] if self.config.models else "gpt-4o"
+        model_name = self._get_model_name(request)
         msgs: list[dict] = self._build_messages(request)
 
         # 处理视觉输入

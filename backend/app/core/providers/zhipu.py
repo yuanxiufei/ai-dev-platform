@@ -18,7 +18,7 @@ class ZhipuProvider(BaseProvider):
     """智谱 GLM-4 API 适配器（OpenAI 兼容格式，支持 Function Calling）"""
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        model_name = self.config.models[0] if self.config.models else "glm-4-plus"
+        model_name = self._get_model_name(request)
         messages = self._build_messages(request)
 
         body: dict = {
