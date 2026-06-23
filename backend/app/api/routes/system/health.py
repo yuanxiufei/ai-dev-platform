@@ -50,13 +50,12 @@ def detailed_health(session: SessionDep):
         model_status = "error"
         issues.append(f"Models: {e}")
 
-    # API 网关
+    # API 网关（强制重新初始化以获取最新密钥）
     try:
-        from app.core.api_gateway import get_api_gateway
-        gateway = get_api_gateway()
-        providers = gateway.list_providers()
-        configured = sum(1 for p in providers if p.get("is_configured"))
-        gateway_status = f"{configured}/{len(providers)} configured"
+        from app.core.providers import init_provider_registry, _default_configs
+        configs = _default_configs()
+        configured = sum(1 for c in configs if bool(c.api_key))
+        gateway_status = f"{configured}/{len(configs)} configured"
     except Exception as e:
         gateway_status = "error"
         issues.append(f"API Gateway: {e}")
