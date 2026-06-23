@@ -8,10 +8,10 @@ llama.cpp Server Provider — 适配 llama.cpp 内置 HTTP Server
 - /v1/models
 
 llama.cpp server 启动方式:
-  ./llama-server -m models/7B/ggml-model.gguf -c 4096 --host 0.0.0.0 --port 8080
+  ./llama-server -m models/7B/ggml-model.gguf -c 4096 --host 0.0.0.0 --port 18082
 
 环境变量:
-  LLAMA_CPP_BASE_URL=http://localhost:8080/v1
+  LLAMA_CPP_BASE_URL=http://localhost:18082/v1
 """
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ class LlamaCppRerankerProvider:
     借鉴 llama.cpp 的 reranking API，需要 reranker 模型（如 bge-reranker）。
     """
 
-    def __init__(self, base_url: str = "http://localhost:8080", api_key: str = ""):
+    def __init__(self, base_url: str = "http://localhost:18082", api_key: str = ""):
         import httpx
         self.base_url = base_url.rstrip("/")
         self.client = httpx.AsyncClient(

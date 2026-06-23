@@ -16,7 +16,7 @@ docker compose watch
 | Video Admin（管理端） | http://localhost:5176 |
 | 后端 API | http://localhost:18000 |
 | API 文档 (Swagger) | http://localhost:18000/docs |
-| 数据库管理 (Adminer) | http://localhost:8080 |
+| 数据库管理 (Adminer) | http://localhost:18080 |
 | 邮件查看 (Mailcatcher) | http://localhost:1080 |
 | Traefik 面板 | http://localhost:8090 |
 
@@ -106,7 +106,7 @@ pnpm dev:video-admin
 | Studio Admin | http://localhost:5175 |
 | Video Admin | http://localhost:5176 |
 | API 文档 | http://localhost:18000/docs |
-| 数据库管理 | http://localhost:8080 |
+| 数据库管理 | http://localhost:18080 |
 | 邮件查看 | http://localhost:1080 |
 
 ---

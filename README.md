@@ -117,7 +117,7 @@ docker compose watch
 | Studio Admin（管理端） | http://localhost:5175 |
 | Video Admin（管理端） | http://localhost:5176 |
 | API 文档 | http://localhost:18000/docs |
-| 数据库管理 | http://localhost:8080 |
+| 数据库管理 | http://localhost:18080 |
 | Traefik 面板 | http://localhost:8090 |
 
 ### 方式二：本地开发（推荐）

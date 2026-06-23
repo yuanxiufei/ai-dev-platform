@@ -139,10 +139,9 @@ class PortForwardManager:
             common_ports = [
                 3000,   # React/Next.js
                 5173,   # Vite
-                8080,   # Common dev server
-                8000,   # Python/Django (legacy)
-                8888,   # Jupyter
+                18080,  # Adminer / alt dev server
                 18000,  # AI Fullstack Platform
+                18888,  # Jupyter (alt)
                 3001,   # Express
                 4000,   # SvelteKit
                 4200,   # Angular

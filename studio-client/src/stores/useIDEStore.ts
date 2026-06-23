@@ -313,7 +313,7 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=18000)
 `,
       json: `{
   "name": "ai-fullstack-platform",
@@ -375,7 +375,7 @@ import EditorArea from './components/EditorArea.vue'
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "18000:18000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/app
     depends_on:

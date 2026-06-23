@@ -5,7 +5,7 @@
     python standalone.py                  # 启动所有服务
     python standalone.py --no-watchdog    # 跳过守护进程
     python standalone.py --no-sleep       # 跳过智能休眠
-    python standalone.py --port 8080      # 自定义端口
+    python standalone.py --port 18080      # 自定义端口
     python standalone.py --help           # 查看帮助
 
 环境要求:
@@ -217,13 +217,13 @@ def parse_args() -> argparse.Namespace:
   python standalone.py --no-watchdog          # 不启用进程守护
   python standalone.py --no-sleep             # 不启用智能休眠
   python standalone.py --no-auth              # 不启用 API 鉴权
-  python standalone.py --port 8080            # 自定义端口
+  python standalone.py --port 18080            # 自定义端口
   python standalone.py --reload               # 开发模式（热重载）
   python standalone.py --workers 4            # 多 worker 模式
         """,
     )
     parser.add_argument("--host", default="0.0.0.0", help="监听地址 (默认: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="监听端口 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=18000, help="监听端口 (默认: 18000)")
     parser.add_argument("--no-watchdog", action="store_true", help="禁用进程守护")
     parser.add_argument("--watchdog", action="store_true", default=True, help="启用进程守护 (默认)")
     parser.add_argument("--no-sleep", action="store_true", help="禁用智能休眠")
