@@ -176,9 +176,22 @@ async def start_download(
     user: CurrentUser,
 ):
     """触发模型下载"""
+    # 根据 source 获取实际的下载源标识
+    from app.core.model_downloader import get_downloader
+    downloader = get_downloader()
+    config = downloader.get_model_config(dl_in.model_name)
+    source_id = ""
+    if config:
+        if dl_in.source == "modelscope":
+            source_id = config.get("ms_id", "")
+        else:
+            source_id = config.get("hf_id", "")
+    if not source_id:
+        source_id = dl_in.model_name
+
     record = ModelDownload(
         model_name=dl_in.model_name,
-        source=dl_in.model_name,
+        source=source_id,
         source_type=dl_in.source,
         started_by=user.id,
     )
@@ -186,13 +199,13 @@ async def start_download(
     session.commit()
     session.refresh(record)
 
-    # 异步执行
+    # 异步执行（创建独立 db session 避免异步上下文冲突）
     import asyncio
-    from app.core.model_downloader import get_downloader
+    from app.core.db import engine
+    from sqlmodel import Session as DBSession
 
-    downloader = get_downloader()
     asyncio.create_task(
-        _run_download(downloader, dl_in, record.id, session)
+        _run_download(downloader, dl_in, record.id, DBSession(engine))
     )
 
     return {

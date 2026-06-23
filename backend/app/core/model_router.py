@@ -442,6 +442,135 @@ def get_model_router() -> ModelRouter:
 
 # ── 内置基础兜底模型 ──────────────────────────────────────
 
+class LocalModelAdapter(ICandidateModel):
+    """
+    本地模型适配器 —— 将 ai_models 层的 BaseModel 桥接到 ICandidateModel
+
+    按需加载模型：仅在 generate() 被调用时才加载模型到内存。
+    支持 safetensors 和 GGUF 两种格式。
+    """
+
+    def __init__(self, config, model_class):
+        """
+        Args:
+            config: ai_models.base.ModelConfig 实例
+            model_class: 模型实现类（CodeGenerationModel / VisionLanguageModel / VideoGenerationModel）
+        """
+        provider = "local"
+        strengths = getattr(config, "strengths", []) or []
+        super().__init__(
+            name=config.name,
+            provider=provider,
+            priority=config.priority,
+            strengths=strengths,
+        )
+        self._config = config
+        self._model_class = model_class
+        self._instance = None   # 延迟加载
+        self._supports_stream = False  # 本地模型暂不支持流式
+
+    def _get_instance(self):
+        """获取或懒加载模型实例"""
+        if self._instance is None:
+            self._instance = self._model_class(self._config)
+            logger.info(f"LocalModelAdapter: lazily loading {self._config.name}")
+        if not self._instance.is_loaded:
+            self._instance.load()
+        self.is_available = self._instance.is_loaded
+        return self._instance
+
+    async def generate(self, request: ModelRequest) -> ModelResponse:
+        """使用本地模型生成响应"""
+        try:
+            import time as _time
+            start = _time.perf_counter()
+
+            instance = self._get_instance()
+            if not instance.is_loaded:
+                return ModelResponse(
+                    content=f"// {self._config.display_name} not loaded",
+                    model_used=self._config.name,
+                    provider="local",
+                    finish_reason="error",
+                )
+
+            mapped_capabilities = {
+                ModelCapability.CODE_GENERATION.value: "code_generation",
+                ModelCapability.TEXT_GENERATION.value: "text_generation",
+                ModelCapability.VISION_LANGUAGE.value: "vision_language",
+                ModelCapability.VIDEO_GENERATION.value: "video_generation",
+            }
+            capability_str = mapped_capabilities.get(
+                request.capability.value if hasattr(request.capability, 'value') else str(request.capability),
+                "text_generation",
+            )
+
+            result = instance.generate(
+                prompt=request.prompt,
+                system=request.system_prompt,
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+                task_type=request.task_type,
+                capability=capability_str,
+            )
+
+            latency_ms = int((_time.perf_counter() - start) * 1000)
+            return ModelResponse(
+                content=result if isinstance(result, str) else str(result),
+                model_used=self._config.name,
+                provider="local",
+                finish_reason="stop",
+                latency_ms=latency_ms,
+                metadata={"format": self._config.model_format.value if hasattr(self._config.model_format, 'value') else str(self._config.model_format)},
+            )
+        except Exception as e:
+            self.is_available = False
+            self.last_error = str(e)
+            logger.error(f"LocalModelAdapter({self._config.name}) generate failed: {e}")
+            raise
+
+    async def generate_stream(self, request: ModelRequest):
+        """流式生成（本地模型回退到非流式）"""
+        response = await self.generate(request)
+        # 逐 token 输出（简化实现）
+        for token in response.content.split():
+            yield token + " "
+
+
+def build_local_model_adapters() -> list[LocalModelAdapter]:
+    """从 registry 构建本地模型适配器列表（用于注入 ModelRouter）"""
+    adapters = []
+    try:
+        from ai_models.registry import get_all_local_configs, ModelType as RegModelType
+        from ai_models.coder_model import CodeGenerationModel
+        from ai_models.vl_model import VisionLanguageModel
+        from ai_models.video_model import VideoGenerationModel
+
+        model_class_map = {
+            "code_generation": CodeGenerationModel,
+            "vision_language": VisionLanguageModel,
+            "video_generation": VideoGenerationModel,
+            "text_generation": CodeGenerationModel,  # 文本生成复用 Coder
+        }
+
+        local_configs = get_all_local_configs()
+        for name, config in local_configs.items():
+            model_type_val = config.model_type.value if hasattr(config.model_type, 'value') else str(config.model_type)
+            model_cls = model_class_map.get(model_type_val)
+            if model_cls is None:
+                logger.warning(f"No model class for type {model_type_val}, skipping {name}")
+                continue
+
+            adapter = LocalModelAdapter(config, model_cls)
+            adapters.append(adapter)
+            logger.debug(f"LocalModelAdapter built: {name} (priority={config.priority})")
+
+    except Exception as e:
+        logger.warning(f"Failed to build local model adapters: {e}")
+
+    return adapters
+
+
 class _BuiltinFallbackModel(ICandidateModel):
     """
     内置基础模型 —— 确保永远有模型可用

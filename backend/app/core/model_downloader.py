@@ -311,6 +311,10 @@ class ModelDownloadManager:
             })
         return result
 
+    def get_model_config(self, model_name: str) -> dict | None:
+        """获取模型的下载配置（公开接口，供路由层使用）"""
+        return self._model_configs.get(model_name)
+
     def _get_available_sources(self, model_name: str) -> list[str]:
         """获取模型的可用下载源"""
         config = self._model_configs.get(model_name, {})
@@ -367,48 +371,32 @@ class ModelDownloadManager:
                 model_dir = self.models_dir / model_name
                 model_dir.mkdir(parents=True, exist_ok=True)
 
-                # 构建下载 URL
                 files = config["files"]
-                total_files = len(files)
 
-                for idx, file_info in enumerate(files):
-                    if progress.state == DownloadState.CANCELLED:
-                        return
+                # 检测通配符模式（如 transformer/**），这类配置需要整体下载
+                wildcard_files = [
+                    f for f in files if "**" in f["filename"]
+                ]
+                normal_files = [
+                    f for f in files if "**" not in f["filename"]
+                ]
 
-                    filename = file_info["filename"]
-                    file_url = self._build_download_url(
-                        config, source, filename
+                # 先下载普通文件（按字节级进度）
+                if normal_files:
+                    await self._download_normal_files(
+                        task_id, model_name, config, source,
+                        normal_files, model_dir, progress,
                     )
 
-                    if not file_url:
-                        logger.warning(f"No URL for {filename}, trying next source")
-                        # 尝试备用源
-                        alt_source = "modelscope" if source == "huggingface" else "huggingface"
-                        file_url = self._build_download_url(
-                            config, alt_source, filename
-                        )
-                        if not file_url:
-                            if file_info["required"]:
-                                raise ValueError(
-                                    f"Cannot find download URL for required file: {filename}"
-                                )
-                            continue
-
-                    dest = model_dir / filename
-                    downloader = FileDownloader(
-                        url=file_url,
-                        dest_path=dest,
+                # 处理通配符文件（通过 huggingface_hub / modelscope SDK 整体下载）
+                if wildcard_files:
+                    await self._download_wildcard_files(
+                        task_id, model_name, config, source,
+                        wildcard_files, model_dir, progress,
                     )
-                    self._downloaders[task_id] = downloader
 
-                    logger.info(
-                        f"Downloading [{idx + 1}/{total_files}]: {filename}"
-                    )
-                    await downloader.download()
-
-                    # 更新进度
-                    progress.progress_pct = ((idx + 1) / total_files) * 100
-                    self._notify_progress(progress)
+                if progress.state == DownloadState.CANCELLED:
+                    return
 
                 # 完成
                 progress.state = DownloadState.COMPLETED
@@ -424,6 +412,146 @@ class ModelDownloadManager:
 
             finally:
                 self._downloaders.pop(task_id, None)
+
+    async def _download_normal_files(
+        self,
+        task_id: str,
+        model_name: str,
+        config: dict,
+        source: str,
+        files: list[dict],
+        model_dir: Path,
+        progress: DownloadProgress,
+    ):
+        """下载普通文件（字节级进度追踪）"""
+        total_files = len(files)
+
+        # 估算总大小（从已有文件信息中推导）
+        total_size_estimate = sum(
+            self._estimate_file_size(config, source, f["filename"])
+            for f in files
+        )
+        downloaded_bytes = 0
+
+        for idx, file_info in enumerate(files):
+            if progress.state == DownloadState.CANCELLED:
+                return
+
+            filename = file_info["filename"]
+            file_url = self._build_download_url(config, source, filename)
+
+            if not file_url:
+                logger.warning(f"No URL for {filename}, trying alternate source")
+                alt_source = "modelscope" if source == "huggingface" else "huggingface"
+                file_url = self._build_download_url(config, alt_source, filename)
+                if not file_url:
+                    if file_info.get("required", False):
+                        raise ValueError(
+                            f"Cannot find download URL for required file: {filename}"
+                        )
+                    continue
+
+            dest = model_dir / filename
+            dest.parent.mkdir(parents=True, exist_ok=True)
+
+            file_downloader = FileDownloader(
+                url=file_url,
+                dest_path=dest,
+            )
+            self._downloaders[task_id] = file_downloader
+
+            logger.info(
+                f"Downloading [{idx + 1}/{total_files}]: {filename}"
+            )
+            await file_downloader.download()
+
+            # 字节级进度更新
+            file_size = dest.stat().st_size if dest.exists() else 0
+            downloaded_bytes += file_size
+            if progress.total_bytes is None:
+                progress.total_bytes = max(total_size_estimate, downloaded_bytes)
+            progress.downloaded_bytes = downloaded_bytes
+
+            if progress.total_bytes and progress.total_bytes > 0:
+                progress.progress_pct = min(
+                    (downloaded_bytes / progress.total_bytes) * 100, 99.0
+                )
+            else:
+                # 回退到文件计数
+                progress.progress_pct = ((idx + 1) / total_files) * 100
+
+            self._notify_progress(progress)
+
+    async def _download_wildcard_files(
+        self,
+        task_id: str,
+        model_name: str,
+        config: dict,
+        source: str,
+        files: list[dict],
+        model_dir: Path,
+        progress: DownloadProgress,
+    ):
+        """处理通配符文件模式 —— 使用 SDK 整体下载目录结构"""
+        logger.info(
+            f"Model '{model_name}' has {len(files)} wildcard patterns, "
+            f"using snapshot download..."
+        )
+
+        hf_id = config.get("hf_id", "")
+        ms_id = config.get("ms_id", "")
+
+        # 优先使用 huggingface_hub snapshot_download
+        try:
+            from huggingface_hub import snapshot_download
+
+            mirror_url = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")
+            repo_id = hf_id if source == "huggingface" else ms_id
+            if not repo_id:
+                repo_id = hf_id or ms_id
+
+            logger.info(f"Snapshot downloading {repo_id} from {mirror_url}")
+            snapshot_download(
+                repo_id=repo_id,
+                local_dir=str(model_dir),
+                endpoint=mirror_url,
+                token=os.getenv("HF_TOKEN", True),
+                resume_download=True,
+            )
+            logger.info(f"Snapshot download completed for {model_name}")
+
+        except ImportError:
+            # 尝试 ModelScope SDK
+            try:
+                from modelscope.hub.snapshot_download import snapshot_download as ms_snapshot
+
+                repo_id = ms_id or hf_id
+                logger.info(f"ModelScope snapshot downloading {repo_id}")
+                ms_snapshot(
+                    model_id=repo_id,
+                    local_dir=str(model_dir),
+                    revision="master",
+                )
+            except ImportError:
+                logger.warning(
+                    f"Cannot handle wildcard patterns without "
+                    f"huggingface_hub or modelscope. "
+                    f"Please install: pip install huggingface_hub modelscope"
+                )
+                raise RuntimeError(
+                    f"Model '{model_name}' contains wildcard file patterns "
+                    f"(e.g., transformer/**) that require huggingface_hub "
+                    f"or modelscope to download. Please install them or "
+                    f"manually place the model files in {model_dir}."
+                )
+
+    def _estimate_file_size(self, config: dict, source: str, filename: str) -> int:
+        """估算单个文件大小（粗略估计）"""
+        approx_size = config.get("approx_size_gb", 0) * 1024 * 1024 * 1024
+        total_files = len(config.get("files", []))
+        if total_files > 0:
+            return int(approx_size / total_files)
+        return 0
 
     def _build_download_url(
         self, config: dict, source: str, filename: str

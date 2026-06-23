@@ -72,17 +72,19 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.model_router import (
             init_model_router,
+            build_local_model_adapters,
             ModelCapability,
         )
         from app.core.api_gateway import get_api_gateway
 
         gateway = get_api_gateway()
+        local_models = build_local_model_adapters()
         init_model_router(
-            local_models=[],  # 后续从 ai_models 层注入
+            local_models=local_models,
             api_gateway=gateway,
             fallback_model=None,  # 自动创建内置兜底
         )
-        logger.info("ModelRouter initialized")
+        logger.info("ModelRouter initialized with %d local + API models", len(local_models))
     except Exception as e:
         logger.warning("ModelRouter init skipped: %s", e)
 

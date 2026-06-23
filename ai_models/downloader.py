@@ -163,31 +163,136 @@ class ModelDownloader:
         on_progress=None,
     ) -> Path:
         """
-        通过 HTTP 下载文件列表
+        通过 HTTP 下载文件 —— 裸 httpx 回退方案
 
-        # TODO: 实现文件清单解析和批量下载
+        当 huggingface_hub / modelscope 库未安装时的兜底方案：
+        1. 解析文件清单 API（HuggingFace / ModelScope 的 repo 文件列表）
+        2. 逐个文件下载到目标目录，支持断点续传
+        3. 自动跳过已存在且大小正确的文件
         """
         import httpx
 
         dest.mkdir(parents=True, exist_ok=True)
-        logger.info(f"HTTP download to {dest}")
+        logger.info(f"HTTP fallback download to {dest} (base_url={base_url})")
 
-        # 简化实现：提示用户使用 huggingface_hub 或 modelscope
-        logger.warning(
-            "For full model download support, install: "
-            "pip install huggingface_hub modelscope"
+        # 检查是否已有完整的模型文件
+        existing_files = {f.name: f.stat().st_size for f in dest.rglob("*") if f.is_file()}
+
+        # 尝试获取文件清单
+        file_list = await self._fetch_file_list(base_url)
+        if not file_list:
+            if existing_files:
+                logger.info(f"No file list from API, but found {len(existing_files)} existing files in {dest}")
+                return dest
+            raise RuntimeError(
+                "Cannot download model without huggingface_hub or modelscope. "
+                "Unable to fetch file list from API, and no existing files found. "
+                f"Please install the required library or manually place model files in {dest}"
+            )
+
+        logger.info(f"HTTP fallback: downloading {len(file_list)} files to {dest}")
+
+        total_bytes = 0
+        downloaded_count = 0
+        skipped_count = 0
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=30)) as client:
+            for file_info in file_list:
+                filename = file_info["filename"]
+                expected_size = file_info.get("size", 0)
+                file_url = file_info["url"]
+
+                file_dest = dest / filename
+                file_dest.parent.mkdir(parents=True, exist_ok=True)
+
+                # 跳过已存在且大小正确的文件
+                if filename in existing_files and expected_size > 0:
+                    if existing_files[filename] == expected_size:
+                        logger.debug(f"Skip existing file: {filename} ({expected_size} bytes)")
+                        skipped_count += 1
+                        total_bytes += expected_size
+                        continue
+
+                # 下载文件（支持断点续传）
+                try:
+                    headers = {}
+                    if file_dest.exists():
+                        resume_from = file_dest.stat().st_size
+                        if resume_from > 0:
+                            headers["Range"] = f"bytes={resume_from}-"
+
+                    async with client.stream("GET", file_url, headers=headers) as resp:
+                        resp.raise_for_status()
+                        mode = "ab" if "Range" in headers else "wb"
+                        with open(file_dest, mode) as f:
+                            async for chunk in resp.aiter_bytes(chunk_size=8 * 1024 * 1024):
+                                f.write(chunk)
+
+                    downloaded_count += 1
+                    total_bytes += file_dest.stat().st_size
+                    if on_progress:
+                        on_progress(
+                            total_bytes,
+                            sum(f["size"] for f in file_list),
+                            total_bytes / (1024 * 1024),
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to download {filename}: {e}")
+                    raise
+
+        logger.info(
+            f"HTTP fallback completed: {downloaded_count} downloaded, "
+            f"{skipped_count} skipped, {total_bytes / 1024 / 1024 / 1024:.2f} GB total"
         )
+        return dest
 
-        # 检测已有文件
-        files_found = list(dest.rglob("*"))
-        if files_found:
-            logger.info(f"Found {len(files_found)} existing files in {dest}")
-            return dest
+    async def _fetch_file_list(self, base_url: str) -> list[dict]:
+        """
+        从 HuggingFace / ModelScope API 获取模型文件清单。
 
-        raise RuntimeError(
-            "Cannot download model without huggingface_hub or modelscope. "
-            f"Please install them or manually place model files in {dest}"
-        )
+        HuggingFace: GET {base_url} → JSON list of files
+        ModelScope: GET {base_url} → JSON Data.Files list
+        """
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
+                resp = await client.get(base_url)
+                resp.raise_for_status()
+
+                # 尝试解析为 HF API 格式: [{"rfilename": "...", "size": ...}, ...]
+                if isinstance(resp.json(), list) and len(resp.json()) > 0:
+                    first = resp.json()[0]
+                    if "rfilename" in first:
+                        return [
+                            {
+                                "filename": item["rfilename"],
+                                "size": item.get("size", 0),
+                                "url": f"{base_url.rstrip('/')}/{item['rfilename']}",
+                            }
+                            for item in resp.json()
+                        ]
+
+                # 尝试解析为 ModelScope API 格式
+                data = resp.json()
+                if isinstance(data, dict) and "Data" in data:
+                    files_data = data["Data"]
+                    if isinstance(files_data, dict) and "Files" in files_data:
+                        return [
+                            {
+                                "filename": f["Name"],
+                                "size": f.get("Size", 0),
+                                "url": f"{base_url.rstrip('/')}/{f['Name']}",
+                            }
+                            for f in files_data["Files"]
+                        ]
+
+                logger.warning(f"Unknown file list format from {base_url}")
+                return []
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch file list from {base_url}: {e}")
+            return []
 
     def _verify_model(self, path: Path) -> bool:
         """验证模型完整性"""
