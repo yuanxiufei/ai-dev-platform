@@ -24,6 +24,7 @@ from app.api.routes.agent.openapi_discovery import router as openapi_discovery_r
 from app.api.routes.agent.knowledge_graph import router as knowledge_graph_router  # noqa: F401
 from app.api.routes.agent.ckg import router as ckg_router  # noqa: F401
 from app.api.routes.agent.trajectory import router as trajectory_router  # noqa: F401
+from app.api.routes.agent.traces import router as traces_router  # noqa: F401
 from app.api.routes.agent.modes import router as modes_router  # noqa: F401
 from app.api.routes.agent.lakeview import router as lakeview_router  # noqa: F401
 from app.api.routes.agent.worktree import router as worktree_router  # noqa: F401
@@ -31,4 +32,5 @@ from app.api.routes.agent.code_completion import router as code_completion_route
 from app.api.routes.agent.reflection import router as reflection_router  # noqa: F401
 from app.api.routes.agent.rules import router as rules_router  # noqa: F401
 from app.api.routes.agent.integrations import router as integrations_router  # noqa: F401
+from app.api.routes.agent.run import router as agent_run_router  # noqa: F401
 from app.api.routes.agent.agents import router as agents_router  # noqa: F401

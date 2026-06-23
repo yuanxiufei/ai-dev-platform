@@ -6,6 +6,8 @@ Integration    — 第三方服务集成配置（Supabase / CloudBase 等）
 AgentConfig    — Agent 配置（模型 + System Prompt + 工具 + 模式）
 """
 
+from enum import Enum
+
 import uuid
 from datetime import datetime, timezone
 
@@ -15,6 +17,17 @@ from sqlmodel import Column, Field, SQLModel
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# ── DownloadStatus ────────────────────────────────────────
+
+class DownloadStatus(str, Enum):
+    """模型下载状态枚举"""
+    QUEUED = "queued"
+    DOWNLOADING = "downloading"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 # ── Rule ──────────────────────────────────────────────────
@@ -89,5 +102,61 @@ class AgentConfig(SQLModel, table=True):
     project_id: uuid.UUID | None = Field(default=None, nullable=True)
 
     user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+
+
+# ── ModelDownload ─────────────────────────────────────────
+
+class ModelDownload(SQLModel, table=True):
+    """模型下载任务记录"""
+    __tablename__ = "model_downloads"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    model_name: str = Field(max_length=255, description="模型名称")
+    source: str = Field(default="", max_length=500, description="下载源 (HuggingFace ID / ModelScope ID)")
+    source_type: str = Field(default="huggingface", max_length=50, description="huggingface|modelscope|custom")
+
+    status: str = Field(default=DownloadStatus.QUEUED, max_length=20, description="queued|downloading|completed|failed|cancelled")
+    progress: int = Field(default=0, description="下载进度 (0-100)")
+    downloaded: int = Field(default=0, description="已下载字节数")
+    file_size: int = Field(default=0, description="总文件大小(字节)")
+
+    error_message: str | None = Field(default=None, sa_column=Column("error_message", Text))
+    started_by: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+
+    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+
+
+# ── ModelUsageStat ────────────────────────────────────────
+
+class ModelUsageStat(SQLModel, table=True):
+    """模型使用统计记录"""
+    __tablename__ = "model_usage_stats"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    model_name: str = Field(max_length=255, description="模型名称")
+    success: bool = Field(default=True, description="调用是否成功")
+    latency_ms: float = Field(default=0.0, description="调用耗时(毫秒)")
+    token_count: int = Field(default=0, description="Token 消耗")
+
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
+
+
+# ── ApiCredential ─────────────────────────────────────────
+
+class ApiCredential(SQLModel, table=True):
+    """第三方 API 凭证存储"""
+    __tablename__ = "api_credentials"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    provider: str = Field(max_length=50, description="openai|anthropic|deepseek|zhipu|qwen|replicate")
+    api_key_encrypted: str = Field(sa_column=Column("api_key_encrypted", Text), description="加密后的 API Key")
+    endpoint: str | None = Field(default=None, max_length=500, description="自定义 API Endpoint")
+    is_active: bool = Field(default=True)
+
+    owner_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))

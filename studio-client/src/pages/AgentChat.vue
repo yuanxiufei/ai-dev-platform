@@ -23,8 +23,10 @@ import {
   PanelRightOpen, PanelRightClose, Send, Square, RotateCcw,
   Plus, Trash2, MessageSquare, Clock, Cpu, ChevronRight,
   Copy, Terminal, Globe, FileCode, Search, Brain, Sparkles,
-  AlertCircle, History,
+  AlertCircle, History, GitBranch,
 } from 'lucide-vue-next'
+import DiffViewer from '@/components/DiffViewer.vue'
+import type { DiffData } from '@/types/studio'
 
 // ════════════════════════════════════════════════
 // 路由 & 项目上下文
@@ -61,6 +63,10 @@ const showHistoryPanel = ref(false)
 
 // 工具调用展开 ID 集合
 const expandedToolIds = ref<Set<string>>(new Set())
+
+// 🆕 Diff 数据收集
+const collectedDiffs = ref<DiffData[]>([])
+const showDiffPanel = ref(false)
 
 // 输入框
 const inputText = ref('')
@@ -203,6 +209,8 @@ function newChat() {
   hasStarted.value = false
   agentState.value = 'idle'
   currentToolCalls.value = []
+  collectedDiffs.value = []
+  showDiffPanel.value = false
   totalLatencyMs.value = 0
   showHistoryPanel.value = false
   inputText.value = ''
@@ -229,6 +237,8 @@ function resetChat() {
   sessionId.value = crypto.randomUUID()
   agentState.value = 'idle'
   currentToolCalls.value = []
+  collectedDiffs.value = []
+  showDiffPanel.value = false
   totalLatencyMs.value = 0
   showToast('已清空对话')
   scrollToBottom()
@@ -397,6 +407,21 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
       break
     }
 
+    // 🆕 diff 事件 — 收集 diff 数据用于 DiffViewer 展示
+    case 'diff': {
+      const diffData = ev.data as unknown as DiffData
+      if (diffData) {
+        collectedDiffs.value.push(diffData)
+        msg.metadata = {
+          ...msg.metadata,
+          has_diffs: true,
+          diff_count: (msg.metadata?._diff_count as number || 0) + 1,
+          _diff_count: (msg.metadata?._diff_count as number || 0) + 1,
+        }
+      }
+      break
+    }
+
     case 'final_answer':
       agentState.value = 'generating'
       msg.content = ev.content || ''
@@ -546,6 +571,22 @@ function onInputKeydown(e: KeyboardEvent) {
         >
           <PanelRightOpen v-if="!showRightPanel" class="w-[18px] h-[18px]" />
           <PanelRightClose v-else class="w-[18px] h-[18px]" />
+        </button>
+
+        <!-- 🆕 Diff 面板开关 -->
+        <button
+          :class="[
+            'p-2 rounded-xl transition-all duration-200 relative',
+            showDiffPanel ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+          ]"
+          @click="showDiffPanel = !showDiffPanel"
+          title="文件变更 (Diff)"
+        >
+          <GitBranch class="w-[18px] h-[18px]" />
+          <span
+            v-if="collectedDiffs.length > 0 && !showDiffPanel"
+            class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-[9px] font-bold text-white flex items-center justify-center"
+          >{{ collectedDiffs.length }}</span>
         </button>
 
         <!-- 新建对话 -->
@@ -747,6 +788,16 @@ function onInputKeydown(e: KeyboardEvent) {
                     </div>
                   </div>
 
+                  <!-- 🆕 行内 Diff 展示 — 该消息相关的文件变更 -->
+                  <div v-if="collectedDiffs.length > 0 && isLastAssistant(msg)" class="mb-3 space-y-2">
+                    <DiffViewer
+                      v-for="(d, di) in collectedDiffs"
+                      :key="'diff-'+di"
+                      :diff="d"
+                      :collapsible="true"
+                    />
+                  </div>
+
                   <!-- 文字回复 -->
                   <div
                     v-if="msg.content"
@@ -879,6 +930,35 @@ function onInputKeydown(e: KeyboardEvent) {
                   <pre :class="['panel-code', tc.success ? '' : 'text-red-300/80']">{{ typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result, null, 2) }}</pre>
                 </div>
               </div>
+            </div>
+          </div>
+        </aside>
+      </Transition>
+
+      <!-- 🆕 右栏：Diff 面板（文件变更） -->
+      <Transition name="slide-right">
+        <aside v-if="showDiffPanel" class="w-80 shrink-0 flex flex-col border-l border-white/[0.06] bg-surface-900/40 overflow-hidden">
+          <div class="p-3 border-b border-white/[0.06] flex items-center justify-between shrink-0">
+            <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">文件变更</h3>
+            <span class="text-[10px] text-gray-600 tabular-nums">{{ collectedDiffs.length }} 个文件</span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-3 space-y-2 custom-scroll">
+            <div v-if="collectedDiffs.length === 0" class="empty-panel">
+              <GitBranch class="w-8 h-8 opacity-20" />
+              <p class="text-xs">暂无文件变更</p>
+              <p class="text-[10px] text-gray-600 mt-1">AI 编辑文件后，diff 将自动显示</p>
+            </div>
+
+            <div v-for="(d, di) in collectedDiffs" :key="'dpanel-'+di" class="rounded-lg bg-white/[0.02] border border-white/[0.05] overflow-hidden text-[11px]">
+              <div class="flex items-center gap-2 px-2.5 py-2 border-b border-white/[0.03]">
+                <FileCode class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span class="text-xs font-mono text-gray-200 truncate">{{ d.file_name }}</span>
+                <span class="ml-auto text-[10px] font-mono" :class="d.change_type === 'CREATE' ? 'text-emerald-400' : d.change_type === 'DELETE' ? 'text-red-400' : 'text-amber-400'">
+                  +{{ d.lines_added }} −{{ d.lines_removed }}
+                </span>
+              </div>
+              <pre class="px-2.5 py-1.5 text-[11px] leading-relaxed overflow-x-auto text-gray-400 max-h-32 overflow-y-auto custom-scroll">{{ d.diff_text.slice(0, 500) }}{{ d.diff_text.length > 500 ? '\n...' : '' }}</pre>
             </div>
           </div>
         </aside>

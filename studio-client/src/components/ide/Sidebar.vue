@@ -38,6 +38,7 @@ const studioLinks = [
   { path: '/templates', label: '模板市场', icon: 'Layers' },
   { path: '/integrations', label: '集成服务', icon: 'Link2' },
   { path: '/storage', label: '存储设置', icon: 'HardDrive' },
+  { path: '/standalone', label: '独立运行管理', icon: 'Monitor' },
 ]
 
 function navigateTo(path: string) {
@@ -72,7 +73,7 @@ function getStudioIcon(path: string): string {
     '/plugins': '🧩', '/arena': '⚔️', '/memory': '🧠', '/mcp': '🔌',
     '/skills': '✨', '/rules': '📜', '/agents': '🤖', '/image-gen': '🎨',
     '/prompt-templates': '🪄', '/screenshot-to-code': '📸', '/templates': '📋',
-    '/integrations': '🔗', '/storage': '💾',
+    '/integrations': '🔗', '/storage': '💾', '/standalone': '🖥️',
   }
   for (const [key, icon] of Object.entries(icons)) {
     if (path.startsWith(key)) return icon

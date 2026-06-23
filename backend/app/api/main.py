@@ -64,10 +64,13 @@ from app.api.routes.agent import (
     rules_router,
     integrations_router,
     agents_router as agent_mgmt_router,
+    traces_router as agent_traces_router,
+    agent_run_router,
 )
 from app.api.routes.rag import kb_router as rag_kb_router, query_router as rag_query_router
 from app.api.routes.rag.compound_vault import router as rag_compound_router
 from app.api.routes.rag.filter_routes import router as rag_filter_router
+from app.api.routes.standalone import router as standalone_router
 from app.api.routes import items, private
 from app.core.config import settings
 
@@ -115,6 +118,7 @@ api_router.include_router(models_router)       # /studio/models
 
 # ===== Agent 系统 =====
 api_router.include_router(agent_chat_router)           # /agent/chat, /agent/chat/stream, /agent/chat/simple
+api_router.include_router(agent_run_router)            # /agent/run, /agent/run/stream
 api_router.include_router(agent_tools_router)          # /agent/tools
 api_router.include_router(agent_mcp_router)            # /agent/mcp/servers
 api_router.include_router(agent_mcp_marketplace_router) # /agent/mcp/marketplace (MCP 市场)
@@ -165,6 +169,9 @@ api_router.include_router(ckg_router)                  # /agent/ckg index + sear
 # ===== Trajectory 轨迹记录 =====
 api_router.include_router(trajectory_router)            # /agent/trajectory list + get + delete
 
+# ===== TraceDB 数据层 API =====
+api_router.include_router(agent_traces_router)           # /agent/traces list + detail + tool-calls + file-changes + logs + stats
+
 # ===== Custom Modes (借鉴 Roo Code) =====
 api_router.include_router(modes_router)                  # /agent/modes list + CRUD + load + activate
 
@@ -194,6 +201,9 @@ api_router.include_router(rag_kb_router)       # /rag/knowledge-bases
 api_router.include_router(rag_query_router)    # /rag/query, /rag/search, /rag/health
 api_router.include_router(rag_compound_router) # /compound ingest/search/bm25/hot-cache (借鉴 claude-obsidian)
 api_router.include_router(rag_filter_router)   # /rag/filters list/apply/preview (借鉴 obsidian-clipper)
+
+# ===== Standalone 独立运行管理 API =====
+api_router.include_router(standalone_router)    # /standalone/status, /standalone/features, /standalone/keys, /standalone/sleep, /standalone/wake
 
 # ===== local 专用 =====
 if settings.ENVIRONMENT == "local":

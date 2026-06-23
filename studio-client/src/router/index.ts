@@ -20,7 +20,7 @@ const router = createRouter({
     {
       path: '/projects/:id',
       name: 'project-detail',
-      component: () => import('@/pages/AgentChat.vue'),
+      component: () => import('@/pages/ProjectDetail.vue'),
     },
     {
       path: '/knowledge',
@@ -126,6 +126,11 @@ const router = createRouter({
       path: '/agents',
       name: 'agents',
       component: () => import('@/pages/AgentsPage.vue'),
+    },
+    {
+      path: '/standalone',
+      name: 'standalone',
+      component: () => import('@/pages/StandaloneDashboard.vue'),
     },
     {
       path: '/:pathMatch(.*)*',

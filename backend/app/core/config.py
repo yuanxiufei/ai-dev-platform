@@ -321,6 +321,21 @@ class Settings(BaseSettings):
     # ── 多租户配置 ──────────────────────────────
     MULTI_TENANCY_ENABLED: bool = False       # 是否启用多租户
 
+    # ── Standalone 独立运行配置 ─────────────────
+    STANDALONE_MODE: bool = False              # 是否运行在独立模式（非 Docker）
+    STANDALONE_WATCHDOG_ENABLED: bool = True   # 是否启用守护进程
+    STANDALONE_API_AUTH_ENABLED: bool = True   # 是否启用 API 鉴权
+    STANDALONE_SMART_SLEEP_ENABLED: bool = True  # 是否启用智能休眠
+    STANDALONE_SLEEP_IDLE_TIMEOUT: int = 300   # 休眠空闲超时（秒）
+    STANDALONE_SLEEP_UNLOAD_MODELS: bool = True  # 休眠时卸载模型
+    STANDALONE_SLEEP_REDUCE_CPU_PRIORITY: bool = True  # 休眠时降低 CPU 优先级
+    STANDALONE_REMOTE_ACCESS_ENABLED: bool = True  # 是否允许远程访问
+    STANDALONE_BIND_HOST: str = "0.0.0.0"      # 绑定地址
+    STANDALONE_BIND_PORT: int = 8000            # 绑定端口
+    STANDALONE_MAX_RESTARTS: int = 10           # 最大重启次数
+    STANDALONE_HEALTH_CHECK_INTERVAL: int = 5   # 健康检查间隔（秒）
+    STANDALONE_PRESET_API_KEYS: str = ""        # 预置 API 密钥（逗号分隔）
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (

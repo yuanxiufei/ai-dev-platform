@@ -293,25 +293,109 @@ def delete_model(
 
 # ── 模型加载/卸载 ────────────────────────────────────────
 
+# 全局已加载模型缓存：{model_name: BaseModel instance}
+_loaded_models: dict[str, Any] = {}
+
+
+def _get_model_class(model_type: str):
+    """根据 ModelType 获取对应的模型包装类。
+
+    Args:
+        model_type: ModelType 枚举值字符串
+
+    Returns:
+        对应的模型类（CodeGenerationModel / VisionLanguageModel / VideoGenerationModel）
+    """
+    from ai_models.base import ModelType as MT
+
+    if model_type in (MT.CODE_GENERATION.value, "code_generation"):
+        from ai_models.coder_model import CodeGenerationModel
+        return CodeGenerationModel
+    elif model_type in (MT.VISION_LANGUAGE.value, "vision_language"):
+        from ai_models.vl_model import VisionLanguageModel
+        return VisionLanguageModel
+    elif model_type in (MT.VIDEO_GENERATION.value, "video_generation"):
+        from ai_models.video_model import VideoGenerationModel
+        return VideoGenerationModel
+    elif model_type in (MT.TEXT_GENERATION.value, "text_generation"):
+        from ai_models.coder_model import CodeGenerationModel
+        return CodeGenerationModel
+    return None
+
+
 @router.post("/{model_name}/load")
 def load_model(
     model_name: str,
     user: CurrentUser,
 ):
-    """加载模型到内存"""
+    """加载模型到内存/显存。
+
+    从 registry 获取模型配置，创建对应模型实例并调用 .load()。
+    支持 safetensors（transformers）和 GGUF（llama-cpp）两种格式。
+    已加载的模型会被缓存在全局 _loaded_models 字典中。
+    """
     from ai_models.registry import get_config
-    from ai_models.coder_model import CodeGenerationModel
+    from ai_models.base import ModelConfig
 
-    config = get_config(model_name)
+    # 检查是否已加载
+    if model_name in _loaded_models:
+        cached = _loaded_models[model_name]
+        return {
+            "model_name": model_name,
+            "status": "already_loaded",
+            "message": f"Model {model_name} is already loaded",
+            "display_name": getattr(cached.config, "display_name", model_name),
+            "is_loaded": cached.is_loaded if hasattr(cached, "is_loaded") else True,
+        }
+
+    # 获取模型配置
+    config: ModelConfig | None = get_config(model_name)
     if not config:
-        raise HTTPException(status_code=404, detail=f"Model {model_name} not registered")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Model '{model_name}' not registered. Available models: "
+                   f"{list(_get_registered_names())}",
+        )
 
-    # TODO: 实际加载模型
-    return {
-        "model_name": model_name,
-        "status": "loaded",
-        "message": f"Model {model_name} is ready",
-    }
+    # 获取模型类
+    model_cls = _get_model_class(config.model_type.value if hasattr(config.model_type, 'value') else str(config.model_type))
+    if model_cls is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model type: {config.model_type}",
+        )
+
+    # 创建并加载模型
+    try:
+        model = model_cls(config)
+        model.load()
+
+        if model.is_loaded:
+            _loaded_models[model_name] = model
+            return {
+                "model_name": model_name,
+                "status": "loaded",
+                "display_name": config.display_name,
+                "model_format": config.model_format.value if hasattr(config.model_format, 'value') else str(config.model_format),
+                "message": f"Model {config.display_name} loaded successfully",
+            }
+        else:
+            return {
+                "model_name": model_name,
+                "status": "load_failed",
+                "display_name": config.display_name,
+                "message": f"Model {config.display_name} failed to load (check logs for details)",
+            }
+    except ImportError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Model {model_name} requires missing dependencies: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load model {model_name}: {str(e)}",
+        )
 
 
 @router.post("/{model_name}/unload")
@@ -319,12 +403,66 @@ def unload_model(
     model_name: str,
     user: CurrentUser,
 ):
-    """卸载模型"""
+    """卸载模型 — 释放内存/显存资源。
+
+    从全局缓存中移除模型实例并调用 .unload() 释放资源。
+    """
+    if model_name in _loaded_models:
+        model = _loaded_models.pop(model_name)
+        try:
+            if hasattr(model, "unload"):
+                model.unload()
+            del model
+        except Exception as e:
+            # 即使卸载出错也清除引用
+            pass
+
+        # 强制垃圾回收
+        import gc
+        gc.collect()
+
+        return {
+            "model_name": model_name,
+            "status": "unloaded",
+            "message": f"Model {model_name} unloaded and resources freed",
+        }
+
+    # 尝试从未知状态卸载（registry 中存在的模型）
+    from ai_models.registry import get_config
+    config = get_config(model_name)
+    if config:
+        return {
+            "model_name": model_name,
+            "status": "not_loaded",
+            "message": f"Model {model_name} is registered but was not loaded",
+        }
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Model '{model_name}' not found in registry",
+    )
+
+
+@router.get("/loaded")
+def list_loaded_models(user: CurrentUser):
+    """列出当前已加载到内存的模型。"""
     return {
-        "model_name": model_name,
-        "status": "unloaded",
-        "message": f"Model {model_name} unloaded",
+        "loaded_models": [
+            {
+                "name": name,
+                "display_name": getattr(model.config, "display_name", name),
+                "is_loaded": model.is_loaded if hasattr(model, "is_loaded") else True,
+            }
+            for name, model in _loaded_models.items()
+        ],
+        "count": len(_loaded_models),
     }
+
+
+def _get_registered_names() -> list[str]:
+    """获取所有已注册的模型名称。"""
+    from ai_models.registry import list_all
+    return list(list_all().keys())
 
 
 # ── API 提供商 ──────────────────────────────────────────
@@ -344,10 +482,23 @@ def configure_provider(
     session: SessionDep,
     user: CurrentUser,
 ):
-    """配置 API 提供商密钥"""
+    """配置 API 提供商密钥（AES 加密存储）。
+
+    API 密钥使用 AES-256（Fernet）加密后存储到数据库，
+    密钥由 SECRET_KEY 派生，确保服务重启后仍可正常解密。
+    """
+    from app.core.crypto import encrypt_api_key
+
+    # AES 加密 API Key
+    try:
+        encrypted_key = encrypt_api_key(cred.api_key)
+    except ImportError:
+        # cryptography 未安装时回退到明文存储（开发环境）
+        encrypted_key = cred.api_key
+
     credential = ApiCredential(
         provider=cred.provider,
-        api_key_encrypted=cred.api_key,  # TODO: AES 加密
+        api_key_encrypted=encrypted_key,
         endpoint=cred.endpoint,
         owner_id=user.id,
     )
@@ -355,7 +506,7 @@ def configure_provider(
     session.commit()
     session.refresh(credential)
 
-    # 更新网关
+    # 更新网关凭据（用原始密钥）
     from app.core.api_gateway import get_api_gateway
     gateway = get_api_gateway()
     gateway.update_credential(cred.provider, cred.api_key)
@@ -363,7 +514,8 @@ def configure_provider(
     return {
         "provider": cred.provider,
         "status": "configured",
-        "message": f"{cred.provider} API key saved",
+        "encrypted": encrypted_key != cred.api_key,
+        "message": f"{cred.provider} API key saved (encrypted={encrypted_key != cred.api_key})",
     }
 
 

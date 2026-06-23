@@ -79,7 +79,7 @@ def _default_configs() -> list[ProviderConfig]:
         ProviderConfig(
             name="deepseek",
             display_name="DeepSeek",
-            base_url="https://api.deepseek.com",
+            base_url=os.getenv("DEEPSEEK_API_BASE_URL", "https://api.deepseek.com"),
             models=["deepseek-chat", "deepseek-coder"],
             priority=70,
             strengths=["backend_code", "general_code"],

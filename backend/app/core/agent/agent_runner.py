@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from typing import Any
 
 from app.core.agent.agent_config import AgentConfig, AgentHook, AgentRunContext
@@ -37,12 +38,20 @@ from app.core.agent.lakeview import LakeviewSummarizer, get_lakeview_summarizer
 from app.core.agent.middlewares import MiddlewareContext, MiddlewarePipeline
 from app.core.agent.tool_executor import ToolExecutor, get_tool_executor
 from app.core.agent.trajectory_recorder import TrajectoryRecorder
+from app.core.diff.diff_engine import DiffEngine
 from app.core.model_router import (
     ModelCapability,
     ModelRequest,
     ModelResponse,
 )
 from app.core.tools.schema import ToolResult
+from app.models.agent_models import (
+    TraceDB,
+    TraceStatus,
+    FileChangeType,
+    AgentTrace,
+    _str_truncate,
+)
 
 logger = logging.getLogger("agent.runner")
 
@@ -67,6 +76,7 @@ class AgentRunResult:
         self.tokens_used: int = 0
         self.error: str = ""
         self.cancelled: bool = False
+        self.trace_id: str = ""  # 🆕 TraceDB 记录 ID
 
     @property
     def success(self) -> bool:
@@ -110,12 +120,14 @@ class AgentRunner:
         middleware: MiddlewarePipeline | None = None,
         recorder: TrajectoryRecorder | None = None,
         lakeview: LakeviewSummarizer | None = None,
+        trace_db: TraceDB | None = None,
     ):
         self._executor = executor or get_tool_executor()
         self._sandbox = sandbox
         self._middleware = middleware
         self._recorder = recorder
         self._lakeview = lakeview
+        self._trace_db = trace_db
 
     @property
     def sandbox(self):
@@ -173,6 +185,19 @@ class AgentRunner:
             session_id=context.request_id or str(int(time.time())),
         )
 
+        # ── TraceDB 持久化初始化 ──
+        trace_id: uuid.UUID | None = None
+        try:
+            if self._trace_db is not None:
+                trace_id = self._trace_db.start_trace(
+                    agent_id=config.name,
+                    user_message=user_message,
+                    session_id=context.request_id or str(int(time.time())),
+                )
+                result.trace_id = str(trace_id)
+        except Exception as e:
+            logger.warning("TraceDB start_trace failed (non-blocking): %s", e)
+
         # ── 前置钩子 ──
         self._fire_hooks(config.hooks, "before_run", context)
 
@@ -204,6 +229,13 @@ class AgentRunner:
                     len(tools_schema),
                     [t["function"]["name"] for t in tools_schema],
                 )
+
+            # 🆕 TraceDB: 标记进入执行状态
+            try:
+                if trace_id and self._trace_db:
+                    self._trace_db.update_trace_status(trace_id, TraceStatus.EXECUTING)
+            except Exception as e:
+                logger.warning("TraceDB status update failed: %s", e)
 
             # ── 主循环 ──
             for turn in range(1, config.max_turns + 1):
@@ -310,6 +342,46 @@ class AgentRunner:
                     tools_latency = (time.perf_counter() - tools_start) * 1000
                     result.total_tool_calls += len(tool_results)
 
+                    # 🆕 TraceDB: 持久化每次工具调用 + 检测文件变更
+                    if trace_id and self._trace_db:
+                        try:
+                            for seq, (tc, tr) in enumerate(
+                                zip(response.tool_calls, tool_results)
+                            ):
+                                func_info = tc.get("function", {})
+                                t_name = func_info.get("name", "unknown")
+                                t_args = func_info.get("arguments", {})
+                                if isinstance(t_args, str):
+                                    try:
+                                        import json as _json
+                                        t_args = _json.loads(t_args) if t_args else {}
+                                    except Exception:
+                                        t_args = {}
+
+                                tc_id = self._trace_db.log_tool_call(
+                                    trace_id=trace_id,
+                                    tool_name=t_name,
+                                    step_number=turn,
+                                    sequence=seq,
+                                    tool_call_id=tc.get("id", ""),
+                                    arguments=t_args if isinstance(t_args, dict) else {},
+                                    result=tr.result if tr.success else None,
+                                    success=tr.success,
+                                    error_message=tr.error,
+                                    latency_ms=tr.latency_ms,
+                                )
+                                # 检测文件变更
+                                self._persist_file_changes(
+                                    trace_db=self._trace_db,
+                                    tool_call_id=tc_id,
+                                    trace_id=trace_id,
+                                    tool_name=t_name,
+                                    arguments=t_args if isinstance(t_args, dict) else {},
+                                    result=tr.result if tr.success else None,
+                                )
+                        except Exception as e:
+                            logger.warning("TraceDB tool log failed (non-blocking): %s", e)
+
                     # 🆕 Lakeview: 记录工具步骤
                     if self._lakeview:
                         for tc, tr in zip(response.tool_calls, tool_results):
@@ -411,6 +483,30 @@ class AgentRunner:
         result.total_latency_ms = (time.perf_counter() - context.start_time) * 1000
         self._fire_hooks(config.hooks, "after_run", context, result)
 
+        # 🆕 TraceDB: 完成轨迹
+        try:
+            if trace_id and self._trace_db:
+                final_status = (
+                    TraceStatus.ERROR if result.error
+                    else TraceStatus.CANCELLED if result.cancelled
+                    else TraceStatus.COMPLETED
+                )
+                self._trace_db.finish_trace(
+                    trace_id=trace_id,
+                    status=final_status,
+                    final_answer=result.final_answer,
+                    total_steps=result.turns,
+                    total_tool_calls=result.total_tool_calls,
+                    total_tokens=result.tokens_used,
+                    total_latency_ms=result.total_latency_ms,
+                    final_model=result.final_model,
+                    final_provider=result.final_provider,
+                    error_message=result.error,
+                    cancelled=result.cancelled,
+                )
+        except Exception as e:
+            logger.warning("TraceDB finish_trace failed (non-blocking): %s", e)
+
         # 🆕 Trajectory: 最终化
         recorder.finalize(
             total_turns=result.turns,
@@ -494,6 +590,81 @@ class AgentRunner:
                         hook.name or "unnamed", hook_name, e,
                     )
 
+    @staticmethod
+    def _persist_file_changes(
+        trace_db: Any,
+        tool_call_id: uuid.UUID,
+        trace_id: uuid.UUID,
+        tool_name: str,
+        arguments: dict[str, Any],
+        result: Any,
+    ) -> None:
+        """检测文件类型工具调用并持久化文件变更记录"""
+        # 确定该工具是否为文件操作类工具
+        file_tools = {
+            "file_write", "write_file", "file_operation", "create_file",
+            "file_read", "read_file", "delete_file", "rename_file",
+            "text_editor", "str_replace", "insert_content",
+        }
+        if tool_name not in file_tools:
+            return
+
+        file_path = arguments.get("path") or arguments.get("file_path") or arguments.get("filePath") or ""
+        if not file_path:
+            return
+
+        # 推断 change_type
+        create_types = {"file_write", "write_file", "create_file"}
+        delete_types = {"delete_file"}
+        rename_types = {"rename_file"}
+
+        if tool_name in create_types:
+            change_type = FileChangeType.CREATE
+        elif tool_name in delete_types:
+            change_type = FileChangeType.DELETE
+        elif tool_name in rename_types:
+            change_type = FileChangeType.RENAME
+        else:
+            change_type = FileChangeType.MODIFY
+
+        # 提取内容
+        content_after = None
+        if change_type in (FileChangeType.CREATE, FileChangeType.MODIFY):
+            content_after = arguments.get("content") or arguments.get("new_str") or arguments.get("new_content") or ""
+
+        content_before = arguments.get("old_str") or arguments.get("content_before") or None
+
+        # 推断语言
+        language = None
+        if file_path:
+            ext_map = {
+                ".py": "python", ".js": "javascript", ".ts": "typescript",
+                ".vue": "vue", ".jsx": "jsx", ".tsx": "tsx",
+                ".go": "go", ".rs": "rust", ".java": "java",
+                ".cpp": "cpp", ".c": "c", ".css": "css", ".html": "html",
+                ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+                ".md": "markdown", ".sql": "sql", ".sh": "shell",
+            }
+            for ext, lang in ext_map.items():
+                if file_path.endswith(ext):
+                    language = lang
+                    break
+
+        try:
+            trace_db.log_file_change(
+                tool_call_id=tool_call_id,
+                trace_id=trace_id,
+                file_path=file_path,
+                change_type=change_type,
+                content_before=content_before,
+                content_after=content_after,
+                language=language,
+                file_size_before=len(content_before or ""),
+                file_size_after=len(content_after or ""),
+            )
+        except Exception as e:
+            logger.debug("File change persist skipped: %s", e)
+
 
 # ── 流式 AgentRunner（WebSocket 友好） ──────────────────────
 
@@ -503,7 +674,13 @@ class StreamingAgentRunner(AgentRunner):
 
     适用于 WebSocket / SSE 场景，每轮 LLM 调用和工具调用
     都通过 yield 方式推送给前端。
+
+    🆕 文件编辑工具执行后自动产出 diff 事件，供前端 diff-viewer 展示。
     """
+
+    def __init__(self, diff_engine: DiffEngine | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self._diff = diff_engine or DiffEngine()
 
     async def run_stream(
         self,
@@ -515,7 +692,7 @@ class StreamingAgentRunner(AgentRunner):
         流式执行 Agent 并 yield 进度事件
 
         Yields:
-            {"type": "turn_start"|"tool_call"|"tool_result"|"final_answer"|"error", ...}
+            {"type": "turn_start"|"tool_call"|"tool_result"|"diff"|"final_answer"|"error", ...}
         """
         from app.core.model_router import get_model_router
         from app.core.tools.registry import get_tool_registry
@@ -578,10 +755,25 @@ class StreamingAgentRunner(AgentRunner):
                     "tool_calls": response.tool_calls,
                 })
 
+                # 构建 call_id → arguments 映射（供 diff 事件使用）
+                tc_args_map: dict[str, dict[str, Any]] = {}
+                for tc in response.tool_calls:
+                    cid = tc.get("id", "")
+                    func_info = tc.get("function", {})
+                    raw_args = func_info.get("arguments", {})
+                    if isinstance(raw_args, str):
+                        try:
+                            import json as _json
+                            raw_args = _json.loads(raw_args) if raw_args else {}
+                        except Exception:
+                            raw_args = {}
+                    tc_args_map[cid] = raw_args
+
                 # 逐个执行工具并推送结果
                 async for event in self._executor.execute_with_stream(
                     response.tool_calls, timeout=config.tool_timeout
                 ):
+                    call_id = event.get("tool_call_id", "")
                     if event["status"] == "executing":
                         yield {
                             "type": "tool_executing",
@@ -596,6 +788,16 @@ class StreamingAgentRunner(AgentRunner):
                             "error": event.get("error"),
                             "latency_ms": event.get("latency_ms"),
                         }
+
+                        # 🆕 文件编辑工具 → 生成 diff
+                        if event["status"] == "completed":
+                            diff_data = self._stream_diff(
+                                tool_name=event["tool_name"],
+                                arguments=tc_args_map.get(call_id, {}),
+                                result=event.get("result"),
+                            )
+                            if diff_data:
+                                yield diff_data
 
                 continue
 
@@ -615,3 +817,22 @@ class StreamingAgentRunner(AgentRunner):
                 "turns": config.max_turns,
                 "message": f"Reached max turns ({config.max_turns})",
             }
+
+    # ── Diff 集成 ───────────────────────────────────────────
+
+    def _stream_diff(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        result: Any,
+    ) -> dict[str, Any] | None:
+        """
+        检测是否为文件编辑工具调用，若真则生成 diff 事件。
+
+        Returns:
+            {"type": "diff", "data": {...}} 或 None
+        """
+        diff = self._diff.generate_from_tool(tool_name, arguments, result)
+        if diff:
+            return {"type": "diff", "data": diff}
+        return None

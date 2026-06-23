@@ -14,6 +14,7 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - AgentModes: Custom Modes 系统（architect/code/debug/test/review/docs）
 - LakeviewSummarizer: LLM 步骤摘要（人类可读 + 上下文压缩）
 - WorktreeManager: Git Worktree 并行开发环境（多分支并行任务）
+- DiffEngine: 文件变更差异生成器（unified diff → 前端 diff-viewer）
 """
 
 from app.core.agent.tool_executor import ToolExecutor, get_tool_executor  # noqa: F401
@@ -61,3 +62,4 @@ from app.core.agent.reflection import (  # noqa: F401
     ReflectionConfig, SelfCritique, ReflectionManager,
     get_reflection_manager, init_reflection_manager,
 )
+from app.core.diff import DiffEngine, FileDiff  # noqa: F401

@@ -39,6 +39,7 @@ export type SSEEventType =
   | 'tool_call'
   | 'tool_executing'
   | 'tool_result'
+  | 'diff'
   | 'final_answer'
   | 'error'
   | 'done'
@@ -57,6 +58,30 @@ export interface SSEEvent {
   model_used?: string
   turns?: number
   error?: string
+  // diff 事件 payload
+  file_path?: string
+}
+
+// Diff 数据模型
+export interface DiffData {
+  file_path: string
+  file_name: string
+  language: string
+  change_type: 'CREATE' | 'MODIFY' | 'DELETE'
+  is_new_file: boolean
+  diff_text: string
+  hunks: DiffHunk[]
+  old_line_count: number
+  new_line_count: number
+  lines_added: number
+  lines_removed: number
+  content_before: string
+  content_after: string
+}
+
+export interface DiffHunk {
+  header: string
+  lines: string[]
 }
 
 // 分页

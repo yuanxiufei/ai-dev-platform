@@ -20,6 +20,7 @@ from app.core.agent.agent_config import AgentConfig, AgentHook, AgentRunContext
 from app.core.agent.agent_runner import AgentRunner, StreamingAgentRunner
 from app.core.model_router import get_model_router
 from app.core.tools.registry import get_tool_registry
+from app.models.agent_models import TraceDB
 
 logger = logging.getLogger("api.agent.chat")
 
@@ -52,6 +53,7 @@ class AgentChatResponse(BaseModel):
     tokens_used: int = Field(default=0, description="总 token 消耗")
     latency_ms: float = Field(default=0, description="总耗时")
     error: str = Field(default="", description="错误信息")
+    trace_id: str = Field(default="", description="Agent 执行轨迹 ID（可查询工具调用/文件变更详情）")
 
 
 # ── 路由 ──────────────────────────────────────────────────
@@ -79,7 +81,7 @@ async def agent_chat(payload: AgentChatRequest, request: Request) -> AgentChatRe
         preferred_model=payload.preferred_model,
     )
 
-    runner = AgentRunner()
+    runner = AgentRunner(trace_db=TraceDB())
     result = await runner.run(
         config=config,
         user_message=payload.message,
@@ -94,6 +96,7 @@ async def agent_chat(payload: AgentChatRequest, request: Request) -> AgentChatRe
         tokens_used=result.tokens_used,
         latency_ms=result.total_latency_ms,
         error=result.error,
+        trace_id=result.trace_id,
     )
 
 

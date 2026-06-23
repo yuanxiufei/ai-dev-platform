@@ -408,6 +408,38 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("GuardrailsManager init skipped: %s", e)
 
+    # ═══ Standalone 独立运行方案 —————————————————
+    try:
+        from app.core.standalone.manager import (
+            StandaloneManager, StandaloneConfig, init_standalone_manager,
+        )
+        from app.core.standalone.watchdog import WatchdogConfig
+        from app.core.standalone.api_auth import ApiAuthConfig
+        from app.core.standalone.sleep_manager import SleepConfig
+
+        standalone_cfg = StandaloneConfig(
+            watchdog_enabled=settings.STANDALONE_WATCHDOG_ENABLED,
+            api_auth_enabled=settings.STANDALONE_API_AUTH_ENABLED,
+            smart_sleep_enabled=settings.STANDALONE_SMART_SLEEP_ENABLED,
+            state_switch_enabled=True,
+            sleep_config=SleepConfig(
+                idle_timeout_seconds=settings.STANDALONE_SLEEP_IDLE_TIMEOUT,
+                unload_models_on_sleep=settings.STANDALONE_SLEEP_UNLOAD_MODELS,
+                reduce_cpu_priority=settings.STANDALONE_SLEEP_REDUCE_CPU_PRIORITY,
+            ),
+            api_auth_config=ApiAuthConfig(
+                enabled=settings.STANDALONE_API_AUTH_ENABLED,
+            ),
+            bind_host=settings.STANDALONE_BIND_HOST,
+            bind_port=settings.STANDALONE_BIND_PORT,
+        )
+        manager = init_standalone_manager(standalone_cfg)
+        await manager.setup(app)
+        await manager.startup()
+        logger.info("StandaloneManager initialized and started")
+    except Exception as e:
+        logger.warning("StandaloneManager init skipped: %s", e)
+
     logger.info("✓ All components initialized. Server ready.")
     yield
     # ═══ SHUTDOWN ═══
@@ -458,6 +490,14 @@ async def lifespan(app: FastAPI):
             backend.shutdown_all()
     except Exception:
         pass
+    # Shutdown StandaloneManager
+    try:
+        from app.core.standalone.manager import get_standalone_manager
+        mgr = get_standalone_manager()
+        if mgr:
+            await mgr.shutdown()
+    except Exception:
+        pass
     logger.info("Server stopped.")
 
 
@@ -485,6 +525,30 @@ if settings.all_cors_origins:
 from app.middleware import register_global_middleware, register_exception_handlers
 register_global_middleware(app)
 register_exception_handlers(app)
+
+# ── Standalone 中间件: 智能休眠感知 ——————————————
+# 每个 HTTP 请求都通知 SleepManager 保持活跃
+if settings.STANDALONE_SMART_SLEEP_ENABLED:
+    from app.core.standalone.sleep_manager import SleepAwareMiddleware, get_sleep_manager
+    # 中间件会在 dispatch 时动态获取 sleep_manager 单例
+    app.add_middleware(SleepAwareMiddleware, sleep_manager=None)  # None = lazy lookup
+
+# ── Standalone 中间件: API 鉴权 ——————————————————
+if settings.STANDALONE_API_AUTH_ENABLED:
+    from app.core.standalone.api_auth import ApiAuthMiddleware, ApiAuthConfig
+    _api_auth_config = ApiAuthConfig(
+        enabled=settings.STANDALONE_API_AUTH_ENABLED,
+        whitelist_paths=[
+            "/api/v1/utils/health-check/",
+            "/api/v1/system/health",
+            "/docs",
+            "/openapi.json",
+            "/metrics",
+            "/api/v1/standalone",  # standalone 自身管理接口
+            "/api/v1/auth",  # 登录接口
+        ],
+    )
+    app.add_middleware(ApiAuthMiddleware, config=_api_auth_config)
 
 # ── P3: Prometheus /metrics 端点 ——————————————————
 from app.core.metrics import is_metrics_enabled as _metrics_enabled
