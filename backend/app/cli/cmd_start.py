@@ -17,7 +17,7 @@ def register_start_parser(subparsers: argparse._SubParsersAction) -> None:
     p = subparsers.add_parser("start", help="启动 API 服务器")
     # ── 服务器核心参数 ──
     p.add_argument("--host", default="0.0.0.0", help="绑定地址 (默认: 0.0.0.0)")
-    p.add_argument("--port", type=int, default=8000, help="绑定端口 (默认: 8000)")
+    p.add_argument("--port", type=int, default=18000, help="绑定端口 (默认: 18000)")
     p.add_argument("--workers", type=int, default=1, help="工作进程数 (默认: 1)")
     p.add_argument("--reload", action="store_true", help="开发模式热重载")
     # ── 数据库 ──

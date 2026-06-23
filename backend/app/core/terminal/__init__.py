@@ -5,15 +5,17 @@
   - TerminalProcessManager  — 进程生命周期管理（进程状态机）
   - RemotePtyChannel         — 远程终端 IPC 通道（RPC 协议）
   - PTYProcessBackend        — 伪终端后端（pty 创建/I/O 复用）
+
+注意: PTY 功能仅 Linux/macOS 可用，Windows 下自动降级为 NoOp 后端。
 """
 from __future__ import annotations
 
 import asyncio
 import os
-import pty
 import signal
 import struct
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
@@ -21,6 +23,11 @@ from typing import Any, Callable
 import logging
 
 logger = logging.getLogger(__name__)
+
+# PTY 仅在 Unix 平台可用
+_PTY_AVAILABLE = sys.platform != "win32"
+if _PTY_AVAILABLE:
+    import pty
 
 
 # ══════════════════════════════════════════════
@@ -111,15 +118,23 @@ class PTYProcessBackend:
             size: 初始窗口大小
 
         Returns:
-            终端 ID
+            终端 ID（Windows 下返回占位 ID 并标记为 UNINITIALIZED）
         """
         terminal_id = f"{session_id}_{id(self)}_{len(self._processes)}"
         size = size or TerminalSize()
 
+        if not _PTY_AVAILABLE:
+            logger.warning("PTY not available on Windows, terminal=%s", terminal_id)
+            self._processes[terminal_id] = PTYProcess(
+                pid=-1,
+                fd=-1,
+                state=TerminalProcessState.UNINITIALIZED,
+            )
+            return terminal_id
+
         try:
-            # 使用 pty.fork() 创建伪终端
+            # 使用 pty.openpty() 创建伪终端
             master_fd, slave_fd = pty.openpty()
-            os.setsid()
 
             shell_path = shell
             if not os.path.isabs(shell_path):
@@ -202,6 +217,8 @@ class PTYProcessBackend:
 
     def resize(self, terminal_id: str, rows: int, cols: int) -> None:
         """调整终端窗口大小（SIGWINCH）"""
+        if not _PTY_AVAILABLE:
+            return
         proc = self._processes.get(terminal_id)
         if not proc or proc.fd <= 0:
             return
@@ -229,7 +246,10 @@ class PTYProcessBackend:
         sig = signal.SIGKILL if force else signal.SIGTERM
         try:
             if proc.pid > 0:
-                os.killpg(os.getpgid(proc.pid), sig)
+                if hasattr(os, "killpg"):
+                    os.killpg(os.getpgid(proc.pid), sig)
+                else:
+                    os.kill(proc.pid, sig)
         except OSError:
             pass
 
@@ -304,7 +324,9 @@ class PTYProcessBackend:
             logger.warning("PTY read loop error for %s: %s", terminal_id, e)
 
     def get_cwd(self, terminal_id: str) -> str | None:
-        """获取终端当前工作目录（通过 /proc）"""
+        """获取终端当前工作目录（通过 /proc 或 cwd 属性）"""
+        if not _PTY_AVAILABLE:
+            return None
         proc = self._processes.get(terminal_id)
         if not proc or proc.pid <= 0:
             return None

@@ -28,6 +28,20 @@ logger = logging.getLogger("metrics")
 _metrics_enabled: bool = False
 _prometheus_available: bool = False
 
+# ── NoOp 回退类 (无论 prometheus 是否安装都可用) ─────
+
+class _NoopMetric:
+    def labels(self, **kwargs: object) -> "_NoopMetric":
+        return self
+    def inc(self, amount: float = 1) -> None:
+        pass
+    def observe(self, amount: float) -> None:
+        pass
+    def set(self, value: float) -> None:
+        pass
+    def dec(self, amount: float = 1) -> None:
+        pass
+
 # 延迟导入 prometheus_client（可选依赖）
 try:
     from prometheus_client import (  # type: ignore[import-untyped]
@@ -41,19 +55,6 @@ try:
     )
     _prometheus_available = True
 except ImportError:
-    # prometheus_client 未安装时创建空代理
-    class _NoopMetric:
-        def labels(self, **kwargs: object) -> "_NoopMetric":
-            return self
-        def inc(self, amount: float = 1) -> None:
-            pass
-        def observe(self, amount: float) -> None:
-            pass
-        def set(self, value: float) -> None:
-            pass
-        def dec(self, amount: float = 1) -> None:
-            pass
-
     Counter = _NoopMetric  # type: ignore[misc,assignment]
     Gauge = _NoopMetric  # type: ignore[misc,assignment]
     Histogram = _NoopMetric  # type: ignore[misc,assignment]
@@ -61,7 +62,7 @@ except ImportError:
     CONTENT_TYPE_LATEST = "text/plain"
     generate_latest = lambda: b"# prometheus_client not installed\n"  # type: ignore[assignment]
 
-    _noop_metric = _NoopMetric()
+_noop_metric = _NoopMetric()
 
 
 # ── HTTP 指标 ───────────────────────────────────────

@@ -44,7 +44,7 @@ class WatchdogConfig:
     # 被监控的进程启动命令
     cmd: list[str] = field(default_factory=lambda: [
         sys.executable, "-m", "uvicorn", "app.main:app",
-        "--host", "0.0.0.0", "--port", "8000",
+        "--host", "0.0.0.0", "--port", "18000",
     ])
     # 工作目录
     cwd: str = ""
@@ -52,7 +52,7 @@ class WatchdogConfig:
     env: dict[str, str] = field(default_factory=dict)
 
     # 健康检查 URL
-    health_check_url: str = "http://127.0.0.1:8000/api/v1/utils/health-check/"
+    health_check_url: str = "http://127.0.0.1:18000/api/v1/utils/health-check/"
     # 健康检查间隔（秒）
     health_check_interval: float = 5.0
     # 健康检查超时（秒）
@@ -86,7 +86,7 @@ class ProcessWatchdog:
     使用方式：
         ```python
         watchdog = ProcessWatchdog(WatchdogConfig(
-            cmd=["python", "-m", "uvicorn", "app.main:app", "--port", "8000"],
+            cmd=["python", "-m", "uvicorn", "app.main:app", "--port", "18000"],
             cwd="/path/to/backend",
         ))
         await watchdog.start()
@@ -389,7 +389,7 @@ class ProcessWatchdog:
 def create_backend_watchdog(
     backend_dir: str = "",
     host: str = "0.0.0.0",
-    port: int = 8000,
+    port: int = 18000,
     env: dict[str, str] | None = None,
 ) -> ProcessWatchdog:
     """创建监控 FastAPI 后端的守护进程。

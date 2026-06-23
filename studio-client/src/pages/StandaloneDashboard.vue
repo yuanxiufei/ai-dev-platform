@@ -140,7 +140,7 @@ const wolCommandPython = computed(() => {
 const wolCommandCurl = computed(() => {
   if (!wolInfo.value?.target_mac) return ''
   const mac = wolInfo.value.target_mac
-  return `curl -X POST http://<服务器IP>:8000/api/v1/standalone/wol/send -H "Content-Type: application/json" -d '{"mac_address":"${mac}","broadcast":"${wolInfo.value.broadcast_address || '255.255.255.255'}","port":${wolInfo.value.port || 9}}'`
+  return `curl -X POST http://<服务器IP>:18000/api/v1/standalone/wol/send -H "Content-Type: application/json" -d '{"mac_address":"${mac}","broadcast":"${wolInfo.value.broadcast_address || '255.255.255.255'}","port":${wolInfo.value.port || 9}}'`
 })
 
 // ===== 方法 =====
@@ -1100,11 +1100,11 @@ function toggleAutoRefresh() {
               <div class="space-y-2">
                 <div class="rounded-xl border border-white/6 bg-white/[0.01] p-3">
                   <p class="text-[11px] font-medium text-gray-400 mb-1.5">查看健康状态</p>
-                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl http://localhost:8000/api/v1/utils/health-check/</code>
+                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl http://localhost:18000/api/v1/utils/health-check/</code>
                 </div>
                 <div class="rounded-xl border border-white/6 bg-white/[0.01] p-3">
                   <p class="text-[11px] font-medium text-gray-400 mb-1.5">使用 API Key 调用 Agent</p>
-                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl -H "Authorization: Bearer &lt;key&gt;" http://localhost:8000/api/v1/agent/chat/simple -d '{"message":"hello"}'</code>
+                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl -H "Authorization: Bearer &lt;key&gt;" http://localhost:18000/api/v1/agent/chat/simple -d '{"message":"hello"}'</code>
                 </div>
               </div>
             </section>

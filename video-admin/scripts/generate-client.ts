@@ -5,7 +5,7 @@ import fs from "fs";
 
 // 获取后端 OpenAPI 文档并生成前端客户端代码
 async function generateClient() {
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:18000";
   const openapiPath = `${backendUrl}/api/v1/openapi.json`;
   
   console.log(`Fetching OpenAPI document from ${openapiPath}`);

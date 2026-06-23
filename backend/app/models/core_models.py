@@ -1,3 +1,6 @@
+"""
+核心认证/用户模型 — User, Item, Token 等基础模型
+"""
 import uuid
 from datetime import datetime, timezone
 
@@ -10,7 +13,8 @@ def get_datetime_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# Shared properties
+# ── User ─────────────────────────────────────────────
+
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
@@ -18,7 +22,6 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
 
@@ -29,7 +32,6 @@ class UserRegister(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive via API on update, all are optional
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None, max_length=255)  # type: ignore[assignment]
     password: str | None = Field(default=None, min_length=8, max_length=128)
@@ -45,7 +47,6 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
-# Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
@@ -56,7 +57,6 @@ class User(UserBase, table=True):
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
-# Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
     created_at: datetime | None = None
@@ -67,23 +67,21 @@ class UsersPublic(SQLModel):
     count: int
 
 
-# Shared properties
+# ── Item ─────────────────────────────────────────────
+
 class ItemBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=255)
 
 
-# Properties to receive on item creation
 class ItemCreate(ItemBase):
     pass
 
 
-# Properties to receive on item update
 class ItemUpdate(ItemBase):
     title: str | None = Field(default=None, min_length=1, max_length=255)  # type: ignore[assignment]
 
 
-# Database model, database table inferred from class name
 class Item(ItemBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime | None = Field(
@@ -96,7 +94,6 @@ class Item(ItemBase, table=True):
     owner: User | None = Relationship(back_populates="items")
 
 
-# Properties to return via API, id is always required
 class ItemPublic(ItemBase):
     id: uuid.UUID
     owner_id: uuid.UUID
@@ -108,18 +105,17 @@ class ItemsPublic(SQLModel):
     count: int
 
 
-# Generic message
+# ── Auth ─────────────────────────────────────────────
+
 class Message(SQLModel):
     message: str
 
 
-# JSON payload containing access token
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
 
 
-# Contents of JWT token
 class TokenPayload(SQLModel):
     sub: str | None = None
 

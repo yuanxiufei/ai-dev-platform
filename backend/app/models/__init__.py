@@ -1,7 +1,28 @@
 """
-数据模型包 —— 按域拆分：studio_models / video_models / system_models / agent_models
+数据模型包 —— 按域拆分：core_models / studio_models / video_models / system_models / agent_models
 所有模型启动时由 db.py 通过 SQLModel.metadata 自动创建表
 """
+from sqlmodel import SQLModel  # noqa: F401 — 供 alembic 使用
+
+from app.models.core_models import (
+    User,
+    UserCreate,
+    UserRegister,
+    UserUpdate,
+    UserUpdateMe,
+    UserPublic,
+    UsersPublic,
+    UpdatePassword,
+    Item,
+    ItemCreate,
+    ItemUpdate,
+    ItemPublic,
+    ItemsPublic,
+    Message,
+    Token,
+    TokenPayload,
+    NewPassword,
+)
 from app.models.studio_models import (
     StudioProject,
     StudioTemplate,
@@ -25,6 +46,24 @@ from app.models.agent_models import (
 )
 
 __all__ = [
+    "SQLModel",
+    "User",
+    "UserCreate",
+    "UserRegister",
+    "UserUpdate",
+    "UserUpdateMe",
+    "UserPublic",
+    "UsersPublic",
+    "UpdatePassword",
+    "Item",
+    "ItemCreate",
+    "ItemUpdate",
+    "ItemPublic",
+    "ItemsPublic",
+    "Message",
+    "Token",
+    "TokenPayload",
+    "NewPassword",
     "StudioProject",
     "StudioTemplate",
     "ChatSession",

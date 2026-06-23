@@ -331,7 +331,7 @@ class Settings(BaseSettings):
     STANDALONE_SLEEP_REDUCE_CPU_PRIORITY: bool = True  # 休眠时降低 CPU 优先级
     STANDALONE_REMOTE_ACCESS_ENABLED: bool = True  # 是否允许远程访问
     STANDALONE_BIND_HOST: str = "0.0.0.0"      # 绑定地址
-    STANDALONE_BIND_PORT: int = 8000            # 绑定端口
+    STANDALONE_BIND_PORT: int = 18000           # 绑定端口
     STANDALONE_MAX_RESTARTS: int = 10           # 最大重启次数
     STANDALONE_HEALTH_CHECK_INTERVAL: int = 5   # 健康检查间隔（秒）
     STANDALONE_PRESET_API_KEYS: str = ""        # 预置 API 密钥（逗号分隔）

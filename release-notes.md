@@ -1,25 +1,63 @@
-# Release Notes
+# 版本更新记录
 
-## Latest Changes
+## AI Fullstack Platform — 近期更新
 
-### Refactors
+### 2025-06 · v2.0 系统架构升级
 
-* 🔧 Add FastAPI VS Code extension to recommended extensions. PR [#2206](https://github.com/fastapi/full-stack-fastapi-template/pull/2206) by [@tiangolo](https://github.com/tiangolo).
-* ♻️ Update meta titles. PR [#2179](https://github.com/fastapi/full-stack-fastapi-template/pull/2179) by [@alejsdev](https://github.com/alejsdev).
+**System API** — 60+ 系统管理端点：
+* 🏥 健康检查：基本 / 详细（DB+模型+网关+路由）/ 统计
+* 🤖 模型管理：列表 / 下载 / 加载 / 卸载 / 提供商 / 使用统计 / 自动优化
+* 🖥️ GPU 监控：设备列表 / 状态 / 显存分配
+* 📊 资源监控：CPU / 内存 / 磁盘 / GPU 快照 + 历史
+* 📋 模型目录：浏览 / 分类 / 草稿 / 规格参数
+* 📈 基准测试：创建 / 提交 / 停止 / WebSocket 实时日志
+* 🖥️ 终端：基于 WebSocket 的远程终端
+* 🌐 远程代理：会话 / 端口转发 / 工作区信任
+* 💾 存储管理：配置 / 迁移 / 清理 / 配额检查
+* 🔒 安全护栏：安全校验 / 工具调用检查
+* 📦 任务队列：统计 / 活跃任务 / 撤销任务
+* ⚙️ 配置：热加载 / 代码快照 (git snapshot) / 回滚
 
-### Upgrades
+**架构增强：**
+* 🧠 ModelRouter 五层回退链调度
+* 📊 DynamicScore 动态评分（优先级 × 可用系数 × 性能系数）
+* 🌐 ApiGateway 支持 7 家提供商（OpenAI / Claude / DeepSeek / Azure / Replicate / 智谱 / 通义千问）
+* 📥 双源模型下载器（HuggingFace + ModelScope）
+* ⚡ SSE 流式支持（/studio/chat/stream）
+* 🔌 WebSocket 视频生成实时进度推送
+* 🔐 AES 加密存储 API 凭据
 
-* ⬆️ Upgrade Sentry and FastAPI. PR [#2181](https://github.com/fastapi/full-stack-fastapi-template/pull/2181) by [@patrick91](https://github.com/patrick91).
+**端口迁移：**
+* 后端端口从 8000 改为 18000，避免端口冲突
 
-### Docs
+**文档更新：**
+* 📝 README 全新改版，完整 108 端点 API 参考
+* 📝 开发指南加入模型管理工作流
+* 📝 部署指南加入 AI 环境变量章节
+* 📝 新增 Standalone 独立部署模式文档
 
-* ✏️ Fix typo in the comment for DOMAIN in the .env file. PR [#2305](https://github.com/fastapi/full-stack-fastapi-template/pull/2305) by [@serhiiur](https://github.com/serhiiur).
-* 📝 Update security policy. PR [#2297](https://github.com/fastapi/full-stack-fastapi-template/pull/2297) by [@tiangolo](https://github.com/tiangolo).
-* 📝 Add `CONTRIBUTING.md`. PR [#2159](https://github.com/fastapi/full-stack-fastapi-template/pull/2159) by [@alejsdev](https://github.com/alejsdev).
+---
 
-### Internal
+## 上游模板变更记录
 
-* 👷 Configure Dependabot to group updates and update weekly. PR [#2293](https://github.com/fastapi/full-stack-fastapi-template/pull/2293) by [@YuriiMotov](https://github.com/YuriiMotov).
+### 重构
+
+* 🔧 推荐扩展中加入 FastAPI VS Code 扩展。PR [#2206](https://github.com/fastapi/full-stack-fastapi-template/pull/2206) by [@tiangolo](https://github.com/tiangolo)。
+* ♻️ 更新页面 meta 标题。PR [#2179](https://github.com/fastapi/full-stack-fastapi-template/pull/2179) by [@alejsdev](https://github.com/alejsdev)。
+
+### 依赖升级
+
+* ⬆️ 升级 Sentry 和 FastAPI。PR [#2181](https://github.com/fastapi/full-stack-fastapi-template/pull/2181) by [@patrick91](https://github.com/patrick91)。
+
+### 文档
+
+* ✏️ 修复 .env 文件中 DOMAIN 注释的拼写错误。PR [#2305](https://github.com/fastapi/full-stack-fastapi-template/pull/2305) by [@serhiiur](https://github.com/serhiiur)。
+* 📝 更新安全策略。PR [#2297](https://github.com/fastapi/full-stack-fastapi-template/pull/2297) by [@tiangolo](https://github.com/tiangolo)。
+* 📝 新增 `CONTRIBUTING.md`。PR [#2159](https://github.com/fastapi/full-stack-fastapi-template/pull/2159) by [@alejsdev](https://github.com/alejsdev)。
+
+### 内部改进
+
+* 👷 配置 Dependabot 分组更新，每周一次。PR [#2293](https://github.com/fastapi/full-stack-fastapi-template/pull/2293) by [@YuriiMotov](https://github.com/YuriiMotov)。
 * 🔥 Remove config files now in central GitHub repo. PR [#2300](https://github.com/fastapi/full-stack-fastapi-template/pull/2300) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump actions/add-to-project from 1.0.2 to 2.0.0. PR [#2273](https://github.com/fastapi/full-stack-fastapi-template/pull/2273) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump python-multipart from 0.0.21 to 0.0.27. PR [#2277](https://github.com/fastapi/full-stack-fastapi-template/pull/2277) by [@dependabot[bot]](https://github.com/apps/dependabot).
@@ -66,7 +104,7 @@
 
 ## 0.10.0 (2026-01-23)
 
-### Features
+### 新功能
 
 * ✅ Add items and admin tests, and refactor existing ones. PR [#2146](https://github.com/fastapi/full-stack-fastapi-template/pull/2146) by [@alejsdev](https://github.com/alejsdev).
 * ✨ Add created_at field to User and Item models and update endpoints. PR [#2144](https://github.com/fastapi/full-stack-fastapi-template/pull/2144) by [@alejsdev](https://github.com/alejsdev).
@@ -77,12 +115,12 @@
 * ✨ Use pwdlib with Argon2 by default, adding logic (and tests) to autoupdate old passwords using Bcrypt. PR [#2104](https://github.com/fastapi/full-stack-fastapi-template/pull/2104) by [@tiangolo](https://github.com/tiangolo).
 * 🔨 Generate frontend SDK on pre-commit, remove custom workflow. PR [#2111](https://github.com/fastapi/full-stack-fastapi-template/pull/2111) by [@tiangolo](https://github.com/tiangolo).
 
-### Fixes
+### 修复
 
 * 🐛 Add user authentication check in admin route to restrict access for non-superusers. PR [#2145](https://github.com/fastapi/full-stack-fastapi-template/pull/2145) by [@alejsdev](https://github.com/alejsdev).
 * 🐛 Handle non-existing user IDs in `read_user_by_id`. PR [#1396](https://github.com/fastapi/full-stack-fastapi-template/pull/1396) by [@saltie2193](https://github.com/saltie2193).
 
-### Refactors
+### 重构
 
 * 🔥 Remove debugpy from recommended extensions, it's included by the Python extension. PR [#2143](https://github.com/fastapi/full-stack-fastapi-template/pull/2143) by [@tiangolo](https://github.com/tiangolo).
 * 🔧 Update the frontend build context for prod with the new top level setup. PR [#2108](https://github.com/fastapi/full-stack-fastapi-template/pull/2108) by [@tiangolo](https://github.com/tiangolo).
@@ -93,16 +131,16 @@
 * ✅ Use proper `is_active` field in `test_user.py`. PR [#1479](https://github.com/fastapi/full-stack-fastapi-template/pull/1479) by [@nauanbek](https://github.com/nauanbek).
 * ♻️ Simplify reset password logic by removing duplicate code. PR [#1440](https://github.com/fastapi/full-stack-fastapi-template/pull/1440) by [@youneshenniwrites](https://github.com/youneshenniwrites).
 
-### Upgrades
+### 依赖升级
 
 * ⬆ Bump postgres from 17 to 18. PR [#1910](https://github.com/fastapi/full-stack-fastapi-template/pull/1910) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump traefik from 3.0 to 3.6. PR [#1973](https://github.com/fastapi/full-stack-fastapi-template/pull/1973) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
-### Docs
+### 文档
 
 * 📝 Update deployment docs. PR [#2109](https://github.com/fastapi/full-stack-fastapi-template/pull/2109) by [@tiangolo](https://github.com/tiangolo).
 
-### Internal
+### 内部改进
 
 * 🎨 Format Python scripts tests. PR [#2112](https://github.com/fastapi/full-stack-fastapi-template/pull/2112) by [@tiangolo](https://github.com/tiangolo).
 * 🔨 Update generate-client.sh and docs. PR [#2110](https://github.com/fastapi/full-stack-fastapi-template/pull/2110) by [@tiangolo](https://github.com/tiangolo).
@@ -137,19 +175,19 @@
 
 ## 0.9.0 (2025-12-08)
 
-### Features
+### 新功能
 
 * ✨ Add meta title support to all pages. PR [#2039](https://github.com/fastapi/full-stack-fastapi-template/pull/2039) by [@alejsdev](https://github.com/alejsdev).
 * 🛂 Migrate frontend to Shadcn. PR [#2010](https://github.com/fastapi/full-stack-fastapi-template/pull/2010) by [@alejsdev](https://github.com/alejsdev).
 
-### Fixes
+### 修复
 
 * 🐛 Fix `EMAILS_FROM_NAME` type to be `str` instead of `EmailStr`. PR [#1940](https://github.com/fastapi/full-stack-fastapi-template/pull/1940) by [@martin0258](https://github.com/martin0258).
 * 🐛 Fix `parse_cors` function to be consistent for both empty string and empty list. PR [#1672](https://github.com/fastapi/full-stack-fastapi-template/pull/1672) by [@rolkotaki](https://github.com/rolkotaki).
 * 🐛 Close sidebar drawer on user selection. PR [#1515](https://github.com/fastapi/full-stack-fastapi-template/pull/1515) by [@dtellz](https://github.com/dtellz).
 * 🐛 Fix required password validation when editing user fields. PR [#1508](https://github.com/fastapi/full-stack-fastapi-template/pull/1508) by [@jpizquierdo](https://github.com/jpizquierdo).
 
-### Refactors
+### 重构
 
 * ♻️ Update password max length. PR [#1447](https://github.com/fastapi/full-stack-fastapi-template/pull/1447) by [@michaelAlvarino](https://github.com/michaelAlvarino).
 * 🚚 Move backend tests outside the `app` directory. PR [#1862](https://github.com/fastapi/full-stack-fastapi-template/pull/1862) by [@YuriiMotov](https://github.com/YuriiMotov).
@@ -161,7 +199,7 @@
 * 🎨 Add minor UI tweaks in Skeletons and other components. PR [#1507](https://github.com/fastapi/full-stack-fastapi-template/pull/1507) by [@alejsdev](https://github.com/alejsdev).
 * 🎨 Add minor UI tweaks. PR [#1506](https://github.com/fastapi/full-stack-fastapi-template/pull/1506) by [@alejsdev](https://github.com/alejsdev).
 
-### Upgrades
+### 依赖升级
 
 * ⬆ Bump @types/react from 19.1.12 to 19.1.13 in /frontend. PR [#1888](https://github.com/fastapi/full-stack-fastapi-template/pull/1888) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump @tanstack/router-plugin from 1.131.41 to 1.131.43 in /frontend. PR [#1887](https://github.com/fastapi/full-stack-fastapi-template/pull/1887) by [@dependabot[bot]](https://github.com/apps/dependabot).
@@ -188,7 +226,7 @@
 * ⬆️ Update Playwright. PR [#1793](https://github.com/fastapi/full-stack-fastapi-template/pull/1793) by [@alejsdev](https://github.com/alejsdev).
 * ⬆️ Upgrade React and related dependencies. PR [#1843](https://github.com/fastapi/full-stack-fastapi-template/pull/1843) by [@alejsdev](https://github.com/alejsdev).
 
-### Docs
+### 文档
 
 * 📝 Add Mailcatcher setup instructions for local email testing. PR [#2038](https://github.com/fastapi/full-stack-fastapi-template/pull/2038) by [@alejsdev](https://github.com/alejsdev).
 * 📝 Update `README` to include link for Vite. PR [#2037](https://github.com/fastapi/full-stack-fastapi-template/pull/2037) by [@alejsdev](https://github.com/alejsdev).
@@ -196,7 +234,7 @@
 * 📝 Update docs. PR [#2036](https://github.com/fastapi/full-stack-fastapi-template/pull/2036) by [@alejsdev](https://github.com/alejsdev).
 * ✏️ Fix small typo in `deployment.md`. PR [#1679](https://github.com/fastapi/full-stack-fastapi-template/pull/1679) by [@cassmtnr](https://github.com/cassmtnr).
 
-### Internal
+### 内部改进
 
 * 🔥 Remove unused dependencies. PR [#2035](https://github.com/fastapi/full-stack-fastapi-template/pull/2035) by [@alejsdev](https://github.com/alejsdev).
 * ⬆ Bump react-dom from 19.2.0 to 19.2.1 in /frontend. PR [#2032](https://github.com/fastapi/full-stack-fastapi-template/pull/2032) by [@dependabot[bot]](https://github.com/apps/dependabot).
@@ -321,17 +359,17 @@
 
 ## 0.8.0 (2025-02-19)
 
-### Features
+### 新功能
 
 * 🛂 Migrate to Chakra UI v3 . PR [#1496](https://github.com/fastapi/full-stack-fastapi-template/pull/1496) by [@alejsdev](https://github.com/alejsdev).
 * ✨ Add private, local only, API for usage in E2E tests. PR [#1429](https://github.com/fastapi/full-stack-fastapi-template/pull/1429) by [@patrick91](https://github.com/patrick91).
 * ✨ Migrate to latest openapi-ts. PR [#1430](https://github.com/fastapi/full-stack-fastapi-template/pull/1430) by [@patrick91](https://github.com/patrick91).
 
-### Fixes
+### 修复
 
 * 🧑‍🔧 Replace correct value for 'htmlFor'. PR [#1456](https://github.com/fastapi/full-stack-fastapi-template/pull/1456) by [@wesenbergg](https://github.com/wesenbergg).
 
-### Refactors
+### 重构
 
 * ♻️ Redirect the user to `login` if we get 401/403. PR [#1501](https://github.com/fastapi/full-stack-fastapi-template/pull/1501) by [@alejsdev](https://github.com/alejsdev).
 * 🐛 Refactor reset password test to create normal user instead of using super user. PR [#1499](https://github.com/fastapi/full-stack-fastapi-template/pull/1499) by [@alejsdev](https://github.com/alejsdev).
@@ -348,11 +386,11 @@
 * 🔧 Add `ENV PYTHONUNBUFFERED=1` to log output directly to Docker. PR [#1378](https://github.com/fastapi/full-stack-fastapi-template/pull/1378) by [@tiangolo](https://github.com/tiangolo).
 * 💡 Remove unnecessary comment. PR [#1260](https://github.com/fastapi/full-stack-fastapi-template/pull/1260) by [@sebhani](https://github.com/sebhani).
 
-### Upgrades
+### 依赖升级
 
 * ⬆️ Update Dockerfile to use uv version 0.5.11. PR [#1454](https://github.com/fastapi/full-stack-fastapi-template/pull/1454) by [@alejsdev](https://github.com/alejsdev).
 
-### Docs
+### 文档
 
 * 📝 Removing deprecated manual client SDK step. PR [#1494](https://github.com/fastapi/full-stack-fastapi-template/pull/1494) by [@chandy](https://github.com/chandy).
 * 📝 Update Frontend README.md. PR [#1462](https://github.com/fastapi/full-stack-fastapi-template/pull/1462) by [@getmarkus](https://github.com/getmarkus).
@@ -360,7 +398,7 @@
 * 📝 Update `deployment.md`, instructions to install GitHub Runner in non-root VMs. PR [#1412](https://github.com/fastapi/full-stack-fastapi-template/pull/1412) by [@tiangolo](https://github.com/tiangolo).
 * 📝 Add MailCatcher to `development.md`. PR [#1387](https://github.com/fastapi/full-stack-fastapi-template/pull/1387) by [@tobiase](https://github.com/tobiase).
 
-### Internal
+### 内部改进
 
 * 🔧 Configure path alias for cleaner imports. PR [#1497](https://github.com/fastapi/full-stack-fastapi-template/pull/1497) by [@alejsdev](https://github.com/alejsdev).
 * Bump vite from 5.0.13 to 5.4.14 in /frontend. PR [#1469](https://github.com/fastapi/full-stack-fastapi-template/pull/1469) by [@dependabot[bot]](https://github.com/apps/dependabot).
@@ -388,11 +426,11 @@
 * Make the API use its own domain `api.example.com` and the frontend use `dashboard.example.com`. This would make it easier to deploy them separately if you needed that.
 * The backend and frontend on Docker Compose now listen on the same port as the local development servers, this way you can stop the Docker Compose services and run the local development servers without changing the frontend configuration.
 
-### Features
+### 新功能
 
 * 🩺 Add DB healthcheck. PR [#1342](https://github.com/fastapi/full-stack-fastapi-template/pull/1342) by [@tiangolo](https://github.com/tiangolo).
 
-### Refactors
+### 重构
 
 * ♻️ Update settings to use top level `.env` file. PR [#1359](https://github.com/fastapi/full-stack-fastapi-template/pull/1359) by [@tiangolo](https://github.com/tiangolo).
 * ⬆️ Migrate from Poetry to uv. PR [#1356](https://github.com/fastapi/full-stack-fastapi-template/pull/1356) by [@tiangolo](https://github.com/tiangolo).
@@ -407,16 +445,16 @@
 * 🔥 Enable support for Arm Docker images in Mac, remove old patch. PR [#1341](https://github.com/fastapi/full-stack-fastapi-template/pull/1341) by [@tiangolo](https://github.com/tiangolo).
 * ♻️ Remove duplicate information in the ItemCreate model. PR [#1287](https://github.com/fastapi/full-stack-fastapi-template/pull/1287) by [@jjaakko](https://github.com/jjaakko).
 
-### Upgrades
+### 依赖升级
 
 * ⬆️ Upgrade FastAPI. PR [#1349](https://github.com/fastapi/full-stack-fastapi-template/pull/1349) by [@tiangolo](https://github.com/tiangolo).
 
-### Docs
+### 文档
 
 * 💡 Add comments to Dockerfile with uv references. PR [#1357](https://github.com/fastapi/full-stack-fastapi-template/pull/1357) by [@tiangolo](https://github.com/tiangolo).
 * 📝 Add Email Templates to `backend/README.md`. PR [#1311](https://github.com/fastapi/full-stack-fastapi-template/pull/1311) by [@alejsdev](https://github.com/alejsdev).
 
-### Internal
+### 内部改进
 
 * 👷 Do not sync labels as it overrides manually added labels. PR [#1307](https://github.com/fastapi/full-stack-fastapi-template/pull/1307) by [@tiangolo](https://github.com/tiangolo).
 * 👷 Use uv cache on GitHub Actions. PR [#1366](https://github.com/fastapi/full-stack-fastapi-template/pull/1366) by [@tiangolo](https://github.com/tiangolo).
@@ -455,7 +493,7 @@ Lots of new things! 🎁
 * Many refactors and improvements.
 * Several dependency upgrades.
 
-### Features
+### 新功能
 
 * ✨ Add User Settings e2e tests. PR [#1271](https://github.com/tiangolo/full-stack-fastapi-template/pull/1271) by [@alejsdev](https://github.com/alejsdev).
 * ✨ Add Reset Password e2e tests. PR [#1270](https://github.com/tiangolo/full-stack-fastapi-template/pull/1270) by [@alejsdev](https://github.com/alejsdev).
@@ -470,7 +508,7 @@ Lots of new things! 🎁
 * ✨ Add support for deploying multiple environments (staging, production) to the same server. PR [#1128](https://github.com/tiangolo/full-stack-fastapi-template/pull/1128) by [@tiangolo](https://github.com/tiangolo).
 * 👷 Update CI GitHub Actions to allow running in private repos. PR [#1125](https://github.com/tiangolo/full-stack-fastapi-template/pull/1125) by [@tiangolo](https://github.com/tiangolo).
 
-### Fixes
+### 修复
 
 * 🐛 Fix welcome page to show logged-in user. PR [#1218](https://github.com/tiangolo/full-stack-fastapi-template/pull/1218) by [@tomerb](https://github.com/tomerb).
 * 🐛 Fix local Traefik proxy network config to fix Gateway Timeouts. PR [#1184](https://github.com/tiangolo/full-stack-fastapi-template/pull/1184) by [@JoelGotsch](https://github.com/JoelGotsch).
@@ -478,7 +516,7 @@ Lots of new things! 🎁
 * 🐛 Fix bug when resetting password. PR [#1171](https://github.com/tiangolo/full-stack-fastapi-template/pull/1171) by [@alejsdev](https://github.com/alejsdev).
 * 🐛 Fix 403 when the frontend has a directory without an index.html. PR [#1094](https://github.com/tiangolo/full-stack-fastapi-template/pull/1094) by [@tiangolo](https://github.com/tiangolo).
 
-### Refactors
+### 重构
 
 * 🚨 Fix Docker build warning. PR [#1283](https://github.com/tiangolo/full-stack-fastapi-template/pull/1283) by [@erip](https://github.com/erip).
 * ♻️ Regenerate client to use UUID instead of id integers and update frontend. PR [#1281](https://github.com/tiangolo/full-stack-fastapi-template/pull/1281) by [@rehanabdul](https://github.com/rehanabdul).
@@ -534,7 +572,7 @@ Lots of new things! 🎁
 * ♻ Update Docker image to prevent errors in M1 Macs. PR [#710](https://github.com/tiangolo/full-stack-fastapi-template/pull/710) by [@dudil](https://github.com/dudil).
 * ✏ Fix typo in variable names in `backend/app/api/routes/items.py` and `backend/app/api/routes/users.py`. PR [#711](https://github.com/tiangolo/full-stack-fastapi-template/pull/711) by [@disrupted](https://github.com/disrupted).
 
-### Upgrades
+### 依赖升级
 
 * ⬆️ Update SQLModel to version `>=0.0.21`. PR [#1275](https://github.com/tiangolo/full-stack-fastapi-template/pull/1275) by [@alejsdev](https://github.com/alejsdev).
 * ⬆️ Upgrade Traefik. PR [#1241](https://github.com/tiangolo/full-stack-fastapi-template/pull/1241) by [@tiangolo](https://github.com/tiangolo).
@@ -546,7 +584,7 @@ Lots of new things! 🎁
 * Bump vite from 5.0.12 to 5.0.13 in /frontend. PR [#1149](https://github.com/tiangolo/full-stack-fastapi-template/pull/1149) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * Bump follow-redirects from 1.15.5 to 1.15.6 in /frontend. PR [#734](https://github.com/tiangolo/full-stack-fastapi-template/pull/734) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
-### Docs
+### 文档
 
 * 📝 Update links from tiangolo repo to fastapi org repo. PR [#1285](https://github.com/fastapi/full-stack-fastapi-template/pull/1285) by [@tiangolo](https://github.com/tiangolo).
 * 📝 Add End-to-End Testing with Playwright to frontend `README.md`. PR [#1279](https://github.com/tiangolo/full-stack-fastapi-template/pull/1279) by [@alejsdev](https://github.com/alejsdev).
@@ -564,7 +602,7 @@ Lots of new things! 🎁
 * ✏ Update header titles for consistency. PR [#708](https://github.com/tiangolo/full-stack-fastapi-template/pull/708) by [@codesmith-emmy](https://github.com/codesmith-emmy).
 * 📝 Update `README.md`, dark mode screenshot position. PR [#706](https://github.com/tiangolo/full-stack-fastapi-template/pull/706) by [@alejsdev](https://github.com/alejsdev).
 
-### Internal
+### 内部改进
 
 * 🔧 Update deploy workflows to exclude the main repository. PR [#1284](https://github.com/tiangolo/full-stack-fastapi-template/pull/1284) by [@alejsdev](https://github.com/alejsdev).
 * 👷 Update issue-manager.yml GitHub Action permissions. PR [#1278](https://github.com/tiangolo/full-stack-fastapi-template/pull/1278) by [@tiangolo](https://github.com/tiangolo).
@@ -597,7 +635,7 @@ CI/CD - GitHub Actions 🤖
 
 Test cov > 90% ✅
 
-### Features
+### 新功能
 
 * ✨ Adopt SQLModel, create models, start using it. PR [#559](https://github.com/tiangolo/full-stack-fastapi-template/pull/559) by [@tiangolo](https://github.com/tiangolo).
 * ✨ Upgrade items router with new SQLModel models, simplified logic, and new FastAPI Annotated dependencies. PR [#560](https://github.com/tiangolo/full-stack-fastapi-template/pull/560) by [@tiangolo](https://github.com/tiangolo).
@@ -645,7 +683,7 @@ Test cov > 90% ✅
 * Upgrade Traefik to version 2, keeping in sync with DockerSwarm.rocks. PR [#199](https://github.com/tiangolo/full-stack-fastapi-template/pull/199).
 * Run tests with `TestClient`. PR [#160](https://github.com/tiangolo/full-stack-fastapi-template/pull/160).
 
-### Fixes
+### 修复
 
 * 🐛 Fix copier to handle string vars with spaces in quotes. PR [#631](https://github.com/tiangolo/full-stack-fastapi-template/pull/631) by [@estebanx64](https://github.com/estebanx64).
 * 🐛 Fix allowing a user to update the email to the same email they already have. PR [#696](https://github.com/tiangolo/full-stack-fastapi-template/pull/696) by [@alejsdev](https://github.com/alejsdev).
@@ -658,7 +696,7 @@ Test cov > 90% ✅
 * 🐛 Fix Celery worker command. PR [#443](https://github.com/tiangolo/full-stack-fastapi-template/pull/443) by [@bechtold](https://github.com/bechtold).
 * 🐛 Fix Poetry installation in Dockerfile and upgrade Python version and packages to fix Docker build. PR [#480](https://github.com/tiangolo/full-stack-fastapi-template/pull/480) by [@little7Li](https://github.com/little7Li).
 
-### Refactors
+### 重构
 
 * 🔧 Add missing dotenv variables. PR [#554](https://github.com/tiangolo/full-stack-fastapi-template/pull/554) by [@tiangolo](https://github.com/tiangolo).
 * ⏪ Revert "⚙️ Add Prettier and ESLint config with pre-commit". PR [#644](https://github.com/tiangolo/full-stack-fastapi-template/pull/644) by [@alejsdev](https://github.com/alejsdev).
@@ -717,7 +755,7 @@ Test cov > 90% ✅
 * Simplify `docker-compose.*.yml` files, refactor deployment to reduce config files. PR [#153](https://github.com/tiangolo/full-stack-fastapi-template/pull/153).
 * Simplify env var files, merge to a single `.env` file. PR [#151](https://github.com/tiangolo/full-stack-fastapi-template/pull/151).
 
-### Upgrades
+### 依赖升级
 
 * 📌 Upgrade Poetry lock dependencies. PR [#702](https://github.com/tiangolo/full-stack-fastapi-template/pull/702) by [@tiangolo](https://github.com/tiangolo).
 * ⬆️ Upgrade Python version and dependencies. PR [#558](https://github.com/tiangolo/full-stack-fastapi-template/pull/558) by [@tiangolo](https://github.com/tiangolo).
@@ -729,7 +767,7 @@ Test cov > 90% ✅
 * ⬆ Add `uvicorn[standard]` to include `watchgod` and `uvloop`. PR [#438](https://github.com/tiangolo/full-stack-fastapi-template/pull/438) by [@alonme](https://github.com/alonme).
 * ⬆ Upgrade code to support pydantic V2. PR [#615](https://github.com/tiangolo/full-stack-fastapi-template/pull/615) by [@estebanx64](https://github.com/estebanx64).
 
-### Docs
+### 文档
 
 * 🦇 Add dark mode to `README.md`. PR [#703](https://github.com/tiangolo/full-stack-fastapi-template/pull/703) by [@alejsdev](https://github.com/alejsdev).
 * 🍱 Update GitHub image. PR [#701](https://github.com/tiangolo/full-stack-fastapi-template/pull/701) by [@tiangolo](https://github.com/tiangolo).
@@ -751,7 +789,7 @@ Test cov > 90% ✅
 * Add docs about reporting test coverage in HTML. PR [#161](https://github.com/tiangolo/full-stack-fastapi-template/pull/161).
 * Add docs about removing the frontend, for an API-only app. PR [#156](https://github.com/tiangolo/full-stack-fastapi-template/pull/156).
 
-### Internal
+### 内部改进
 
 * 👷 Add Lint to GitHub Actions outside of tests. PR [#688](https://github.com/tiangolo/full-stack-fastapi-template/pull/688) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump dawidd6/action-download-artifact from 2.28.0 to 3.1.2. PR [#643](https://github.com/tiangolo/full-stack-fastapi-template/pull/643) by [@dependabot[bot]](https://github.com/apps/dependabot).

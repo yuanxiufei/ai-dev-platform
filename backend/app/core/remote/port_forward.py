@@ -140,8 +140,9 @@ class PortForwardManager:
                 3000,   # React/Next.js
                 5173,   # Vite
                 8080,   # Common dev server
-                8000,   # Python/Django
+                8000,   # Python/Django (legacy)
                 8888,   # Jupyter
+                18000,  # AI Fullstack Platform
                 3001,   # Express
                 4000,   # SvelteKit
                 4200,   # Angular

@@ -67,7 +67,7 @@ class StandaloneConfig:
     auto_start_watchdog: bool = True
     auto_start_sleep_manager: bool = True
     bind_host: str = "0.0.0.0"
-    bind_port: int = 8000
+    bind_port: int = 18000
 
 
 class StandaloneManager:

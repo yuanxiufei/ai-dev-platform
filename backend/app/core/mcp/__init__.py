@@ -297,7 +297,7 @@ class MCPClient:
         client = MCPClient(MCPServerConfig(
             name="my-server",
             transport=MCPTransport.SSE,
-            url="http://localhost:8000/sse",
+            url="http://localhost:18000/sse",
         ))
         await client.connect()
         tools = await client.list_tools()

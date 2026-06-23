@@ -28,8 +28,8 @@ def register_config_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # reload
     rl = sub.add_parser("reload", help="热加载配置")
-    rl.add_argument("--server-url", default="http://localhost:8000",
-                    help="API 服务器地址 (默认: http://localhost:8000)")
+    rl.add_argument("--server-url", default="http://localhost:18000",
+                    help="API 服务器地址 (默认: http://localhost:18000)")
 
 
 def handle_config(args: argparse.Namespace) -> None:
@@ -39,7 +39,7 @@ def handle_config(args: argparse.Namespace) -> None:
     if action == "show":
         _show_config()
     elif action == "reload":
-        _reload_config(getattr(args, "server_url", "http://localhost:8000"))
+        _reload_config(getattr(args, "server_url", "http://localhost:18000"))
     else:
         print("请指定操作: show | reload")
 

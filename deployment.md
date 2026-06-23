@@ -1,204 +1,220 @@
-# FastAPI Project - Deployment
+# AI Fullstack Platform — 生产部署指南
 
-You can deploy the project using Docker Compose to a remote server.
+本项目支持通过 Docker Compose 部署到远程服务器，使用 Traefik 处理 HTTPS 反向代理。
 
-This project expects you to have a Traefik proxy handling communication to the outside world and HTTPS certificates.
+也可以使用 GitHub Actions 实现 CI/CD 自动部署。
 
-You can use CI/CD (continuous integration and continuous deployment) systems to deploy automatically, there are already configurations to do it with GitHub Actions.
+## 准备工作
 
-But you have to configure a couple things first. 🤓
+* 准备一台远程服务器（Linux 推荐）。
+* 将域名 DNS 解析到服务器 IP。
+* 配置通配符子域名，例如 `*.ai-platform.example.com`，方便访问不同服务：
+  `dashboard.ai-platform.example.com`、`api.ai-platform.example.com`、`traefik.ai-platform.example.com`、`adminer.ai-platform.example.com` 等。
+* 在远程服务器上安装 [Docker Engine](https://docs.docker.com/engine/install/)（非 Docker Desktop）。
 
-## Preparation
+## 公共 Traefik 代理
 
-* Have a remote server ready and available.
-* Configure the DNS records of your domain to point to the IP of the server you just created.
-* Configure a wildcard subdomain for your domain, so that you can have multiple subdomains for different services, e.g. `*.fastapi-project.example.com`. This will be useful for accessing different components, like `dashboard.fastapi-project.example.com`, `api.fastapi-project.example.com`, `traefik.fastapi-project.example.com`, `adminer.fastapi-project.example.com`, etc. And also for `staging`, like `dashboard.staging.fastapi-project.example.com`, `adminer.staging.fastapi-project.example.com`, etc.
-* Install and configure [Docker](https://docs.docker.com/engine/install/) on the remote server (Docker Engine, not Docker Desktop).
+需要先部署一个 Traefik 反向代理来处理 HTTPS 证书。
 
-## Public Traefik
-
-We need a Traefik proxy to handle incoming connections and HTTPS certificates.
-
-You need to do these next steps only once.
+以下步骤只需执行一次。
 
 ### Traefik Docker Compose
 
-* Create a remote directory to store your Traefik Docker Compose file:
+* 在远程服务器创建 Traefik 目录：
 
 ```bash
 mkdir -p /root/code/traefik-public/
 ```
 
-Copy the Traefik Docker Compose file to your server. You could do it by running the command `rsync` in your local terminal:
+将本地的 Traefik Compose 文件上传到服务器：
 
 ```bash
-rsync -a compose.traefik.yml root@your-server.example.com:/root/code/traefik-public/
+rsync -a compose.traefik.yml root@你的服务器:/root/code/traefik-public/
 ```
 
-### Traefik Public Network
+### Traefik 公共网络
 
-This Traefik will expect a Docker "public network" named `traefik-public` to communicate with your stack(s).
-
-This way, there will be a single public Traefik proxy that handles the communication (HTTP and HTTPS) with the outside world, and then behind that, you could have one or more stacks with different domains, even if they are on the same single server.
-
-To create a Docker "public network" named `traefik-public` run the following command in your remote server:
+创建一个名为 `traefik-public` 的 Docker 公共网络，用于 Traefik 与各服务通信：
 
 ```bash
 docker network create traefik-public
 ```
 
-### Traefik Environment Variables
+这样只需一个 Traefik 代理处理所有外部 HTTP/HTTPS 请求，后面可挂载多个不同域名的项目栈。
 
-The Traefik Docker Compose file expects some environment variables to be set in your terminal before starting it. You can do it by running the following commands in your remote server.
+### Traefik 环境变量
 
-* Create the username for HTTP Basic Auth, e.g.:
+在远程服务器设置以下环境变量：
 
 ```bash
+# HTTP Basic Auth 用户名
 export USERNAME=admin
-```
 
-* Create an environment variable with the password for HTTP Basic Auth, e.g.:
+# HTTP Basic Auth 密码
+export PASSWORD=修改为你的密码
 
-```bash
-export PASSWORD=changethis
-```
-
-* Use openssl to generate the "hashed" version of the password for HTTP Basic Auth and store it in an environment variable:
-
-```bash
+# 生成加密后的密码哈希
 export HASHED_PASSWORD=$(openssl passwd -apr1 $PASSWORD)
+# 验证：echo $HASHED_PASSWORD
+
+# 你的域名
+export DOMAIN=ai-platform.example.com
+
+# Let's Encrypt 邮箱（不能用 example.com）
+export EMAIL=admin@你的域名.com
 ```
 
-To verify that the hashed password is correct, you can print it:
-
-```bash
-echo $HASHED_PASSWORD
-```
-
-* Create an environment variable with the domain name for your server, e.g.:
-
-```bash
-export DOMAIN=fastapi-project.example.com
-```
-
-* Create an environment variable with the email for Let's Encrypt, e.g.:
-
-```bash
-export EMAIL=admin@example.com
-```
-
-**Note**: you need to set a different email, an email `@example.com` won't work.
-
-### Start the Traefik Docker Compose
-
-Go to the directory where you copied the Traefik Docker Compose file in your remote server:
+### 启动 Traefik
 
 ```bash
 cd /root/code/traefik-public/
-```
-
-Now with the environment variables set and the `compose.traefik.yml` in place, you can start the Traefik Docker Compose running the following command:
-
-```bash
 docker compose -f compose.traefik.yml up -d
 ```
 
-## Deploy the FastAPI Project
+---
 
-Now that you have Traefik in place you can deploy your FastAPI project with Docker Compose.
+## 部署项目代码
 
-**Note**: You might want to jump ahead to the section about Continuous Deployment with GitHub Actions.
-
-## Copy the Code
+### 上传代码
 
 ```bash
-rsync -av --filter=":- .gitignore" ./ root@your-server.example.com:/root/code/app/
+rsync -av --filter=":- .gitignore" ./ root@你的服务器:/root/code/app/
 ```
 
-Note: `--filter=":- .gitignore"` tells `rsync` to use the same rules as git, ignore files ignored by git, like the Python virtual environment.
+> `--filter=":- .gitignore"` 让 rsync 遵循 gitignore 规则，排除虚拟环境等文件。
 
-## Environment Variables
+### 生成密钥
 
-You need to set some environment variables first.
-
-### Generate secret keys
-
-Some environment variables in the `.env` file have a default value of `changethis`.
-
-You have to change them with a secret key, to generate secret keys you can run the following command:
+`.env` 中默认值为 `changethis` 的变量都需要替换。用以下命令生成安全密钥：
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Copy the content and use that as password / secret key. And run that again to generate another secure key.
+将输出粘贴到对应变量的位置，每个密钥分别生成。
 
-### Required Environment Variables
-
-Set the `ENVIRONMENT`, by default `local` (for development), but when deploying to a server you would put something like `staging` or `production`:
+### 必需环境变量
 
 ```bash
+# 环境标识（生产环境用 production）
 export ENVIRONMENT=production
+
+# 域名
+export DOMAIN=ai-platform.example.com
+
+# 数据库密码（修改默认值）
+export POSTGRES_PASSWORD="你生成的密钥"
+
+# JWT 签名密钥
+export SECRET_KEY="你生成的密钥"
+
+# 初始管理员密码
+export FIRST_SUPERUSER_PASSWORD="你生成的密钥"
+
+# CORS 允许的域名
+export BACKEND_CORS_ORIGINS="https://dashboard.${DOMAIN?变量未设置},https://api.${DOMAIN?变量未设置}"
 ```
 
-Set the `DOMAIN`, by default `localhost` (for development), but when deploying you would use your own domain, for example:
+### 其他可选环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `PROJECT_NAME` | 项目名称，用于 API 文档和邮件 |
+| `STACK_NAME` | Docker Compose 栈名称，生产和预发布环境需区分 |
+| `BACKEND_CORS_ORIGINS` | 逗号分隔的 CORS 允许域名列表 |
+| `FIRST_SUPERUSER` | 初始管理员邮箱 |
+| `SMTP_HOST` | SMTP 服务器地址 |
+| `SMTP_USER` | SMTP 用户名 |
+| `SMTP_PASSWORD` | SMTP 密码 |
+| `EMAILS_FROM_EMAIL` | 发件人邮箱 |
+| `POSTGRES_SERVER` | 数据库地址（Docker 内默认为 `db`） |
+| `POSTGRES_PORT` | 数据库端口 |
+| `POSTGRES_USER` | 数据库用户名 |
+| `POSTGRES_DB` | 数据库名称（默认 `app`） |
+| `SENTRY_DSN` | Sentry DSN（如使用） |
+
+### AI 模型 API 密钥
+
+设置以下环境变量以启用第三方 API 模型（本地模型不可用时自动回退）：
 
 ```bash
-export DOMAIN=fastapi-project.example.com
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
+export DEEPSEEK_API_KEY="sk-..."
+export AZURE_OPENAI_API_KEY="..."
+export REPLICATE_API_KEY="r8_..."
+export ZHIPU_API_KEY="..."
+export QWEN_API_KEY="..."
 ```
 
-Set the `POSTGRES_PASSWORD` to something different than `changethis`:
+### AI 模型调度配置
 
 ```bash
-export POSTGRES_PASSWORD="changethis"
+# 模型存储目录（存放下载的模型权重）
+export MODELS_DIR="/data/models"
+
+# 优先本地模型（纯 API 部署可设为 false）
+export MODEL_PREFER_LOCAL="true"
+
+# 模型请求超时（秒）
+export MODEL_REQUEST_TIMEOUT="30"
+
+# 最大重试次数
+export MODEL_MAX_RETRIES="2"
+
+# 启用回退链
+export MODEL_FALLBACK_ENABLED="true"
+
+# 自动优化（每周自动评估模型性能）
+export AUTO_OPTIMIZE_ENABLED="true"
+export AUTO_OPTIMIZE_INTERVAL_HOURS="24"
 ```
 
-Set the `SECRET_KEY`, used to sign tokens:
+---
+
+## Standalone 独立部署模式
+
+不依赖 Docker，适用于单机服务器场景：
 
 ```bash
-export SECRET_KEY="changethis"
+# 1. 复制代码到服务器
+rsync -av ./ root@你的服务器:/opt/ai-platform/
+
+# 2. 安装 Python 依赖
+cd /opt/ai-platform
+uv sync
+
+# 3. 配置环境
+cp .env.standalone .env
+# 编辑 .env 设置你的参数
+
+# 4. 初始化并启动
+python standalone.py --init
+python standalone.py --start
 ```
 
-Note: you can use the Python command above to generate a secure secret key.
+Standalone 模式特性：
+- **进程守护**：子进程崩溃自动重启
+- **Web 管理面板**：内置仪表盘
+- **远程唤醒 (WOL)**：局域网远程唤醒
+- **DDNS 动态域名**：阿里云 DNS 自动更新
+- **无需 Docker / PostgreSQL**：默认使用 SQLite
 
-Set the `FIRST_SUPER_USER_PASSWORD` to something different than `changethis`:
+后端访问地址：`http://你的服务器IP:18000`
+
+### 修改绑定端口
+
+默认端口 `18000`，如需修改：
 
 ```bash
-export FIRST_SUPERUSER_PASSWORD="changethis"
+export STANDALONE_BIND_PORT="9000"
 ```
 
-Set the `BACKEND_CORS_ORIGINS` to include your domain:
+---
 
-```bash
-export BACKEND_CORS_ORIGINS="https://dashboard.${DOMAIN?Variable not set},https://api.${DOMAIN?Variable not set}"
-```
+## Docker Compose 部署
 
-You can set several other environment variables:
-
-* `PROJECT_NAME`: The name of the project, used in the API for the docs and emails.
-* `STACK_NAME`: The name of the stack used for Docker Compose labels and project name, this should be different for `staging`, `production`, etc. You could use the same domain replacing dots with dashes, e.g. `fastapi-project-example-com` and `staging-fastapi-project-example-com`.
-* `BACKEND_CORS_ORIGINS`: A list of allowed CORS origins separated by commas.
-* `FIRST_SUPERUSER`: The email of the first superuser, this superuser will be the one that can create new users.
-* `SMTP_HOST`: The SMTP server host to send emails, this would come from your email provider (E.g. Mailgun, Sparkpost, Sendgrid, etc).
-* `SMTP_USER`: The SMTP server user to send emails.
-* `SMTP_PASSWORD`: The SMTP server password to send emails.
-* `EMAILS_FROM_EMAIL`: The email account to send emails from.
-* `POSTGRES_SERVER`: The hostname of the PostgreSQL server. You can leave the default of `db`, provided by the same Docker Compose. You normally wouldn't need to change this unless you are using a third-party provider.
-* `POSTGRES_PORT`: The port of the PostgreSQL server. You can leave the default. You normally wouldn't need to change this unless you are using a third-party provider.
-* `POSTGRES_USER`: The Postgres user, you can leave the default.
-* `POSTGRES_DB`: The database name to use for this application. You can leave the default of `app`.
-* `SENTRY_DSN`: The DSN for Sentry, if you are using it.
-
-## GitHub Actions Environment Variables
-
-There are some environment variables only used by GitHub Actions that you can configure:
-
-* `LATEST_CHANGES`: Used by the GitHub Action [latest-changes](https://github.com/tiangolo/latest-changes) to automatically add release notes based on the PRs merged. It's a personal access token, read the docs for details.
-* `SMOKESHOW_AUTH_KEY`: Used to handle and publish the code coverage using [Smokeshow](https://github.com/samuelcolvin/smokeshow), follow their instructions to create a (free) Smokeshow key.
-
-### Deploy with Docker Compose
-
-With the environment variables in place, you can deploy with Docker Compose:
+配置好环境变量后：
 
 ```bash
 cd /root/code/app/
@@ -206,147 +222,113 @@ docker compose -f compose.yml build
 docker compose -f compose.yml up -d
 ```
 
-For production you wouldn't want to have the overrides in `compose.override.yml`, that's why we explicitly specify `compose.yml` as the file to use.
+> 生产环境不要使用 `compose.override.yml`，因此显式指定 `compose.yml`。
 
-## Continuous Deployment (CD)
+---
 
-You can use GitHub Actions to deploy your project automatically. 😎
+## 持续部署 (CD)
 
-You can have multiple environment deployments.
+通过 GitHub Actions 实现自动部署，已内置 `staging` 和 `production` 两套环境。
 
-There are already two environments configured, `staging` and `production`. 🚀
+### 安装 GitHub Actions Runner
 
-### Install GitHub Actions Runner
-
-* On your remote server, create a user for your GitHub Actions:
+在远程服务器上：
 
 ```bash
+# 创建 github 用户
 sudo adduser github
-```
 
-* Add Docker permissions to the `github` user:
-
-```bash
+# 添加 Docker 权限
 sudo usermod -aG docker github
-```
 
-* Temporarily switch to the `github` user:
-
-```bash
+# 切换到 github 用户
 sudo su - github
-```
-
-* Go to the `github` user's home directory:
-
-```bash
 cd
 ```
 
-* [Install a GitHub Action self-hosted runner following the official guide](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners#adding-a-self-hosted-runner-to-a-repository).
+按照 [官方文档](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners#adding-a-self-hosted-runner-to-a-repository) 安装自托管 Runner，添加环境标签（如 `production`）。
 
-* When asked about labels, add a label for the environment, e.g. `production`. You can also add labels later.
-
-After installing, the guide would tell you to run a command to start the runner. Nevertheless, it would stop once you terminate that process or if your local connection to your server is lost.
-
-To make sure it runs on startup and continues running, you can install it as a service. To do that, exit the `github` user and go back to the `root` user:
+安装为系统服务（切回 root 用户）：
 
 ```bash
 exit
-```
-
-After you do it, you will be on the previous user again. And you will be on the previous directory, belonging to that user.
-
-Before being able to go the `github` user directory, you need to become the `root` user (you might already be):
-
-```bash
 sudo su
-```
-
-* As the `root` user, go to the `actions-runner` directory inside of the `github` user's home directory:
-
-```bash
 cd /home/github/actions-runner
-```
 
-* Install the self-hosted runner as a service with the user `github`:
-
-```bash
+# 安装为服务
 ./svc.sh install github
-```
 
-* Start the service:
-
-```bash
+# 启动
 ./svc.sh start
-```
 
-* Check the status of the service:
-
-```bash
+# 查看状态
 ./svc.sh status
 ```
 
-You can read more about it in the official guide: [Configuring the self-hosted runner application as a service](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service).
+详见：[配置自托管 Runner 为服务](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/configuring-the-self-hosted-runner-application-as-a-service)
 
-### Configure GitHub Environments
+### 配置 GitHub Environments
 
-The deployment workflows use [GitHub Environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) for `staging` and `production`. This enables environment-specific secrets, deployment protection rules (e.g. required reviewers, wait timers), and deployment status tracking.
+在仓库的 **Settings → Environments** 创建 `staging` 和 `production` 环境，可设置审批规则。
 
-To configure them, go to your repository's **Settings** > **Environments** and create the `staging` and `production` environments.
+### 配置环境密钥
 
-### Set Secrets
+在对应 Environment 的 **Environment secrets** 中设置：
 
-For each GitHub Environment (`staging` and `production`), configure the required secrets as [environment secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-an-environment). Environment secrets are preferred over [repository secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) because they are scoped to the specific environment, reducing exposure and aligning with any protection rules you configure.
+| 密钥 | 说明 |
+|------|------|
+| `DOMAIN_PRODUCTION` | 生产域名 |
+| `DOMAIN_STAGING` | 预发布域名 |
+| `STACK_NAME_PRODUCTION` | 生产栈名 |
+| `STACK_NAME_STAGING` | 预发布栈名 |
+| `EMAILS_FROM_EMAIL` | 发件人邮箱 |
+| `FIRST_SUPERUSER` | 管理员邮箱 |
+| `FIRST_SUPERUSER_PASSWORD` | 管理员密码 |
+| `POSTGRES_PASSWORD` | 数据库密码 |
+| `SECRET_KEY` | JWT 签名密钥 |
+| `LATEST_CHANGES` | latest-changes 工具 Token |
+| `SMOKESHOW_AUTH_KEY` | Smokeshow 代码覆盖率密钥 |
 
-The current Github Actions workflows expect these secrets:
+### 部署工作流
 
-* `DOMAIN_PRODUCTION`
-* `DOMAIN_STAGING`
-* `STACK_NAME_PRODUCTION`
-* `STACK_NAME_STAGING`
-* `EMAILS_FROM_EMAIL`
-* `FIRST_SUPERUSER`
-* `FIRST_SUPERUSER_PASSWORD`
-* `POSTGRES_PASSWORD`
-* `SECRET_KEY`
-* `LATEST_CHANGES`
-* `SMOKESHOW_AUTH_KEY`
+`.github/workflows` 目录内置了两个工作流：
 
-## GitHub Action Deployment Workflows
+- **staging**：推送到 `master` 分支后自动触发
+- **production**：发布 Release 后自动触发
 
-There are GitHub Action workflows in the `.github/workflows` directory already configured for deploying to the environments (GitHub Actions runners with the labels):
+---
 
-* `staging`: after pushing (or merging) to the branch `master`.
-* `production`: after publishing a release.
+## GitHub Actions 专用环境变量
 
-Both workflows are associated with their respective GitHub Environments, so deployments will be visible in the repository's **Environments** section and will respect any protection rules you configure.
+| 变量 | 说明 |
+|------|------|
+| `LATEST_CHANGES` | [latest-changes](https://github.com/tiangolo/latest-changes) 工具的个人访问令牌 |
+| `SMOKESHOW_AUTH_KEY` | [Smokeshow](https://github.com/samuelcolvin/smokeshow) 代码覆盖率密钥（免费） |
 
-If you need to add extra environments you could use those as a starting point.
+---
 
-## URLs
+## 访问地址
 
-Replace `fastapi-project.example.com` with your domain.
+将 `ai-platform.example.com` 替换为你的域名。
 
-### Main Traefik Dashboard
+### 主 Traefik 面板
 
-Traefik UI: `https://traefik.fastapi-project.example.com`
+`https://traefik.ai-platform.example.com`
 
-### Production
+### 生产环境
 
-Frontend: `https://dashboard.fastapi-project.example.com`
+| 服务 | 地址 |
+|------|------|
+| 前端 | `https://dashboard.ai-platform.example.com` |
+| API 文档 | `https://api.ai-platform.example.com/docs` |
+| API 基础路径 | `https://api.ai-platform.example.com` |
+| 数据库管理 | `https://adminer.ai-platform.example.com` |
 
-Backend API docs: `https://api.fastapi-project.example.com/docs`
+### 预发布环境
 
-Backend API base URL: `https://api.fastapi-project.example.com`
-
-Adminer: `https://adminer.fastapi-project.example.com`
-
-### Staging
-
-Frontend: `https://dashboard.staging.fastapi-project.example.com`
-
-Backend API docs: `https://api.staging.fastapi-project.example.com/docs`
-
-Backend API base URL: `https://api.staging.fastapi-project.example.com`
-
-Adminer: `https://adminer.staging.fastapi-project.example.com`
+| 服务 | 地址 |
+|------|------|
+| 前端 | `https://dashboard.staging.ai-platform.example.com` |
+| API 文档 | `https://api.staging.ai-platform.example.com/docs` |
+| API 基础路径 | `https://api.staging.ai-platform.example.com` |
+| 数据库管理 | `https://adminer.staging.ai-platform.example.com` |
