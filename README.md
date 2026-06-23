@@ -598,6 +598,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | 文档 | 说明 |
 |------|------|
+| [PROGRESS.md](./PROGRESS.md) | **开发进度记录** — 每次会话详情、技术决策、已知问题与待办 |
 | [development.md](./development.md) | 本地开发指南 |
 | [deployment.md](./deployment.md) | 生产部署指南 |
 | [release-notes.md](./release-notes.md) | 版本更新记录 |

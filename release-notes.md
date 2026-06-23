@@ -2,6 +2,39 @@
 
 ## AI Fullstack Platform — 近期更新
 
+### 2026-06-24 · v2.1 模型选择与路由增强
+
+**模型选择系统** — 完整的前后端模型选择功能：
+- 🎯 **前端模型选择器**：AgentChat 页面支持 28 个模型的下拉选择（本地/远程分组展示）
+- 🔌 **ApiModelAdapter 架构**：每个远程/Ollama 模型可被独立选择和精确路由
+- 🦙 **Ollama 本地模型集成**：注册 12 个 Ollama 模型（qwen3-coder-30b / deepseek-r1 / gemma4 等）
+- 📡 **三层搜索机制**：API models → local models → provider candidates
+- 🏷️ **is_local_api 标记**：Ollama 本地服务正确归类到「本地模型」UI 分组
+- 🔑 **公开模型列表接口**：`GET /system/models` 无需登录即可获取模型列表
+
+**Provider 统一改进**：
+- 所有 7 个 provider（Ollama/OpenAI/DeepSeek/Anthropic/Zhipu/Qwen/LlamaCpp）统一使用 `_get_model_name()` 方法
+- 支持 `api_model_id` 参数覆盖，实现单 Provider 多模型独立调用
+
+**配置与环境修复**：
+- ⚙️ `.env` 路径加载改用绝对路径 + `load_dotenv()`（解决 Windows pydantic-settings 相对路径问题）
+- 🔗 DeepSeek API URL 修正为 `api.deepseek.com`
+- 📦 hatch build 配置补全（ai_models/task_queue/workers）
+
+**前端 IDE 优化**：
+- 💬 ChatPanel 接入真实 `agentChatSimple` API（替代 mock 生成）
+- 📐 布局调宽：sidebar 260px / rightPanel 420px / bottomPanel 240px
+- 🎨 4 个页面统一 IDE 背景色，Vite proxy → localhost:8000
+- 🛠️ 新增 `start-backend.bat` Windows 一键启动脚本
+
+**诊断与监控**：
+- 📊 Agent chat 返回回退链诊断信息 + TCP 网络连通性检查
+- 🏥 Health check 改用最新密钥状态（避免缓存过期）
+
+> 详细开发记录见 [PROGRESS.md](./PROGRESS.md)
+
+---
+
 ### 2025-06 · v2.0 系统架构升级
 
 **System API** — 60+ 系统管理端点：
