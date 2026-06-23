@@ -111,7 +111,7 @@ export function usePlugins() {
   const allViews = computed(() => pluginManager.getAllViews())
 
   async function activateAll(): Promise<void> {
-    for (const p of enabledPlugins.value) { if (!p.active) await activate(p.id) }
+    for (const p of enabledPlugins.value) { if (!p.active) await pluginManager.activate(p.id) }
   }
 
   return {

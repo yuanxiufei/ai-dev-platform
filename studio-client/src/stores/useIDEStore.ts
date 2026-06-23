@@ -44,11 +44,11 @@ function getLanguageFromPath(filePath: string): string {
 
 export const useIDEStore = defineStore('ide', () => {
   const layout = ref<IDELayoutState>({
-    sidebarWidth: 240,
+    sidebarWidth: 260,
     fileTreeVisible: true,
-    rightPanelWidth: 380,
+    rightPanelWidth: 420,
     rightPanelVisible: true,
-    bottomPanelHeight: 200,
+    bottomPanelHeight: 240,
     bottomPanelVisible: false,
     activityBarVisible: true,
     statusBarVisible: true,

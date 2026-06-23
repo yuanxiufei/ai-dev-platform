@@ -52,7 +52,7 @@ const categoryLabel: Record<string, string> = {
 </script>
 
 <template>
-  <div class="h-full max-h-screen flex flex-col">
+  <div class="h-full w-full flex flex-col overflow-hidden bg-[var(--color-ide-bg)] text-[var(--color-ide-text)]">
     <!-- Header -->
     <header class="shrink-0 h-14 border-b border-white/8 bg-surface-900/50 backdrop-blur flex items-center px-6">
       <div class="flex items-center gap-3">

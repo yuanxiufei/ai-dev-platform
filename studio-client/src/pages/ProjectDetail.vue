@@ -45,7 +45,7 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface-950">
+  <div class="h-full w-full overflow-hidden bg-[var(--color-ide-bg)] text-[var(--color-ide-text)]">
     <!-- 顶部导航 -->
     <header class="border-b border-white/10 bg-surface-900/50 backdrop-blur">
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">

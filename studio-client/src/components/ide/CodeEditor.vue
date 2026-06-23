@@ -3,6 +3,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
 import type * as monacoNs from 'monaco-editor'
 import type { EditorTab } from '@/types/ide'
+import 'monaco-editor/dev/vs/editor/editor.main.css'
 
 const props = defineProps<{ activeTab: EditorTab }>()
 const emit = defineEmits<{ (e: 'update-content', v: string): void; (e: 'update-cursor', v: any): void }>()
@@ -14,7 +15,6 @@ let monacoInstance: typeof monacoNs | null = null
 async function initMonaco(): Promise<void> {
   if (!containerRef.value) return
   try {
-    await import('monaco-editor/esm/vs/editor/editor.main.css')
     const monaco = (await import('monaco-editor')).default; monacoInstance = monaco
     monaco.editor.defineTheme('codebuddy-dark', {
       base: 'vs-dark', inherit: true,
@@ -66,7 +66,7 @@ watch(() => [props.activeTab.id, props.activeTab.language], async ([newId], [old
     const m = editorInstance.value.getValue(); monacoInstance!.editor.setModelLanguage(editorInstance.value.getModel()!, props.activeTab.language ?? 'plaintext')
   }
 })
-watch(() => props.activeTab.content, (nc) => { if (editorInstance.value && editorInstance.value.getValue() !== nc) { const s = editorInstance.value.getSelection(); editorInstance.value.setValue(nc); if (s) editorInstance.value.setSelection(s) } } })
+watch(() => props.activeTab.content, (nc) => { if (editorInstance.value && editorInstance.value.getValue() !== nc) { const s = editorInstance.value.getSelection(); editorInstance.value.setValue(nc); if (s) editorInstance.value.setSelection(s); } })
 
 onMounted(async () => { await initMonaco() })
 onBeforeUnmount(() => { editorInstance.value?.dispose(); editorInstance.value = null })

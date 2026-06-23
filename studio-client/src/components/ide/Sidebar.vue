@@ -85,31 +85,31 @@ function getStudioIcon(path: string): string {
 <template>
   <div v-if="store.layout.activityBarVisible" class="shrink-0 flex h-full" style="width: var(--sidebar-width);">
     <!-- Activity Bar -->
-    <aside class="w-12 bg-[var(--color-activity-bg)] flex flex-col items-center py-1 shrink-0 z-20">
+    <aside class="w-14 bg-[var(--color-activity-bg)] flex flex-col items-center py-1.5 shrink-0 z-20">
       <!-- Logo -->
-      <button class="w-9 h-9 my-1 rounded-md flex items-center justify-center hover:bg-white/5 transition-colors mb-2"
+      <button class="w-10 h-10 my-1 rounded-md flex items-center justify-center hover:bg-white/5 transition-colors mb-3"
         title="CodeBuddy" @click="store.activeActivityItem = 'explorer'; store.layout.fileTreeVisible = true">
-        <div class="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[11px] font-bold text-white">C</div>
+        <div class="w-7 h-7 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white">C</div>
       </button>
 
       <!-- Main Activity Items -->
       <div class="flex-1 flex flex-col gap-0.5 w-full">
         <button v-for="item in store.activityItems" :key="item.id"
-          class="group relative w-full h-9 flex items-center justify-center transition-colors"
+          class="group relative w-full h-10 flex items-center justify-center transition-colors"
           :class="store.activeActivityItem === item.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'"
           :title="item.label"
           @click="store.activeActivityItem = item.id; store.layout.fileTreeVisible = true">
-          <div v-if="store.activeActivityItem === item.id" class="absolute left-0 w-0.5 h-5 bg-white rounded-r" />
-          <component :is="iconMap[item.icon] ?? item.icon" :size="20" />
-          <span class="absolute left-full ml-2 px-2 py-1 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">{{ item.label }}</span>
+          <div v-if="store.activeActivityItem === item.id" class="absolute left-0 w-0.5 h-6 bg-white rounded-r" />
+          <component :is="iconMap[item.icon] ?? item.icon" :size="24" />
+          <span class="absolute left-full ml-2 px-2.5 py-1.5 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded text-sm whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">{{ item.label }}</span>
           <span v-if="item.badge" class="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center bg-blue-500 text-[10px] font-medium text-white rounded-full px-1">{{ item.badge }}</span>
         </button>
       </div>
 
       <!-- Bottom: Settings -->
       <div class="mt-auto pt-1 border-t border-[#33334a33] w-full">
-        <button class="w-full h-9 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors"
-          title="管理" @click="store.activeActivityItem = 'settings'"><Settings :size="18" /></button>
+        <button class="w-full h-10 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors"
+          title="管理" @click="store.activeActivityItem = 'settings'"><Settings :size="22" /></button>
       </div>
     </aside>
 
@@ -140,19 +140,19 @@ function getStudioIcon(path: string): string {
           <FileTree v-if="store.activeActivityItem === 'explorer'" />
 
           <!-- Studio: App navigation links -->
-          <div v-else-if="store.activeActivityItem === 'studio'" class="p-2 space-y-0.5">
-            <div class="px-2 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-ide-text-dim)] font-semibold">
+          <div v-else-if="store.activeActivityItem === 'studio'" class="p-2.5 space-y-0.5">
+            <div class="px-2 py-2 text-[11px] uppercase tracking-wider text-[var(--color-ide-text-dim)] font-semibold">
               AI Studio 功能
             </div>
             <button
               v-for="link in studioLinks" :key="link.path"
-              class="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs transition-colors text-left"
+              class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left"
               :class="isStudioActive(link.path)
                 ? 'bg-[var(--color-ide-accent)]/15 text-[var(--color-ide-accent)]'
                 : 'text-[var(--color-ide-text-dim)] hover:bg-white/5 hover:text-[var(--color-ide-text)]'"
               @click="navigateTo(link.path)"
             >
-              <span class="shrink-0 w-4 flex justify-center text-[11px]">
+              <span class="shrink-0 w-5 flex justify-center text-base leading-none">
                 {{ getStudioIcon(link.path) }}
               </span>
               <span class="truncate">{{ link.label }}</span>

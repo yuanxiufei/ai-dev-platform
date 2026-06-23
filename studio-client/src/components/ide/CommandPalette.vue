@@ -36,7 +36,7 @@ import { usePlugins } from '@/composables/usePlugins'
 import { Search, Inbox, FilePlus, FolderOpen, Save, Undo2, Redo, Copy, ClipboardPaste, PanelLeftClose, PanelBottomClose, ZoomIn, ZoomOut, FileSearch, Terminal, MessageSquare, Settings, GitBranch, Code, Sparkles, Play, Square, Pause, ChevronsRight, ChevronRight, ChevronsLeft, SkipForward, CircleDot, Variable, Eye, Layers, Lightbulb, Wand2, TestTube2, Bug, Zap, FileText, Plus, Download, CheckCircle2, ArrowUpFromLine, ArrowDownToLine, GitBranchPlus, GitCommit, RotateCcw } from 'lucide-vue-next'
 
 const props = defineProps<{ visible: boolean }>()
-const emit = defineEmits<(e:'update:visible',val:boolean)=>void,(e:'execute',cmdId:string)=>void>()
+const emit = defineEmits<{ 'update:visible': [val: boolean]; 'execute': [cmdId: string] }>()
 const { getFiltered, getCategories } = useShortcuts()
 const { allCommands } = usePlugins()
 const q = ref(''), selectedIdx = ref(0), ac = ref<string | null>(null)

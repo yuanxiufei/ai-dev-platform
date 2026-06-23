@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** CodeBuddy IDE — Top Menu Bar */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, unref } from 'vue'
+import type { Ref } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
 import type { MenuItem } from '@/types/ide'
 
@@ -60,26 +61,26 @@ function closeMenus(): void { openMenu.value = null }
 function handleItemClick(item: MenuItem): void { if (item.action) item.action(); closeMenus() }
 
 onClickOutside(menuRef, closeMenus)
-function onClickOutside(el: HTMLElement | null, handler: () => void): void {
+function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): void {
+  function fn(e: MouseEvent) { const el = unref(elRef); if (el && !el.contains(e.target as Node)) handler() }
   onMounted(() => document.addEventListener('mousedown', fn))
   onUnmounted(() => document.removeEventListener('mousedown', fn))
-  function fn(e: MouseEvent) { if (el && !el.contains(e.target as Node)) handler() }
 }
 </script>
 
 <template>
-  <div class="h-[var(--menubar-height)] bg-[var(--color-activity-bg)] border-b border-[var(--color-ide-border)] flex items-center px-1 shrink-0 select-none z-50" ref="menuRef">
-    <div class="flex items-center gap-2 mr-3 px-2 text-xs text-[var(--color-ide-text-dim)]">
-      <div class="w-4 h-4 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white">C</div>
+  <div class="h-[var(--menubar-height)] bg-[var(--color-activity-bg)] border-b border-[var(--color-ide-border)] flex items-center px-1.5 shrink-0 select-none z-50" ref="menuRef">
+    <div class="flex items-center gap-2 mr-3 px-2.5 text-sm text-[var(--color-ide-text-dim)]">
+      <div class="w-5 h-5 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[11px] font-bold text-white">C</div>
       <span class="font-medium">CodeBuddy</span>
     </div>
     <div v-for="menu in menus" :key="menu.id" class="relative">
-      <button class="px-2 py-1 text-xs rounded hover:bg-white/5 transition-colors" :class="{ 'bg-white/10': openMenu === menu.id }" @click.stop="toggleMenu(menu.id)">{{ menu.label }}</button>
+      <button class="px-2.5 py-1 text-sm rounded hover:bg-white/5 transition-colors" :class="{ 'bg-white/10': openMenu === menu.id }" @click.stop="toggleMenu(menu.id)">{{ menu.label }}</button>
       <Transition name="fade">
-        <div v-if="openMenu === menu.id" class="absolute top-full left-0 mt-0 min-w-[220px] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded shadow-xl py-1 z-[100]" @click.stop>
+        <div v-if="openMenu === menu.id" class="absolute top-full left-0 mt-0 min-w-[240px] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded shadow-xl py-1 z-[100]" @click.stop>
           <template v-for="(item, idx) in menu.items" :key="idx">
             <hr v-if="item.separator" class="my-1 border-[var(--color-ide-border)]" />
-            <button v-else class="context-menu-item w-full text-left text-xs flex justify-between gap-6"
+            <button v-else class="context-menu-item w-full text-left text-sm flex justify-between gap-6"
               :class="{ 'text-[var(--color-ide-accent)]': !!item.checked && item.checked }" :disabled="item.disabled" @click="handleItemClick(item)">
               <span>{{ item.label }}</span><span class="text-[var(--color-ide-text-dim)]">{{ item.shortcut }}</span>
             </button>
@@ -89,11 +90,11 @@ function onClickOutside(el: HTMLElement | null, handler: () => void): void {
     </div>
     <div class="flex-1" />
     <div class="flex items-center gap-1 px-1">
-      <button title="AI 助手" class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition-colors text-[11px]" @click="store.rightPanelView = 'chat'; store.layout.rightPanelView = true">AI 助手</button>
+      <button title="AI 助手" class="px-2 py-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition-colors text-sm" @click="store.rightPanelView = 'chat'; store.layout.rightPanelView = true">AI 助手</button>
       <div class="w-px h-4 bg-[var(--color-ide-border)] mx-1" />
-      <button class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6m0-6l-6 6"/></svg></button>
-      <button class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
-      <button class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 hover:text-red-400 text-[var(--color-ide-text-dim)] transition-colors"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6m0-6l-6 6"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-red-500/20 hover:text-red-400 text-[var(--color-ide-text-dim)] transition-colors"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
   </div>
 </template>

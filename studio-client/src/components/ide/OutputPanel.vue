@@ -1,13 +1,13 @@
 <script setup lang="ts">/** IDE — Output Panel Viewer */
 import { computed, ref, nextTick } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
-import { Filter, X, AlertTriangle, Error, Info } from 'lucide-vue-next'
+import { Filter, X, AlertTriangle, Bug, Info } from 'lucide-vue-next'
 
 const store = useIDEStore(); const os = ref<HTMLDivElement | null>(null)
 const ac = computed(() => store.outputChannels.find(c => c.id === store.activeOutputChannel))
 function setChannel(id: string): void { store.activeOutputChannel = id; store.outputChannels.forEach(c => c.visible = c.id === id); nextTick(() => { if (os.value) os.value.scrollTop = 99999 }) }
 function clear(): void { if (ac.value) ac.value.lines = [] }
-const icons: Record<string, any> = { output: Info, problems: AlertTriangle, 'debug-console': Error }
+const icons: Record<string, any> = { output: Info, problems: AlertTriangle, 'debug-console': Bug }
 </script>
 
 <template>

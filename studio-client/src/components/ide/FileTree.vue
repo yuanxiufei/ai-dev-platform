@@ -32,7 +32,7 @@ function handleClick(e: FileEntry): void { if (e.isDir) store.toggleExpand(e); e
     <div v-for="entry in entries" :key="entry.path || entry.name"
       class="tree-item group flex items-center h-6 pr-2 cursor-pointer transition-colors"
       :style="{ paddingLeft: `${(depth ?? 0) * 12 + 8}px` }"
-      :class="{ 'bg-[var(--color-ide-surface-active)]: store.selectedFilePath === entry.path, 'hover:bg-[var(--color-ide-surface-hover)]: store.selectedFilePath !== entry.path }"
+      :class="[store.selectedFilePath === entry.path ? 'bg-[var(--color-ide-surface-active)]' : 'hover:bg-[var(--color-ide-surface-hover)]']"
       @click.stop="handleClick(entry)">
       <span class="w-4 h-4 flex items-center justify-center shrink-0 mr-0.5">
         <component v-if="entry.isDir" :is="entry.expanded ? ChevronDown : ChevronRight" :size="14" class="text-[var(--color-ide-text-dim)]" /><span v-else class="w-3.5" /></span>

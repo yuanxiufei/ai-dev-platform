@@ -47,7 +47,7 @@ onMounted(() => sb())
       </div>
       <div class="flex items-center gap-0.5">
         <button class="p-0.5 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]" @click="()=>{const t=store.terminalSessions.find(t=>t.active);if(t)t.lines=[]}"><RotateCcw :size="12" /></button>
-        <button class="p-0.5 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]" @click="()=>{const i=store.terminalSessions.findIndex(t=>t.active);if(i>0){store.terminalSessions.splice(i,1);store.terminalSessions[store.terminalSessions.length-1].active=true}}"><Trash2 :size="12}]" /></button>
+        <button class="p-0.5 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]" @click="()=>{const i=store.terminalSessions.findIndex(t=>t.active);if(i>0){store.terminalSessions.splice(i,1);store.terminalSessions[store.terminalSessions.length-1].active=true}}"><Trash2 :size="12" /></button>
       </div>
     </div>
     <div ref="scrollRef" class="flex-1 overflow-y-auto p-2 space-y-0.5">
