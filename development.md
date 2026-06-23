@@ -14,8 +14,8 @@ docker compose watch
 | Video Client（C 端） | http://localhost:5174 |
 | Studio Admin（管理端） | http://localhost:5175 |
 | Video Admin（管理端） | http://localhost:5176 |
-| 后端 API | http://localhost:18000 |
-| API 文档 (Swagger) | http://localhost:18000/docs |
+| 后端 API | http://localhost:8000 |
+| API 文档 (Swagger) | http://localhost:8000/docs |
 | 数据库管理 (Adminer) | http://localhost:18080 |
 | 邮件查看 (Mailcatcher) | http://localhost:1080 |
 | Traefik 面板 | http://localhost:8090 |
@@ -71,9 +71,21 @@ uv run python app/initial_data.py
 
 ### 第三步：启动后端
 
+**方式 A — Windows 一键启动（推荐）：**
+
+```powershell
+# 双击 start-backend.bat
+# 或在终端运行：
+start-backend.bat
+```
+
+> 自动杀掉 8000 端口占用进程，然后启动 uvicorn。
+
+**方式 B — 开发模式（热重载）：**
+
 ```bash
 cd backend
-uv run fastapi dev app/main.py --port 18000
+uv run fastapi dev app/main.py --port 8000
 ```
 
 > 后端自动读取根目录 `.env`，修改代码 → 保存 → 自动热重载。
@@ -105,7 +117,7 @@ pnpm dev:video-admin
 | Video Client | http://localhost:5174 |
 | Studio Admin | http://localhost:5175 |
 | Video Admin | http://localhost:5176 |
-| API 文档 | http://localhost:18000/docs |
+| API 文档 | http://localhost:8000/docs |
 | 数据库管理 | http://localhost:18080 |
 | 邮件查看 | http://localhost:1080 |
 
@@ -159,7 +171,9 @@ cd studio-client && pnpm dev
 
 ```bash
 docker compose stop backend
-cd backend && uv run fastapi dev app/main.py --port 18000
+# 方式 A: 双击 start-backend.bat（推荐）
+# 方式 B:
+cd backend && uv run fastapi dev app/main.py --port 8000
 ```
 
 ---
@@ -187,7 +201,7 @@ cd backend
 uv run python -m app.cli.main models download --name Qwen2.5-Coder-7B-Instruct
 
 # 或通过 API
-curl -X POST http://localhost:18000/api/v1/system/models/download \
+curl -X POST http://localhost:8000/api/v1/system/models/download \
   -H "Content-Type: application/json" \
   -d '{"model_name": "Qwen2.5-Coder-7B-Instruct", "source": "huggingface"}'
 ```
@@ -199,20 +213,20 @@ curl -X POST http://localhost:18000/api/v1/system/models/download \
 uv run python -m app.cli.main models list
 
 # API
-curl http://localhost:18000/api/v1/system/models
+curl http://localhost:8000/api/v1/system/models
 ```
 
 ### 加载 / 卸载模型
 
 ```bash
 # 加载模型到显存
-curl -X POST http://localhost:18000/api/v1/system/models/qwen25-coder-7b/load
+curl -X POST http://localhost:8000/api/v1/system/models/qwen25-coder-7b/load
 
 # 卸载模型释放显存
-curl -X POST http://localhost:18000/api/v1/system/models/qwen25-coder-7b/unload
+curl -X POST http://localhost:8000/api/v1/system/models/qwen25-coder-7b/unload
 
 # 查看当前已加载
-curl http://localhost:18000/api/v1/system/models/loaded
+curl http://localhost:8000/api/v1/system/models/loaded
 ```
 
 ### 模型格式支持
@@ -231,39 +245,39 @@ curl http://localhost:18000/api/v1/system/models/loaded
 
 ```bash
 # 基本检查
-curl http://localhost:18000/api/v1/system/health
+curl http://localhost:8000/api/v1/system/health
 
 # 详细检查（DB + 模型 + 网关 + 路由）
-curl http://localhost:18000/api/v1/system/health/detailed
+curl http://localhost:8000/api/v1/system/health/detailed
 
 # 系统统计
-curl http://localhost:18000/api/v1/system/health/stats
+curl http://localhost:8000/api/v1/system/health/stats
 ```
 
 ### 配置热加载
 
 ```bash
-curl -X POST http://localhost:18000/api/v1/system/config/reload
+curl -X POST http://localhost:8000/api/v1/system/config/reload
 ```
 
 ### 触发自动优化
 
 ```bash
-curl -X POST http://localhost:18000/api/v1/system/models/optimize
+curl -X POST http://localhost:8000/api/v1/system/models/optimize
 ```
 
 ### GPU 状态监控
 
 ```bash
-curl http://localhost:18000/api/v1/system/gpu/status
-curl http://localhost:18000/api/v1/system/gpu/devices
+curl http://localhost:8000/api/v1/system/gpu/status
+curl http://localhost:8000/api/v1/system/gpu/devices
 ```
 
 ### 资源使用
 
 ```bash
-curl http://localhost:18000/api/v1/system/resources/current
-curl http://localhost:18000/api/v1/system/resources/hardware
+curl http://localhost:8000/api/v1/system/resources/current
+curl http://localhost:8000/api/v1/system/resources/hardware
 ```
 
 ---

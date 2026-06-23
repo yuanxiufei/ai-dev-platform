@@ -178,8 +178,81 @@
 
 | 项目 | 值 | 备注 |
 |------|-----|------|
-| 后端端口 | 8000（dev）/ 18000（Docker） | vite proxy 已改 8000 |
+| 后端端口 | 8000（dev）/ 18000（Docker/Standalone） | vite proxy 已改 8000 |
 | Ollama 地址 | localhost:11434 | 需确保服务运行 |
 | Python 版本 | 3.12 | `.python-version` |
 | 包管理器 | uv (Python) / pnpm (前端) | |
 | 数据库 | PostgreSQL 18 (Docker) | docker compose up -d db |
+
+---
+
+## 附录：前后端启动方式详解（Session 01 变更记录）
+
+> 本次 Session 对启动配置做了多处调整，以下是完整对照。
+
+### 后端启动（4 种方式）
+
+| 方式 | 命令/操作 | 端口 | 说明 | 变更状态 |
+|------|-----------|------|------|----------|
+| **① Windows 一键脚本** | 双击 `start-backend.bat` | **8000** | 自动杀占用端口 + 启动 uvicorn | 🆕 **新增** |
+| **② 开发模式（热重载）** | `cd backend && uv run fastapi dev app/main.py --port 8000` | 8000 | 修改代码即时生效，推荐日常开发 | ⚠️ 端口从 18000 改为 8000 |
+| **③ Standalone 独立模式** | `python standalone.py` 或双击 `start-standalone.bat` | **18000** | 含守护进程+智能休眠+API鉴权，无需 Docker | 无变化 |
+| **④ Docker Compose** | `docker compose up -d backend` | 8000 (容器内) / Traefik 路由 | 生产部署，含 Traefik 反向代理 + HTTPS | 无变化 |
+
+### 前端启动
+
+```bash
+# 安装依赖（首次）
+pnpm install
+
+# Studio Client（C 端 AI 编辑器）— 主力开发前端
+cd studio-client && pnpm dev        # → http://localhost:5173
+
+# 其他前端（按需）
+pnpm dev:studio-admin              # → http://localhost:5175（管理端）
+pnpm dev:video-client              # → http://localhost:5174（视频 C 端）
+pnpm dev:video-admin               # → http://localhost:5176（视频管理端）
+```
+
+#### 前端启动变更
+
+| 项目 | 旧值 | 新值 | 影响 |
+|------|------|------|------|
+| Vite proxy target | （未确认，可能是 18000） | `http://localhost:8000` | 匹配 start-backend.bat 的 8000 端口 |
+| Vite server port | 5173 | 5173（不变） | — |
+| ChatPanel API | mock 数据 | `agentChatSimple()` 真实 API | 需后端先启动 |
+
+### 推荐本地开发组合
+
+```
+终端 1: 双击 start-backend.bat          # 后端 :8000
+终端 2: cd studio-client && pnpm dev     # 前端 :5173 → proxy → :8000
+可选:    ollama serve                     # Ollama :11434（模型服务）
+可选:    docker compose up -d db redis    # PostgreSQL + Redis（基础设施）
+```
+
+### 端口占用一览
+
+| 端口 | 服务 | 必需 |
+|------|------|:----:|
+| 5173 | Studio Client (Vite) | ✅ 前端开发 |
+| 5174 | Video Client (Vite) | 可选 |
+| 5175 | Studio Admin (Vite) | 可选 |
+| 5176 | Video Admin (Vite) | 可选 |
+| **8000** | **Backend (uvicorn)** | ✅ **必需** |
+| 11434 | Ollama | ✅ 模型服务 |
+| 5432 | PostgreSQL (Docker) | ✅ 数据库 |
+| 6379 | Redis (Docker) | 可选（缓存/限流/Celery） |
+| 6333 | Qdrant (Docker) | 可选（向量数据库） |
+| 18000 | Standalone 模式 | 备用（独立部署） |
+| 18080 | Adminer (Docker) | 可选（数据库管理） |
+
+### 已知启动注意事项
+
+1. **端口冲突**：如果 8000 被占用，`start-backend.bat` 会自动 kill 占用进程再启动。手动模式需自行处理。
+2. **Ollama 依赖**：12 个 Ollama 本地模型需要 Ollama 服务在 `localhost:11434` 运行，否则模型调用会失败并回退到远程 API。
+3. **`.env` 路径**：`config.py` 已改用绝对路径 + `load_dotenv()`，从任何目录启动都能正确加载项目根目录的 `.env`。
+4. **Standalone vs Dev 区别**：
+   - Dev 模式（端口 8000）：轻量快速，热重载，适合开发调试
+   - Standalone（端口 18000）：重量级，含进程守护/智能休眠/API鉴权/Web管理界面，适合长期运行
+5. **Docker vs 本地**：同一个 `.env` 文件兼容两种模式，Docker 会覆盖 `POSTGRES_SERVER=db`、`REDIS_HOST=redis` 等变量。
