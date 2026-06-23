@@ -8,6 +8,9 @@ dependencies = [
     "task-queue",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
 [tool.uv.sources]
 ai-models = { workspace = true }
 task-queue = { workspace = true }

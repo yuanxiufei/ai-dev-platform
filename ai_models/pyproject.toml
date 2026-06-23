@@ -21,8 +21,13 @@ dependencies = [
 
     # ── GGUF 格式（本地量化模型）─ Gemma 31B 等 ──
     # 支持纯 CPU 推理，约 ~50MB 磁盘空间
-    "llama-cpp-python>=0.3.0",
+    # 需要 MSVC 编译器（Windows）或 gcc（Linux），源码编译。
+    # 若无法编译，可跳过：pip install llama-cpp-python 或使用预编译 wheel。
+    # "llama-cpp-python>=0.3.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [build-system]
 requires = ["hatchling"]

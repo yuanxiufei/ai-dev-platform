@@ -1,8 +1,10 @@
 import os
 import secrets
 import warnings
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
+from dotenv import load_dotenv
 from pydantic import (
     AnyUrl,
     BeforeValidator,
@@ -15,6 +17,11 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
+# 将 .env 加载到 os.environ（供 os.getenv() 通用读取）
+# config.py → core/ → app/ → backend/ → 项目根目录
+_ENV_PATH = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+load_dotenv(_ENV_PATH, override=True)
+
 
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
@@ -26,8 +33,8 @@ def parse_cors(v: Any) -> list[str] | str:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Use top level .env file (one level above ./backend/)
-        env_file="../.env",
+        # 使用模块级 _ENV_PATH 绝对路径，避免 pydantic-settings 相对路径解析不准
+        env_file=str(_ENV_PATH),
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -324,7 +331,7 @@ class Settings(BaseSettings):
     # ── Standalone 独立运行配置 ─────────────────
     STANDALONE_MODE: bool = False              # 是否运行在独立模式（非 Docker）
     STANDALONE_WATCHDOG_ENABLED: bool = True   # 是否启用守护进程
-    STANDALONE_API_AUTH_ENABLED: bool = True   # 是否启用 API 鉴权
+    STANDALONE_API_AUTH_ENABLED: bool = False  # 是否启用 API 鉴权（默认关闭，本地开发无需认证）
     STANDALONE_SMART_SLEEP_ENABLED: bool = True  # 是否启用智能休眠
     STANDALONE_SLEEP_IDLE_TIMEOUT: int = 300   # 休眠空闲超时（秒）
     STANDALONE_SLEEP_UNLOAD_MODELS: bool = True  # 休眠时卸载模型

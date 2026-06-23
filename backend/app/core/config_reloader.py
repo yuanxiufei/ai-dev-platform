@@ -63,6 +63,16 @@ class ConfigReloader:
         except Exception as e:
             logger.warning("Settings refresh failed: %s", e)
 
+        # 刷新 Provider 注册表（密钥/端点变更）
+        try:
+            from app.core.api_gateway import get_api_gateway
+            gw = get_api_gateway()
+            if gw and hasattr(gw, "_registry"):
+                count = gw._registry.force_reload()
+                logger.info("ProviderRegistry refreshed: %d providers", count)
+        except Exception as e:
+            logger.warning("ProviderRegistry refresh failed: %s", e)
+
         self._reload_count += 1
         timestamp = time.time()
 
@@ -126,21 +136,27 @@ class ConfigReloader:
 
     @staticmethod
     def _load_env_file(filepath: str) -> None:
-        """加载 .env 文件到 os.environ"""
+        """加载 .env 文件到 os.environ（强制覆盖，确保热更新生效）"""
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" in line:
-                        key, _, val = line.partition("=")
-                        key = key.strip()
-                        val = val.strip().strip("\"'")
-                        if key and not os.getenv(key):  # 环境变量优先
-                            os.environ[key] = val
-        except FileNotFoundError:
-            pass
+            from dotenv import load_dotenv as _load_dotenv
+            _load_dotenv(filepath, override=True)
+            logger.info("Config reloaded from %s with override=True", filepath)
+        except ImportError:
+            # 降级：手动解析（无 python-dotenv 时）
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        if "=" in line:
+                            key, _, val = line.partition("=")
+                            key = key.strip()
+                            val = val.strip().strip("\"'")
+                            if key:
+                                os.environ[key] = val
+            except FileNotFoundError:
+                pass
 
 
 # ══════════════════════════════════════════════

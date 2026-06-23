@@ -5,6 +5,7 @@ description = ""
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "fastapi[standard]<1.0.0,>=0.114.2",
+    "sse-starlette>=1.8.2",
     "python-multipart<1.0.0,>=0.0.27",
     "email-validator<3.0.0.0,>=2.1.0.post1",
     "tenacity<9.0.0,>=8.2.3",
@@ -17,6 +18,7 @@ dependencies = [
     "sqlmodel<1.0.0,>=0.0.21",
     "pydantic-settings<3.0.0,>=2.2.1",
     "sentry-sdk[fastapi]>=2.0.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
     "pyjwt<3.0.0,>=2.8.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
     "celery[redis]>=5.4.0",
@@ -28,7 +30,8 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "pypdf>=5.0.0",
     "markitdown>=0.0.1a3",
-    "llama-cpp-python>=0.3.0",
+    # ── 本地 GGUF 模型推理（可选，需 MSVC/gcc 编译）
+    # "llama-cpp-python>=0.3.0",
     # ── Cron 定时任务 ──
     "apscheduler<4.0.0,>=3.10.4",
     # ── 插件系统依赖 ──
