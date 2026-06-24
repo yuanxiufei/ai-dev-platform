@@ -46,42 +46,28 @@ export const useIDEStore = defineStore('ide', () => {
   const layout = ref<IDELayoutState>({
     sidebarWidth: 260,
     fileTreeVisible: true,
-    rightPanelWidth: 420,
+    rightPanelWidth: 320,
     rightPanelVisible: true,
-    bottomPanelHeight: 240,
-    bottomPanelVisible: false,
+    bottomPanelHeight: 180,
+    bottomPanelVisible: true,
     activityBarVisible: true,
     statusBarVisible: true,
-    menuBarVisible: true,
+    menuBarVisible: false,          // Figma design hides menubar
   })
 
   function buildDemoFileTree(): FileEntry[] {
     return [
       {
-        name: 'ai-fullstack-platform', path: '', isDir: true, expanded: true, icon: 'FolderOpen',
+        name: 'my-ai-app', path: '', isDir: true, expanded: true,
         children: [
-          { name: '.codebuddy', path: '.codebuddy', isDir: true, expanded: false, children: [] },
-          { name: '.github', path: '.github', isDir: true, expanded: false, children: [
-            { name: 'workflows', path: '.github/workflows', isDir: true, expanded: false, children: [] },
+          { name: 'src', path: 'src', isDir: true, expanded: true, children: [
+            { name: 'App.vue', path: 'src/App.vue', isDir: false, language: 'html' },
+            { name: 'main.ts', path: 'src/main.ts', isDir: false, language: 'typescript' },
+            { name: 'style.css', path: 'src/style.css', isDir: false, language: 'css' },
+            { name: 'components', path: 'src/components', isDir: true, expanded: false, children: [] },
           ]},
-          { name: 'ai_models', path: 'ai_models', isDir: true, expanded: false, icon: 'BrainCircuit' },
-          { name: 'backend', path: 'backend', isDir: true, expanded: true, icon: 'Server',
-            children: [
-              { name: 'app', path: 'backend/app', isDir: true, expanded: true, children: [
-                { name: 'api', path: 'backend/app/api', isDir: true, expanded: false },
-                { name: 'core', path: 'backend/app/core', isDir: true, expanded: false },
-                { name: 'models', path: 'backend/app/models', isDir: true, expanded: false },
-              ]},
-              { name: 'pyproject.toml', path: 'backend/pyproject.toml', isDir: false, language: 'toml' },
-            ]},
-          { name: 'compose.yml', path: 'compose.yml', isDir: false, language: 'yaml' },
           { name: 'package.json', path: 'package.json', isDir: false, language: 'json' },
-          { name: 'pnpm-lock.yaml', path: 'pnpm-lock.yaml', isDir: false, language: 'yaml' },
           { name: 'README.md', path: 'README.md', isDir: false, language: 'markdown' },
-          { name: 'studio-admin', path: 'studio-admin', isDir: true, expanded: false, icon: 'LayoutGrid' },
-          { name: 'studio-client', path: 'studio-client', isDir: true, expanded: false, icon: 'Monitor' },
-          { name: 'video-admin', path: 'video-admin', isDir: true, expanded: false, icon: 'Video' },
-          { name: 'workers', path: 'workers', isDir: true, expanded: false, icon: 'Cog' },
         ],
       },
     ]
@@ -198,12 +184,14 @@ export const useIDEStore = defineStore('ide', () => {
     {
       id: uid(), title: '终端', shellType: 'powershell',
       lines: [
-        { id: uid(), text: 'Windows PowerShell', type: 'info', timestamp: Date.now() },
-        { id: uid(), text: 'Copyright (C) Microsoft Corporation. All rights reserved.', type: 'info', timestamp: Date.now() },
-        { id: uid(), text: '', type: 'info', timestamp: Date.now() },
-        { id: uid(), text: 'Try the new cross-platform PowerShell https://aka.ms/PS6', type: 'info', timestamp: Date.now() },
+        { id: uid(), text: '\n  ➜ ~/projects/ai-app', type: 'input', timestamp: Date.now() },
+        { id: uid(), text: 'npm run dev', type: 'input', timestamp: Date.now() },
+        { id: '', text: '', type: 'output', timestamp: Date.now() },
+        { id: uid(), text: '> ai-app@1.0.0 dev\n> vite', type: 'output', timestamp: Date.now() },
+        { id: uid(), text: 'VITE v5.0.0 ready in 420 ms', type: 'success', timestamp: Date.now() },
+        { id: '', text: '➜ Local: http://localhost:5173/\n➜ Network: use --host to expose\n➜ press h + enter to show help', type: 'output', timestamp: Date.now() },
       ],
-      active: true, cwd: 'D:\\code\\ai-fullstack-platform',
+      active: true, cwd: '~/projects/ai-app',
     },
   ])
   const activeTerminalId = computed(
@@ -351,24 +339,17 @@ cd studio-client && pnpm dev
 \`\`\`
 `,
       html: `<template>
-  <div class="flex h-screen bg-[#1e1e2e] text-gray-200">
-    <aside class="w-12 bg-[#181825] flex flex-col items-center py-2 gap-1">
-      <button v-for="item in activities" :key="item.id"
-        class="w-10 h-10 flex items-center justify-center rounded-md transition-colors"
-        :class="activeActivity === item.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'"
-        @click="activeActivity = item.id">
-        <component :is="item.icon" :size="20" />
-      </button>
-    </aside>
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <EditorArea />
-    </main>
+  <div class="app-container">
+    <h1>{{ greeting }}</h1>
+    <LivePreview />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import EditorArea from './components/EditorArea.vue'
+import { ref } from 'vue';
+import LivePreview from './components/LivePreview.vue';
+
+const greeting = ref('欢迎使用 AI Dev Studio');
 </script>
 `,
       yaml: `services:

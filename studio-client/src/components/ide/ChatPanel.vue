@@ -1,7 +1,17 @@
 <script setup lang="ts">
-/** CodeBuddy IDE — AI Chat Panel */
+/**
+ * CodeBuddy IDE — AI Chat Panel
+ * Figma Design: studio-ai (node-id=9-195) — Right Panel "AI 编程助手"
+ *
+ * Features:
+ *  - Glassmorphism message bubbles (AI: blur+left-border, User: light purple)
+ *  - Model selector (GPT-4o / Claude / DeepSeek)
+ *  - Mode selector (对话模式 / Agent模式)
+ *  - Loading dots animation
+ *  - Ctrl+Enter hint
+ */
 import { ref, computed, nextTick } from 'vue'
-import { Send, Bot, User, Sparkles, RefreshCw, Copy, ThumbsUp, ThumbsDown } from 'lucide-vue-next'
+import { Send, Bot, User, Sparkles, Paperclip, ImagePlus, ChevronDown } from 'lucide-vue-next'
 import { agentChatSimple } from '@/api/agent'
 
 interface Message {
@@ -13,10 +23,27 @@ interface Message {
   provider?: string
 }
 
+/** Available AI models for selector */
+const models = [
+  { id: 'gpt-4o', label: 'GPT-4o', desc: '(最强智能)', active: true },
+  { id: 'claude-sonnet', label: 'Claude Sonnet', desc: '(长文本)', active: false },
+  { id: 'deepseek-v3', label: 'DeepSeek V3', desc: '(代码专家)', active: false },
+]
+
+const modes = [
+  { id: 'chat', label: '对话模式', active: true },
+  { id: 'agent', label: 'Agent 模式', active: false },
+]
+
 const messages = ref<Message[]>([])
 const inputText = ref('')
 const isLoading = ref(false)
 const mc = ref<HTMLDivElement | null>(null)
+const selectedModel = ref(models[0])
+const selectedMode = ref(modes[0])
+const showModelMenu = ref(false)
+const showModeMenu = ref(false)
+
 const hasMessages = computed(() => messages.value.length > 0)
 
 function sb(): void {
@@ -25,17 +52,22 @@ function sb(): void {
   })
 }
 
+function formatTime(ts: number): string {
+  const d = new Date(ts)
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
 async function sendMessage(): Promise<void> {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
 
-  // 添加用户消息
+  // Add user message
   messages.value.push({ role: 'user', content: text, timestamp: Date.now() })
   inputText.value = ''
   isLoading.value = true
   sb()
 
-  // 添加助手消息占位
+  // Add assistant placeholder
   const am: Message = { role: 'assistant', content: '', timestamp: Date.now(), toolCalls: [] }
   messages.value.push(am)
   sb()
@@ -56,90 +88,192 @@ async function sendMessage(): Promise<void> {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-[var(--color-ide-bg)]">
-    <!-- Welcome -->
-    <div v-if="!hasMessages" class="flex-1 flex flex-col items-center justify-center p-6 text-center select-none">
-      <div class="mb-4"><svg width="72" height="72" viewBox="0 0 128 128" fill="none"><rect x="28" y="32" width="72" height="56" rx="16" fill="#35354a" stroke="#55557a" stroke-width="2"/><rect x="38" y="42" width="52" height="30" rx="6" fill="#1e1e2e"/><circle cx="52" cy="56" r="5" fill="#89b4fa"/><circle cx="76" cy="56" r="5" fill="#89b4fa"/><line x1="64" y1="32" x2="64" y2="18" stroke="#55557a" stroke-width="2.5"/><circle cx="64" cy="14" r="4" fill="#a6e3a1"/><rect x="40" y="88" width="48" height="24" rx="8" fill="#35354a" stroke="#55557a" stroke-width="2"/><rect x="46" y="94" width="36" height="16" rx="3" fill="#1e1e2e" stroke="#45475a" stroke-width="1"/><rect x="20" y="84" width="20" height="8" rx="4" fill="#35354a" stroke="#55557a"/><rect x="88" y="84" width="20" height="8" rx="4" fill="#35354a" stroke="#55557a"/></svg></div>
-      <h3 class="text-base font-medium text-[var(--color-ide-text)] mb-1">Hi Buddy</h3>
-      <p class="text-xs text-[var(--color-ide-text-dim)] mb-4">有什么可以帮你的？</p>
-      <div class="w-full space-y-1.5">
-        <button v-for="cmd in ['显示所有命令','快速打开文件','打开设置']" :key="cmd" @click="inputText = cmd; sendMessage()" class="w-full flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] text-[11px] text-[var(--color-ide-text)] hover:border-[var(--color-ide-border-focus)]"><span>{{ cmd }}</span><kbd class="ml-auto">{{ cmd === '显示所有命令' ? 'Ctrl+Shift+P' : cmd === '快速打开文件' ? 'Ctrl+P' : 'Ctrl+,' }}</kbd></button>
+  <div class="h-full flex flex-col bg-[var(--color-ide-surface)]">
+    <!-- ── Header ───────────────────────────────────── -->
+    <div class="flex items-center justify-between px-4 py-4 border-b border-[var(--color-ide-border)] shrink-0">
+      <div class="flex items-center gap-2.5">
+        <!-- Bot Icon -->
+        <div class="w-7 h-7 rounded flex items-center justify-center" style="background:#C0C1FF20;">
+          <Bot :size="16" style="color:#C0C1FF;" />
+        </div>
+        <span class="text-sm font-semibold" style="color:#DFE2F1;">AI 编程助手</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] transition-colors">
+          <svg width="14" height="12" viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        </button>
       </div>
     </div>
 
-    <!-- Messages -->
-    <template v-else>
-      <div ref="mc" class="flex-1 overflow-y-auto p-3 space-y-3">
-        <template v-for="(msg, idx) in messages" :key="idx">
-          <!-- 用户消息 -->
-          <div v-if="msg.role === 'user'" class="flex gap-2 items-start">
-            <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0 mt-0.5"><User :size="13" class="text-white" /></div>
-            <div class="flex-1 min-w-0">
-              <div class="text-[11px] text-[var(--color-ide-text-dim)] mb-1">用户</div>
-              <div class="text-[12px] text-[var(--color-ide-text)] whitespace-pre-wrap break-words leading-relaxed">{{ msg.content }}</div>
-            </div>
-          </div>
-          <!-- 助手消息 -->
-          <div v-else-if="msg.role === 'assistant'" class="flex gap-2 items-start">
-            <div class="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center shrink-0 mt-0.5"><Bot :size="13" class="text-white" /></div>
-            <div class="flex-1 min-w-0">
-              <div class="text-[11px] text-[var(--color-ide-text-dim)] mb-1 flex items-center gap-1">
-                <Sparkles :size="10" />
-                AI
-                <span v-if="msg.modelUsed" class="ml-1 text-[10px] opacity-60">({{ msg.modelUsed }})</span>
-              </div>
-              <!-- 加载中 -->
-              <div v-if="isLoading && !msg.content" class="inline-flex items-center gap-1 text-[var(--color-ide-text-dim)]">
-                <RefreshCw :size="11" class="animate-spin" /> 思考中...
-              </div>
-              <!-- 内容 -->
-              <div v-else class="text-[12px] text-[var(--color-ide-text)] whitespace-pre-wrap break-words leading-relaxed prose prose-invert prose-sm max-w-none" v-html="renderMD(msg.content)" />
-              <!-- 工具调用 -->
-              <div v-if="msg.toolCalls?.length" class="mt-2 space-y-1">
-                <div v-for="(tc, ti) in msg.toolCalls" :key="ti" class="flex items-center gap-1.5 text-[11px] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded px-2 py-1">
-                  <span class="w-4 h-4 rounded bg-blue-600/20 text-blue-400 flex items-center justify-center text-[10px]">⊕</span>
-                  <span>{{ tc.name }}</span>
-                  <span v-if="tc.result" class="ml-auto text-green-400 text-[10px]">{{ tc.result }}</span>
-                </div>
-              </div>
-              <!-- 操作按钮 -->
-              <div v-if="msg.content && !isLoading" class="mt-2 flex items-center gap-1">
-                <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]" @click="navigator.clipboard.writeText(msg.content)"><Copy :size="12" /></button>
-                <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><ThumbsUp :size="12" /></button>
-                <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"><ThumbsDown :size="12" /></button>
-              </div>
-            </div>
-          </div>
-        </template>
+    <!-- ── Messages Area ──────────────────────────────── -->
+    <div ref="mc" class="flex-1 overflow-y-auto p-4 space-y-4">
+      <!-- No messages → Welcome -->
+      <div v-if="!hasMessages && !isLoading" class="h-full flex flex-col items-center justify-center text-center select-none">
+        <div class="mb-4 w-16 h-16 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #C0C1FF15, #C0C1FF05); border: 1px solid #C0C1FF25;">
+          <Sparkles :size="28" style="color:#C0C1FF;" />
+        </div>
+        <p class="text-sm font-medium mb-1" style="color:#DFE2F1;">AI 编程助手</p>
+        <p class="text-xs mb-5" style="color:#908FA0;">有什么可以帮你的？</p>
+        <div class="w-full space-y-2 max-w-xs">
+          <button @click="inputText='帮我分析当前组件的性能'; sendMessage()"
+            class="w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors"
+            style="border-color: var(--color-ide-border); color: var(--color-ide-text);"
+            :class="'hover:border-[#C0C1FF40]'">
+            分析代码性能
+          </button>
+          <button @click="inputText='生成一个 Vue 组件'; sendMessage()"
+            class="w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors"
+            style="border-color: var(--color-ide-border); color: var(--color-ide-text);"
+            :class="'hover:border-[#C0C1FF40]'">
+            生成 Vue 组件
+          </button>
+        </div>
       </div>
-    </template>
 
-    <!-- Input -->
-    <div class="shrink-0 border-t border-[var(--color-ide-border)] p-2">
-      <div class="flex items-end gap-2 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg px-3 py-2 focus-within:border-[var(--color-ide-border-focus)] transition-colors">
+      <!-- Messages List -->
+      <template v-else>
+        <!-- AI Message (Glassmorphism bubble) -->
+        <div v-for="(msg, idx) in messages" :key="idx" class="flex gap-2 items-start">
+          <!-- AI message -->
+          <template v-if="msg.role === 'assistant'">
+            <div
+              class="max-w-[90%] rounded-lg px-3.5 py-3 relative backdrop-blur-md"
+              style="background: rgba(28,31,42,0.7); border-left: 4px solid #C0C1FF; box-shadow: 0 4px 6px -4px rgba(0,0,0,0.1), 0 10px 15px -3px rgba(0,0,0,0.1);"
+            >
+              <!-- Loading state -->
+              <div v-if="isLoading && !msg.content" class="flex items-center gap-1.5 py-1" style="color:#908FA0;">
+                <span class="flex gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:0ms;"/>
+                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:150ms;"/>
+                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:300ms;"/>
+                </span>
+                <span class="text-xs">正在分析代码...</span>
+              </div>
+              <!-- Content -->
+              <div v-else class="text-xs leading-relaxed whitespace-pre-wrap break-words" style="color:#DFE2F1;">{{ msg.content }}</div>
+            </div>
+            <!-- Timestamp -->
+            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap" style="color:#908FA0;">
+              {{ formatTime(msg.timestamp) }} · AI 助手
+            </span>
+          </template>
+
+          <!-- User message (Light purple bubble) -->
+          <template v-else-if="msg.role === 'user'">
+            <div class="flex-1" />
+            <div
+              class="rounded-lg px-4 py-2.5 max-w-[85%]"
+              style="background: rgba(192,193,255,0.1); border: 1px solid rgba(192,193,255,0.2);"
+            >
+              <p class="text-xs leading-relaxed whitespace-pre-wrap break-words" style="color:#DFE2F1;">{{ msg.content }}</p>
+            </div>
+            <!-- Timestamp -->
+            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap" style="color:#908FA0;">
+              {{ formatTime(msg.timestamp) }} · 您
+            </span>
+          </template>
+        </div>
+      </template>
+    </div>
+
+    <!-- ── Bottom Input Panel ────────────────────────── -->
+    <div class="shrink-0 border-t border-[var(--color-ide-border)] px-4 py-3 space-y-3" style="background:#262A35;">
+      <!-- Model & Mode Selectors Row -->
+      <div class="flex items-center justify-center gap-2">
+        <!-- Model Selector -->
+        <div class="relative">
+          <button
+            @click="showModelMenu = !showModelMenu"
+            class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-semibold transition-colors border"
+            style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
+            @blur="setTimeout(()=>showModelMenu=false,150)"
+          >
+            <span>{{ selectedModel.label }} {{ selectedModel.desc }}</span>
+            <ChevronDown :size="10" />
+          </button>
+          <!-- Dropdown -->
+          <div v-if="showModelMenu" class="absolute bottom-full mb-1 left-0 min-w-[140px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
+            <button v-for="m in models" :key="m.id"
+              @click="selectedModel=m;showModelMenu=false"
+              class="w-full text-left text-[11px] font-semibold px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
+              :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedModel.id ? '#C0C1FF15' : 'transparent' }"
+            >
+              <span>{{ m.label }} {{ m.desc }}</span>
+              <svg v-if="m.id===selectedModel.id" width="12" height="9" viewBox="0 0 12 9" fill="none" style="stroke:#C0C1FF;"><path d="M1 3l4 4 6-6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="relative">
+          <button
+            @click="showModeMenu = !showModeMenu"
+            class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-medium transition-colors border"
+            style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
+            @blur="setTimeout(()=>showModeMenu=false,150)"
+          >
+            <span>{{ selectedMode.label }}</span>
+            <ChevronDown :size="10" />
+          </button>
+          <div v-if="showModeMenu" class="absolute bottom-full mb-1 left-0 min-w-[110px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
+            <button v-for="m in modes" :key="m.id"
+              @click="selectedMode=m;showModeMenu=false"
+              class="w-full text-left text-[11px] font-medium px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
+              :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedMode.id ? '#C0C1FF15' : 'transparent' }"
+            >
+              <span>{{ m.label }}</span>
+              <svg v-if="m.id===selectedMode.id" width="12" height="9" viewBox="0 0 12 9" fill="none" style="stroke:#C0C1FF;"><path d="M1 3l4 4 6-6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Box -->
+      <div class="relative">
         <textarea
           v-model="inputText"
-          rows="1"
-          placeholder="输入消息... (Enter 发送)"
-          class="flex-1 bg-transparent outline-none resize-none text-[12px] text-[var(--color-ide-text)] placeholder-[var(--color-ide-text-dim)] max-h-[120px]"
-          style="min-height:24px;"
+          rows="3"
+          placeholder="在此输入指令或提问，按下回车发送..."
+          class="w-full resize-none outline-none text-[13px] rounded-lg border px-3 pt-2.5 pb-8 leading-relaxed"
+          style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
+          style="placeholder-color: rgba(144,143,160,0.5);"
           @keydown.enter.exact.prevent="sendMessage"
-          @input="($event.target as HTMLTextAreaElement).style.height='auto'; ($event.target as HTMLTextAreaElement).style.height=Math.min(($event.target as HTMLTextAreaElement).scrollHeight,120)+'px'"
         />
+
+        <!-- Bottom toolbar inside textarea area -->
+        <div class="absolute bottom-2 left-3 flex items-center gap-1.5">
+          <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="附件">
+            <Paperclip :size="15" />
+          </button>
+          <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="图片">
+            <ImagePlus :size="15" />
+          </button>
+        </div>
+
+        <!-- Send Button (absolute positioned bottom-right) -->
         <button
-          class="p-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition-colors shrink-0"
+          class="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1.5 rounded text-[11px] font-bold transition-all"
+          style="background:#C0C1FF; color:#1000A9;"
+          :class="{ 'opacity-40 cursor-not-allowed': !inputText.trim() || isLoading }"
           :disabled="!inputText.trim() || isLoading"
           @click="sendMessage"
         >
-          <Send :size="14" class="text-white" />
+          发送
+          <Send :size="11" />
         </button>
       </div>
-      <div class="mt-1 text-[10px] text-[var(--color-ide-text-dim)] text-center">内容由 AI 生成 · 仅供参考</div>
+
+      <!-- Keyboard Hint -->
+      <div class="flex items-center justify-center gap-1 text-[10px]" style="color:#908FA0;">
+        按
+        <kbd class="inline-flex items-center justify-center rounded px-1.5" style="background:var(--color-ide-surface);border:1px solid var(--color-ide-border);font-family:'Liberation Mono',monospace;height:13px;font-size:9px;line-height:13px;">Ctrl</kbd>
+        +
+        <kbd class="inline-flex items-center justify-center rounded px-1.5" style="background:var(--color-ide-surface);border:1px solid var(--color-ide-border);font-family:'Liberation Mono',monospace;height:13px;font-size:9px;line-height:13px;">Enter</kbd>
+        换行
+      </div>
     </div>
   </div>
 </template>
-
-<script lang="ts">
-function renderMD(t:string):string{return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code class="bg-black/30 px-1 rounded text-[11px]">$1</code>').replace(/^### (.+)$/gm,'<h4>$1</h4>').replace(/^## (.+)$/gm,'<h3>$1</h3>').replace(/^• (.+)$/gm,'<li>$1</li>')}
-export{renderMD}
-</script>

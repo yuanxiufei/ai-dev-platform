@@ -2,76 +2,94 @@
 
 /* ============================================
    CodeBuddy IDE — Unified Theme (IDE + Studio)
+   Figma Design: studio-ai (node-id=9-195)
    ============================================ */
 
 @theme {
-  /* IDE Core Colors (VSCode-inspired dark theme) */
-  --color-ide-bg: #1e1e2e;
-  --color-ide-surface: #252536;
-  --color-ide-surface-hover: #2d2d42;
-  --color-ide-surface-active: #35354a;
-  --color-ide-border: #33334a;
-  --color-ide-border-focus: #4f46e5;
+  /* IDE Core Colors (Figma dark IDE theme) */
+  --color-ide-bg: #0F131D;
+  --color-ide-surface: #1C1F2A;
+  --color-ide-surface-hover: #252836;
+  --color-ide-surface-active: rgba(192, 193, 255, 0.1);
+  --color-ide-border: #464554;
+  --color-ide-border-focus: #C0C1FF;
 
   /* Utility aliases */
-  --color-ide-bg-secondary: #2a2a3b;
-  --color-ide-bg-tertiary: #313145;
-  --color-ide-hover: #2a2a3d;
-  --color-ide-selection: #35354a;
-  --color-ide-text-secondary: #a6adc8;
+  --color-ide-bg-secondary: #171B26;
+  --color-ide-bg-tertiary: #1E2230;
+  --color-ide-hover: #252836;
+  --color-ide-selection: rgba(192, 193, 255, 0.15);
+  --color-ide-text-secondary: #908FA0;
 
-  /* Text */
-  --color-ide-text: #cdd6f4;
-  --color-ide-text-dim: #939ab7;
-  --color-ide-text-bright: #eff1f5;
+  /* Text (Figma text colors) */
+  --color-ide-text: #DFE2F1;
+  --color-ide-text-dim: #908FA0;
+  --color-ide-text-bright: #FFFFFF;
 
-  /* Accent */
-  --color-ide-accent: #89b4fa;
-  --color-ide-accent-hover: #74c7ec;
-  --color-ide-success: #a6e3a1;
-  --color-ide-warning: #f9e2af;
-  --color-ide-error: #f38ba8;
-  --color-ide-info: #94e2d5;
+  /* Accent (Figma primary: purple-blue) */
+  --color-ide-accent: #C0C1FF;
+  --color-ide-accent-hover: #D4D5FF;
+  --color-ide-success: #98C379;
+  --color-ide-warning: #FBBF24;
+  --color-ide-error: #E06C75;
+  --color-ide-info: #38BDF8;
 
   /* Sidebar activity bar */
-  --color-activity-bg: #181825;
-  --color-activity-hover: #252536;
-  --color-activity-active: #35354a;
+  --color-activity-bg: #171B26;
+  --color-activity-hover: #1C1F2A;
+  --color-activity-active: #252836;
 
   /* Status bar */
-  --color-statusbar-bg: #181825;
-  --color-statusbar-text: #a6adc8;
+  --color-statusbar-bg: #171B26;
+  --color-statusbar-text: #908FA0;
 
-  /* Editor */
-  --color-editor-bg: #1e1e2e;
-  --color-tab-active: #1e1e2e;
-  --color-tab-inactive: #252536;
-  --color-tab-hover: #2d2d42;
-  --color-tab-border: #33334a;
+  /* Editor (Figma editor background) */
+  --color-editor-bg: #0F131D;
+  --color-tab-active: #0F131D;
+  --color-tab-inactive: #1C1F2A;
+  --color-tab-hover: #252836;
+  --color-tab-border: #464554;
 
-  /* Terminal */
-  --color-terminal-bg: #11111b;
-  --color-terminal-fg: #cdd6f4;
-  --color-terminal-green: #a6e3a1;
-  --color-terminal-red: #f38ba8;
-  --color-terminal-yellow: #f9e2af;
-  --color-terminal-blue: #89b4fa;
+  /* Terminal (Figma terminal bg) */
+  --color-terminal-bg: #0F131D;
+  --color-terminal-fg: #DFE2F1;
+  --color-terminal-green: #98C379;
+  --color-terminal-red: #E06C75;
+  --color-terminal-yellow: #FBBF24;
+  --color-terminal-blue: #38BDF8;
+
+  /* Code syntax highlighting (Figma / One Dark inspired) */
+  --color-code-tag: #E06C75;       /* pink/red - HTML tags, keywords */
+  --color-code-string: #98C379;     /* green - strings */
+  --color-code-keyword: #C678DD;    /* purple - import/const/etc */
+  --color-code-function: #61AFEF;   /* blue - function names */
+  --color-code-attr: #DFE2F1;       /* light gray - attributes */
+  --color-code-comment: #5C6370;    /* dim - comments */
+  --color-code-number: #D19A66;     /* orange - numbers */
 
   /* Panel sizes */
   --sidebar-width: 48px;
   --menubar-height: 35px;
   --statusbar-height: 26px;
-  --tabbar-height: 38px;
+  --tabbar-height: 40px;
 
   /* Studio brand colors (kept for Studio pages) */
-  --color-brand-400: #6366f1;
-  --color-brand-500: #4f46e5;
-  --color-brand-600: #4338ca;
-  --color-purple-400: #a78bfa;
-  --color-purple-500: #8b5cf6;
-  --color-surface-800: #1e1b2e;
-  --color-surface-900: #15131d;
-  --color-surface-950: #0e0c15;
+  --color-brand-400: #C0C1FF;
+  --color-brand-500: #a093e0;
+  --color-brand-600: #8B7BD6;
+  --color-purple-400: #C0C1FF;
+  --color-purple-500: #a093e0;
+  --color-surface-800: #1C1F2A;
+  --color-surface-900: #151823;
+  --color-surface-950: #0A0E18;
+
+  /* AI Chat specific */
+  --color-chat-user-bg: rgba(192, 193, 255, 0.1);
+  --color-chat-user-border: rgba(192, 193, 255, 0.2);
+  --color-chat-ai-bg: rgba(28, 31, 42, 0.7);
+  --color-chat-ai-border: #C0C1FF;
+  --color-chat-btn-primary: #C0C1FF;
+  --color-chat-btn-primary-text: #1000A9;
 }
 
 /* ============================================
@@ -88,14 +106,14 @@ html, body, #app {
   background-color: var(--color-ide-bg); color: var(--color-ide-text);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Scrollbar styling (Figma: subtle, dark) */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #45475a66; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: #585b7066; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: #46455466; border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #5a596b66; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
-::selection { background-color: #89b4fa33; }
+::selection { background-color: rgba(192, 193, 255, 0.2); }
 *:focus-visible { outline: 1px solid var(--color-ide-accent); outline-offset: -1px; }
 
 /* ============================================
@@ -118,9 +136,10 @@ html, body, #app {
 .context-menu-item { padding: 4px 24px 4px 32px; cursor: default; white-space: nowrap; }
 .context-menu-item:hover { background: var(--color-ide-accent) !important; color: #fff !important; }
 
-/* Monaco editor overrides */
+/* Monaco editor overrides (Figma theme) */
 .monaco-editor .margin { background-color: var(--color-editor-bg) !important; }
 .monaco-editor, .monaco-editor-background, .monaco-editor .inputarea.ime-input { background-color: var(--color-editor-bg) !important; }
+.monaco-editor .cursor { color: #C0C1FF !important; }
 
 /* Studio-specific utility classes */
 .text-gradient-brand { background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
