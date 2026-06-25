@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n"
-import { Languages, Sun, Moon } from "lucide-vue-next"
 import { useThemeStore } from "@/stores/theme"
-import { cn } from "@/lib/utils"
 
 const { t, locale } = useI18n()
 const themeStore = useThemeStore()
 
-const toggleLanguage = () => {
+const _toggleLanguage = () => {
   // Toggle between English and Chinese
   const newLocale = locale.value === "en" ? "zh" : "en"
   locale.value = newLocale
@@ -15,7 +13,7 @@ const toggleLanguage = () => {
   localStorage.setItem("locale", newLocale)
 }
 
-const toggleTheme = () => {
+const _toggleTheme = () => {
   if (themeStore.theme === "light") {
     themeStore.setTheme("dark")
   } else if (themeStore.theme === "dark") {

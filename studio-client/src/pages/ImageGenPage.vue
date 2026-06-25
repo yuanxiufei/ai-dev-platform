@@ -1,38 +1,42 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { imageGenApi, type ImageGenResult } from '@/api/image-gen'
-import { Image, Download, RefreshCw, X } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import { type ImageGenResult, imageGenApi } from "@/api/image-gen"
 
-const prompt = ref('')
-const negativePrompt = ref('')
-const size = ref('1024x1024')
-const style = ref('natural')
+const prompt = ref("")
+const negativePrompt = ref("")
+const size = ref("1024x1024")
+const style = ref("natural")
 const n = ref(1)
-const engine = ref('')
+const engine = ref("")
 const generating = ref(false)
 const result = ref<ImageGenResult | null>(null)
-const error = ref('')
+const error = ref("")
 const providers = ref<string[]>([])
-const batchPrompts = ref('')
+const batchPrompts = ref("")
 const batchResults = ref<
-  { prompt: string; success: boolean; image?: { url: string; b64_json: string }; error?: string }[]
+  {
+    prompt: string
+    success: boolean
+    image?: { url: string; b64_json: string }
+    error?: string
+  }[]
 >([])
-const showLightbox = ref<string>('')
+const _showLightbox = ref<string>("")
 
-const sizes = [
-  { value: '256x256', label: '256×256' },
-  { value: '512x512', label: '512×512' },
-  { value: '1024x1024', label: '1024×1024' },
-  { value: '1024x1792', label: '1024×1792（竖版）' },
-  { value: '1792x1024', label: '1792×1024（横版）' },
+const _sizes = [
+  { value: "256x256", label: "256×256" },
+  { value: "512x512", label: "512×512" },
+  { value: "1024x1024", label: "1024×1024" },
+  { value: "1024x1792", label: "1024×1792（竖版）" },
+  { value: "1792x1024", label: "1792×1024（横版）" },
 ]
 
-const styles = [
-  { value: 'natural', label: '自然' },
-  { value: 'vivid', label: '鲜艳' },
-  { value: 'anime', label: '动漫' },
-  { value: 'photographic', label: '摄影' },
-  { value: 'digital-art', label: '数字艺术' },
+const _styles = [
+  { value: "natural", label: "自然" },
+  { value: "vivid", label: "鲜艳" },
+  { value: "anime", label: "动漫" },
+  { value: "photographic", label: "摄影" },
+  { value: "digital-art", label: "数字艺术" },
 ]
 
 onMounted(async () => {
@@ -44,10 +48,10 @@ onMounted(async () => {
   }
 })
 
-async function doGenerate() {
+async function _doGenerate() {
   if (!prompt.value.trim()) return
   generating.value = true
-  error.value = ''
+  error.value = ""
   result.value = null
   try {
     result.value = (
@@ -61,17 +65,17 @@ async function doGenerate() {
       })
     ).data
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || '生成失败'
+    error.value = e?.response?.data?.detail || "生成失败"
   } finally {
     generating.value = false
   }
 }
 
-async function doBatch() {
-  const prompts = batchPrompts.value.split('\n').filter((p) => p.trim())
+async function _doBatch() {
+  const prompts = batchPrompts.value.split("\n").filter((p) => p.trim())
   if (!prompts.length) return
   generating.value = true
-  error.value = ''
+  error.value = ""
   try {
     batchResults.value = (
       await imageGenApi.batchGenerate({
@@ -81,14 +85,14 @@ async function doBatch() {
       })
     ).data.results
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || '批量生成失败'
+    error.value = e?.response?.data?.detail || "批量生成失败"
   } finally {
     generating.value = false
   }
 }
 
-function downloadB64(b64: string, index: number) {
-  const a = document.createElement('a')
+function _downloadB64(b64: string, index: number) {
+  const a = document.createElement("a")
   a.href = `data:image/png;base64,${b64}`
   a.download = `ai-generated-${Date.now()}-${index + 1}.png`
   a.click()

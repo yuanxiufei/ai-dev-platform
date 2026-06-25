@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sysinfo::{System, SystemExt, ProcessExt, CpuExt};
+use sysinfo::System;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemInfo {
@@ -42,18 +42,17 @@ pub struct CPUInfo {
 /// Get comprehensive system information
 #[tauri::command]
 pub async fn get_system_info() -> Result<SystemInfo, String> {
-    let mut sys = System::new();
-    sys.refresh_system();
+    let sys = System::new_all();
 
     Ok(SystemInfo {
         os: std::env::consts::OS.to_string(),
         os_version: format!(
             "{} {}",
             System::long_os_version().unwrap_or_default(),
-            System::kernel_version()
+            System::kernel_version().unwrap_or_default()
         ),
         arch: std::env::consts::ARCH.to_string(),
-        hostname: sys.host_name().unwrap_or_else(|| "unknown".to_string()),
+        hostname: System::host_name().unwrap_or_else(|| "unknown".to_string()),
         total_memory: sys.total_memory(),
         available_memory: sys.available_memory(),
         cpu_count: sys.cpus().len(),
@@ -66,7 +65,7 @@ pub async fn get_system_info() -> Result<SystemInfo, String> {
 /// Get memory usage information
 #[tauri::command]
 pub async fn get_memory_usage() -> Result<MemoryUsage, String> {
-    let mut sys = System::new();
+    let mut sys = System::new_all();
     sys.refresh_memory();
 
     let total = sys.total_memory();
@@ -84,12 +83,11 @@ pub async fn get_memory_usage() -> Result<MemoryUsage, String> {
 /// Get CPU information
 #[tauri::command]
 pub async fn get_cpu_info() -> Result<CPUInfo, String> {
-    let mut sys = System::new();
-    sys.refresh_cpu_usage();
+    let mut sys = System::new_all();
     
     // Wait a bit for accurate CPU usage
     std::thread::sleep(std::time::Duration::from_millis(200));
-    sys.refresh_cpu_usage();
+    sys.refresh_cpu_all();
 
     let usage = sys.cpus().iter()
         .map(|c| c.cpu_usage())
@@ -108,4 +106,12 @@ pub async fn get_cpu_info() -> Result<CPUInfo, String> {
             .unwrap_or(0),
         usage,
     })
+}
+
+/// Get the current workspace / working directory
+#[tauri::command]
+pub async fn get_workspace_dir() -> Result<String, String> {
+    std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| format!("Failed to get current directory: {}", e))
 }

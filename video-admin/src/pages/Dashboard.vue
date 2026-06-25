@@ -2,7 +2,7 @@
 import { useAuthStore } from "@/stores/auth"
 
 const authStore = useAuthStore()
-const userName = authStore.userQuery.data.value?.full_name || "User"
+const _userName = authStore.userQuery.data.value?.full_name || "User"
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::fs;
+use std::fs::{self, File};
 use walkdir::WalkDir;
 use chrono::{DateTime, Utc};
 use anyhow::Result;
@@ -295,7 +295,7 @@ pub async fn search_files(request: SearchRequest) -> Result<Vec<String>, String>
         .filter_entry(|e| {
             if let Some(excludes) = &request.exclude_patterns {
                 let name = e.file_name().to_string_lossy();
-                !excludes.any(|p| name.contains(&p.replace("*", "")))
+                !excludes.iter().any(|p| name.contains(&p.replace("*", "")))
             } else {
                 true
             }

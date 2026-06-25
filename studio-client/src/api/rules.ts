@@ -1,14 +1,14 @@
 /**
  * Rules API — AI 行为规则管理
  */
-import { apiClient } from './client'
+import { apiClient } from "./client"
 
 export interface RuleItem {
   id: string
   name: string
   description: string
-  rule_type: 'always' | 'requested' | 'manual'
-  scope: 'project' | 'user'
+  rule_type: "always" | "requested" | "manual"
+  scope: "project" | "user"
   content: string
   enabled: boolean
   triggers: string[] | null
@@ -48,7 +48,7 @@ export interface RuleUpdatePayload {
 // ── API Functions ────────────────────────────────────────
 
 export async function listRules(params?: RuleListParams) {
-  return apiClient.get('/rules', { params })
+  return apiClient.get("/rules", { params })
 }
 
 export async function getRule(id: string) {
@@ -56,7 +56,7 @@ export async function getRule(id: string) {
 }
 
 export async function createRule(payload: RuleCreatePayload) {
-  return apiClient.post('/rules', payload)
+  return apiClient.post("/rules", payload)
 }
 
 export async function updateRule(id: string, payload: RuleUpdatePayload) {
@@ -72,5 +72,5 @@ export async function toggleRule(id: string) {
 }
 
 export async function getRulesStats() {
-  return apiClient.get('/rules/stats')
+  return apiClient.get("/rules/stats")
 }

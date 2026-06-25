@@ -1,37 +1,36 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { computed, onMounted, reactive, ref } from "vue"
 import {
-  promptTemplateApi,
   type PromptTemplateData,
+  promptTemplateApi,
   type TemplateVariableDef,
-} from '@/api/prompt-templates'
-import { Search, RefreshCw, Plus, Zap, Copy, X, Wand2 } from 'lucide-vue-next'
+} from "@/api/prompt-templates"
 
 const templates = ref<PromptTemplateData[]>([])
 const categories = ref<{ name: string; count: number }[]>([])
-const selectedCategory = ref('')
-const searchQuery = ref('')
+const selectedCategory = ref("")
+const searchQuery = ref("")
 const loading = ref(false)
 const showModal = ref(false)
 const showResolve = ref(false)
-const resolvedResult = ref('')
+const resolvedResult = ref("")
 const editingId = ref<string | null>(null)
 
 const form = reactive({
-  command: '',
-  title: '',
-  prompt: '',
-  icon: '',
-  category: 'general',
-  description: '',
+  command: "",
+  title: "",
+  prompt: "",
+  icon: "",
+  category: "general",
+  description: "",
   variables: {} as Record<string, TemplateVariableDef>,
 })
-const newVarName = ref('')
-const newVarType = ref('string')
-const newVarDesc = ref('')
+const newVarName = ref("")
+const newVarType = ref("string")
+const newVarDesc = ref("")
 const resolveValues = ref<Record<string, string | number | boolean>>({})
 
-const filtered = computed(() => {
+const _filtered = computed(() => {
   let list = templates.value
   if (selectedCategory.value)
     list = list.filter((t) => t.category === selectedCategory.value)
@@ -61,31 +60,31 @@ async function loadTemplates() {
   }
 }
 
-function openCreate() {
+function _openCreate() {
   editingId.value = null
   resetForm()
   showModal.value = true
 }
 
-function addVariable() {
+function _addVariable() {
   const name = newVarName.value.trim()
   if (!name || form.variables[name]) return
   form.variables[name] = {
     type: newVarType.value,
-    default: '',
+    default: "",
     description: newVarDesc.value,
     required: false,
     options: [],
   }
-  newVarName.value = ''
-  newVarDesc.value = ''
+  newVarName.value = ""
+  newVarDesc.value = ""
 }
 
-function removeVariable(name: string) {
+function _removeVariable(name: string) {
   delete form.variables[name]
 }
 
-async function saveTemplate() {
+async function _saveTemplate() {
   if (!form.command || !form.title || !form.prompt) return
   await promptTemplateApi.create({
     command: form.command,
@@ -101,39 +100,42 @@ async function saveTemplate() {
   loadTemplates()
 }
 
-async function deleteTemplate(id: string) {
-  if (!confirm('删除此模板？')) return
+async function _deleteTemplate(id: string) {
+  if (!confirm("删除此模板？")) return
   await promptTemplateApi.delete(id)
   await loadTemplates()
 }
 
-async function resolveTemplate(tpl: PromptTemplateData) {
+async function _resolveTemplate(tpl: PromptTemplateData) {
   resolveValues.value = {}
   for (const name of Object.keys(tpl.variables)) {
-    resolveValues.value[name] = String(tpl.variables[name].default || '')
+    resolveValues.value[name] = String(tpl.variables[name].default || "")
   }
   editingId.value = tpl.id
-  resolvedResult.value = ''
+  resolvedResult.value = ""
   showResolve.value = true
 }
 
-async function doResolve() {
-  const res = await promptTemplateApi.resolve(editingId.value!, resolveValues.value)
+async function _doResolve() {
+  const res = await promptTemplateApi.resolve(
+    editingId.value!,
+    resolveValues.value,
+  )
   resolvedResult.value = res.resolved_prompt
 }
 
-function useAsPrompt(text: string) {
+function _useAsPrompt(text: string) {
   // 复制到剪贴板并提示可用在对话中
   navigator.clipboard.writeText(text)
 }
 
 function resetForm() {
-  form.command = ''
-  form.title = ''
-  form.prompt = ''
-  form.icon = ''
-  form.category = 'general'
-  form.description = ''
+  form.command = ""
+  form.title = ""
+  form.prompt = ""
+  form.icon = ""
+  form.category = "general"
+  form.description = ""
   form.variables = {}
 }
 

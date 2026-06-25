@@ -10,12 +10,12 @@
  *  - Loading dots animation
  *  - Ctrl+Enter hint
  */
-import { ref, computed, nextTick } from 'vue'
-import { Send, Bot, User, Sparkles, Paperclip, ImagePlus, ChevronDown } from 'lucide-vue-next'
-import { agentChatSimple } from '@/api/agent'
+
+import { computed, nextTick, ref } from "vue"
+import { agentChatSimple } from "@/api/agent"
 
 interface Message {
-  role: 'user' | 'assistant' | 'system'
+  role: "user" | "assistant" | "system"
   content: string
   timestamp: number
   toolCalls?: Array<{ name: string; args?: any; result?: string }>
@@ -25,26 +25,36 @@ interface Message {
 
 /** Available AI models for selector */
 const models = [
-  { id: 'gpt-4o', label: 'GPT-4o', desc: '(最强智能)', active: true },
-  { id: 'claude-sonnet', label: 'Claude Sonnet', desc: '(长文本)', active: false },
-  { id: 'deepseek-v3', label: 'DeepSeek V3', desc: '(代码专家)', active: false },
+  { id: "gpt-4o", label: "GPT-4o", desc: "(最强智能)", active: true },
+  {
+    id: "claude-sonnet",
+    label: "Claude Sonnet",
+    desc: "(长文本)",
+    active: false,
+  },
+  {
+    id: "deepseek-v3",
+    label: "DeepSeek V3",
+    desc: "(代码专家)",
+    active: false,
+  },
 ]
 
 const modes = [
-  { id: 'chat', label: '对话模式', active: true },
-  { id: 'agent', label: 'Agent 模式', active: false },
+  { id: "chat", label: "对话模式", active: true },
+  { id: "agent", label: "Agent 模式", active: false },
 ]
 
 const messages = ref<Message[]>([])
-const inputText = ref('')
+const inputText = ref("")
 const isLoading = ref(false)
 const mc = ref<HTMLDivElement | null>(null)
-const selectedModel = ref(models[0])
-const selectedMode = ref(modes[0])
-const showModelMenu = ref(false)
-const showModeMenu = ref(false)
+const _selectedModel = ref(models[0])
+const _selectedMode = ref(modes[0])
+const _showModelMenu = ref(false)
+const _showModeMenu = ref(false)
 
-const hasMessages = computed(() => messages.value.length > 0)
+const _hasMessages = computed(() => messages.value.length > 0)
 
 function sb(): void {
   nextTick(() => {
@@ -52,23 +62,28 @@ function sb(): void {
   })
 }
 
-function formatTime(ts: number): string {
+function _formatTime(ts: number): string {
   const d = new Date(ts)
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
-async function sendMessage(): Promise<void> {
+async function _sendMessage(): Promise<void> {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
 
   // Add user message
-  messages.value.push({ role: 'user', content: text, timestamp: Date.now() })
-  inputText.value = ''
+  messages.value.push({ role: "user", content: text, timestamp: Date.now() })
+  inputText.value = ""
   isLoading.value = true
   sb()
 
   // Add assistant placeholder
-  const am: Message = { role: 'assistant', content: '', timestamp: Date.now(), toolCalls: [] }
+  const am: Message = {
+    role: "assistant",
+    content: "",
+    timestamp: Date.now(),
+    toolCalls: [],
+  }
   messages.value.push(am)
   sb()
 
@@ -78,7 +93,10 @@ async function sendMessage(): Promise<void> {
     am.modelUsed = resp.data.model_used
     am.provider = resp.data.provider
   } catch (e: any) {
-    const msg = e?.response?.data?.detail || e?.message || '请求失败，请检查后端是否启动。'
+    const msg =
+      e?.response?.data?.detail ||
+      e?.message ||
+      "请求失败，请检查后端是否启动。"
     am.content = `❌ ${msg}`
   } finally {
     isLoading.value = false
@@ -239,7 +257,6 @@ async function sendMessage(): Promise<void> {
           placeholder="在此输入指令或提问，按下回车发送..."
           class="w-full resize-none outline-none text-[13px] rounded-lg border px-3 pt-2.5 pb-8 leading-relaxed"
           style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
-          style="placeholder-color: rgba(144,143,160,0.5);"
           @keydown.enter.exact.prevent="sendMessage"
         />
 
@@ -277,3 +294,9 @@ async function sendMessage(): Promise<void> {
     </div>
   </div>
 </template>
+
+<style scoped>
+textarea::placeholder {
+  color: rgba(144, 143, 160, 0.5);
+}
+</style>

@@ -82,28 +82,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { Settings, X, Minus, Plus, Eye, EyeOff, Puzzle, RotateCcw, Check, Type, TerminalSquare, Bot } from 'lucide-vue-next'
-import { usePlugins } from '@/composables/usePlugins'
-import ToggleSwitch from './ui/Toggle.vue'
+import { Bot, Puzzle, TerminalSquare, Type } from "lucide-vue-next"
+import { reactive, ref } from "vue"
+import { usePlugins } from "@/composables/usePlugins"
 
-const SG={props:['title'],template:`<div class="mb-8 last:mb-0"><h4 class="text-sm font-medium text-[var(--color-ide-text-secondary)] mb-4">{{ title }}</h4><slot/></div>`}
-const SI={props:['label'],template:`<div class="flex items-center justify-between py-3 border-b border-[var(--color-ide-border)]/50 last:border-0"><span class="text-sm text-[var(--color-ide-text-secondary)]">{{ label }}</span><slot/></div>`}
+const _SG = {
+  props: ["title"],
+  template: `<div class="mb-8 last:mb-0"><h4 class="text-sm font-medium text-[var(--color-ide-text-secondary)] mb-4">{{ title }}</h4><slot/></div>`,
+}
+const _SI = {
+  props: ["label"],
+  template: `<div class="flex items-center justify-between py-3 border-b border-[var(--color-ide-border)]/50 last:border-0"><span class="text-sm text-[var(--color-ide-text-secondary)]">{{ label }}</span><slot/></div>`,
+}
 
 defineProps<{ visible: boolean }>()
-const emit = defineEmits<(e:'update:visible',val:boolean)=>void>()
+const emit = defineEmits<(e: "update:visible", val: boolean) => void>()
 const { installedPlugins, enable, disable } = usePlugins()
-const at = ref('general')
-const tabs=[{id:'general',label:'通用',icon:Type},{id:'editor',label:'编辑器',icon:Type},{id:'terminal',label:'终端',icon:TerminalSquare},{id:'ai',label:'AI 助手',icon:Bot},{id:'extensions',label:'扩展',icon:Puzzle}]
-const ls = reactive({
-  editor:{fontSize:14,fontFamily:"'JetBrains Mono',monospace",tabSize:4,insertSpaces:true,wordWrap:'off',lineNumbers:'on',minimap:true,autoSave:'afterDelay',formatOnSave:true,cursorBlinking:'smooth'},
-  appearance:{theme:'codebuddy-dark',accentColor:'#0078D4',sidebarWidth:260,panelHeight:250,zoomLevel:1},
-  terminal:{fontSize:13,defaultProfile:'powershell',cursorBlinking:true,scrollback:10000},
-  ai:{provider:'openai',model:'gpt-4o',apiKey:'',baseUrl:undefined as string|undefined,maxTokens:4096,temperature:0.7}
+const _at = ref("general")
+const _tabs = [
+  { id: "general", label: "通用", icon: Type },
+  { id: "editor", label: "编辑器", icon: Type },
+  { id: "terminal", label: "终端", icon: TerminalSquare },
+  { id: "ai", label: "AI 助手", icon: Bot },
+  { id: "extensions", label: "扩展", icon: Puzzle },
+]
+const _ls = reactive({
+  editor: {
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono',monospace",
+    tabSize: 4,
+    insertSpaces: true,
+    wordWrap: "off",
+    lineNumbers: "on",
+    minimap: true,
+    autoSave: "afterDelay",
+    formatOnSave: true,
+    cursorBlinking: "smooth",
+  },
+  appearance: {
+    theme: "codebuddy-dark",
+    accentColor: "#0078D4",
+    sidebarWidth: 260,
+    panelHeight: 250,
+    zoomLevel: 1,
+  },
+  terminal: {
+    fontSize: 13,
+    defaultProfile: "powershell",
+    cursorBlinking: true,
+    scrollback: 10000,
+  },
+  ai: {
+    provider: "openai",
+    model: "gpt-4o",
+    apiKey: "",
+    baseUrl: undefined as string | undefined,
+    maxTokens: 4096,
+    temperature: 0.7,
+  },
 })
-function close(){emit('update:visible',false)}
-function apply(){close()}
-function resetS(){console.log('[IDE] Reset settings')}
+function close() {
+  emit("update:visible", false)
+}
+function _apply() {
+  close()
+}
+function _resetS() {
+  console.log("[IDE] Reset settings")
+}
 </script>
 
 <style scoped>

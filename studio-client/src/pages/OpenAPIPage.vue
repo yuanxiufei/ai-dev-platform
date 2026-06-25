@@ -1,63 +1,85 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { openapiDiscoveryApi, type OpenAPIServerInfo, type OpenAPIToolSchema } from '@/api/model-features'
-import { Globe, Plus, Wrench, Search, Zap } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  type OpenAPIServerInfo,
+  type OpenAPIToolSchema,
+  openapiDiscoveryApi,
+} from "@/api/model-features"
 
 const servers = ref<OpenAPIServerInfo[]>([])
 const tools = ref<OpenAPIToolSchema[]>([])
 const loading = ref(false)
-const selectedServerId = ref('')
+const selectedServerId = ref("")
 
 const showDiscover = ref(false)
-const discoverUrl = ref('')
-const discoverName = ref('')
+const discoverUrl = ref("")
+const discoverName = ref("")
 
 const showToolCall = ref(false)
-const callToolId = ref('')
-const callArgs = ref('{}')
+const callToolId = ref("")
+const callArgs = ref("{}")
 const callResult = ref<any>(null)
 
 async function loadServers() {
   loading.value = true
-  try { const res = await openapiDiscoveryApi.servers(); servers.value = res.data.servers }
-  finally { loading.value = false }
+  try {
+    const res = await openapiDiscoveryApi.servers()
+    servers.value = res.data.servers
+  } finally {
+    loading.value = false
+  }
 }
 
-async function discover() {
+async function _discover() {
   if (!discoverUrl.value) return
   await openapiDiscoveryApi.discover(discoverUrl.value, discoverName.value)
-  showDiscover.value = false; discoverUrl.value = ''; discoverName.value = ''
+  showDiscover.value = false
+  discoverUrl.value = ""
+  discoverName.value = ""
   await loadServers()
 }
 
-async function viewTools(serverId: string) {
+async function _viewTools(serverId: string) {
   selectedServerId.value = serverId
   const res = await openapiDiscoveryApi.tools(serverId)
   tools.value = res.data.tools
 }
 
-function openToolCall(tool: OpenAPIToolSchema) {
+function _openToolCall(tool: OpenAPIToolSchema) {
   callToolId.value = tool.function.name
   const params = tool.function.parameters
   if (params && (params as any).properties) {
     const defaults: Record<string, any> = {}
-    for (const k of Object.keys((params as any).properties)) defaults[k] = ''
+    for (const k of Object.keys((params as any).properties)) defaults[k] = ""
     callArgs.value = JSON.stringify(defaults, null, 2)
-  } else callArgs.value = '{}'
-  callResult.value = null; showToolCall.value = true
+  } else callArgs.value = "{}"
+  callResult.value = null
+  showToolCall.value = true
 }
 
-async function doToolCall() {
+async function _doToolCall() {
   try {
     const args = JSON.parse(callArgs.value)
-    const tool = tools.value.find(t => t.function.name === callToolId.value)
-    const server = servers.value.find(s => s.tools && (s.tools as any[]).some((t: any) => t.function.name === callToolId.value))
-    const toolData = server ? (server as any).tools.find((t: any) => t.function.name === callToolId.value) : null
+    const _tool = tools.value.find((t) => t.function.name === callToolId.value)
+    const server = servers.value.find(
+      (s) =>
+        s.tools &&
+        (s.tools as any[]).some(
+          (t: any) => t.function.name === callToolId.value,
+        ),
+    )
+    const toolData = server
+      ? (server as any).tools.find(
+          (t: any) => t.function.name === callToolId.value,
+        )
+      : null
     if (toolData?._id) {
       const res = await openapiDiscoveryApi.callTool(toolData._id, args)
       callResult.value = res.data
     }
-  } catch (e: any) { callResult.value = { error: e.message } }
+  } catch (e: any) {
+    callResult.value = { error: e.message }
+  }
 }
 
 onMounted(loadServers)

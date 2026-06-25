@@ -13,26 +13,32 @@
  *   用户输入 → handleSend() → runAgentStream() → fetch(SSE) → handleSSEEvent()
  *   SSE事件: turn_start → tool_call → tool_executing → tool_result → final_answer → done
  */
-import { ref, nextTick, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { agentChatStreamUrl, listAvailableModels } from '@/api/agent'
-import { getProject } from '@/api/studio'
-import type { ChatMessage, ToolCallRecord, SSEEventType, SSEEvent, ModelOption } from '@/types/studio'
+
 import {
-  Bot, User, Wrench, Loader2, Check, X, Zap,
-  PanelRightOpen, PanelRightClose, Send, Square, RotateCcw,
-  Plus, Trash2, MessageSquare, Clock, Cpu, ChevronRight,
-  Copy, Terminal, Globe, FileCode, Search, Brain, Sparkles,
-  AlertCircle, History, GitBranch,
-} from 'lucide-vue-next'
-import DiffViewer from '@/components/DiffViewer.vue'
-import type { DiffData } from '@/types/studio'
+  Brain,
+  FileCode,
+  Globe,
+  Search,
+  Terminal,
+  Wrench,
+} from "lucide-vue-next"
+import { computed, nextTick, onMounted, ref } from "vue"
+import { useRoute } from "vue-router"
+import { agentChatStreamUrl } from "@/api/agent"
+import type {
+  ChatMessage,
+  DiffData,
+  ModelOption,
+  SSEEvent,
+  SSEEventType,
+  ToolCallRecord,
+} from "@/types/studio"
 
 // ════════════════════════════════════════════════
 // 路由 & 项目上下文
 // ════════════════════════════════════════════════
 const route = useRoute()
-const projectId = computed(() => route.params.id as string | undefined)
+const _projectId = computed(() => route.params.id as string | undefined)
 
 // ════════════════════════════════════════════════
 // 对话核心状态
@@ -46,21 +52,21 @@ const sessionId = ref(crypto.randomUUID())
 const abortController = ref<AbortController | null>(null)
 
 // Agent 运行时状态机
-type AgentState = 'idle' | 'thinking' | 'calling_tools' | 'generating'
-const agentState = ref<AgentState>('idle')
-const lastModelUsed = ref('')
-const lastProvider = ref('')
+type AgentState = "idle" | "thinking" | "calling_tools" | "generating"
+const agentState = ref<AgentState>("idle")
+const lastModelUsed = ref("")
+const lastProvider = ref("")
 const totalLatencyMs = ref(0)
 
 // 模式选择
-const chatMode = ref<'craft' | 'ask' | 'plan' | 'agent'>('craft')
-const preferredModel = ref('')
+const chatMode = ref<"craft" | "ask" | "plan" | "agent">("craft")
+const preferredModel = ref("")
 const availableModels = ref<ModelOption[]>([])
 const showModelPicker = ref(false)
 
 // 面板开关 — 默认为 true，独立 /chat 页面直接显示对话界面
 const hasStarted = ref(true)
-const showRightPanel = ref(false)
+const _showRightPanel = ref(false)
 const showHistoryPanel = ref(false)
 
 // 工具调用展开 ID 集合
@@ -71,11 +77,11 @@ const collectedDiffs = ref<DiffData[]>([])
 const showDiffPanel = ref(false)
 
 // 输入框
-const inputText = ref('')
+const inputText = ref("")
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
 
 // Toast 提示
-const toastMsg = ref('')
+const toastMsg = ref("")
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 // ════════════════════════════════════════════════
@@ -92,27 +98,31 @@ const sessions = ref<ChatSession[]>([])
 
 function loadSessions() {
   try {
-    const stored = localStorage.getItem('agent_chat_sessions')
+    const stored = localStorage.getItem("agent_chat_sessions")
     if (stored) sessions.value = JSON.parse(stored)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function persistSessions() {
   try {
-    localStorage.setItem('agent_chat_sessions', JSON.stringify(sessions.value))
-  } catch { /* storage full */ }
+    localStorage.setItem("agent_chat_sessions", JSON.stringify(sessions.value))
+  } catch {
+    /* storage full */
+  }
 }
 
 function saveCurrentSession() {
   if (messages.value.length === 0) return
-  const firstUserMsg = messages.value.find(m => m.role === 'user')
-  const title = (firstUserMsg?.content || '新对话').slice(0, 60)
-  const existingIdx = sessions.value.findIndex(s => s.id === sessionId.value)
+  const firstUserMsg = messages.value.find((m) => m.role === "user")
+  const title = (firstUserMsg?.content || "新对话").slice(0, 60)
+  const existingIdx = sessions.value.findIndex((s) => s.id === sessionId.value)
   const sessionData: ChatSession = {
     id: sessionId.value,
     title,
     createdAt: messages.value[0]?.timestamp || new Date().toISOString(),
-    messageCount: messages.value.filter(m => m.role !== 'system').length,
+    messageCount: messages.value.filter((m) => m.role !== "system").length,
     agentMode: chatMode.value,
   }
   if (existingIdx >= 0) {
@@ -135,10 +145,12 @@ onMounted(() => {
 /** 加载可用模型列表（直接 fetch，绕过 axios 401 拦截） */
 async function loadModels() {
   try {
-    const token = localStorage.getItem('token')
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch('/api/v1/system/models', { headers })
+    const token = localStorage.getItem("token")
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch("/api/v1/system/models", { headers })
     if (!res.ok) return
     const data = await res.json()
     availableModels.value = data.models || []
@@ -147,10 +159,10 @@ async function loadModels() {
   }
 }
 
-function selectModel(name: string) {
+function _selectModel(name: string) {
   preferredModel.value = name
   showModelPicker.value = false
-  showToast(`已切换模型：${name || '自动选择'}`)
+  showToast(`已切换模型：${name || "自动选择"}`)
 }
 
 // ════════════════════════════════════════════════
@@ -159,22 +171,24 @@ function selectModel(name: string) {
 function showToast(msg: string) {
   toastMsg.value = msg
   if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = '' }, 3000)
+  toastTimer = setTimeout(() => {
+    toastMsg.value = ""
+  }, 3000)
 }
 
 async function scrollToBottom() {
   await nextTick()
-  const el = document.getElementById('chat-container')
+  const el = document.getElementById("chat-container")
   if (el) el.scrollTop = el.scrollHeight
 }
 
-function toggleExpand(id: string) {
+function _toggleExpand(id: string) {
   const s = expandedToolIds.value
   s.has(id) ? s.delete(id) : s.add(id)
 }
 
 /** 根据工具名推断图标组件 */
-function toolIcon(name: string) {
+function _toolIcon(name: string) {
   const n = name.toLowerCase()
   if (/read|search|find|list|grep/.test(n)) return Search
   if (/write|edit|replace|create|delete|save/.test(n)) return FileCode
@@ -184,30 +198,33 @@ function toolIcon(name: string) {
   return Wrench
 }
 
-function formatTime(iso: string): string {
+function _formatTime(iso: string): string {
   const d = new Date(iso)
   const diff = Date.now() - d.getTime()
   const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
+  if (min < 1) return "刚刚"
   if (min < 60) return `${min}分钟前`
   const hr = Math.floor(min / 60)
   if (hr < 24) return `${hr}小时前`
-  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" })
 }
 
-function copyText(t: string) {
-  navigator.clipboard.writeText(t).then(() => showToast('已复制')).catch(() => {})
+function _copyText(t: string) {
+  navigator.clipboard
+    .writeText(t)
+    .then(() => showToast("已复制"))
+    .catch(() => {})
 }
 
 /** 判断消息是否为当前最后一条助手消息（用于流式动画定位） */
-function isLastAssistant(msg: ChatMessage): boolean {
+function _isLastAssistant(msg: ChatMessage): boolean {
   const len = messages.value.length
   if (len === 0) return false
   // 倒序查找最后一条 assistant 或 tool 角色
   for (let i = len - 1; i >= 0; i--) {
     const m = messages.value[i]
-    if (m.role === 'assistant' || m.role === 'tool') return m.id === msg.id
-    if (m.role === 'user') break
+    if (m.role === "assistant" || m.role === "tool") return m.id === msg.id
+    if (m.role === "user") break
   }
   return false
 }
@@ -215,56 +232,56 @@ function isLastAssistant(msg: ChatMessage): boolean {
 // ════════════════════════════════════════════════
 // 会话管理操作
 // ════════════════════════════════════════════════
-function newChat() {
+function _newChat() {
   saveCurrentSession()
   messages.value = []
   sessionId.value = crypto.randomUUID()
-  agentState.value = 'idle'
+  agentState.value = "idle"
   currentToolCalls.value = []
   collectedDiffs.value = []
   showDiffPanel.value = false
   totalLatencyMs.value = 0
   showHistoryPanel.value = false
-  inputText.value = ''
+  inputText.value = ""
 }
 
-function switchToSession(s: ChatSession) {
+function _switchToSession(s: ChatSession) {
   saveCurrentSession()
   sessionId.value = s.id
   messages.value = []
   hasStarted.value = true
-  chatMode.value = (s.agentMode as any) || 'craft'
+  chatMode.value = (s.agentMode as any) || "craft"
   showHistoryPanel.value = false
   showToast(`已切换到「${s.title}」`)
 }
 
-function deleteSession(id: string, e: Event) {
+function _deleteSession(id: string, e: Event) {
   e.stopPropagation()
-  sessions.value = sessions.value.filter(s => s.id !== id)
+  sessions.value = sessions.value.filter((s) => s.id !== id)
   persistSessions()
 }
 
-function resetChat() {
+function _resetChat() {
   messages.value = []
   sessionId.value = crypto.randomUUID()
-  agentState.value = 'idle'
+  agentState.value = "idle"
   currentToolCalls.value = []
   collectedDiffs.value = []
   showDiffPanel.value = false
   totalLatencyMs.value = 0
-  showToast('已清空对话')
+  showToast("已清空对话")
   scrollToBottom()
 }
 
 // ════════════════════════════════════════════════
 // 启动聊天 / 快捷提示
 // ════════════════════════════════════════════════
-function startChat() {
+function _startChat() {
   hasStarted.value = true
   setTimeout(() => textareaEl.value?.focus(), 80)
 }
 
-function quickPrompt(text: string) {
+function _quickPrompt(text: string) {
   hasStarted.value = true
   setTimeout(() => {
     inputText.value = text
@@ -280,11 +297,13 @@ function quickPrompt(text: string) {
 async function doSend(text?: string) {
   const content = (text || inputText.value).trim()
   if (!content || isStreaming.value) return
-  inputText.value = ''
+  inputText.value = ""
 
   // 1. 追加用户消息
   const userMsg: ChatMessage = {
-    id: crypto.randomUUID(), role: 'user', content,
+    id: crypto.randomUUID(),
+    role: "user",
+    content,
     timestamp: new Date().toISOString(),
   }
   messages.value.push(userMsg)
@@ -292,8 +311,10 @@ async function doSend(text?: string) {
 
   // 2. 创建占位助手消息
   const assistantMsg: ChatMessage = {
-    id: crypto.randomUUID(), role: 'assistant',
-    content: '', tool_calls: [],
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content: "",
+    tool_calls: [],
     timestamp: new Date().toISOString(),
   }
   messages.value.push(assistantMsg)
@@ -306,24 +327,28 @@ async function doSend(text?: string) {
 /** 执行 SSE 流式请求并处理事件循环 */
 async function runSSEStream(assistantMsg: ChatMessage, content: string) {
   isStreaming.value = true
-  agentState.value = 'thinking'
+  agentState.value = "thinking"
   currentToolCalls.value = []
 
   const ctrl = new AbortController()
   abortController.value = ctrl
 
   try {
-    const token = localStorage.getItem('token')
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const token = localStorage.getItem("token")
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
     if (token) headers.Authorization = `Bearer ${token}`
 
     const res = await fetch(agentChatStreamUrl(), {
-      method: 'POST', headers,
+      method: "POST",
+      headers,
       body: JSON.stringify({
         message: content,
-        agent_name: chatMode.value === 'agent' ? 'agent' : 'default',
-        instructions: '',
-        max_turns: chatMode.value === 'plan' ? 15 : chatMode.value === 'ask' ? 5 : 10,
+        agent_name: chatMode.value === "agent" ? "agent" : "default",
+        instructions: "",
+        max_turns:
+          chatMode.value === "plan" ? 15 : chatMode.value === "ask" ? 5 : 10,
         preferred_model: preferredModel.value || undefined,
         session_id: sessionId.value,
       }),
@@ -332,35 +357,45 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
 
     if (!res.ok) {
       assistantMsg.content = `请求失败 (${res.status}: ${res.statusText})`
-      assistantMsg.metadata = { ...assistantMsg.metadata, error: true, errorStatus: res.status }
-      agentState.value = 'idle'
+      assistantMsg.metadata = {
+        ...assistantMsg.metadata,
+        error: true,
+        errorStatus: res.status,
+      }
+      agentState.value = "idle"
       return
     }
 
     const reader = res.body?.getReader()
-    if (!reader) { assistantMsg.content = '无法读取响应流'; agentState.value = 'idle'; return }
+    if (!reader) {
+      assistantMsg.content = "无法读取响应流"
+      agentState.value = "idle"
+      return
+    }
 
     const decoder = new TextDecoder()
-    let buf = ''
+    let buf = ""
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       buf += decoder.decode(value, { stream: true })
-      const lines = buf.split('\n')
-      buf = lines.pop() || ''
+      const lines = buf.split("\n")
+      buf = lines.pop() || ""
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
+        if (!line.startsWith("data: ")) continue
         try {
           dispatchEvent(assistantMsg, JSON.parse(line.slice(6)))
-        } catch { /* malformed json */ }
+        } catch {
+          /* malformed json */
+        }
         await scrollToBottom()
       }
     }
   } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      if (!assistantMsg.content) assistantMsg.content = '[已停止生成]'
-      else assistantMsg.content += '\n\n[已停止生成]'
+    if (err instanceof DOMException && err.name === "AbortError") {
+      if (!assistantMsg.content) assistantMsg.content = "[已停止生成]"
+      else assistantMsg.content += "\n\n[已停止生成]"
     } else {
       const msg = err instanceof Error ? err.message : String(err)
       assistantMsg.content = `请求错误: ${msg}`
@@ -368,7 +403,7 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
     }
   } finally {
     isStreaming.value = false
-    agentState.value = 'idle'
+    agentState.value = "idle"
     abortController.value = null
     saveCurrentSession()
   }
@@ -377,23 +412,29 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
 /** SSE 事件分发器 —— 状态机驱动 UI 更新 */
 function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
   switch (ev.type as SSEEventType) {
-
-    case 'turn_start':
+    case "turn_start":
       currentTurn.value = ev.turn ?? currentTurn.value + 1
       maxTurns.value = ev.max_turns ?? maxTurns.value
-      agentState.value = 'thinking'
+      agentState.value = "thinking"
       break
 
-    case 'tool_call': {
-      agentState.value = 'calling_tools'
+    case "tool_call": {
+      agentState.value = "calling_tools"
       const calls = ev.tool_calls || []
       for (const tc of calls) {
         const record: ToolCallRecord = {
           id: tc.id || crypto.randomUUID(),
           name: tc.name,
-          arguments: typeof tc.arguments === 'string'
-            ? (() => { try { return JSON.parse(tc.arguments) } catch { return {} } })()
-            : (tc.arguments || {}),
+          arguments:
+            typeof tc.arguments === "string"
+              ? (() => {
+                  try {
+                    return JSON.parse(tc.arguments)
+                  } catch {
+                    return {}
+                  }
+                })()
+              : tc.arguments || {},
         }
         currentToolCalls.value.push(record)
         msg.tool_calls = msg.tool_calls || []
@@ -403,42 +444,47 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
       break
     }
 
-    case 'tool_executing':
-      agentState.value = 'calling_tools'
+    case "tool_executing":
+      agentState.value = "calling_tools"
       break
 
-    case 'tool_result': {
-      const name = ev.tool_name || ''
-      const match = [...currentToolCalls.value].reverse().find(tc => tc.name === name && !tc.result)
+    case "tool_result": {
+      const name = ev.tool_name || ""
+      const match = [...currentToolCalls.value]
+        .reverse()
+        .find((tc) => tc.name === name && !tc.result)
       if (match) {
-        match.result = ev.result || ''
+        match.result = ev.result || ""
         match.success = ev.success ?? false
-        const mTc = msg.tool_calls?.find(t => t.id === match.id)
-        if (mTc) { mTc.result = match.result; mTc.success = match.success }
+        const mTc = msg.tool_calls?.find((t) => t.id === match.id)
+        if (mTc) {
+          mTc.result = match.result
+          mTc.success = match.success
+        }
       }
       break
     }
 
     // 🆕 diff 事件 — 收集 diff 数据用于 DiffViewer 展示
-    case 'diff': {
+    case "diff": {
       const diffData = ev.data as unknown as DiffData
       if (diffData) {
         collectedDiffs.value.push(diffData)
         msg.metadata = {
           ...msg.metadata,
           has_diffs: true,
-          diff_count: (msg.metadata?._diff_count as number || 0) + 1,
-          _diff_count: (msg.metadata?._diff_count as number || 0) + 1,
+          diff_count: ((msg.metadata?._diff_count as number) || 0) + 1,
+          _diff_count: ((msg.metadata?._diff_count as number) || 0) + 1,
         }
       }
       break
     }
 
-    case 'final_answer':
-      agentState.value = 'generating'
-      msg.content = ev.content || ''
+    case "final_answer":
+      agentState.value = "generating"
+      msg.content = ev.content || ""
       if (ev.model_used) lastModelUsed.value = ev.model_used
-      lastProvider.value = ev.provider || ''
+      lastProvider.value = ev.provider || ""
       if (ev.latency_ms) totalLatencyMs.value = ev.latency_ms
       if (ev.turns) currentTurn.value = ev.turns
       msg.metadata = {
@@ -450,14 +496,14 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
       }
       break
 
-    case 'error':
-      msg.content += `\n\n⚠️ 错误: ${ev.error || '未知错误'}`
+    case "error":
+      msg.content += `\n\n⚠️ 错误: ${ev.error || "未知错误"}`
       msg.metadata = { ...msg.metadata, error: true }
-      agentState.value = 'idle'
+      agentState.value = "idle"
       break
 
-    case 'done':
-      agentState.value = 'idle'
+    case "done":
+      agentState.value = "idle"
       break
   }
 }
@@ -465,16 +511,16 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
 // ════════════════════════════════════════════════
 // 操作：停止 / 重试
 // ════════════════════════════════════════════════
-function stopGeneration() {
+function _stopGeneration() {
   abortController.value?.abort()
 }
 
-async function retryMessage(targetMsg: ChatMessage) {
+async function _retryMessage(targetMsg: ChatMessage) {
   if (isStreaming.value) return
   const idx = messages.value.indexOf(targetMsg)
   if (idx <= 0) return
   const userMsg = messages.value[idx - 1]
-  if (userMsg.role !== 'user') return
+  if (userMsg.role !== "user") return
 
   // 移除目标消息及之后的所有消息
   messages.value.splice(idx)
@@ -482,8 +528,10 @@ async function retryMessage(targetMsg: ChatMessage) {
 
   // 重建空助手消息
   const fresh: ChatMessage = {
-    id: crypto.randomUUID(), role: 'assistant',
-    content: '', tool_calls: [],
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content: "",
+    tool_calls: [],
     timestamp: new Date().toISOString(),
   }
   messages.value.push(fresh)
@@ -494,8 +542,8 @@ async function retryMessage(targetMsg: ChatMessage) {
 // ════════════════════════════════════════════════
 // 输入框交互
 // ════════════════════════════════════════════════
-function onInputKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
+function _onInputKeydown(e: KeyboardEvent) {
+  if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault()
     doSend()
   }

@@ -7,7 +7,7 @@ export interface FileEntry {
   name: string
   path: string
   isDir: boolean
-  children?: FileEntry
+  children?: FileEntry[]
   language?: string
   icon?: string
   expanded?: boolean
@@ -31,7 +31,7 @@ export interface EditorTab {
 export interface TerminalSession {
   id: string
   title: string
-  shellType: 'powershell' | 'cmd' | 'bash' | 'zsh'
+  shellType: "powershell" | "cmd" | "bash" | "zsh"
   lines: TerminalLine[]
   active: boolean
   cwd: string
@@ -41,7 +41,7 @@ export interface TerminalSession {
 export interface TerminalLine {
   id: string
   text: string
-  type: 'input' | 'output' | 'error' | 'success' | 'info'
+  type: "input" | "output" | "error" | "success" | "info"
   timestamp: number
 }
 
@@ -78,7 +78,7 @@ export interface SearchState {
 }
 
 /** Right panel view mode */
-export type RightPanelView = 'output' | 'terminal' | 'debug' | 'chat'
+export type RightPanelView = "output" | "terminal" | "debug" | "chat"
 
 /** Sidebar / Activity bar icon entry */
 export interface ActivityItem {
@@ -106,7 +106,7 @@ export interface CursorPosition {
   totalLines: number
   selectedChars: number
   encoding: string
-  eol: '\n' | '\r\n'
+  eol: "\n" | "\r\n"
   languageId: string
   fileType: string
   indentSize: number

@@ -1,63 +1,135 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { Cloud, Database, Globe, HardDrive, Server } from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
 import {
-  listIntegrations, connectIntegration, disconnectIntegration, deleteIntegration,
-  createIntegration, updateIntegration, getIntegrationStats,
-  type IntegrationItem, type IntegrationCreatePayload,
-} from '@/api/integrations'
-import {
-  Database, Globe, Cloud, Server, HardDrive,
-  Link2, Unlink2, Loader2, CheckCircle2, Plus, X, Settings2, Trash2, Edit3, ExternalLink,
-} from 'lucide-vue-next'
+  connectIntegration,
+  createIntegration,
+  deleteIntegration,
+  disconnectIntegration,
+  getIntegrationStats,
+  type IntegrationCreatePayload,
+  type IntegrationItem,
+  listIntegrations,
+} from "@/api/integrations"
 
 const integrations = ref<IntegrationItem[]>([])
 const loading = ref(true)
 const connectingId = ref<string | null>(null)
-const toast = ref('')
+const toast = ref("")
 
-const activeCategory = ref('all')
+const activeCategory = ref("all")
 const showCreate = ref(false)
-const showConfig = ref<IntegrationItem | null>(null)
+const _showConfig = ref<IntegrationItem | null>(null)
 
 const form = ref<IntegrationCreatePayload>({
-  name: '', display_name: '', description: '', category: 'service', config: {},
+  name: "",
+  display_name: "",
+  description: "",
+  category: "service",
+  config: {},
 })
 
-const formApiKey = ref('')
-const formUrl = ref('')
-const formToken = ref('')
+const formApiKey = ref("")
+const formUrl = ref("")
+const formToken = ref("")
 
-const categories = [
-  { id: 'all', label: '全部', icon: Globe },
-  { id: 'database', label: '数据库', icon: Database },
-  { id: 'deploy', label: '部署服务', icon: Cloud },
-  { id: 'storage', label: '对象存储', icon: HardDrive },
-  { id: 'service', label: '代码仓库', icon: Server },
+const _categories = [
+  { id: "all", label: "全部", icon: Globe },
+  { id: "database", label: "数据库", icon: Database },
+  { id: "deploy", label: "部署服务", icon: Cloud },
+  { id: "storage", label: "对象存储", icon: HardDrive },
+  { id: "service", label: "代码仓库", icon: Server },
 ]
 
 // 预设集成模板
 const presetIntegrations = [
-  { name: 'supabase', display_name: 'Supabase', description: 'PostgreSQL 数据库、认证、存储一体化后端', category: 'database', icon: '🗄️' },
-  { name: 'tcb', display_name: 'CloudBase', description: '微信云开发 — 数据库、云函数、存储、托管', category: 'database', icon: '☁️' },
-  { name: 'cloudStudio', display_name: 'Cloud Studio', description: '一键部署到远程开发服务器', category: 'deploy', icon: '💻' },
-  { name: 'eop', display_name: 'EdgeOne Pages', description: '前端项目快速部署到全球边缘网络', category: 'deploy', icon: '🌍' },
-  { name: 'lighthouse', display_name: 'Lighthouse', description: '轻量应用服务器实例管理与部署', category: 'deploy', icon: '🖥️' },
-  { name: 'vercel', display_name: 'Vercel', description: '前端项目一键部署与预览', category: 'deploy', icon: '▲' },
-  { name: 'netlify', display_name: 'Netlify', description: 'Jamstack 部署与边缘函数', category: 'deploy', icon: '🔺' },
-  { name: 'planetscale', display_name: 'PlanetScale', description: 'Serverless MySQL 数据库', category: 'database', icon: '🐬' },
-  { name: 's3', display_name: 'S3 / MinIO', description: '对象存储服务 — 文件上传与托管', category: 'storage', icon: '🪣' },
-  { name: 'github', display_name: 'GitHub', description: '代码仓库连接、PR 管理、Actions 部署', category: 'service', icon: '🐙' },
+  {
+    name: "supabase",
+    display_name: "Supabase",
+    description: "PostgreSQL 数据库、认证、存储一体化后端",
+    category: "database",
+    icon: "🗄️",
+  },
+  {
+    name: "tcb",
+    display_name: "CloudBase",
+    description: "微信云开发 — 数据库、云函数、存储、托管",
+    category: "database",
+    icon: "☁️",
+  },
+  {
+    name: "cloudStudio",
+    display_name: "Cloud Studio",
+    description: "一键部署到远程开发服务器",
+    category: "deploy",
+    icon: "💻",
+  },
+  {
+    name: "eop",
+    display_name: "EdgeOne Pages",
+    description: "前端项目快速部署到全球边缘网络",
+    category: "deploy",
+    icon: "🌍",
+  },
+  {
+    name: "lighthouse",
+    display_name: "Lighthouse",
+    description: "轻量应用服务器实例管理与部署",
+    category: "deploy",
+    icon: "🖥️",
+  },
+  {
+    name: "vercel",
+    display_name: "Vercel",
+    description: "前端项目一键部署与预览",
+    category: "deploy",
+    icon: "▲",
+  },
+  {
+    name: "netlify",
+    display_name: "Netlify",
+    description: "Jamstack 部署与边缘函数",
+    category: "deploy",
+    icon: "🔺",
+  },
+  {
+    name: "planetscale",
+    display_name: "PlanetScale",
+    description: "Serverless MySQL 数据库",
+    category: "database",
+    icon: "🐬",
+  },
+  {
+    name: "s3",
+    display_name: "S3 / MinIO",
+    description: "对象存储服务 — 文件上传与托管",
+    category: "storage",
+    icon: "🪣",
+  },
+  {
+    name: "github",
+    display_name: "GitHub",
+    description: "代码仓库连接、PR 管理、Actions 部署",
+    category: "service",
+    icon: "🐙",
+  },
 ]
 
-const stats = ref({ total: 0, connected: 0, by_category: {} as Record<string, number> })
-const filtered = computed(() => {
-  if (activeCategory.value === 'all') return integrations.value
-  return integrations.value.filter(i => i.category === activeCategory.value)
+const stats = ref({
+  total: 0,
+  connected: 0,
+  by_category: {} as Record<string, number>,
+})
+const _filtered = computed(() => {
+  if (activeCategory.value === "all") return integrations.value
+  return integrations.value.filter((i) => i.category === activeCategory.value)
 })
 
 function showToast(msg: string) {
   toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+  setTimeout(() => {
+    toast.value = ""
+  }, 3000)
 }
 
 async function fetchData() {
@@ -65,54 +137,63 @@ async function fetchData() {
   try {
     const res = await listIntegrations()
     integrations.value = res.data.data || []
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
   try {
     const s = await getIntegrationStats()
     stats.value = s.data
-  } catch { /* */ }
-  finally { loading.value = false }
+  } catch {
+    /* */
+  } finally {
+    loading.value = false
+  }
 }
 
-async function handleConnect(integration: IntegrationItem) {
+async function _handleConnect(integration: IntegrationItem) {
   if (connectingId.value) return
   connectingId.value = integration.id
   try {
-    const res = await connectIntegration(integration.id, { config: integration.config || {} })
+    const res = await connectIntegration(integration.id, {
+      config: integration.config || {},
+    })
     integration.connected = res.data.data?.connected ?? true
-    integration.status = 'connected'
+    integration.status = "connected"
     showToast(`已连接 ${integration.display_name}`)
     fetchData()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '连接失败')
-    integration.status = 'disconnected'
-  } finally { connectingId.value = null }
+    showToast(e?.response?.data?.detail || "连接失败")
+    integration.status = "disconnected"
+  } finally {
+    connectingId.value = null
+  }
 }
 
-async function handleDisconnect(integration: IntegrationItem) {
+async function _handleDisconnect(integration: IntegrationItem) {
   if (!confirm(`确定断开 ${integration.display_name}？`)) return
   try {
     await disconnectIntegration(integration.id)
     integration.connected = false
-    integration.status = 'disconnected'
+    integration.status = "disconnected"
     showToast(`已断开 ${integration.display_name}`)
     fetchData()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '断开失败')
+    showToast(e?.response?.data?.detail || "断开失败")
   }
 }
 
-async function handleDelete(id: string) {
-  if (!confirm('确定删除此集成？')) return
+async function _handleDelete(id: string) {
+  if (!confirm("确定删除此集成？")) return
   try {
     await deleteIntegration(id)
-    showToast('集成已删除')
+    showToast("集成已删除")
     fetchData()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '删除失败')
+    showToast(e?.response?.data?.detail || "删除失败")
   }
 }
 
-async function handleCreate() {
+async function _handleCreate() {
   if (!form.value.name || !form.value.display_name) return
   const config: Record<string, unknown> = {}
   if (formApiKey.value) config.api_key = formApiKey.value
@@ -123,16 +204,24 @@ async function handleCreate() {
   try {
     await createIntegration(form.value)
     showCreate.value = false
-    form.value = { name: '', display_name: '', description: '', category: 'service', config: {} }
-    formApiKey.value = ''; formUrl.value = ''; formToken.value = ''
-    showToast('集成已注册')
+    form.value = {
+      name: "",
+      display_name: "",
+      description: "",
+      category: "service",
+      config: {},
+    }
+    formApiKey.value = ""
+    formUrl.value = ""
+    formToken.value = ""
+    showToast("集成已注册")
     fetchData()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '注册失败')
+    showToast(e?.response?.data?.detail || "注册失败")
   }
 }
 
-function usePreset(preset: typeof presetIntegrations[0]) {
+function _usePreset(preset: (typeof presetIntegrations)[0]) {
   form.value = {
     name: preset.name,
     display_name: preset.display_name,

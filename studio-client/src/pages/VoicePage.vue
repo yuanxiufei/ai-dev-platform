@@ -1,23 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { voiceApi, type VoiceInfo, type TTSResult, type STTResult } from '@/api/model-features'
-import { Mic, Volume2, Upload, Link2 } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  type STTResult,
+  type TTSResult,
+  type VoiceInfo,
+  voiceApi,
+} from "@/api/model-features"
 
-const ttsText = ref('')
-const ttsVoice = ref('nova')
+const ttsText = ref("")
+const ttsVoice = ref("nova")
 const ttsSpeed = ref(1.0)
 const ttsResult = ref<TTSResult | null>(null)
 const ttsLoading = ref(false)
 
 const sttFile = ref<File | null>(null)
-const sttUrl = ref('')
+const sttUrl = ref("")
 const sttResult = ref<STTResult | null>(null)
 const sttLoading = ref(false)
 
 const openaiVoices = ref<VoiceInfo[]>([])
 const edgeVoices = ref<VoiceInfo[]>([])
 const status = ref({ tts_available: false, stt_available: false })
-const error = ref('')
+const error = ref("")
 
 onMounted(async () => {
   try {
@@ -28,43 +32,64 @@ onMounted(async () => {
   } catch {}
 })
 
-const allVoices = [
-  ...openaiVoices.value.map(v => ({ ...v, provider: 'OpenAI' })),
-  ...edgeVoices.value.map(v => ({ ...v, provider: 'Edge TTS' })),
+const _allVoices = [
+  ...openaiVoices.value.map((v) => ({ ...v, provider: "OpenAI" })),
+  ...edgeVoices.value.map((v) => ({ ...v, provider: "Edge TTS" })),
 ]
 
-async function doTTS() {
+async function _doTTS() {
   if (!ttsText.value.trim()) return
-  ttsLoading.value = true; error.value = ''
+  ttsLoading.value = true
+  error.value = ""
   try {
-    ttsResult.value = (await voiceApi.tts({ text: ttsText.value, voice: ttsVoice.value, speed: ttsSpeed.value })).data
-  } catch (e: any) { error.value = e?.response?.data?.detail || '合成失败' }
-  finally { ttsLoading.value = false }
+    ttsResult.value = (
+      await voiceApi.tts({
+        text: ttsText.value,
+        voice: ttsVoice.value,
+        speed: ttsSpeed.value,
+      })
+    ).data
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "合成失败"
+  } finally {
+    ttsLoading.value = false
+  }
 }
 
-function playAudio(b64: string) {
-  const audio = new Audio(`data:audio/mpeg;base64,${b64}`); audio.play()
+function _playAudio(b64: string) {
+  const audio = new Audio(`data:audio/mpeg;base64,${b64}`)
+  audio.play()
 }
 
-function onFileChange(e: Event) {
+function _onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (input.files?.[0]) sttFile.value = input.files[0]
 }
 
-async function doSTT() {
+async function _doSTT() {
   if (!sttFile.value) return
-  sttLoading.value = true; error.value = ''
-  try { sttResult.value = (await voiceApi.stt(sttFile.value)).data }
-  catch (e: any) { error.value = e?.response?.data?.detail || '转录失败' }
-  finally { sttLoading.value = false }
+  sttLoading.value = true
+  error.value = ""
+  try {
+    sttResult.value = (await voiceApi.stt(sttFile.value)).data
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "转录失败"
+  } finally {
+    sttLoading.value = false
+  }
 }
 
-async function doSTTUrl() {
+async function _doSTTUrl() {
   if (!sttUrl.value.trim()) return
-  sttLoading.value = true; error.value = ''
-  try { sttResult.value = (await voiceApi.sttByUrl(sttUrl.value)).data }
-  catch (e: any) { error.value = e?.response?.data?.detail || '转录失败' }
-  finally { sttLoading.value = false }
+  sttLoading.value = true
+  error.value = ""
+  try {
+    sttResult.value = (await voiceApi.sttByUrl(sttUrl.value)).data
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || "转录失败"
+  } finally {
+    sttLoading.value = false
+  }
 }
 </script>
 

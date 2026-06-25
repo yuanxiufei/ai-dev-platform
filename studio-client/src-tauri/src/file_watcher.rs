@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Emitter};
-use notify::{Watcher, RecursiveMode, Event, EventKind, RecommendedWatcher};
+use notify::{RecursiveMode, Event, EventKind, RecommendedWatcher, Config as NotifyConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -12,16 +12,20 @@ pub struct FileWatchEvent {
     pub timestamp: u64,
 }
 
-pub fn init(app: &AppHandle) -> Result<()> {
+pub fn init(app: &AppHandle) -> anyhow::Result<()> {
     let app_handle = app.clone();
     let watcher: Arc<Mutex<Option<RecommendedWatcher>>> = Arc::new(Mutex::new(None));
     
     // Create a channel for receiving events
     let (tx, rx) = std::sync::mpsc::channel();
     
-    // Spawn watcher thread
-    let mut w = Watcher::new(tx, notify::Config::default())
-        .map_err(|e| anyhow::anyhow!("Failed to create file watcher: {}", e))?;
+    // Create watcher (notify v7 API)
+    let mut w = RecommendedWatcher::new(
+        move |res: Result<Event, notify::Error>| {
+            tx.send(res).ok();
+        },
+        NotifyConfig::default(),
+    ).map_err(|e| anyhow::anyhow!("Failed to create file watcher: {}", e))?;
     
     // Watch common project directories
     let watch_paths = vec![

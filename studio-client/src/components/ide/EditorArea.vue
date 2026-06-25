@@ -18,40 +18,42 @@
  * Layout (when viewing Studio pages):
  *   RouterView fills entire area (AgentChat, ProjectList, etc.)
  */
-import { watch, nextTick, ref, computed } from 'vue'
-import { useIDEStore } from '@/stores/useIDEStore'
-import { useRoute } from 'vue-router'
-import TabBar from './TabBar.vue'
-import CodeEditor from './CodeEditor.vue'
-import Terminal from './Terminal.vue'
+import { computed, nextTick, ref, watch } from "vue"
+import { useRoute } from "vue-router"
+import { useIDEStore } from "@/stores/useIDEStore"
 
 const store = useIDEStore()
 const route = useRoute()
 const editorKey = ref(0)
 
-watch(() => store.activeTabId, async () => {
-  await nextTick()
-  editorKey.value++
-})
+watch(
+  () => store.activeTabId,
+  async () => {
+    await nextTick()
+    editorKey.value++
+  },
+)
 
 /** True when user is editing a file (code tab is active) */
 const isEditingFile = computed(() => !!store.activeTab)
 
 /** True when a Studio/route page is active */
-const isStudioView = computed(() => !isEditingFile.value && route.name !== undefined)
+const _isStudioView = computed(
+  () => !isEditingFile.value && route.name !== undefined,
+)
 
 /** Whether to show bottom terminal panel (Figma: always visible in IDE mode) */
-const showBottomPanel = computed(() =>
-  store.layout.bottomPanelVisible && isEditingFile.value
+const _showBottomPanel = computed(
+  () => store.layout.bottomPanelVisible && isEditingFile.value,
 )
 
 /** Terminal panel tabs matching Figma design */
-const terminalTabs = [
-  { id: 'terminal', label: '终端' },
-  { id: 'problems', label: '问题' },
-  { id: 'debug', label: '调试控制台' },
+const _terminalTabs = [
+  { id: "terminal", label: "终端" },
+  { id: "problems", label: "问题" },
+  { id: "debug", label: "调试控制台" },
 ]
-const activeTerminalTab = ref('terminal')
+const _activeTerminalTab = ref("terminal")
 </script>
 
 <template>

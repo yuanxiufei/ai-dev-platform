@@ -1,29 +1,23 @@
 <script setup lang="ts">
 import { ref } from "vue"
-import { Pencil, Trash2 } from "lucide-vue-next"
 import type { UserPublic } from "@/client"
 import { useAuthStore } from "@/stores/auth"
-import DropdownMenu from "@/components/ui/DropdownMenu.vue"
-import DropdownMenuItem from "@/components/ui/DropdownMenuItem.vue"
-import DropdownMenuDestructive from "@/components/ui/DropdownMenuDestructive.vue"
-import EditUser from "@/components/Admin/EditUser.vue"
-import DeleteUser from "@/components/Admin/DeleteUser.vue"
 
 const props = defineProps<{
   user: UserPublic
 }>()
 
-const emit = defineEmits<{
+const _emit = defineEmits<{
   updated: []
   deleted: []
 }>()
 
 const authStore = useAuthStore()
 const currentUser = authStore.userQuery.data
-const isCurrentUser = currentUser.value?.id === props.user.id
+const _isCurrentUser = currentUser.value?.id === props.user.id
 
-const editOpen = ref(false)
-const deleteOpen = ref(false)
+const _editOpen = ref(false)
+const _deleteOpen = ref(false)
 </script>
 
 <template>

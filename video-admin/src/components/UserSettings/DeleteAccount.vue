@@ -1,28 +1,15 @@
 <script setup lang="ts">
 import { ref } from "vue"
-import { Trash2 } from "lucide-vue-next"
 import { UsersService } from "@/client"
 import { useAuthStore } from "@/stores/auth"
 import { handleError } from "@/utils"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import Button from "@/components/ui/Button.vue"
-import Dialog from "@/components/ui/Dialog.vue"
-import DialogHeader from "@/components/ui/DialogHeader.vue"
-import DialogTitle from "@/components/ui/DialogTitle.vue"
-import DialogDescription from "@/components/ui/DialogDescription.vue"
-import Alert from "@/components/ui/Alert.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
 
 const authStore = useAuthStore()
 const confirmOpen = ref(false)
 const isDeleting = ref(false)
 const error = ref("")
 
-async function confirmDelete() {
+async function _confirmDelete() {
   error.value = ""
   isDeleting.value = true
   try {

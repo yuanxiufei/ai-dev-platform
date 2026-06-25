@@ -40,7 +40,7 @@ pub const DEFAULT_SHORTCUTS: &[(&str, &str, &str, &str)] = &[
     ("Ctrl+B", "view.toggleSidebar", "", "Toggle Sidebar", "View"),
     ("Ctrl+J", "view.togglePanel", "", "Toggle Panel", "View"),
     ("Ctrl+\\", "view.splitEditor", "", "Split Editor", "View"),
-    ("Ctrl+= view.zoomIn", "", "Zoom In", "View"),
+    ("Ctrl+=", "view.zoomIn", "", "Zoom In", "View"),
     ("Ctrl+-", "view.zoomOut", "", "Zoom Out", "View"),
     ("F11", "view.toggleFullscreen", "", "Toggle Fullscreen", "View"),
     
@@ -71,7 +71,7 @@ lazy_static::lazy_static! {
     static ref SHORTCUT_REGISTRY: RwLock<HashMap<String, ShortcutEntry>> = RwLock::new(HashMap::new());
 }
 
-pub fn init(app: &AppHandle) -> Result<()> {
+pub fn init(app: &AppHandle) -> anyhow::Result<()> {
     let mut registry = SHORTCUT_REGISTRY.write();
     
     // Register all default shortcuts

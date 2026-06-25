@@ -5,16 +5,6 @@ import { ref, watch } from "vue"
 import { z } from "zod"
 import { type ItemPublic, ItemsService } from "@/client"
 import { handleError } from "@/utils"
-import Dialog from "@/components/ui/Dialog.vue"
-import DialogHeader from "@/components/ui/DialogHeader.vue"
-import DialogTitle from "@/components/ui/DialogTitle.vue"
-import DialogDescription from "@/components/ui/DialogDescription.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import Input from "@/components/ui/Input.vue"
-import Button from "@/components/ui/Button.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
 
 const props = defineProps<{
   item: ItemPublic | null
@@ -52,7 +42,7 @@ watch(
   },
 )
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   if (!props.item) return
   error.value = ""
   try {

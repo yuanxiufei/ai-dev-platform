@@ -3,21 +3,9 @@ import { toTypedSchema } from "@vee-validate/zod"
 import { useForm } from "vee-validate"
 import { ref, watch } from "vue"
 import { z } from "zod"
-import { Pencil, X } from "lucide-vue-next"
 import { UsersService } from "@/client"
 import { useAuthStore } from "@/stores/auth"
 import { handleError, showSuccessToast } from "@/utils"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import Button from "@/components/ui/Button.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import Input from "@/components/ui/Input.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
 
 const authStore = useAuthStore()
 const user = authStore.userQuery.data
@@ -46,7 +34,7 @@ watch(
   { immediate: true },
 )
 
-function startEdit() {
+function _startEdit() {
   if (user.value) {
     setValues({
       full_name: user.value.full_name || "",
@@ -56,7 +44,7 @@ function startEdit() {
   isEditing.value = true
 }
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   error.value = ""
   try {
     const body: Record<string, any> = {}

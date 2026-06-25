@@ -1,5 +1,5 @@
-import apiClient from './client'
-import type { ApiPageResponse } from '@/types/studio'
+import type { ApiPageResponse } from "@/types/studio"
+import apiClient from "./client"
 
 // ── Arena 竞技场 (C端) ──────────────────────────────────
 
@@ -39,13 +39,16 @@ export interface EloRankingEntry {
 
 export const arenaApi = {
   compare: (data: ArenaCompareRequest) =>
-    apiClient.post<ArenaCompareResult>('/arena/compare', data),
+    apiClient.post<ArenaCompareResult>("/arena/compare", data),
 
-  vote: (comparisonId: string, winner: 'A' | 'B' | 'tie') =>
-    apiClient.post('/arena/vote', { comparison_id: comparisonId, winner }),
+  vote: (comparisonId: string, winner: "A" | "B" | "tie") =>
+    apiClient.post("/arena/vote", { comparison_id: comparisonId, winner }),
 
   rankings: (category?: string) =>
-    apiClient.get<{ rankings: EloRankingEntry[]; category: string | null }>('/arena/rankings', { params: { category } }),
+    apiClient.get<{ rankings: EloRankingEntry[]; category: string | null }>(
+      "/arena/rankings",
+      { params: { category } },
+    ),
 }
 
 // ── Memory 长期记忆 (C端) ───────────────────────────────
@@ -77,116 +80,277 @@ export interface MemorySearchResult {
 
 export const memoryApi = {
   list: (params?: { page?: number; size?: number; domain?: string }) =>
-    apiClient.get<ApiPageResponse<MemoryEntry>>('/memory', { params }),
+    apiClient.get<ApiPageResponse<MemoryEntry>>("/memory", { params }),
 
-  create: (data: { key: string; value: string; domain?: string; importance?: number }) =>
-    apiClient.post<MemoryEntry>('/memory', data),
+  create: (data: {
+    key: string
+    value: string
+    domain?: string
+    importance?: number
+  }) => apiClient.post<MemoryEntry>("/memory", data),
 
-  get: (id: string) =>
-    apiClient.get<MemoryEntry>(`/memory/${id}`),
+  get: (id: string) => apiClient.get<MemoryEntry>(`/memory/${id}`),
 
-  update: (id: string, data: { key?: string; value?: string; domain?: string; importance?: number }) =>
-    apiClient.put<MemoryEntry>(`/memory/${id}`, data),
+  update: (
+    id: string,
+    data: {
+      key?: string
+      value?: string
+      domain?: string
+      importance?: number
+    },
+  ) => apiClient.put<MemoryEntry>(`/memory/${id}`, data),
 
-  delete: (id: string) =>
-    apiClient.delete(`/memory/${id}`),
+  delete: (id: string) => apiClient.delete(`/memory/${id}`),
 
   search: (query: string, domain?: string, topK?: number) =>
-    apiClient.post<MemorySearchResult>('/memory/search', { query, domain, top_k: topK }),
+    apiClient.post<MemorySearchResult>("/memory/search", {
+      query,
+      domain,
+      top_k: topK,
+    }),
 
   stats: () =>
-    apiClient.get<{ total_memories: number; total_accesses: number; by_domain: Record<string, number> }>('/memory/stats'),
+    apiClient.get<{
+      total_memories: number
+      total_accesses: number
+      by_domain: Record<string, number>
+    }>("/memory/stats"),
 }
 
 // ── Analytics 分析 (C端) ───────────────────────────────
 
 export interface AnalyticsOverview {
-  period_days: number; total_calls: number; success_rate: number
-  total_tokens: number; estimated_cost_usd: number; avg_latency_ms: number
+  period_days: number
+  total_calls: number
+  success_rate: number
+  total_tokens: number
+  estimated_cost_usd: number
+  avg_latency_ms: number
 }
 export interface ModelStats {
-  model_name: string; provider: string; calls: number; total_tokens: number
-  avg_latency_ms: number; total_cost_usd: number; success_rate: number
+  model_name: string
+  provider: string
+  calls: number
+  total_tokens: number
+  avg_latency_ms: number
+  total_cost_usd: number
+  success_rate: number
 }
-export interface TrendPoint { time: string; calls: number; total_tokens: number }
+export interface TrendPoint {
+  time: string
+  calls: number
+  total_tokens: number
+}
 
 export const analyticsApi = {
-  overview: (days?: number) => apiClient.get<AnalyticsOverview>('/analytics/overview', { params: { days } }),
-  byModel: (days?: number) => apiClient.get<{ models: ModelStats[] }>('/analytics/by-model', { params: { days } }),
-  trends: (days?: number, granularity?: 'hour' | 'day') => apiClient.get<{ trends: TrendPoint[] }>('/analytics/trends', { params: { days, granularity } }),
+  overview: (days?: number) =>
+    apiClient.get<AnalyticsOverview>("/analytics/overview", {
+      params: { days },
+    }),
+  byModel: (days?: number) =>
+    apiClient.get<{ models: ModelStats[] }>("/analytics/by-model", {
+      params: { days },
+    }),
+  trends: (days?: number, granularity?: "hour" | "day") =>
+    apiClient.get<{ trends: TrendPoint[] }>("/analytics/trends", {
+      params: { days, granularity },
+    }),
 }
 
 // ── Voice 语音 (C端) ───────────────────────────────────
 
-export interface TTSResult { audio_base64: string; duration_seconds: number; latency_ms: number }
-export interface STTResult { text: string; language: string; segments: { start: number; end: number; text: string }[]; latency_ms: number }
-export interface VoiceInfo { id: string; name: string; locale: string; gender: string }
+export interface TTSResult {
+  audio_base64: string
+  duration_seconds: number
+  latency_ms: number
+}
+export interface STTResult {
+  text: string
+  language: string
+  segments: { start: number; end: number; text: string }[]
+  latency_ms: number
+}
+export interface VoiceInfo {
+  id: string
+  name: string
+  locale: string
+  gender: string
+}
 
 export const voiceApi = {
-  tts: (data: { text: string; voice?: string; speed?: number }) => apiClient.post<TTSResult>('/voice/tts', data),
+  tts: (data: { text: string; voice?: string; speed?: number }) =>
+    apiClient.post<TTSResult>("/voice/tts", data),
   stt: (file: File) => {
-    const form = new FormData(); form.append('file', file)
-    return apiClient.post<STTResult>('/voice/stt', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const form = new FormData()
+    form.append("file", file)
+    return apiClient.post<STTResult>("/voice/stt", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
   },
-  sttByUrl: (audioUrl: string) => apiClient.post<STTResult>('/voice/stt/url', { audio_url: audioUrl }),
-  voices: () => apiClient.get<{ edge_tts: VoiceInfo[]; openai_tts: VoiceInfo[] }>('/voice/voices'),
-  status: () => apiClient.get<{ tts_available: boolean; stt_available: boolean }>('/voice/tts/status'),
+  sttByUrl: (audioUrl: string) =>
+    apiClient.post<STTResult>("/voice/stt/url", { audio_url: audioUrl }),
+  voices: () =>
+    apiClient.get<{ edge_tts: VoiceInfo[]; openai_tts: VoiceInfo[] }>(
+      "/voice/voices",
+    ),
+  status: () =>
+    apiClient.get<{ tts_available: boolean; stt_available: boolean }>(
+      "/voice/tts/status",
+    ),
 }
 
 // ── Structured Output 结构化输出 (C端) ──────────────────
 
-export interface GBNFConvertResult { gbnf: string; rules_count: number; valid: boolean }
-export interface ResponseFormatPreviewResult { openai_format: Record<string, unknown>; gbnf_grammar: string | null; system_prompt_hint: string; provider_name: string }
+export interface GBNFConvertResult {
+  gbnf: string
+  rules_count: number
+  valid: boolean
+}
+export interface ResponseFormatPreviewResult {
+  openai_format: Record<string, unknown>
+  gbnf_grammar: string | null
+  system_prompt_hint: string
+  provider_name: string
+}
 
 export const structuredOutputApi = {
-  schemaToGbnf: (jsonSchema: Record<string, unknown>) => apiClient.post<GBNFConvertResult>('/structured-output/json-schema-to-gbnf', { json_schema: jsonSchema, root_name: 'root' }),
-  listTemplates: () => apiClient.get<{ templates: Record<string, string> }>('/structured-output/templates'),
-  previewResponseFormat: (responseFormat: Record<string, unknown>, providerName?: string) => apiClient.post<ResponseFormatPreviewResult>('/structured-output/preview-response-format', { response_format: responseFormat, provider_name: providerName || 'openai' }),
+  schemaToGbnf: (jsonSchema: Record<string, unknown>) =>
+    apiClient.post<GBNFConvertResult>(
+      "/structured-output/json-schema-to-gbnf",
+      { json_schema: jsonSchema, root_name: "root" },
+    ),
+  listTemplates: () =>
+    apiClient.get<{ templates: Record<string, string> }>(
+      "/structured-output/templates",
+    ),
+  previewResponseFormat: (
+    responseFormat: Record<string, unknown>,
+    providerName?: string,
+  ) =>
+    apiClient.post<ResponseFormatPreviewResult>(
+      "/structured-output/preview-response-format",
+      {
+        response_format: responseFormat,
+        provider_name: providerName || "openai",
+      },
+    ),
 }
 
 // ── Webhooks (C端) ─────────────────────────────────────
 
 export interface WebhookConfig {
-  id: string; url: string; name: string; events: string[]; is_active: boolean
-  max_retries: number; timeout_seconds: number; description: string
-  success_count: number; failure_count: number
+  id: string
+  url: string
+  name: string
+  events: string[]
+  is_active: boolean
+  max_retries: number
+  timeout_seconds: number
+  description: string
+  success_count: number
+  failure_count: number
 }
-export interface WebhookTestResult { success: boolean; status: number; error_message: string; latency_ms: number }
+export interface WebhookTestResult {
+  success: boolean
+  status: number
+  error_message: string
+  latency_ms: number
+}
 export interface WebhookDeliveryLog {
-  id: string; webhook_id: string; event_type: string; status: number
-  success: boolean; error_message: string; attempt: number; sent_at: string; latency_ms: number
+  id: string
+  webhook_id: string
+  event_type: string
+  status: number
+  success: boolean
+  error_message: string
+  attempt: number
+  sent_at: string
+  latency_ms: number
 }
 
 export const webhookApi = {
-  list: () => apiClient.get<{ webhooks: WebhookConfig[] }>('/webhooks'),
-  create: (data: Record<string, unknown>) => apiClient.post('/webhooks', data),
-  update: (id: string, data: Record<string, unknown>) => apiClient.put(`/webhooks/${id}`, data),
+  list: () => apiClient.get<{ webhooks: WebhookConfig[] }>("/webhooks"),
+  create: (data: Record<string, unknown>) => apiClient.post("/webhooks", data),
+  update: (id: string, data: Record<string, unknown>) =>
+    apiClient.put(`/webhooks/${id}`, data),
   delete: (id: string) => apiClient.delete(`/webhooks/${id}`),
-  test: (id: string) => apiClient.post<WebhookTestResult>(`/webhooks/${id}/test`),
-  logs: (webhookId: string) => apiClient.get<{ logs: WebhookDeliveryLog[] }>('/webhooks/logs', { params: { webhook_id: webhookId } }),
+  test: (id: string) =>
+    apiClient.post<WebhookTestResult>(`/webhooks/${id}/test`),
+  logs: (webhookId: string) =>
+    apiClient.get<{ logs: WebhookDeliveryLog[] }>("/webhooks/logs", {
+      params: { webhook_id: webhookId },
+    }),
 }
 
 // ── OpenAPI Discovery (C端) ────────────────────────────
 
-export interface OpenAPIServerInfo { id: string; name: string; url: string; tool_count: number }
-export interface OpenAPIToolSchema { type: string; function: { name: string; description: string; parameters: Record<string, unknown> } }
+export interface OpenAPIServerInfo {
+  id: string
+  name: string
+  url: string
+  tool_count: number
+}
+export interface OpenAPIToolSchema {
+  type: string
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+  }
+}
 
 export const openapiDiscoveryApi = {
-  servers: () => apiClient.get<{ servers: OpenAPIServerInfo[] }>('/openapi/servers'),
-  discover: (specUrl: string, serverName?: string) => apiClient.post('/openapi/discover', { spec_url: specUrl, server_name: serverName }),
-  tools: (serverId?: string) => apiClient.get<{ tools: OpenAPIToolSchema[] }>('/openapi/tools', { params: { server_id: serverId } }),
-  callTool: (toolId: string, args: Record<string, unknown>) => apiClient.post(`/openapi/tools/${toolId}/call`, { arguments: args }),
+  servers: () =>
+    apiClient.get<{ servers: OpenAPIServerInfo[] }>("/openapi/servers"),
+  discover: (specUrl: string, serverName?: string) =>
+    apiClient.post("/openapi/discover", {
+      spec_url: specUrl,
+      server_name: serverName,
+    }),
+  tools: (serverId?: string) =>
+    apiClient.get<{ tools: OpenAPIToolSchema[] }>("/openapi/tools", {
+      params: { server_id: serverId },
+    }),
+  callTool: (toolId: string, args: Record<string, unknown>) =>
+    apiClient.post(`/openapi/tools/${toolId}/call`, { arguments: args }),
 }
 
 // ── Knowledge Graph (C端) ─────────────────────────────
 
-export interface GraphNode { id: string; label: string; domain: string; importance: number }
-export interface GraphEdge { from: string; to: string }
-export interface BacklinkItem { target_key: string; sources: string[]; source_count: number }
+export interface GraphNode {
+  id: string
+  label: string
+  domain: string
+  importance: number
+}
+export interface GraphEdge {
+  from: string
+  to: string
+}
+export interface BacklinkItem {
+  target_key: string
+  sources: string[]
+  source_count: number
+}
 
 export const kgApi = {
-  graphData: () => apiClient.get<{ nodes: GraphNode[]; edges: GraphEdge[]; node_count: number; edge_count: number }>('/knowledge-graph/graph-data'),
-  backlinks: () => apiClient.get<{ backlinks: BacklinkItem[] }>('/knowledge-graph/backlinks'),
-  parse: (key: string) => apiClient.get('/knowledge-graph/parse', { params: { key } }),
-  stats: () => apiClient.get<{ total_memories: number; total_links: number; most_linked: { key: string; count: number }[]; domains: Record<string, number> }>('/knowledge-graph/stats'),
+  graphData: () =>
+    apiClient.get<{
+      nodes: GraphNode[]
+      edges: GraphEdge[]
+      node_count: number
+      edge_count: number
+    }>("/knowledge-graph/graph-data"),
+  backlinks: () =>
+    apiClient.get<{ backlinks: BacklinkItem[] }>("/knowledge-graph/backlinks"),
+  parse: (key: string) =>
+    apiClient.get("/knowledge-graph/parse", { params: { key } }),
+  stats: () =>
+    apiClient.get<{
+      total_memories: number
+      total_links: number
+      most_linked: { key: string; count: number }[]
+      domains: Record<string, number>
+    }>("/knowledge-graph/stats"),
 }

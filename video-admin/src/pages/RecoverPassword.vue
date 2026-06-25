@@ -6,18 +6,6 @@ import { z } from "zod"
 import { LoginService } from "@/client"
 import { handleError } from "@/utils"
 
-import AuthLayout from "@/layouts/AuthLayout.vue"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import Input from "@/components/ui/Input.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
-
 const schema = toTypedSchema(
   z.object({
     email: z.string().email("Invalid email address"),
@@ -31,7 +19,7 @@ const { handleSubmit, values, errors, isSubmitting } = useForm({
 const error = ref("")
 const success = ref("")
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   error.value = ""
   success.value = ""
   try {

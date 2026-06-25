@@ -1,22 +1,20 @@
 <script setup lang="ts">
-import { PenLine, Lightbulb, FileText, Bot } from 'lucide-vue-next'
+import { Bot, FileText, Lightbulb, PenLine } from "lucide-vue-next"
 
 defineProps<{
   modelValue: ChatMode
   hasFiles?: boolean
 }>()
 
-defineEmits<{
-  (e: 'update:modelValue', value: ChatMode): void
-}>()
+defineEmits<(e: "update:modelValue", value: ChatMode) => void>()
 
-export type ChatMode = 'craft' | 'ask' | 'plan' | 'agent'
+export type ChatMode = "craft" | "ask" | "plan" | "agent"
 
-const modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
-  { value: 'craft', label: 'Craft', icon: PenLine },
-  { value: 'ask', label: 'Ask', icon: Lightbulb },
-  { value: 'plan', label: 'Plan', icon: FileText },
-  { value: 'agent', label: 'Agent', icon: Bot },
+const _modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
+  { value: "craft", label: "Craft", icon: PenLine },
+  { value: "ask", label: "Ask", icon: Lightbulb },
+  { value: "plan", label: "Plan", icon: FileText },
+  { value: "agent", label: "Agent", icon: Bot },
 ]
 </script>
 

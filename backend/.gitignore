@@ -1,8 +1,61 @@
-__pycache__
-app.egg-info
-*.pyc
-.mypy_cache
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Type checkers / Linters
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Testing / Coverage
 .coverage
-htmlcov
-.cache
-.venv
+.coverage.*
+htmlcov/
+.pytest_cache/
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Storage / Data
+storage/
+models/
+data/
+trajectories/
+workspace/
+
+# Logs
+*.log
+logs/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid

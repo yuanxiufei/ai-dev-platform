@@ -20,14 +20,16 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
+            let handle = app.handle().clone();
+            
             // Initialize file watcher
-            file_watcher::init(app)?;
+            file_watcher::init(&handle)?;
             
             // Initialize plugin system
-            plugins::init(app)?;
+            plugins::init(&handle)?;
 
             // Initialize shortcut registry
-            shortcuts::init(app)?;
+            shortcuts::init(&handle)?;
 
             log::info!("CodeBuddy IDE initialized successfully");
             Ok(())
@@ -99,12 +101,8 @@ fn main() {
             commands::system::get_system_info,
             commands::system::get_memory_usage,
             commands::system::get_cpu_info,
+            commands::system::get_workspace_dir,
         ]);
-
-    #[cfg(debug_assertions)]
-    {
-        builder = builder.plugin(tauri_plugin_devtools::init());
-    }
 
     builder
         .run(tauri::generate_context!())

@@ -5,16 +5,6 @@ import { ref } from "vue"
 import { z } from "zod"
 import { UsersService } from "@/client"
 import { handleError, showSuccessToast } from "@/utils"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import PasswordInput from "@/components/ui/PasswordInput.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
 
 const schema = toTypedSchema(
   z
@@ -35,7 +25,7 @@ const { handleSubmit, values, errors, isSubmitting } = useForm({
 
 const error = ref("")
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   error.value = ""
   try {
     await UsersService.updatePasswordMe({

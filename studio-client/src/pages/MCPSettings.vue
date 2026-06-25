@@ -1,34 +1,44 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive } from 'vue'
+import { Globe, Server, Terminal } from "lucide-vue-next"
+import { computed, onMounted, reactive, ref } from "vue"
 import {
-  listMCPServers, addMCPServer, removeMCPServer, updateMCPServer,
-  discoverMCPTools, registerMCPTools,
-  reconnectMCPServer, checkMCPServerHealth,
-  getMCPMarketplace, getMCPMarketplaceCategories, installFromMarketplace,
-  type MCPServerStatus, type MCPServer, type MCPAddServerPayload,
-  type MCPUpdateServerPayload, type MCPMarketplaceServer, type MCPCategory,
-  type MCPToolInfo, type MCPHealthResult, type MCPConnState,
-} from '@/api/mcp'
-import {
-  Server, Plus, Trash2, Loader2, X, RefreshCw, Zap, Plug,
-  Search, Store, Monitor, Globe, Terminal, Star, Download, ExternalLink,
-  Box, Info, Settings2, Wrench, ChevronDown, ChevronRight,
-  Activity, Clock, AlertCircle, CheckCircle2, WifiOff, Pencil,
-  Heart, ArrowUpDown, ShieldCheck,
-} from 'lucide-vue-next'
+  addMCPServer,
+  checkMCPServerHealth,
+  discoverMCPTools,
+  getMCPMarketplace,
+  getMCPMarketplaceCategories,
+  installFromMarketplace,
+  listMCPServers,
+  type MCPAddServerPayload,
+  type MCPCategory,
+  type MCPConnState,
+  type MCPHealthResult,
+  type MCPMarketplaceServer,
+  type MCPServerStatus,
+  type MCPUpdateServerPayload,
+  reconnectMCPServer,
+  registerMCPTools,
+  removeMCPServer,
+  updateMCPServer,
+} from "@/api/mcp"
 
 // ── State ──
-const activeTab = ref<'marketplace' | 'my'>('my')
-const toast = ref('')
-const error = ref('')
+const activeTab = ref<"marketplace" | "my">("my")
+const toast = ref("")
+const error = ref("")
 
 // -- 我的 MCP --
 const servers = ref<MCPServerStatus[]>([])
 const myLoading = ref(true)
 const showAddForm = ref(false)
 const newServer = reactive<MCPAddServerPayload>({
-  name: '', transport: 'sse', url: '', command: '',
-  args: [], auto_discover: true, timeout: 30,
+  name: "",
+  transport: "sse",
+  url: "",
+  command: "",
+  args: [],
+  auto_discover: true,
+  timeout: 30,
 })
 const adding = ref(false)
 
@@ -44,54 +54,116 @@ const healthResults = ref<Record<string, MCPHealthResult>>({})
 const marketplaceServers = ref<MCPMarketplaceServer[]>([])
 const marketplaceLoading = ref(true)
 const marketplaceTotal = ref(0)
-const mpSearch = ref('')
-const mpCategory = ref('')
+const mpSearch = ref("")
+const mpCategory = ref("")
 const categories = ref<MCPCategory[]>([])
 const installing = ref<string | null>(null)
 
 // ── Constants ──
-const transportLabel: Record<string, string> = { sse: 'SSE', streamable_http: 'HTTP', stdio: 'Stdio' }
-const transportIcon: Record<string, typeof Globe> = { sse: Globe, streamable_http: Server, stdio: Terminal }
+const _transportLabel: Record<string, string> = {
+  sse: "SSE",
+  streamable_http: "HTTP",
+  stdio: "Stdio",
+}
+const _transportIcon: Record<string, typeof Globe> = {
+  sse: Globe,
+  streamable_http: Server,
+  stdio: Terminal,
+}
 
 /** 连接状态 → 样式映射 */
-function stateStyle(state: MCPConnState) {
-  const map: Record<MCPConnState, { bg: string; border: string; text: string; dot: string; label: string }> = {
-    connected:       { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', dot: 'bg-green-400', label: '已连接' },
-    connecting:      { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400 animate-pulse', label: '连接中' },
-    reconnecting:    { bg: 'bg-yellow-500/10', border: 'yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400 animate-ping opacity-40', label: '重连中' },
-    failed:          { bg: 'bg-red-500/10', border: 'red-500/20', text: 'text-red-400', dot: 'bg-red-500', label: '失败' },
-    disconnected:    { bg: 'bg-gray-500/10', border: 'gray-500/20', text: 'text-gray-500', dot: 'bg-gray-600', label: '未连接' },
-    disabled:        { bg: 'bg-gray-800/30', border: 'gray-700/20', text: 'text-gray-600', dot: 'bg-gray-700', label: '已禁用' },
+function _stateStyle(state: MCPConnState) {
+  const map: Record<
+    MCPConnState,
+    { bg: string; border: string; text: string; dot: string; label: string }
+  > = {
+    connected: {
+      bg: "bg-green-500/10",
+      border: "border-green-500/20",
+      text: "text-green-400",
+      dot: "bg-green-400",
+      label: "已连接",
+    },
+    connecting: {
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
+      text: "text-blue-400",
+      dot: "bg-blue-400 animate-pulse",
+      label: "连接中",
+    },
+    reconnecting: {
+      bg: "bg-yellow-500/10",
+      border: "yellow-500/20",
+      text: "text-yellow-400",
+      dot: "bg-yellow-400 animate-ping opacity-40",
+      label: "重连中",
+    },
+    failed: {
+      bg: "bg-red-500/10",
+      border: "red-500/20",
+      text: "text-red-400",
+      dot: "bg-red-500",
+      label: "失败",
+    },
+    disconnected: {
+      bg: "bg-gray-500/10",
+      border: "gray-500/20",
+      text: "text-gray-500",
+      dot: "bg-gray-600",
+      label: "未连接",
+    },
+    disabled: {
+      bg: "bg-gray-800/30",
+      border: "gray-700/20",
+      text: "text-gray-600",
+      dot: "bg-gray-700",
+      label: "已禁用",
+    },
   }
   return map[state] || map.disconnected
 }
 
 // ── Computed ──
-const filteredMarketplace = computed(() => {
+const _filteredMarketplace = computed(() => {
   let list = marketplaceServers.value
   if (mpSearch.value) {
     const q = mpSearch.value.toLowerCase()
-    list = list.filter(s =>
-      s.name.toLowerCase().includes(q) ||
-      s.description.toLowerCase().includes(q) ||
-      s.tags.some(t => t.toLowerCase().includes(q)) ||
-      s.features.some(f => f.toLowerCase().includes(q))
+    list = list.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.tags.some((t) => t.toLowerCase().includes(q)) ||
+        s.features.some((f) => f.toLowerCase().includes(q)),
     )
   }
-  if (mpCategory.value) list = list.filter(s => s.category === mpCategory.value)
+  if (mpCategory.value)
+    list = list.filter((s) => s.category === mpCategory.value)
   return list
 })
 
-const categoryLabelMap: Record<string, string> = {
-  dev_tools: '开发工具', cloud: '云服务', database: '数据库',
-  productivity: '效率工具', ai_model: 'AI 模型',
+const _categoryLabelMap: Record<string, string> = {
+  dev_tools: "开发工具",
+  cloud: "云服务",
+  database: "数据库",
+  productivity: "效率工具",
+  ai_model: "AI 模型",
 }
 
-const connectedCount = computed(() => servers.value.filter(s => s.connected).length)
-const totalTools = computed(() => servers.value.reduce((sum, s) => sum + s.tools_count, 0))
-const sseCount = computed(() => servers.value.filter(s => s.transport === 'sse').length)
-const httpCount = computed(() => servers.value.filter(s => s.transport === 'streamable_http').length)
-const stdioCount = computed(() => servers.value.filter(s => s.transport === 'stdio').length)
+const _connectedCount = computed(
+  () => servers.value.filter((s) => s.connected).length,
+)
+const _totalTools = computed(() =>
+  servers.value.reduce((sum, s) => sum + s.tools_count, 0),
+)
+const _sseCount = computed(
+  () => servers.value.filter((s) => s.transport === "sse").length,
+)
+const _httpCount = computed(
+  () => servers.value.filter((s) => s.transport === "streamable_http").length,
+)
+const _stdioCount = computed(
+  () => servers.value.filter((s) => s.transport === "stdio").length,
+)
 
 // ── Lifecycle ──
 onMounted(() => {
@@ -103,7 +175,9 @@ onMounted(() => {
 // ── Toast ──
 const showToast = (msg: string) => {
   toast.value = msg
-  setTimeout(() => { toast.value = '' }, 4000)
+  setTimeout(() => {
+    toast.value = ""
+  }, 4000)
 }
 
 // ══════════════ 我的 MCP 方法 ══════════════
@@ -114,70 +188,115 @@ async function refreshMyServers() {
     const res = await listMCPServers()
     servers.value = res.data?.servers ?? []
   } catch (e: unknown) {
-    error.value = (e as Error).message || '加载失败'
-  } finally { myLoading.value = false }
+    error.value = (e as Error).message || "加载失败"
+  } finally {
+    myLoading.value = false
+  }
 }
 
-async function handleAdd() {
+async function _handleAdd() {
   if (!newServer.name.trim()) return
-  adding.value = true; error.value = ''
+  adding.value = true
+  error.value = ""
   try {
     const res = await addMCPServer({ ...newServer })
     if (res.data?.success !== false) {
-      showToast(`已连接 "${newServer.name}"，发现 ${res.data?.tools_discovered ?? 0} 个工具`)
+      showToast(
+        `已连接 "${newServer.name}"，发现 ${res.data?.tools_discovered ?? 0} 个工具`,
+      )
       showAddForm.value = false
       resetNewServer()
       await refreshMyServers()
     } else {
-      error.value = res.data?.message || res.data?.errors?.join('; ') || '连接失败'
+      error.value =
+        res.data?.message || res.data?.errors?.join("; ") || "连接失败"
     }
   } catch (e: unknown) {
     const errData = (e as any)?.response?.data
-    error.value = errData?.detail ?? errData?.error ?? (e as Error).message ?? '添加失败'
-  } finally { adding.value = false }
+    error.value =
+      errData?.detail ?? errData?.error ?? (e as Error).message ?? "添加失败"
+  } finally {
+    adding.value = false
+  }
 }
 
 function resetNewServer() {
-  Object.assign(newServer, { name: '', transport: 'sse', url: '', command: '', args: [], auto_discover: true, timeout: 30 })
+  Object.assign(newServer, {
+    name: "",
+    transport: "sse",
+    url: "",
+    command: "",
+    args: [],
+    auto_discover: true,
+    timeout: 30,
+  })
 }
 
-async function handleRemove(name: string) {
-  if (!confirm(`确定断开并移除 MCP 服务器 "${name}"？\n这将删除配置并断开所有连接。`)) return
+async function _handleRemove(name: string) {
+  if (
+    !confirm(
+      `确定断开并移除 MCP 服务器 "${name}"？\n这将删除配置并断开所有连接。`,
+    )
+  )
+    return
   try {
     await removeMCPServer(name)
     expandedServers.value.delete(name)
     await refreshMyServers()
     showToast(`已移除 "${name}"`)
-  } catch (e: unknown) { error.value = (e as Error).message || '移除失败' }
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "移除失败"
+  }
 }
 
-async function handleReconnect(name: string) {
-  reconnecting.value = name; error.value = ''
+async function _handleReconnect(name: string) {
+  reconnecting.value = name
+  error.value = ""
   try {
     const res = await reconnectMCPServer(name)
     showToast(res.data?.message || `已触发 "${name}" 重连`)
     // 延迟刷新等待重连完成
-    setTimeout(async () => { await refreshMyServers() }, 2000)
-  } catch (e: unknown) { error.value = (e as Error).message || '重连失败' }
-  finally { reconnecting.value = null }
+    setTimeout(async () => {
+      await refreshMyServers()
+    }, 2000)
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "重连失败"
+  } finally {
+    reconnecting.value = null
+  }
 }
 
 async function handleHealthCheck(name: string) {
-  healthChecking.value = name; error.value = ''
+  healthChecking.value = name
+  error.value = ""
   try {
     const res = await checkMCPServerHealth(name)
     healthResults.value[name] = res.data
   } catch (e: unknown) {
-    healthResults.value[name] = { healthy: false, latency_ms: 0, state: 'disconnected', connected: false, detail: (e as Error).message, uptime_seconds: 0, success_rate: 0, last_heartbeat_age_seconds: -1 }
-  } finally { healthChecking.value = null }
+    healthResults.value[name] = {
+      healthy: false,
+      latency_ms: 0,
+      state: "disconnected",
+      connected: false,
+      detail: (e as Error).message,
+      uptime_seconds: 0,
+      success_rate: 0,
+      last_heartbeat_age_seconds: -1,
+    }
+  } finally {
+    healthChecking.value = null
+  }
 }
 
-function toggleExpand(name: string) {
+function _toggleExpand(name: string) {
   if (expandedServers.value.has(name)) expandedServers.value.delete(name)
-  else { expandedServers.value.add(name); handleHealthCheck(name) }
+  else {
+    expandedServers.value.add(name)
+    handleHealthCheck(name)
+  }
 }
 
-function startEdit(server: MCPServerStatus) {
+function _startEdit(server: MCPServerStatus) {
   editingServer.value = server.name
   Object.assign(editForm, {
     url: server.url || undefined,
@@ -186,30 +305,38 @@ function startEdit(server: MCPServerStatus) {
     timeout: server.timeout_seconds,
   })
 }
-function cancelEdit() { editingServer.value = null }
+function _cancelEdit() {
+  editingServer.value = null
+}
 
-async function saveEdit(name: string) {
+async function _saveEdit(name: string) {
   try {
     await updateMCPServer(name, editForm)
     showToast(`"${name}" 配置已更新`)
     editingServer.value = null
     await refreshMyServers()
-  } catch (e: unknown) { error.value = (e as Error).message || '更新失败' }
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "更新失败"
+  }
 }
 
-async function handleDiscover() {
+async function _handleDiscover() {
   try {
     const res = await discoverMCPTools()
     showToast(`扫描完成，共发现 ${res.data?.total ?? 0} 个工具`)
     await refreshMyServers()
-  } catch (e: unknown) { error.value = (e as Error).message || '扫描失败' }
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "扫描失败"
+  }
 }
 
-async function handleRegister() {
+async function _handleRegister() {
   try {
     const res = await registerMCPTools()
-    showToast(res.data?.message || '工具注册完成')
-  } catch (e: unknown) { error.value = (e as Error).message || '注册失败' }
+    showToast(res.data?.message || "工具注册完成")
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "注册失败"
+  }
 }
 
 // ══════════════ MCP 市场方法 ══════════════
@@ -220,19 +347,25 @@ async function loadMarketplace() {
     const res = await getMCPMarketplace()
     marketplaceServers.value = res.data.servers
     marketplaceTotal.value = res.data.total
-  } catch (e: unknown) { error.value = (e as Error).message || '加载市场失败' }
-  finally { marketplaceLoading.value = false }
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "加载市场失败"
+  } finally {
+    marketplaceLoading.value = false
+  }
 }
 
 async function loadCategories() {
   try {
     const res = await getMCPMarketplaceCategories()
     categories.value = res.data.categories
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
-async function handleInstall(preset: MCPMarketplaceServer) {
-  installing.value = preset.id; error.value = ''
+async function _handleInstall(preset: MCPMarketplaceServer) {
+  installing.value = preset.id
+  error.value = ""
   try {
     const res = await installFromMarketplace({
       preset_id: preset.id,
@@ -244,17 +377,25 @@ async function handleInstall(preset: MCPMarketplaceServer) {
       timeout: 30,
     })
     if (res.data.success) {
-      showToast(`已安装 "${preset.name}"，发现 ${res.data.tools_discovered} 个工具`)
-      activeTab.value = 'my'
+      showToast(
+        `已安装 "${preset.name}"，发现 ${res.data.tools_discovered} 个工具`,
+      )
+      activeTab.value = "my"
       await refreshMyServers()
-    } else { error.value = res.data.message || '安装失败' }
-  } catch (e: unknown) { error.value = (e as Error).message || '安装失败' }
-  finally { installing.value = null }
+    } else {
+      error.value = res.data.message || "安装失败"
+    }
+  } catch (e: unknown) {
+    error.value = (e as Error).message || "安装失败"
+  } finally {
+    installing.value = null
+  }
 }
 
-const formatCount = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
-const formatUptime = (s: number): string => {
-  if (!s) return '-'
+const _formatCount = (n: number): string =>
+  n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
+const _formatUptime = (s: number): string => {
+  if (!s) return "-"
   if (s < 60) return `${Math.floor(s)}s`
   if (s < 3600) return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`

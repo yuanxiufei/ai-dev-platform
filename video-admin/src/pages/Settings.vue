@@ -4,11 +4,6 @@ import { ref } from "vue"
 import type { TabItem } from "@/components/ui/Tabs.vue"
 import { useAuthStore } from "@/stores/auth"
 
-import Tabs from "@/components/ui/Tabs.vue"
-import UserInformation from "@/components/UserSettings/UserInformation.vue"
-import ChangePassword from "@/components/UserSettings/ChangePassword.vue"
-import DeleteAccount from "@/components/UserSettings/DeleteAccount.vue"
-
 const authStore = useAuthStore()
 const user = authStore.userQuery.data
 const isSuperuser = user.value?.is_superuser
@@ -21,7 +16,7 @@ if (!isSuperuser) {
   tabs.push({ value: "danger", label: "Danger zone", icon: AlertTriangle })
 }
 
-const activeTab = ref("profile")
+const _activeTab = ref("profile")
 </script>
 
 <template>

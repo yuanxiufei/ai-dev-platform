@@ -1,51 +1,77 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { skillsApi, type SkillInfo, type SkillCreate } from '@/api/skills'
 import {
-  Search, RefreshCw, Plus, Eye, Zap, FileText, Sparkles, X, Trash2, Edit3,
-  Layers, Code2, Beaker, BookOpen, Shield, Wrench, Bot,
-} from 'lucide-vue-next'
-import ToggleSwitch from '@/components/ToggleSwitch.vue'
+  Beaker,
+  BookOpen,
+  Bot,
+  Code2,
+  Layers,
+  Search,
+  Shield,
+  Wrench,
+} from "lucide-vue-next"
+import { computed, onMounted, reactive, ref } from "vue"
+import { type SkillCreate, type SkillInfo, skillsApi } from "@/api/skills"
 
 const skills = ref<SkillInfo[]>([])
 const categories = ref<{ name: string; count: number }[]>([])
-const selectedCategory = ref('')
-const searchQuery = ref('')
+const selectedCategory = ref("")
+const searchQuery = ref("")
 const loading = ref(false)
-const showPreview = ref('')
-const previewName = ref('')
-const showSystemPrompt = ref('')
+const _showPreview = ref("")
+const _previewName = ref("")
+const showSystemPrompt = ref("")
 const appliedSkills = ref<Set<string>>(new Set())
 const editingSkill = ref<string | null>(null)
-const toast = ref('')
+const toast = ref("")
 
 const form = reactive({
-  name: '', description: '', category: 'general', content: '', tags: [] as string[],
-  author: '', version: '1.0',
+  name: "",
+  description: "",
+  category: "general",
+  content: "",
+  tags: [] as string[],
+  author: "",
+  version: "1.0",
 })
-const tagInput = ref('')
+const tagInput = ref("")
 
-function showToast(msg: string) { toast.value = msg; setTimeout(() => { toast.value = '' }, 3000) }
+function showToast(msg: string) {
+  toast.value = msg
+  setTimeout(() => {
+    toast.value = ""
+  }, 3000)
+}
 
-const categoryMeta: Record<string, any> = {
-  general: Layers, 'code-review': Search, testing: Beaker,
-  documentation: BookOpen, security: Shield, deployment: Bot, devops: Wrench, 'code-generation': Code2,
+const _categoryMeta: Record<string, any> = {
+  general: Layers,
+  "code-review": Search,
+  testing: Beaker,
+  documentation: BookOpen,
+  security: Shield,
+  deployment: Bot,
+  devops: Wrench,
+  "code-generation": Code2,
 }
 
 const filtered = computed(() => {
   let list = skills.value
-  if (selectedCategory.value) list = list.filter(s => s.category === selectedCategory.value)
+  if (selectedCategory.value)
+    list = list.filter((s) => s.category === selectedCategory.value)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter(s => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+    list = list.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q),
+    )
   }
   return list
 })
 
-const grouped = computed(() => {
+const _grouped = computed(() => {
   const map: Record<string, SkillInfo[]> = {}
   for (const s of filtered.value) {
-    const cat = s.category || '未分类'
+    const cat = s.category || "未分类"
     if (!map[cat]) map[cat] = []
     map[cat].push(s)
   }
@@ -55,74 +81,121 @@ const grouped = computed(() => {
 async function loadSkills() {
   loading.value = true
   try {
-    const [sRes, cRes] = await Promise.all([skillsApi.list(), skillsApi.categories()])
+    const [sRes, cRes] = await Promise.all([
+      skillsApi.list(),
+      skillsApi.categories(),
+    ])
     skills.value = (sRes.data.skills || sRes.data || []) as SkillInfo[]
     const cats = cRes?.data?.categories || []
-    categories.value = cats.map((c: unknown) => typeof c === 'string' ? { name: c, count: 0 } : c as any)
-  } finally { loading.value = false }
+    categories.value = cats.map((c: unknown) =>
+      typeof c === "string" ? { name: c, count: 0 } : (c as any),
+    )
+  } finally {
+    loading.value = false
+  }
 }
 
-async function reloadFromDisk() { await skillsApi.load(); await loadSkills(); showToast('技能已刷新') }
-async function toggleSkill(name: string) { await skillsApi.toggle(name); await loadSkills() }
+async function _reloadFromDisk() {
+  await skillsApi.load()
+  await loadSkills()
+  showToast("技能已刷新")
+}
+async function _toggleSkill(name: string) {
+  await skillsApi.toggle(name)
+  await loadSkills()
+}
 
-async function applySkills(names: string[]) {
+async function _applySkills(names: string[]) {
   try {
     const res = await skillsApi.apply(names)
     showSystemPrompt.value = res.data.system_prompt
-    names.forEach(n => { appliedSkills.value.add(n) })
-  } catch { /* */ }
+    names.forEach((n) => {
+      appliedSkills.value.add(n)
+    })
+  } catch {
+    /* */
+  }
 }
 
-async function createSkill() {
+async function _createSkill() {
   if (!form.name || !form.content) return
   const payload: SkillCreate = {
-    name: form.name, description: form.description, category: form.category,
-    content: form.content, tags: form.tags, author: form.author, version: form.version,
+    name: form.name,
+    description: form.description,
+    category: form.category,
+    content: form.content,
+    tags: form.tags,
+    author: form.author,
+    version: form.version,
   }
   try {
     if (editingSkill.value) {
       await skillsApi.update(editingSkill.value, payload)
-      showToast('技能已更新')
+      showToast("技能已更新")
     } else {
       await skillsApi.create(payload)
-      showToast('技能已创建')
+      showToast("技能已创建")
     }
     editingSkill.value = null
     resetForm()
     await loadSkills()
-  } catch (e: any) { showToast(e?.response?.data?.detail || '操作失败') }
+  } catch (e: any) {
+    showToast(e?.response?.data?.detail || "操作失败")
+  }
 }
 
-async function deleteSkill(name: string) {
+async function _deleteSkill(name: string) {
   if (!confirm(`确定删除技能 "${name}"？`)) return
   try {
     await skillsApi.delete(name)
-    showToast('技能已删除')
+    showToast("技能已删除")
     await loadSkills()
-  } catch (e: any) { showToast(e?.response?.data?.detail || '删除失败') }
+  } catch (e: any) {
+    showToast(e?.response?.data?.detail || "删除失败")
+  }
 }
 
-function editSkill(skill: SkillInfo) {
+function _editSkill(skill: SkillInfo) {
   editingSkill.value = skill.name
   form.name = skill.name
   form.description = skill.description
   form.category = skill.category
   form.content = skill.content
   form.tags = [...(skill.tags || [])]
-  form.author = skill.author || ''
-  form.version = skill.version || '1.0'
+  form.author = skill.author || ""
+  form.version = skill.version || "1.0"
   // scroll to form
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  window.scrollTo({ top: 0, behavior: "smooth" })
 }
 
-function addTag() { const t = tagInput.value.trim(); if (t && !form.tags.includes(t)) { form.tags.push(t); tagInput.value = '' } }
-function removeTag(t: string) { const i = form.tags.indexOf(t); if (i !== -1) form.tags.splice(i, 1) }
-function resetForm() { form.name = ''; form.description = ''; form.category = 'general'; form.content = ''; form.tags = []; form.author = ''; form.version = '1.0'; tagInput.value = '' }
+function _addTag() {
+  const t = tagInput.value.trim()
+  if (t && !form.tags.includes(t)) {
+    form.tags.push(t)
+    tagInput.value = ""
+  }
+}
+function _removeTag(t: string) {
+  const i = form.tags.indexOf(t)
+  if (i !== -1) form.tags.splice(i, 1)
+}
+function resetForm() {
+  form.name = ""
+  form.description = ""
+  form.category = "general"
+  form.content = ""
+  form.tags = []
+  form.author = ""
+  form.version = "1.0"
+  tagInput.value = ""
+}
 
 onMounted(loadSkills)
 
-const enabledCount = computed(() => skills.value.filter(s => s.enabled).length)
-const isEditing = computed(() => !!editingSkill.value)
+const _enabledCount = computed(
+  () => skills.value.filter((s) => s.enabled).length,
+)
+const _isEditing = computed(() => !!editingSkill.value)
 </script>
 
 <template>

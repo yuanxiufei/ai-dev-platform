@@ -1,69 +1,117 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { webhookApi, type WebhookConfig, type WebhookTestResult, type WebhookDeliveryLog } from '@/api/model-features'
-import { Webhook, Plus, RefreshCw, Trash2, Play, List } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  type WebhookConfig,
+  type WebhookDeliveryLog,
+  type WebhookTestResult,
+  webhookApi,
+} from "@/api/model-features"
 
 const webhooks = ref<WebhookConfig[]>([])
 const loading = ref(true)
 
 const showModal = ref(false)
-const editingId = ref('')
-const form = ref({ url: '', name: '', events: [] as string[], description: '', is_active: true, max_retries: 3, timeout_seconds: 10 })
+const editingId = ref("")
+const form = ref({
+  url: "",
+  name: "",
+  events: [] as string[],
+  description: "",
+  is_active: true,
+  max_retries: 3,
+  timeout_seconds: 10,
+})
 
 const testResult = ref<WebhookTestResult | null>(null)
 const showLogs = ref(false)
 const logs = ref<WebhookDeliveryLog[]>([])
-const logsWebhookId = ref('')
+const logsWebhookId = ref("")
 
-const eventTypes = ref<{ value: string; name: string; description: string }[]>([])
+const eventTypes = ref<{ value: string; name: string; description: string }[]>(
+  [],
+)
 
 async function load() {
   loading.value = true
-  try { const { data } = await webhookApi.list(); webhooks.value = data.webhooks }
-  finally { loading.value = false }
+  try {
+    const { data } = await webhookApi.list()
+    webhooks.value = data.webhooks
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadTypes() {
-  try { eventTypes.value = (await apiClient.get('/webhooks/event-types')).data.event_types } catch {}
+  try {
+    eventTypes.value = (
+      await apiClient.get("/webhooks/event-types")
+    ).data.event_types
+  } catch {}
 }
-async function save() {
+async function _save() {
   try {
     if (editingId.value) await webhookApi.update(editingId.value, form.value)
     else await webhookApi.create(form.value)
-    showModal.value = false; await load()
+    showModal.value = false
+    await load()
   } catch {}
 }
 
-function openCreate() {
-  editingId.value = ''
-  form.value = { url: '', name: '', events: [], description: '', is_active: true, max_retries: 3, timeout_seconds: 10 }
+function _openCreate() {
+  editingId.value = ""
+  form.value = {
+    url: "",
+    name: "",
+    events: [],
+    description: "",
+    is_active: true,
+    max_retries: 3,
+    timeout_seconds: 10,
+  }
   showModal.value = true
 }
-function openEdit(w: WebhookConfig) {
+function _openEdit(w: WebhookConfig) {
   editingId.value = w.id
-  form.value = { url: w.url, name: w.name, events: [...w.events], description: w.description, is_active: w.is_active, max_retries: w.max_retries, timeout_seconds: w.timeout_seconds }
+  form.value = {
+    url: w.url,
+    name: w.name,
+    events: [...w.events],
+    description: w.description,
+    is_active: w.is_active,
+    max_retries: w.max_retries,
+    timeout_seconds: w.timeout_seconds,
+  }
   showModal.value = true
 }
-function toggleEvent(evt: string) {
-  const i = form.value.events.indexOf(evt); i >= 0 ? form.value.events.splice(i, 1) : form.value.events.push(evt)
+function _toggleEvent(evt: string) {
+  const i = form.value.events.indexOf(evt)
+  i >= 0 ? form.value.events.splice(i, 1) : form.value.events.push(evt)
 }
 
-async function remove(id: string) {
-  if (!confirm('确认删除？')) return
-  await webhookApi.delete(id); await load()
+async function _remove(id: string) {
+  if (!confirm("确认删除？")) return
+  await webhookApi.delete(id)
+  await load()
 }
-async function testWebhook(id: string) {
-  try { testResult.value = (await webhookApi.test(id)).data }
-  catch {}
+async function _testWebhook(id: string) {
+  try {
+    testResult.value = (await webhookApi.test(id)).data
+  } catch {}
 }
-async function viewLogs(id: string) {
-  showLogs.value = true; logsWebhookId.value = id
-  try { const { data } = await webhookApi.logs(id); logs.value = data.logs }
-  catch {}
+async function _viewLogs(id: string) {
+  showLogs.value = true
+  logsWebhookId.value = id
+  try {
+    const { data } = await webhookApi.logs(id)
+    logs.value = data.logs
+  } catch {}
 }
 
-import apiClient from '@/api/client'
-onMounted(async () => { await Promise.all([load(), loadTypes()]) })
+import apiClient from "@/api/client"
+
+onMounted(async () => {
+  await Promise.all([load(), loadTypes()])
+})
 </script>
 
 <template>

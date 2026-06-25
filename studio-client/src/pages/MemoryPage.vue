@@ -1,92 +1,151 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import {
-  Brain, Search, Plus, Trash2, Loader2, X, Edit3,
-  Sparkles, Clock, Hash, Layers, Star, Check,
-} from 'lucide-vue-next'
-import { memoryApi, type MemoryEntry } from '@/api/model-features'
+import { Brain, Hash, Layers, Sparkles, Star } from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import { type MemoryEntry, memoryApi } from "@/api/model-features"
 
 const memories = ref<MemoryEntry[]>([])
 const loading = ref(true)
-const page = ref(1); const sizeVal = ref(20); const total = ref(0)
-const filterDomain = ref('')
-const domains = ['', 'general', 'personal', 'project', 'code']
-const domainLabels: Record<string, string> = {
-  '': '全部', general: '通用', personal: '个人', project: '项目', code: '代码',
+const page = ref(1)
+const sizeVal = ref(20)
+const total = ref(0)
+const filterDomain = ref("")
+const domains = ["", "general", "personal", "project", "code"]
+const _domainLabels: Record<string, string> = {
+  "": "全部",
+  general: "通用",
+  personal: "个人",
+  project: "项目",
+  code: "代码",
 }
-const domainIcons: Record<string, any> = {
-  '': Layers, general: Brain, personal: Star, project: Hash, code: Sparkles,
+const _domainIcons: Record<string, any> = {
+  "": Layers,
+  general: Brain,
+  personal: Star,
+  project: Hash,
+  code: Sparkles,
 }
 
-const searchQuery = ref('')
-const searchResults = ref<{ id: string; domain: string; key: string; value: string; similarity: number }[]>([])
+const searchQuery = ref("")
+const searchResults = ref<
+  {
+    id: string
+    domain: string
+    key: string
+    value: string
+    similarity: number
+  }[]
+>([])
 
 const editingId = ref<string | null>(null)
-const editKey = ref(''); const editValue = ref(''); const editDomain = ref('general'); const editImportance = ref(0.5)
+const editKey = ref("")
+const editValue = ref("")
+const editDomain = ref("general")
+const editImportance = ref(0.5)
 
-const newKey = ref(''); const newValue = ref(''); const newDomain = ref('general'); const newImportance = ref(0.5)
+const newKey = ref("")
+const newValue = ref("")
+const newDomain = ref("general")
+const newImportance = ref(0.5)
 
 const loadingStats = ref(false)
-const memoryStats = ref({ total_memories: 0, total_accesses: 0, by_domain: {} as Record<string, number> })
+const memoryStats = ref({
+  total_memories: 0,
+  total_accesses: 0,
+  by_domain: {} as Record<string, number>,
+})
 
-const toast = ref('')
-function showToast(msg: string) { toast.value = msg; setTimeout(() => { toast.value = '' }, 3000) }
+const toast = ref("")
+function showToast(msg: string) {
+  toast.value = msg
+  setTimeout(() => {
+    toast.value = ""
+  }, 3000)
+}
 
 async function fetchMemories() {
   loading.value = true
   try {
-    const res = await memoryApi.list({ page: page.value, size: sizeVal.value, domain: filterDomain.value || undefined })
+    const res = await memoryApi.list({
+      page: page.value,
+      size: sizeVal.value,
+      domain: filterDomain.value || undefined,
+    })
     memories.value = res.data.data || []
     total.value = res.data.total || 0
-  } catch { /* */ }
-  finally { loading.value = false }
+  } catch {
+    /* */
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchStats() {
   loadingStats.value = true
   try {
     const res = await memoryApi.stats()
-    memoryStats.value = res.data || { total_memories: 0, total_accesses: 0, by_domain: {} }
-  } catch { /* */ }
-  finally { loadingStats.value = false }
+    memoryStats.value = res.data || {
+      total_memories: 0,
+      total_accesses: 0,
+      by_domain: {},
+    }
+  } catch {
+    /* */
+  } finally {
+    loadingStats.value = false
+  }
 }
 
-async function doSearch() {
+async function _doSearch() {
   if (!searchQuery.value) return
   try {
-    const res = await memoryApi.search(searchQuery.value, filterDomain.value || undefined)
+    const res = await memoryApi.search(
+      searchQuery.value,
+      filterDomain.value || undefined,
+    )
     searchResults.value = res.data.results || []
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-async function addMemory() {
+async function _addMemory() {
   if (!newKey.value || !newValue.value) return
   try {
-    await memoryApi.create({ key: newKey.value, value: newValue.value, domain: newDomain.value, importance: newImportance.value })
-    newKey.value = ''; newValue.value = ''
-    showToast('记忆已添加')
+    await memoryApi.create({
+      key: newKey.value,
+      value: newValue.value,
+      domain: newDomain.value,
+      importance: newImportance.value,
+    })
+    newKey.value = ""
+    newValue.value = ""
+    showToast("记忆已添加")
     await Promise.all([fetchMemories(), fetchStats()])
-  } catch (e: any) { showToast(e?.response?.data?.detail || '添加失败') }
+  } catch (e: any) {
+    showToast(e?.response?.data?.detail || "添加失败")
+  }
 }
 
-async function deleteMemory(id: string) {
-  if (!confirm('确定删除此记忆？')) return
+async function _deleteMemory(id: string) {
+  if (!confirm("确定删除此记忆？")) return
   try {
     await memoryApi.delete(id)
-    showToast('记忆已删除')
+    showToast("记忆已删除")
     await Promise.all([fetchMemories(), fetchStats()])
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-function startEdit(m: MemoryEntry) {
+function _startEdit(m: MemoryEntry) {
   editingId.value = m.id
   editKey.value = m.key
   editValue.value = m.value
-  editDomain.value = m.domain || 'general'
+  editDomain.value = m.domain || "general"
   editImportance.value = m.importance || 0.5
 }
 
-async function saveEdit() {
+async function _saveEdit() {
   if (!editingId.value) return
   try {
     await memoryApi.update(editingId.value, {
@@ -96,20 +155,25 @@ async function saveEdit() {
       importance: editImportance.value,
     })
     editingId.value = null
-    showToast('记忆已更新')
+    showToast("记忆已更新")
     await fetchMemories()
-  } catch (e: any) { showToast(e?.response?.data?.detail || '更新失败') }
+  } catch (e: any) {
+    showToast(e?.response?.data?.detail || "更新失败")
+  }
 }
 
-function cancelEdit() { editingId.value = null }
+function _cancelEdit() {
+  editingId.value = null
+}
 
 onMounted(() => {
   Promise.all([fetchMemories(), fetchStats()])
 })
 
-const domainCounts = computed(() => {
+const _domainCounts = computed(() => {
   const map: Record<string, number> = { total: total.value }
-  for (const d of domains.slice(1)) map[d] = memoryStats.value.by_domain?.[d] || 0
+  for (const d of domains.slice(1))
+    map[d] = memoryStats.value.by_domain?.[d] || 0
   return map
 })
 </script>

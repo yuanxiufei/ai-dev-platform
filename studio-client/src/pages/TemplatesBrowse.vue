@@ -1,34 +1,39 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { listTemplates } from '@/api/studio'
-import type { Template } from '@/types/studio'
-import { LayoutGrid, ExternalLink, Play, Search } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
+import { listTemplates } from "@/api/studio"
+import type { Template } from "@/types/studio"
 
 const router = useRouter()
 const templates = ref<Template[]>([])
 const filtered = ref<Template[]>([])
 const loading = ref(true)
-const searchText = ref('')
+const searchText = ref("")
 
 onMounted(async () => {
   try {
     const res = await listTemplates()
     templates.value = res.data.data ?? []
     filtered.value = [...templates.value]
-  } catch { /* ignore */ }
-  finally { loading.value = false }
+  } catch {
+    /* ignore */
+  } finally {
+    loading.value = false
+  }
 })
 
-function filter() {
+function _filter() {
   const q = searchText.value.toLowerCase()
   filtered.value = templates.value.filter(
-    t => t.name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || t.category?.toLowerCase().includes(q)
+    (t) =>
+      t.name.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q) ||
+      t.category?.toLowerCase().includes(q),
   )
 }
 
-function handleUse(template: Template) {
-  router.push('/projects')
+function _handleUse(_template: Template) {
+  router.push("/projects")
 }
 </script>
 

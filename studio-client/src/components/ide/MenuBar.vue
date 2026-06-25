@@ -1,70 +1,211 @@
 <script setup lang="ts">
 /** CodeBuddy IDE — Top Menu Bar */
-import { ref, onMounted, onUnmounted, unref } from 'vue'
-import type { Ref } from 'vue'
-import { useIDEStore } from '@/stores/useIDEStore'
-import type { MenuItem } from '@/types/ide'
+
+import type { Ref } from "vue"
+import { onMounted, onUnmounted, ref, unref } from "vue"
+import { useIDEStore } from "@/stores/useIDEStore"
+import type { MenuItem } from "@/types/ide"
 
 const store = useIDEStore()
 const openMenu = ref<string | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 
-const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
+const _menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
   {
-    id: 'file', label: '文件', items: [
-      { label: '新建文件', shortcut: 'Ctrl+N', action: () => store.createUntitledTab() },
-      { label: '打开文件...', shortcut: 'Ctrl+O' },
+    id: "file",
+    label: "文件",
+    items: [
+      {
+        label: "新建文件",
+        shortcut: "Ctrl+N",
+        action: () => store.createUntitledTab(),
+      },
+      {
+        label: "打开文件...",
+        shortcut: "Ctrl+O",
+        action: async () => {
+          await openFileViaDialog()
+        },
+      },
       { separator: true },
-      { label: '保存', shortcut: 'Ctrl+S' },
-      { label: '另存为...', shortcut: 'Ctrl+Shift+S' },
-      { label: '保存全部', shortcut: 'Ctrl+K S' },
+      {
+        label: "保存",
+        shortcut: "Ctrl+S",
+        action: async () => {
+          await store.saveActiveFile()
+        },
+      },
+      {
+        label: "另存为...",
+        shortcut: "Ctrl+Shift+S",
+        action: async () => {
+          await saveAsDialog()
+        },
+      },
+      {
+        label: "保存全部",
+        shortcut: "Ctrl+K S",
+        action: async () => {
+          await store.saveAllFiles()
+        },
+      },
       { separator: true },
-      { label: '退出', shortcut: 'Alt+F4' },
+      { label: "退出", shortcut: "Alt+F4" },
     ],
   },
   {
-    id: 'edit', label: '编辑', items: [
-      { label: '撤销', shortcut: 'Ctrl+Z' }, { label: '重做', shortcut: 'Ctrl+Y' },
+    id: "edit",
+    label: "编辑",
+    items: [
+      { label: "撤销", shortcut: "Ctrl+Z" },
+      { label: "重做", shortcut: "Ctrl+Y" },
       { separator: true },
-      { label: '剪切', shortcut: 'Ctrl+X' }, { label: '复制', shortcut: 'Ctrl+C' },
-      { label: '粘贴', shortcut: 'Ctrl+V' }, { label: '全选', shortcut: 'Ctrl+A' },
+      { label: "剪切", shortcut: "Ctrl+X" },
+      { label: "复制", shortcut: "Ctrl+C" },
+      { label: "粘贴", shortcut: "Ctrl+V" },
+      { label: "全选", shortcut: "Ctrl+A" },
       { separator: true },
-      { label: '查找', shortcut: 'Ctrl+F', action: () => store.toggleGlobalSearch() },
-      { label: '替换', shortcut: 'Ctrl+H', action: () => { store.showGlobalSearch = true; store.searchState.replaceQuery = '' } },
-      { label: '在文件中查找', shortcut: 'Ctrl+Shift+F' },
+      {
+        label: "查找",
+        shortcut: "Ctrl+F",
+        action: () => store.toggleGlobalSearch(),
+      },
+      {
+        label: "替换",
+        shortcut: "Ctrl+H",
+        action: () => {
+          store.showGlobalSearch = true
+          store.searchState.replaceQuery = ""
+        },
+      },
+      { label: "在文件中查找", shortcut: "Ctrl+Shift+F" },
     ],
   },
   {
-    id: 'view', label: '查看', items: [
-      { label: '命令面板...', shortcut: 'Ctrl+Shift+P' }, { separator: true },
-      { label: '资源管理器', shortcut: 'Ctrl+Shift+E', checked: store.activeActivityItem === 'explorer', action: () => store.activeActivityItem = 'explorer' },
-      { label: '搜索', shortcut: 'Ctrl+Shift+F', action: () => { store.activeActivityItem = 'search'; store.toggleGlobalSearch() } },
-      { label: '源代码管理', shortcut: 'Ctrl+Shift+G', checked: store.activeActivityItem === 'git', action: () => store.activeActivityItem = 'git' },
-      { label: '运行和调试', action: () => store.activeActivityItem = 'debug' },
-      { label: '扩展', action: () => store.activeActivityItem = 'extensions' },
+    id: "view",
+    label: "查看",
+    items: [
+      { label: "命令面板...", shortcut: "Ctrl+Shift+P" },
       { separator: true },
-      { label: '终端', shortcut: 'Ctrl+`', action: () => { store.rightPanelView = 'terminal'; store.layout.rightPanelVisible = true } },
-      { label: '侧边栏可见性', shortcut: 'Ctrl+B', action: () => store.layout.fileTreeVisible = !store.layout.fileTreeVisible },
+      {
+        label: "资源管理器",
+        shortcut: "Ctrl+Shift+E",
+        checked: store.activeActivityItem === "explorer",
+        action: () => (store.activeActivityItem = "explorer"),
+      },
+      {
+        label: "搜索",
+        shortcut: "Ctrl+Shift+F",
+        action: () => {
+          store.activeActivityItem = "search"
+          store.toggleGlobalSearch()
+        },
+      },
+      {
+        label: "源代码管理",
+        shortcut: "Ctrl+Shift+G",
+        checked: store.activeActivityItem === "git",
+        action: () => (store.activeActivityItem = "git"),
+      },
+      {
+        label: "运行和调试",
+        action: () => (store.activeActivityItem = "debug"),
+      },
+      {
+        label: "扩展",
+        action: () => (store.activeActivityItem = "extensions"),
+      },
+      { separator: true },
+      {
+        label: "终端",
+        shortcut: "Ctrl+`",
+        action: () => {
+          store.rightPanelView = "terminal"
+          store.layout.rightPanelVisible = true
+        },
+      },
+      {
+        label: "侧边栏可见性",
+        shortcut: "Ctrl+B",
+        action: () =>
+          (store.layout.fileTreeVisible = !store.layout.fileTreeVisible),
+      },
     ],
   },
   {
-    id: 'help', label: '帮助', items: [
-      { label: '欢迎' }, { label: '文档' },
-      { label: '键盘快捷方式', shortcut: 'Ctrl+K Ctrl+S' },
-      { separator: true }, { label: '关于 CodeBuddy IDE' },
+    id: "help",
+    label: "帮助",
+    items: [
+      { label: "欢迎" },
+      { label: "文档" },
+      { label: "键盘快捷方式", shortcut: "Ctrl+K Ctrl+S" },
+      { separator: true },
+      { label: "关于 CodeBuddy IDE" },
     ],
   },
 ])
 
-function toggleMenu(id: string): void { openMenu.value = openMenu.value === id ? null : id }
-function closeMenus(): void { openMenu.value = null }
-function handleItemClick(item: MenuItem): void { if (item.action) item.action(); closeMenus() }
+function _toggleMenu(id: string): void {
+  openMenu.value = openMenu.value === id ? null : id
+}
+function closeMenus(): void {
+  openMenu.value = null
+}
+function _handleItemClick(item: MenuItem): void {
+  if (item.action) item.action()
+  closeMenus()
+}
+
+/** Open file via system dialog (Tauri) */
+async function openFileViaDialog(): Promise<void> {
+  try {
+    const { open } = await import("@tauri-apps/plugin-dialog")
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "所有文件", extensions: ["*"] }],
+    })
+    if (selected && typeof selected === "string") {
+      await store.openFile(selected)
+    }
+  } catch (e: any) {
+    console.warn("[MenuBar] Open dialog failed:", e)
+  }
+}
+
+/** Save As dialog (Tauri) */
+async function saveAsDialog(): Promise<void> {
+  const tab = store.activeTab
+  if (!tab?.filePath) return
+  try {
+    const { save } = await import("@tauri-apps/plugin-dialog")
+    const dest = await save({
+      defaultPath: tab.filePath,
+      filters: [{ name: "所有文件", extensions: ["*"] }],
+    })
+    if (dest) {
+      const { invoke } = await import("@tauri-apps/api/core")
+      await invoke("write_file", { path: dest, content: tab.content })
+      tab.filePath = dest
+      tab.originalContent = tab.content
+      tab.modified = false
+      tab.label = dest.split(/[/\\]/).pop() ?? dest
+    }
+  } catch (e: any) {
+    console.warn("[MenuBar] Save As dialog failed:", e)
+  }
+}
 
 onClickOutside(menuRef, closeMenus)
-function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): void {
-  function fn(e: MouseEvent) { const el = unref(elRef); if (el && !el.contains(e.target as Node)) handler() }
-  onMounted(() => document.addEventListener('mousedown', fn))
-  onUnmounted(() => document.removeEventListener('mousedown', fn))
+function onClickOutside(
+  elRef: Ref<HTMLElement | null>,
+  handler: () => void,
+): void {
+  function fn(e: MouseEvent) {
+    const el = unref(elRef)
+    if (el && !el.contains(e.target as Node)) handler()
+  }
+  onMounted(() => document.addEventListener("mousedown", fn))
+  onUnmounted(() => document.removeEventListener("mousedown", fn))
 }
 </script>
 

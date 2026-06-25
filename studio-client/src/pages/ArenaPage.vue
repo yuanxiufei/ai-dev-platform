@@ -86,27 +86,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { arenaApi, type ArenaCompareResult, type EloRankingEntry } from '@/api/model-features'
+import { onMounted, ref } from "vue"
+import {
+  type ArenaCompareResult,
+  arenaApi,
+  type EloRankingEntry,
+} from "@/api/model-features"
 
-const form = ref({ model_a: 'openai-gpt4o', model_b: 'claude-sonnet', prompt: '' })
+const form = ref({
+  model_a: "openai-gpt4o",
+  model_b: "claude-sonnet",
+  prompt: "",
+})
 const comparing = ref(false)
 const result = ref<ArenaCompareResult | null>(null)
 const voted = ref(false)
-const currentId = ref('')
+const currentId = ref("")
 const rankings = ref<EloRankingEntry[]>([])
 
-async function runCompare() {
-  comparing.value = true; result.value = null; voted.value = false
+async function _runCompare() {
+  comparing.value = true
+  result.value = null
+  voted.value = false
   try {
-    const res = await arenaApi.compare({ ...form.value, category: 'chat' })
-    result.value = res.data; currentId.value = res.data.comparison_id
-  } finally { comparing.value = false }
+    const res = await arenaApi.compare({ ...form.value, category: "chat" })
+    result.value = res.data
+    currentId.value = res.data.comparison_id
+  } finally {
+    comparing.value = false
+  }
 }
 
-async function vote(winner: 'A' | 'B' | 'tie') {
+async function _vote(winner: "A" | "B" | "tie") {
   await arenaApi.vote(currentId.value, winner)
-  voted.value = true; await fetchRankings()
+  voted.value = true
+  await fetchRankings()
 }
 
 async function fetchRankings() {

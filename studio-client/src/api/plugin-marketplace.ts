@@ -1,5 +1,5 @@
-import apiClient from './client'
-import type { ApiPageResponse } from './studio'
+import apiClient from "./client"
+import type { ApiPageResponse } from "./studio"
 
 // ── 类型定义 ────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ export interface PluginRegistryItem {
   version: string
   desc: string
   repo: string
-  type: 'mcp' | 'awp' | 'skill' | 'command' | 'hook'
+  type: "mcp" | "awp" | "skill" | "command" | "hook"
   category: string
   tags: string[]
   download_url: string
@@ -24,7 +24,8 @@ export interface PluginRegistryItem {
   installed_config?: Record<string, unknown> | null
 }
 
-export interface PluginRegistryResponse extends ApiPageResponse<PluginRegistryItem> {
+export interface PluginRegistryResponse
+  extends ApiPageResponse<PluginRegistryItem> {
   categories: string[]
   types: string[]
 }
@@ -34,7 +35,7 @@ export interface PluginRegistryResponse extends ApiPageResponse<PluginRegistryIt
 export interface MarketplaceSource {
   id: string
   name: string
-  type: 'builtin' | 'github' | 'zip' | 'local'
+  type: "builtin" | "github" | "zip" | "local"
   url: string
   description: string
   enabled: boolean
@@ -70,26 +71,48 @@ export async function getPluginRegistry(params?: {
   page?: number
   size?: number
 }): Promise<PluginRegistryResponse> {
-  const { data } = await apiClient.get('/plugin-marketplace/registry', { params })
+  const { data } = await apiClient.get("/plugin-marketplace/registry", {
+    params,
+  })
   return data
 }
 
-export async function getCategories(): Promise<{ categories: { name: string; count: number }[] }> {
-  const { data } = await apiClient.get('/plugin-marketplace/registry/categories')
+export async function getCategories(): Promise<{
+  categories: { name: string; count: number }[]
+}> {
+  const { data } = await apiClient.get(
+    "/plugin-marketplace/registry/categories",
+  )
   return data
 }
 
-export async function getPluginDetail(name: string): Promise<PluginRegistryItem> {
+export async function getPluginDetail(
+  name: string,
+): Promise<PluginRegistryItem> {
   const { data } = await apiClient.get(`/plugin-marketplace/registry/${name}`)
   return data
 }
 
-export async function installPlugin(name: string, version?: string): Promise<{ success: boolean; plugin: string; version: string; path: string; message: string }> {
-  const { data } = await apiClient.post('/plugin-marketplace/install', { name, version: version || 'latest' })
+export async function installPlugin(
+  name: string,
+  version?: string,
+): Promise<{
+  success: boolean
+  plugin: string
+  version: string
+  path: string
+  message: string
+}> {
+  const { data } = await apiClient.post("/plugin-marketplace/install", {
+    name,
+    version: version || "latest",
+  })
   return data
 }
 
-export async function uninstallPlugin(name: string): Promise<{ success: boolean; message: string }> {
+export async function uninstallPlugin(
+  name: string,
+): Promise<{ success: boolean; message: string }> {
   const { data } = await apiClient.delete(`/plugin-marketplace/install/${name}`)
   return data
 }
@@ -97,24 +120,34 @@ export async function uninstallPlugin(name: string): Promise<{ success: boolean;
 // ── API 方法：已安装管理 ─────────────────────────────────
 
 export async function getInstalledPlugins(): Promise<PluginRegistryItem[]> {
-  const { data } = await apiClient.get('/plugin-marketplace/installed')
+  const { data } = await apiClient.get("/plugin-marketplace/installed")
   return (data as any).data || data || []
 }
 
-export async function togglePlugin(name: string): Promise<{ name: string; enabled: boolean }> {
-  const { data } = await apiClient.post(`/plugin-marketplace/installed/${name}/toggle`)
+export async function togglePlugin(
+  name: string,
+): Promise<{ name: string; enabled: boolean }> {
+  const { data } = await apiClient.post(
+    `/plugin-marketplace/installed/${name}/toggle`,
+  )
   return data
 }
 
-export async function updatePluginConfig(name: string, config: Record<string, unknown>): Promise<{ name: string; config: Record<string, unknown> }> {
-  const { data } = await apiClient.put(`/plugin-marketplace/installed/${name}/config`, { config })
+export async function updatePluginConfig(
+  name: string,
+  config: Record<string, unknown>,
+): Promise<{ name: string; config: Record<string, unknown> }> {
+  const { data } = await apiClient.put(
+    `/plugin-marketplace/installed/${name}/config`,
+    { config },
+  )
   return data
 }
 
 // ── API 方法：市场源管理 ─────────────────────────────────
 
 export async function getMarketplaceSources(): Promise<MarketplaceSourcesResponse> {
-  const { data } = await apiClient.get('/plugin-marketplace/sources')
+  const { data } = await apiClient.get("/plugin-marketplace/sources")
   return data
 }
 
@@ -124,23 +157,34 @@ export async function addMarketplaceSource(source: {
   url: string
   description: string
 }): Promise<{ success: boolean; source: MarketplaceSource; message: string }> {
-  const { data } = await apiClient.post('/plugin-marketplace/sources', source)
+  const { data } = await apiClient.post("/plugin-marketplace/sources", source)
   return data
 }
 
-export async function removeMarketplaceSource(sourceId: string): Promise<{ success: boolean; message: string }> {
-  const { data } = await apiClient.delete(`/plugin-marketplace/sources/${sourceId}`)
+export async function removeMarketplaceSource(
+  sourceId: string,
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await apiClient.delete(
+    `/plugin-marketplace/sources/${sourceId}`,
+  )
   return data
 }
 
-export async function toggleMarketplaceSource(sourceId: string): Promise<{ success: boolean; source_id: string; enabled: boolean; message: string }> {
-  const { data } = await apiClient.post(`/plugin-marketplace/sources/${sourceId}/toggle`)
+export async function toggleMarketplaceSource(sourceId: string): Promise<{
+  success: boolean
+  source_id: string
+  enabled: boolean
+  message: string
+}> {
+  const { data } = await apiClient.post(
+    `/plugin-marketplace/sources/${sourceId}/toggle`,
+  )
   return data
 }
 
 // ── API 方法：统计 ───────────────────────────────────────
 
 export async function getMarketplaceStats(): Promise<MarketplaceStats> {
-  const { data } = await apiClient.get('/plugin-marketplace/stats')
+  const { data } = await apiClient.get("/plugin-marketplace/stats")
   return data
 }

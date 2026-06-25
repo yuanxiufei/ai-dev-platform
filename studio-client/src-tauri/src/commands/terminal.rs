@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::{Command, Stdio, Child};
-use std::sync::{Arc, Mutex};
-use parking_lot::RwLock;
+use parking_lot::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShellConfig {
@@ -37,7 +36,7 @@ pub struct TerminalOutput {
 
 // Store running processes
 lazy_static::lazy_static! {
-    static ref PROCESSES: RwLock<HashMap<u32, Child>> = RwLock::new(HashMap::new());
+    static ref PROCESSES: Mutex<HashMap<u32, Child>> = Mutex::new(HashMap::new());
 }
 
 /// Spawn a new shell process
@@ -80,7 +79,7 @@ pub async fn spawn_shell(config: ShellConfig) -> Result<ProcessInfo, String> {
                 status: "running".to_string(),
             };
             
-            PROCESSES.write().insert(pid, child);
+            PROCESSES.lock().insert(pid, child);
             Ok(info)
         }
         Err(e) => Err(format!("Failed to spawn shell: {}", e)),
@@ -90,10 +89,10 @@ pub async fn spawn_shell(config: ShellConfig) -> Result<ProcessInfo, String> {
 /// Write input to PTY (terminal)
 #[tauri::command]
 pub async fn write_to_pty(pid: u32, data: String) -> Result<(), String> {
-    let processes = PROCESSES.read();
+    let mut processes = PROCESSES.lock();
     
-    if let Some(child) = processes.get(&pid) {
-        if let Some(mut stdin) = child.stdin.as_ref() {
+    if let Some(child) = processes.get_mut(&pid) {
+        if let Some(stdin) = child.stdin.as_mut() {
             use std::io::Write;
             stdin.write_all(data.as_bytes())
                 .map_err(|e| format!("Failed to write to terminal: {}", e))?;
@@ -119,7 +118,7 @@ pub async fn resize_pty(_pid: u32, cols: u16, rows: u16) -> Result<(), String> {
 /// Kill a process
 #[tauri::command]
 pub async fn kill_process(pid: u32) -> Result<(), String> {
-    let mut processes = PROCESSES.write();
+    let mut processes = PROCESSES.lock();
     
     if let Some(mut child) = processes.remove(&pid) {
         child.kill()
@@ -133,7 +132,7 @@ pub async fn kill_process(pid: u32) -> Result<(), String> {
 /// List all active terminal processes
 #[tauri::command]
 pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
-    let processes = PROCESSES.read();
+    let processes = PROCESSES.lock();
     let result = processes.iter().map(|(&pid, _)| {
         ProcessInfo {
             id: pid,

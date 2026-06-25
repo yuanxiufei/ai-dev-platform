@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient from "./client"
 
 // ========== 类型定义 ==========
 
@@ -82,47 +82,54 @@ export interface FeatureTogglePayload {
 
 /** 获取系统完整状态 */
 export const getStandaloneStatus = () =>
-  apiClient.get<StandaloneStatus>('/standalone/status')
+  apiClient.get<StandaloneStatus>("/standalone/status")
 
 /** 连通性检查 */
 export const pingStandalone = () =>
-  apiClient.get<{ status: string; service: string }>('/standalone/ping')
+  apiClient.get<{ status: string; service: string }>("/standalone/ping")
 
 /** 列出所有功能开关 */
 export const listFeatures = () =>
-  apiClient.get<{ features: FeatureState[] }>('/standalone/features')
+  apiClient.get<{ features: FeatureState[] }>("/standalone/features")
 
 /** 获取单个功能开关 */
 export const getFeature = (key: string) =>
-  apiClient.get<{ key: string; enabled: boolean }>(`/standalone/features/${key}`)
+  apiClient.get<{ key: string; enabled: boolean }>(
+    `/standalone/features/${key}`,
+  )
 
 /** 设置功能开关 */
 export const setFeature = (key: string, payload: FeatureTogglePayload) =>
-  apiClient.post<{ key: string; enabled: boolean; message: string }>(`/standalone/features/${key}`, payload)
+  apiClient.post<{ key: string; enabled: boolean; message: string }>(
+    `/standalone/features/${key}`,
+    payload,
+  )
 
 /** 翻转功能开关 */
 export const toggleFeature = (key: string) =>
-  apiClient.post<{ key: string; enabled: boolean; message: string }>(`/standalone/features/${key}/toggle`)
+  apiClient.post<{ key: string; enabled: boolean; message: string }>(
+    `/standalone/features/${key}/toggle`,
+  )
 
 /** 强制休眠 */
 export const forceSleep = () =>
-  apiClient.post<{ status: string; message: string }>('/standalone/sleep')
+  apiClient.post<{ status: string; message: string }>("/standalone/sleep")
 
 /** 强制唤醒 */
 export const forceWake = () =>
-  apiClient.post<{ status: string; message: string }>('/standalone/wake')
+  apiClient.post<{ status: string; message: string }>("/standalone/wake")
 
 /** 守护进程状态 */
 export const getWatchdogStatus = () =>
-  apiClient.get<{ watchdog: WatchdogState }>('/standalone/watchdog')
+  apiClient.get<{ watchdog: WatchdogState }>("/standalone/watchdog")
 
 /** 列出 API Keys */
 export const listApiKeys = () =>
-  apiClient.get<{ keys: ApiKeyInfo[]; count: number }>('/standalone/keys')
+  apiClient.get<{ keys: ApiKeyInfo[]; count: number }>("/standalone/keys")
 
 /** 创建 API Key */
 export const createApiKey = (payload: CreateKeyPayload) =>
-  apiClient.post<ApiKeyCreated>('/standalone/keys', payload)
+  apiClient.post<ApiKeyCreated>("/standalone/keys", payload)
 
 /** 撤销 API Key */
 export const revokeApiKey = (hashedKey: string) =>
@@ -132,15 +139,19 @@ export const revokeApiKey = (hashedKey: string) =>
 
 /** 获取 OS 休眠计划状态 */
 export const getOsSleepStatus = () =>
-  apiClient.get<OsSleepState & { platform?: string }>('/standalone/os-sleep/status')
+  apiClient.get<OsSleepState & { platform?: string }>(
+    "/standalone/os-sleep/status",
+  )
 
 /** 立即触发 OS 休眠 */
 export const triggerOsSleep = () =>
-  apiClient.post<{ status: string; message: string }>('/standalone/os-sleep')
+  apiClient.post<{ status: string; message: string }>("/standalone/os-sleep")
 
 /** 取消已安排的 OS 休眠 */
 export const cancelOsSleep = () =>
-  apiClient.post<{ cancelled: boolean; reason?: string }>('/standalone/os-sleep/cancel')
+  apiClient.post<{ cancelled: boolean; reason?: string }>(
+    "/standalone/os-sleep/cancel",
+  )
 
 // ========== Wake-on-LAN 远程唤醒 ==========
 
@@ -182,17 +193,16 @@ export interface WOLConfigurePayload {
 }
 
 /** 获取 WOL 配置信息 */
-export const getWOLInfo = () =>
-  apiClient.get<WOLInfo>('/standalone/wol/info')
+export const getWOLInfo = () => apiClient.get<WOLInfo>("/standalone/wol/info")
 
 /** 发送 WOL 魔术包 */
 export const sendWOL = (payload: WOLSendPayload) =>
-  apiClient.post<WOLSendResult>('/standalone/wol/send', payload)
+  apiClient.post<WOLSendResult>("/standalone/wol/send", payload)
 
 /** 配置 WOL 参数 */
 export const configureWOL = (payload: WOLConfigurePayload) =>
-  apiClient.post<WOLInfo>('/standalone/wol/configure', payload)
+  apiClient.post<WOLInfo>("/standalone/wol/configure", payload)
 
 /** 重新检测网络接口 */
 export const redetectWOL = () =>
-  apiClient.post<WOLInfo>('/standalone/wol/redetect')
+  apiClient.post<WOLInfo>("/standalone/wol/redetect")

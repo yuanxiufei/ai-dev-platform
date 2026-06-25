@@ -1,34 +1,21 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/composables/useMobile"
-import { useSidebarStore } from "@/stores/sidebar"
-import AppSidebar from "@/components/Sidebar/AppSidebar.vue"
-import { useThemeStore } from "@/stores/theme"
 import { useAuthStore } from "@/stores/auth"
-import { 
-  Moon, 
-  Sun, 
-  Settings, 
-  User, 
-  LogOut,
-  Languages,
-  ChevronDown
-} from "lucide-vue-next"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui"
-import Avatar from "@/components/ui/Avatar.vue"
+import { useSidebarStore } from "@/stores/sidebar"
+import { useThemeStore } from "@/stores/theme"
 
 const sidebar = useSidebarStore()
 const isMobile = useIsMobile()
 const themeStore = useThemeStore()
-const authStore = useAuthStore()
+const _authStore = useAuthStore()
 
-const mainStyles = computed(() => {
+const _mainStyles = computed(() => {
   if (isMobile.value) return "ml-0"
   return sidebar.state === "collapsed" ? "ml-16" : "ml-64"
 })
 
-const toggleTheme = () => {
+const _toggleTheme = () => {
   if (themeStore.theme === "light") {
     themeStore.setTheme("dark")
   } else if (themeStore.theme === "dark") {
@@ -38,7 +25,7 @@ const toggleTheme = () => {
   }
 }
 
-const toggleLanguage = () => {
+const _toggleLanguage = () => {
   // For now, just toggle between English and Chinese
   // In a real app, this would be more sophisticated
   const currentLocale = import.meta.env.VITE_APP_LOCALE || "en"

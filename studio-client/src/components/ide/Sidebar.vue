@@ -8,44 +8,78 @@
  *   - Body: Scrollable file tree
  *   - Footer: 4 icon toolbar on #171B26 bg
  */
-import { ref } from 'vue'
-import { useIDEStore } from '@/stores/useIDEStore'
-import {
-  Files, Search, GitBranch, Bug, Blocks,
-  Settings, ChevronRight, ChevronDown,
-  FolderOpen, FolderClosed, FileCode, FileJson,
-  FileText, Image as ImgIcon, Archive, File, FileSymlink,
-} from 'lucide-vue-next'
-import FileTree from './FileTree.vue'
+
+import { Bug, Files, GitBranch, Search } from "lucide-vue-next"
+import { onMounted, ref } from "vue"
+import { useIDEStore } from "@/stores/useIDEStore"
 
 const store = useIDEStore()
 const isDragging = ref(false)
+const fileTreeReady = ref(false)
 
-function onDragStart(e: MouseEvent): void {
+onMounted(async () => {
+  await store.initFileTree()
+  fileTreeReady.value = true
+})
+
+async function _handleNewFile(): Promise<void> {
+  const name = prompt("文件名:")
+  if (!name?.trim()) return
+  const parent = store.workspaceRoot
+  if (!parent) return
+  const created = await store.createFileEntry(parent, name.trim())
+  if (created) {
+    store.fileTree.push(created)
+    store.fileTree.sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    })
+  }
+}
+
+async function _handleNewFolder(): Promise<void> {
+  const name = prompt("文件夹名:")
+  if (!name?.trim()) return
+  const parent = store.workspaceRoot
+  if (!parent) return
+  const created = await store.createFolderEntry(parent, name.trim())
+  if (created) {
+    store.fileTree.push(created)
+    store.fileTree.sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    })
+  }
+}
+
+function _onDragStart(e: MouseEvent): void {
   e.preventDefault()
   isDragging.value = true
-  document.body.classList.add('cursor-col-resize', 'select-none')
+  document.body.classList.add("cursor-col-resize", "select-none")
   const startX = e.clientX
   const startW = store.layout.sidebarWidth
   const move = (ev: MouseEvent) => {
-    store.layout.sidebarWidth = Math.max(180, Math.min(500, startW + (ev.clientX - startX)))
+    store.layout.sidebarWidth = Math.max(
+      180,
+      Math.min(500, startW + (ev.clientX - startX)),
+    )
   }
   const up = () => {
     isDragging.value = false
-    document.body.classList.remove('cursor-col-resize', 'select-none')
-    document.removeEventListener('mousemove', move)
-    document.removeEventListener('mouseup', up)
+    document.body.classList.remove("cursor-col-resize", "select-none")
+    document.removeEventListener("mousemove", move)
+    document.removeEventListener("mouseup", up)
   }
-  document.addEventListener('mousemove', move)
-  document.addEventListener('mouseup', up)
+  document.addEventListener("mousemove", move)
+  document.addEventListener("mouseup", up)
 }
 
 /** Bottom toolbar items matching Figma design */
-const bottomTools = [
-  { id: 'explorer', icon: Files, label: '资源管理器' },
-  { id: 'search', icon: Search, label: '搜索' },
-  { id: 'git', icon: GitBranch, label: '源代码管理' },
-  { id: 'debug', icon: Bug, label: '运行和调试' },
+const _bottomTools = [
+  { id: "explorer", icon: Files, label: "资源管理器" },
+  { id: "search", icon: Search, label: "搜索" },
+  { id: "git", icon: GitBranch, label: "源代码管理" },
+  { id: "debug", icon: Bug, label: "运行和调试" },
 ]
 </script>
 
@@ -60,11 +94,11 @@ const bottomTools = [
     <div class="flex items-center justify-between px-3 py-2.5 shrink-0" style="border-bottom: 1px solid rgba(70,69,84,0.3);">
       <span class="text-[11px] font-bold uppercase tracking-wider" style="color:#908FA0;">资源管理器</span>
       <div class="flex items-center gap-1">
-        <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="新建文件">
+        <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="新建文件" @click="handleNewFile">
           <svg width="13.33" height="10.67" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 1H3a1 1 0 00-1 1v8a1 1 0 001 1h10a1 1 0 001-1V5l-4-4z"/><path d="M10 1v4h4"/></svg>
         </button>
-        <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="折叠全部">
-          <svg width="10.67" height="10.67" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 6L8 12 2 6"/></svg>
+        <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="新建文件夹" @click="handleNewFolder">
+          <svg width="13.33" height="10.67" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3a1 1 0 011-1h3.5l1.5 2H13a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
         </button>
         <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="更多操作">
           <svg width="13.33" height="10.67" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="8" cy="6" r="1" fill="currentColor"/><circle cx="13" cy="6" r="1" fill="currentColor"/></svg>
@@ -114,7 +148,7 @@ const bottomTools = [
         @click="store.activeActivityItem = item.id; store.layout.fileTreeVisible = true"
       >
         <div v-if="store.activeActivityItem === item.id" class="absolute left-0 w-0.5 h-6 bg-white rounded-r" />
-        <component :is="item.icon" ?? item.icon" :size="24" />
+        <component :is="item.icon" :size="24" />
         <span class="absolute left-full ml-2 px-2.5 py-1.5 rounded text-sm whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50"
           style="background: var(--color-ide-surface); border: 1px solid var(--color-ide-border);">
           {{ item.label }}

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getStorageStats, getStorageConfig, updateStorageConfig, cleanupStorage } from '@/api/system'
-import { HardDrive, Database, Folder, Trash2, RefreshCw, AlertCircle, CheckCircle, Settings } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  cleanupStorage,
+  getStorageConfig,
+  getStorageStats,
+  updateStorageConfig,
+} from "@/api/system"
 
 interface StorageStat {
   path: string
@@ -14,7 +18,7 @@ interface StorageStat {
 
 const stats = ref<Record<string, StorageStat>>({})
 const loading = ref(true)
-const error = ref('')
+const error = ref("")
 const saving = ref(false)
 const cleanedCount = ref(-1)
 const maxStorageGB = ref(100)
@@ -22,42 +26,48 @@ const maxWorkspaceGB = ref(10)
 
 async function loadData() {
   loading.value = true
-  error.value = ''
+  error.value = ""
   try {
-    const [sRes, cRes] = await Promise.all([getStorageStats(), getStorageConfig()])
+    const [sRes, cRes] = await Promise.all([
+      getStorageStats(),
+      getStorageConfig(),
+    ])
     stats.value = sRes.data.categories
     maxStorageGB.value = cRes.data.max_storage_gb || 100
     maxWorkspaceGB.value = cRes.data.max_workspace_gb || 10
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    error.value = e?.message || "加载失败"
   } finally {
     loading.value = false
   }
 }
 
-async function saveConfig() {
+async function _saveConfig() {
   saving.value = true
   try {
-    await updateStorageConfig({ max_storage_gb: maxStorageGB.value, max_workspace_gb: maxWorkspaceGB.value })
+    await updateStorageConfig({
+      max_storage_gb: maxStorageGB.value,
+      max_workspace_gb: maxWorkspaceGB.value,
+    })
     await loadData()
   } catch (e: any) {
-    error.value = e?.message || '保存失败'
+    error.value = e?.message || "保存失败"
   } finally {
     saving.value = false
   }
 }
 
-async function clean(path: string) {
+async function _clean(path: string) {
   try {
     const res = await cleanupStorage(path, 72)
     cleanedCount.value = res.data.deleted
     await loadData()
   } catch (e: any) {
-    error.value = e?.message || '清理失败'
+    error.value = e?.message || "清理失败"
   }
 }
 
-function formatGB(gb: number) {
+function _formatGB(gb: number) {
   return gb >= 1024 ? `${(gb / 1024).toFixed(1)} TB` : `${gb.toFixed(1)} GB`
 }
 

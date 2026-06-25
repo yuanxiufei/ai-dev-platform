@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { listAgentTools, type AgentToolSummary } from '@/api/agent'
-import { Wrench, Search, Loader2, Tag, Zap } from 'lucide-vue-next'
+import { computed, onMounted, ref } from "vue"
+import { type AgentToolSummary, listAgentTools } from "@/api/agent"
 
 const tools = ref<AgentToolSummary[]>([])
 const loading = ref(true)
-const searchText = ref('')
+const searchText = ref("")
 const selectedCategory = ref<string | null>(null)
 
 onMounted(async () => {
@@ -19,12 +18,12 @@ onMounted(async () => {
   }
 })
 
-const categories = computed(() => {
+const _categories = computed(() => {
   const cats = new Set(tools.value.map((t) => t.category))
   return Array.from(cats)
 })
 
-const filteredTools = computed(() => {
+const _filteredTools = computed(() => {
   let list = tools.value
   if (searchText.value) {
     const q = searchText.value.toLowerCase()
@@ -41,13 +40,13 @@ const filteredTools = computed(() => {
   return list
 })
 
-const categoryLabel: Record<string, string> = {
-  builtin: '内置工具',
-  mcp: 'MCP 工具',
-  knowledge_base: '知识库',
-  web: '网络工具',
-  file: '文件操作',
-  search: '搜索',
+const _categoryLabel: Record<string, string> = {
+  builtin: "内置工具",
+  mcp: "MCP 工具",
+  knowledge_base: "知识库",
+  web: "网络工具",
+  file: "文件操作",
+  search: "搜索",
 }
 </script>
 

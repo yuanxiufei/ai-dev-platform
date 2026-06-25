@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient from "./client"
 
 /* ========== 截图转代码 ========== */
 
@@ -13,11 +13,8 @@ export interface ScreenshotCodeResult {
   latency_ms: number
 }
 
-export const screenshotToCode = (
-  imagesBase64: string[],
-  message: string,
-) =>
-  apiClient.post<ScreenshotCodeResult>('/studio/chat', {
+export const screenshotToCode = (imagesBase64: string[], message: string) =>
+  apiClient.post<ScreenshotCodeResult>("/studio/chat", {
     message,
     images_base64: imagesBase64,
   })

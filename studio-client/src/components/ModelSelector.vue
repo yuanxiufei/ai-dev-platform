@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ChevronDown, Cpu, Wifi, HardDrive } from 'lucide-vue-next'
+import { Cpu, HardDrive, Wifi } from "lucide-vue-next"
+import { onMounted, onUnmounted, ref } from "vue"
 
 interface ModelOption {
   value: string
   label: string
-  source: 'local' | 'api' | 'auto'
+  source: "local" | "api" | "auto"
   provider?: string
   capability?: string
 }
@@ -15,36 +15,55 @@ defineProps<{
   options?: ModelOption[]
 }>()
 
-defineEmits<{
-  (e: 'update:modelValue', value: string): void
-}>()
+defineEmits<(e: "update:modelValue", value: string) => void>()
 
 const open = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 
-const defaultOptions: ModelOption[] = [
-  { value: '', label: 'Auto 自动选择', source: 'auto' },
-  { value: 'openai-gpt4o', label: 'GPT-4o', source: 'api', provider: 'OpenAI' },
-  { value: 'openai-gpt4o-mini', label: 'GPT-4o Mini', source: 'api', provider: 'OpenAI' },
-  { value: 'claude-sonnet', label: 'Claude Sonnet 4', source: 'api', provider: 'Anthropic' },
-  { value: 'deepseek-v3', label: 'DeepSeek V3', source: 'api', provider: 'DeepSeek' },
-  { value: 'qwen25-coder-7b', label: 'Qwen2.5-Coder 7B', source: 'local' },
-  { value: 'gemma-31b', label: 'Gemma 3 1B', source: 'local' },
+const _defaultOptions: ModelOption[] = [
+  { value: "", label: "Auto 自动选择", source: "auto" },
+  { value: "openai-gpt4o", label: "GPT-4o", source: "api", provider: "OpenAI" },
+  {
+    value: "openai-gpt4o-mini",
+    label: "GPT-4o Mini",
+    source: "api",
+    provider: "OpenAI",
+  },
+  {
+    value: "claude-sonnet",
+    label: "Claude Sonnet 4",
+    source: "api",
+    provider: "Anthropic",
+  },
+  {
+    value: "deepseek-v3",
+    label: "DeepSeek V3",
+    source: "api",
+    provider: "DeepSeek",
+  },
+  { value: "qwen25-coder-7b", label: "Qwen2.5-Coder 7B", source: "local" },
+  { value: "gemma-31b", label: "Gemma 3 1B", source: "local" },
 ]
 
-const sourceIcon = (source: string) => {
+const _sourceIcon = (source: string) => {
   switch (source) {
-    case 'local': return HardDrive
-    case 'api': return Wifi
-    default: return Cpu
+    case "local":
+      return HardDrive
+    case "api":
+      return Wifi
+    default:
+      return Cpu
   }
 }
 
-const sourceLabel = (source: string) => {
+const _sourceLabel = (source: string) => {
   switch (source) {
-    case 'local': return '本地'
-    case 'api': return '云端'
-    default: return 'Auto'
+    case "local":
+      return "本地"
+    case "api":
+      return "云端"
+    default:
+      return "Auto"
   }
 }
 
@@ -54,8 +73,8 @@ const handleClickOutside = (e: MouseEvent) => {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+onMounted(() => document.addEventListener("click", handleClickOutside))
+onUnmounted(() => document.removeEventListener("click", handleClickOutside))
 </script>
 
 <template>

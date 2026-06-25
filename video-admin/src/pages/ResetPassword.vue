@@ -7,18 +7,6 @@ import { z } from "zod"
 import { LoginService } from "@/client"
 import { handleError } from "@/utils"
 
-import AuthLayout from "@/layouts/AuthLayout.vue"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import PasswordInput from "@/components/ui/PasswordInput.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
-
 const route = useRoute()
 const router = useRouter()
 const token = ref((route.query.token as string) || "")
@@ -49,7 +37,7 @@ onMounted(() => {
   }
 })
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   if (!token.value) return
   error.value = ""
   success.value = ""

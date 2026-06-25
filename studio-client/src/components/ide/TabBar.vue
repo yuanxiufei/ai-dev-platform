@@ -1,40 +1,63 @@
 <script setup lang="ts">
 /** CodeBuddy IDE — Tab Bar (Figma design) */
-import { computed, ref } from 'vue'
-import { useIDEStore } from '@/stores/useIDEStore'
-import type { EditorTab } from '@/types/ide'
-import { X, Circle, ChevronRight, FileCode, FileJson, FileText } from 'lucide-vue-next'
+
+import { FileCode, FileJson, FileText } from "lucide-vue-next"
+import { computed, ref } from "vue"
+import { useIDEStore } from "@/stores/useIDEStore"
+import type { EditorTab } from "@/types/ide"
 
 const store = useIDEStore()
 const draggedTabId = ref<string | null>(null)
-const visibleTabs = computed(() => store.sortedTabs.filter(t => t.id !== store.activeTabId))
+const _visibleTabs = computed(() =>
+  store.sortedTabs.filter((t) => t.id !== store.activeTabId),
+)
 
-function onDragStart(e: DragEvent, id: string): void { draggedTabId.value = id; e.dataTransfer?.setData('text/plain', id); e.dataTransfer!.effectAllowed = 'move' }
-function onDragOver(e: DragEvent): void { e.preventDefault(); e.dataTransfer!.dropEffect = 'move' }
-function onDrop(e: DragEvent, targetId: string): void {
-  e.preventDefault(); const src = e.dataTransfer?.getData('text/plain')
-  if (!src || src === targetId) return
-  const tabs = [...store.tabs]; const si = tabs.findIndex(t => t.id === src); const ti = tabs.findIndex(t => t.id === targetId)
-  if (si === -1 || ti === -1) return
-  const [moved] = tabs.splice(si, 1); tabs.splice(ti, 0, moved); tabs.forEach((t, i) => t.order = i); draggedTabId.value = null
+function _onDragStart(e: DragEvent, id: string): void {
+  draggedTabId.value = id
+  e.dataTransfer?.setData("text/plain", id)
+  e.dataTransfer!.effectAllowed = "move"
 }
-function onMouseUp(e: MouseEvent, id: string): void { if (e.button === 1) store.closeTab(id) }
+function _onDragOver(e: DragEvent): void {
+  e.preventDefault()
+  e.dataTransfer!.dropEffect = "move"
+}
+function _onDrop(e: DragEvent, targetId: string): void {
+  e.preventDefault()
+  const src = e.dataTransfer?.getData("text/plain")
+  if (!src || src === targetId) return
+  const tabs = [...store.tabs]
+  const si = tabs.findIndex((t) => t.id === src)
+  const ti = tabs.findIndex((t) => t.id === targetId)
+  if (si === -1 || ti === -1) return
+  const [moved] = tabs.splice(si, 1)
+  tabs.splice(ti, 0, moved)
+  tabs.forEach((t, i) => (t.order = i))
+  draggedTabId.value = null
+}
+function _onMouseUp(e: MouseEvent, id: string): void {
+  if (e.button === 1) store.closeTab(id)
+}
 
 /** Get file icon component based on file extension */
-function getFileIcon(tab: EditorTab): any {
-  const ext = tab.filePath?.split('.').pop()?.toLowerCase() ?? ''
-  if (['ts','tsx','js','jsx','py'].includes(ext)) return FileCode
-  if (['json','toml'].includes(ext)) return FileJson
-  if (['md'].includes(ext)) return FileText
+function _getFileIcon(tab: EditorTab): any {
+  const ext = tab.filePath?.split(".").pop()?.toLowerCase() ?? ""
+  if (["ts", "tsx", "js", "jsx", "py"].includes(ext)) return FileCode
+  if (["json", "toml"].includes(ext)) return FileJson
+  if (["md"].includes(ext)) return FileText
   return FileCode
 }
 
 /** Get file color matching Figma design */
-function getFileColor(label: string): string {
-  if (label === 'App.vue') return '#38BDF8'
-  if (label === 'main.ts') return '#60A5FA'
-  const c: Record<string,string> = { ts:'#60A5FA', vue:'#38BDF8', json:'#FB923C', md:'#3B82F6 }
-  return c[label.split('.').pop()?.toLowerCase() ?? ''] ?? '#908FA0'
+function _getFileColor(label: string): string {
+  if (label === "App.vue") return "#38BDF8"
+  if (label === "main.ts") return "#60A5FA"
+  const c: Record<string, string> = {
+    ts: "#60A5FA",
+    vue: "#38BDF8",
+    json: "#FB923C",
+    md: "#3B82F6",
+  }
+  return c[label.split(".").pop()?.toLowerCase() ?? ""] ?? "#908FA0"
 }
 </script>
 

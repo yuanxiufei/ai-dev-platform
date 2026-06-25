@@ -1,37 +1,31 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Home, Languages, LogOut, Menu, Monitor, Moon, Package, Settings, Sun, Users } from "lucide-vue-next"
+import { Home, Monitor, Moon, Package, Sun, Users } from "lucide-vue-next"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
-import { cn } from "@/lib/utils"
-import { getInitials } from "@/utils"
 import { useIsMobile } from "@/composables/useMobile"
 import { useAuthStore } from "@/stores/auth"
 import { useSidebarStore } from "@/stores/sidebar"
 import { useThemeStore } from "@/stores/theme"
-import Button from "@/components/ui/Button.vue"
-import Tooltip from "@/components/ui/Tooltip.vue"
-import DropdownMenu from "@/components/ui/DropdownMenu.vue"
-import DropdownMenuItem from "@/components/ui/DropdownMenuItem.vue"
 
-const sidebar = useSidebarStore()
-const isMobile = useIsMobile()
+const _sidebar = useSidebarStore()
+const _isMobile = useIsMobile()
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
 const { t, locale } = useI18n()
-const router = useRouter()
-const route = useRoute()
+const _router = useRouter()
+const _route = useRoute()
 
-const navItems = [
+const _navItems = [
   { title: "Dashboard", to: "/", icon: Home },
   { title: "Items", to: "/items", icon: Package },
 ]
 
-const adminItem = { title: "Admin", to: "/admin", icon: Users }
+const _adminItem = { title: "Admin", to: "/admin", icon: Users }
 
 const user = authStore.userQuery.data
-const isSuperuser = user.value?.is_superuser
+const _isSuperuser = user.value?.is_superuser
 
-function toggleTheme() {
+function _toggleTheme() {
   const next: Record<string, "dark" | "light" | "system"> = {
     dark: "light",
     light: "system",
@@ -40,13 +34,13 @@ function toggleTheme() {
   themeStore.setTheme(next[themeStore.theme])
 }
 
-const themeIcon: Record<string, any> = {
+const _themeIcon: Record<string, any> = {
   dark: Sun,
   light: Moon,
   system: Monitor,
 }
 
-function toggleLang() {
+function _toggleLang() {
   locale.value = locale.value === "en" ? "zh" : "en"
 }
 </script>

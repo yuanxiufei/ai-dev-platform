@@ -1,61 +1,61 @@
 <script setup lang="ts">
-import { Sparkles, Code2, Brain, Zap, MessageCircle, Palette, Rocket, ArrowRight, Layers } from 'lucide-vue-next'
+import { Brain, Code2, Layers, Palette, Rocket, Zap } from "lucide-vue-next"
 
-const emit = defineEmits<{
-  (e: 'start'): void
-  (e: 'quickPrompt', prompt: string): void
+const _emit = defineEmits<{
+  (e: "start"): void
+  (e: "quickPrompt", prompt: string): void
 }>()
 
-const features = [
+const _features = [
   {
     icon: Code2,
-    title: 'Vibe 编程',
-    desc: '用自然语言描述想法，AI 自动生成全栈项目代码',
-    gradient: 'from-blue-500/20 to-cyan-500/10',
-    iconColor: 'text-blue-400',
+    title: "Vibe 编程",
+    desc: "用自然语言描述想法，AI 自动生成全栈项目代码",
+    gradient: "from-blue-500/20 to-cyan-500/10",
+    iconColor: "text-blue-400",
   },
   {
     icon: Brain,
-    title: '知识库驱动',
-    desc: '接入项目文档和代码库，让 AI 理解你的项目上下文',
-    gradient: 'from-purple-500/20 to-pink-500/10',
-    iconColor: 'text-purple-400',
+    title: "知识库驱动",
+    desc: "接入项目文档和代码库，让 AI 理解你的项目上下文",
+    gradient: "from-purple-500/20 to-pink-500/10",
+    iconColor: "text-purple-400",
   },
   {
     icon: Layers,
-    title: '多模型调度',
-    desc: '自动选择最优模型，本地+云端无缝切换',
-    gradient: 'from-amber-500/20 to-orange-500/10',
-    iconColor: 'text-amber-400',
+    title: "多模型调度",
+    desc: "自动选择最优模型，本地+云端无缝切换",
+    gradient: "from-amber-500/20 to-orange-500/10",
+    iconColor: "text-amber-400",
   },
   {
     icon: Palette,
-    title: '截图转代码',
-    desc: '上传设计稿截图，一键生成可运行的前端代码',
-    gradient: 'from-emerald-500/20 to-teal-500/10',
-    iconColor: 'text-emerald-400',
+    title: "截图转代码",
+    desc: "上传设计稿截图，一键生成可运行的前端代码",
+    gradient: "from-emerald-500/20 to-teal-500/10",
+    iconColor: "text-emerald-400",
   },
   {
     icon: Rocket,
-    title: '一键部署',
-    desc: '生成的项目可直接部署到云端，即刻上线',
-    gradient: 'from-rose-500/20 to-red-500/10',
-    iconColor: 'text-rose-400',
+    title: "一键部署",
+    desc: "生成的项目可直接部署到云端，即刻上线",
+    gradient: "from-rose-500/20 to-red-500/10",
+    iconColor: "text-rose-400",
   },
   {
     icon: Zap,
-    title: '工具链编排',
-    desc: '连接 MCP 工具和插件，构建你自己的 AI 工作流',
-    gradient: 'from-indigo-500/20 to-violet-500/10',
-    iconColor: 'text-indigo-400',
+    title: "工具链编排",
+    desc: "连接 MCP 工具和插件，构建你自己的 AI 工作流",
+    gradient: "from-indigo-500/20 to-violet-500/10",
+    iconColor: "text-indigo-400",
   },
 ]
 
-const quickPrompts = [
-  { icon: Code2, text: '帮我创建一个 React 待办事项应用' },
-  { icon: Palette, text: '生成一个现代化的登录页面设计' },
-  { icon: Brain, text: '分析这个项目的架构并给出优化建议' },
-  { icon: Zap, text: '为我的 API 编写单元测试' },
+const _quickPrompts = [
+  { icon: Code2, text: "帮我创建一个 React 待办事项应用" },
+  { icon: Palette, text: "生成一个现代化的登录页面设计" },
+  { icon: Brain, text: "分析这个项目的架构并给出优化建议" },
+  { icon: Zap, text: "为我的 API 编写单元测试" },
 ]
 </script>
 

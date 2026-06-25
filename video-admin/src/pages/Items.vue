@@ -2,15 +2,8 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 import { type ItemPublic, ItemsService } from "@/client"
-import { handleError } from "@/utils"
-import { itemsColumns } from "@/components/Items/columns"
 
-import Button from "@/components/ui/Button.vue"
-import { Plus, Package } from "lucide-vue-next"
-import DataTable from "@/components/Common/DataTable.vue"
-import AddItem from "@/components/Items/AddItem.vue"
-
-const addOpen = ref(false)
+const _addOpen = ref(false)
 
 const query = useQuery({
   queryKey: ["items"],
@@ -20,7 +13,7 @@ const query = useQuery({
   },
 })
 
-const items = computed(() => query.data.value?.data || [])
+const _items = computed(() => query.data.value?.data || [])
 </script>
 
 <template>

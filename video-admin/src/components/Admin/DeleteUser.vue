@@ -2,13 +2,6 @@
 import { ref } from "vue"
 import { type UserPublic, UsersService } from "@/client"
 import { handleError } from "@/utils"
-import Dialog from "@/components/ui/Dialog.vue"
-import DialogHeader from "@/components/ui/DialogHeader.vue"
-import DialogTitle from "@/components/ui/DialogTitle.vue"
-import DialogDescription from "@/components/ui/DialogDescription.vue"
-import Alert from "@/components/ui/Alert.vue"
-import Button from "@/components/ui/Button.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
 
 const props = defineProps<{
   user: UserPublic
@@ -23,7 +16,7 @@ const emit = defineEmits<{
 const isSubmitting = ref(false)
 const error = ref("")
 
-async function onDelete() {
+async function _onDelete() {
   error.value = ""
   isSubmitting.value = true
   try {

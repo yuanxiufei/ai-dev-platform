@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { ref } from "vue"
 
 interface PanelSection {
   id: string
@@ -9,14 +8,14 @@ interface PanelSection {
   collapsible?: boolean
 }
 
-const props = defineProps<{
+const _props = defineProps<{
   title: string
   sections?: PanelSection[]
 }>()
 
 const collapsedSections = ref<Set<string>>(new Set())
 
-const toggleSection = (id: string) => {
+const _toggleSection = (id: string) => {
   if (collapsedSections.value.has(id)) {
     collapsedSections.value.delete(id)
   } else {
@@ -24,7 +23,7 @@ const toggleSection = (id: string) => {
   }
 }
 
-const isCollapsed = (id: string) => collapsedSections.value.has(id)
+const _isCollapsed = (id: string) => collapsedSections.value.has(id)
 </script>
 
 <template>

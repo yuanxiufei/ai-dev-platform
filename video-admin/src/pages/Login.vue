@@ -7,22 +7,8 @@ import { z } from "zod"
 import { useAuthStore } from "@/stores/auth"
 import { handleError } from "@/utils"
 
-import AuthLayout from "@/layouts/AuthLayout.vue"
-import Card from "@/components/ui/Card.vue"
-import CardHeader from "@/components/ui/CardHeader.vue"
-import CardTitle from "@/components/ui/CardTitle.vue"
-import CardDescription from "@/components/ui/CardDescription.vue"
-import CardContent from "@/components/ui/CardContent.vue"
-import CardFooter from "@/components/ui/CardFooter.vue"
-import Alert from "@/components/ui/Alert.vue"
-import FormItem from "@/components/ui/FormItem.vue"
-import Label from "@/components/ui/Label.vue"
-import Input from "@/components/ui/Input.vue"
-import PasswordInput from "@/components/ui/PasswordInput.vue"
-import LoadingButton from "@/components/ui/LoadingButton.vue"
-
 const authStore = useAuthStore()
-const router = useRouter()
+const _router = useRouter()
 
 const schema = toTypedSchema(
   z.object({
@@ -37,7 +23,7 @@ const { handleSubmit, values, setFieldValue, errors, isSubmitting } = useForm({
 
 const loginError = ref("")
 
-const onSubmit = handleSubmit(async (formValues) => {
+const _onSubmit = handleSubmit(async (formValues) => {
   loginError.value = ""
   try {
     await authStore.loginMutation.mutateAsync({

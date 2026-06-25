@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { ArrowUp, Paperclip, ImageIcon, X } from 'lucide-vue-next'
+import { nextTick, ref } from "vue"
 
 const props = defineProps<{
   disabled?: boolean
@@ -9,18 +8,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'send', text: string, files: AttachedFile[]): void
-  (e: 'stop'): void
+  (e: "send", text: string, files: AttachedFile[]): void
+  (e: "stop"): void
 }>()
 
 export interface AttachedFile {
   id: string
   name: string
   size: string
-  type: 'image' | 'file'
+  type: "image" | "file"
 }
 
-const inputText = ref('')
+const inputText = ref("")
 const attachedFiles = ref<AttachedFile[]>([])
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
@@ -32,48 +31,48 @@ const focusInput = async () => {
 const handleSend = () => {
   const text = inputText.value.trim()
   if (!text || props.disabled) return
-  emit('send', text, [...attachedFiles.value])
-  inputText.value = ''
+  emit("send", text, [...attachedFiles.value])
+  inputText.value = ""
   attachedFiles.value = []
 }
 
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
+const _handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault()
     handleSend()
   }
 }
 
-const handleAutoResize = () => {
+const _handleAutoResize = () => {
   const el = textareaRef.value
   if (!el) return
-  el.style.height = 'auto'
-  el.style.height = Math.min(el.scrollHeight, 180) + 'px'
+  el.style.height = "auto"
+  el.style.height = `${Math.min(el.scrollHeight, 180)}px`
 }
 
-const removeFile = (id: string) => {
-  attachedFiles.value = attachedFiles.value.filter(f => f.id !== id)
+const _removeFile = (id: string) => {
+  attachedFiles.value = attachedFiles.value.filter((f) => f.id !== id)
 }
 
-const simulateAttach = () => {
+const _simulateAttach = () => {
   // 模拟文件附加（后续可对接真实文件上传）
   const id = crypto.randomUUID()
   attachedFiles.value.push({
     id,
     name: `screenshot_${Date.now()}.png`,
     size: `${(Math.random() * 1000 + 50).toFixed(2)} KB`,
-    type: 'image',
+    type: "image",
   })
   focusInput()
 }
 
-const simulateImage = () => {
+const _simulateImage = () => {
   const id = crypto.randomUUID()
   attachedFiles.value.push({
     id,
     name: `image_${Date.now()}.png`,
     size: `${(Math.random() * 500 + 10).toFixed(2)} KB`,
-    type: 'image',
+    type: "image",
   })
   focusInput()
 }

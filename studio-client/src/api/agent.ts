@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient from "./client"
 
 /* ========== Agent 对话 ========== */
 
@@ -25,16 +25,19 @@ export interface AgentChatResponse {
 }
 
 export const agentChat = (data: AgentChatRequest) =>
-  apiClient.post<AgentChatResponse>('/agent/chat', data)
+  apiClient.post<AgentChatResponse>("/agent/chat", data)
 
 export const agentChatSimple = (data: AgentChatRequest) =>
-  apiClient.post<{ answer: string; model_used: string; provider: string; tokens_used: number }>(
-    '/agent/chat/simple',
-    data,
-  )
+  apiClient.post<{
+    answer: string
+    model_used: string
+    provider: string
+    tokens_used: number
+  }>("/agent/chat/simple", data)
 
 /** SSE 流式 Agent 对话 —— 返回 ReadableStream 用于 fetch + EventSource 模式 */
-export const agentChatStreamUrl = () => `${apiClient.defaults.baseURL}/agent/chat/stream`
+export const agentChatStreamUrl = () =>
+  `${apiClient.defaults.baseURL}/agent/chat/stream`
 
 /* ========== 工具管理 ========== */
 
@@ -64,19 +67,22 @@ export interface AgentToolSummary {
 }
 
 export const listAgentTools = (category?: string) =>
-  apiClient.get<{ total: number; tools: AgentToolSummary[]; categories: string[] }>(
-    '/agent/tools',
-    { params: category ? { category } : {} },
-  )
+  apiClient.get<{
+    total: number
+    tools: AgentToolSummary[]
+    categories: string[]
+  }>("/agent/tools", { params: category ? { category } : {} })
 
 export const getAgentTool = (name: string) =>
   apiClient.get<AgentTool>(`/agent/tools/${encodeURIComponent(name)}`)
 
 export const callAgentTool = (name: string, args: Record<string, unknown>) =>
-  apiClient.post<{ success: boolean; tool_name: string; result?: string; error?: string }>(
-    `/agent/tools/${encodeURIComponent(name)}`,
-    { arguments: args },
-  )
+  apiClient.post<{
+    success: boolean
+    tool_name: string
+    result?: string
+    error?: string
+  }>(`/agent/tools/${encodeURIComponent(name)}`, { arguments: args })
 
 /* ========== 模型选择 ========== */
 
@@ -93,6 +99,6 @@ export interface ModelOption {
 }
 
 export const listAvailableModels = (capability?: string) =>
-  apiClient.get<{ models: ModelOption[]; total: number }>('/system/models', {
+  apiClient.get<{ models: ModelOption[]; total: number }>("/system/models", {
     params: capability ? { capability } : {},
   })

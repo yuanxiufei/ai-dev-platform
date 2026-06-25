@@ -11,13 +11,10 @@
  *
  * 数据源：AgentChat SSE 事件 {"type":"diff","data": DiffData}
  */
-import { ref, computed, watch, onMounted } from 'vue'
-import type { DiffData, DiffHunk } from '@/types/studio'
-import {
-  FileCode, Plus, Minus, Copy, Download,
-  Columns, AlignLeft, ChevronDown, ChevronRight,
-  FilePlus, FileEdit, FileMinus,
-} from 'lucide-vue-next'
+
+import { FileEdit, FileMinus, FilePlus } from "lucide-vue-next"
+import { computed, ref } from "vue"
+import type { DiffData } from "@/types/studio"
 
 const props = defineProps<{
   diff: DiffData | null
@@ -25,105 +22,126 @@ const props = defineProps<{
   collapsible?: boolean
 }>()
 
-const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'apply'): void
+const _emit = defineEmits<{
+  (e: "close"): void
+  (e: "apply"): void
 }>()
 
 // ── 视图模式 ──
-type ViewMode = 'unified' | 'split'
-const viewMode = ref<ViewMode>('unified')
-const collapsed = ref(false)
-const applied = ref(false)
+type ViewMode = "unified" | "split"
+const _viewMode = ref<ViewMode>("unified")
+const _collapsed = ref(false)
+const _applied = ref(false)
 
 // ── 解析 hunks 为行级数据 ──
 interface DiffLine {
-  type: 'add' | 'remove' | 'context' | 'header'
+  type: "add" | "remove" | "context" | "header"
   content: string
   oldLineNum?: number
   newLineNum?: number
 }
 
-const parsedLines = computed<DiffLine[]>(() => {
+const _parsedLines = computed<DiffLine[]>(() => {
   if (!props.diff) return []
   const lines: DiffLine[] = []
   let oldLine = 0
   let newLine = 0
 
-  for (const line of props.diff.diff_text.split('\n')) {
-    if (line.startsWith('@@')) {
+  for (const line of props.diff.diff_text.split("\n")) {
+    if (line.startsWith("@@")) {
       // 解析行号
       const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/)
       if (match) {
-        oldLine = parseInt(match[1]) - 1
-        newLine = parseInt(match[2]) - 1
+        oldLine = parseInt(match[1], 10) - 1
+        newLine = parseInt(match[2], 10) - 1
       }
-      lines.push({ type: 'header', content: line })
-    } else if (line.startsWith('+') && !line.startsWith('+++')) {
+      lines.push({ type: "header", content: line })
+    } else if (line.startsWith("+") && !line.startsWith("+++")) {
       newLine++
-      lines.push({ type: 'add', content: line, newLineNum: newLine })
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      lines.push({ type: "add", content: line, newLineNum: newLine })
+    } else if (line.startsWith("-") && !line.startsWith("---")) {
       oldLine++
-      lines.push({ type: 'remove', content: line, oldLineNum: oldLine })
-    } else if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('index ')) {
-      lines.push({ type: 'header', content: line })
+      lines.push({ type: "remove", content: line, oldLineNum: oldLine })
+    } else if (
+      line.startsWith("---") ||
+      line.startsWith("+++") ||
+      line.startsWith("index ")
+    ) {
+      lines.push({ type: "header", content: line })
     } else {
       oldLine++
       newLine++
-      lines.push({ type: 'context', content: line, oldLineNum: oldLine, newLineNum: newLine })
+      lines.push({
+        type: "context",
+        content: line,
+        oldLineNum: oldLine,
+        newLineNum: newLine,
+      })
     }
   }
   return lines
 })
 
 // ── 变更类型图标 ──
-const changeIcon = computed(() => {
+const _changeIcon = computed(() => {
   if (!props.diff) return FileEdit
   switch (props.diff.change_type) {
-    case 'CREATE': return FilePlus
-    case 'DELETE': return FileMinus
-    default: return FileEdit
+    case "CREATE":
+      return FilePlus
+    case "DELETE":
+      return FileMinus
+    default:
+      return FileEdit
   }
 })
 
-const changeLabel = computed(() => {
-  if (!props.diff) return '修改'
+const _changeLabel = computed(() => {
+  if (!props.diff) return "修改"
   switch (props.diff.change_type) {
-    case 'CREATE': return '新建'
-    case 'DELETE': return '删除'
-    default: return '修改'
+    case "CREATE":
+      return "新建"
+    case "DELETE":
+      return "删除"
+    default:
+      return "修改"
   }
 })
 
-const changeColor = computed(() => {
-  if (!props.diff) return 'text-blue-400'
+const _changeColor = computed(() => {
+  if (!props.diff) return "text-blue-400"
   switch (props.diff.change_type) {
-    case 'CREATE': return 'text-emerald-400'
-    case 'DELETE': return 'text-red-400'
-    default: return 'text-amber-400'
+    case "CREATE":
+      return "text-emerald-400"
+    case "DELETE":
+      return "text-red-400"
+    default:
+      return "text-amber-400"
   }
 })
 
-const changeBg = computed(() => {
-  if (!props.diff) return 'bg-blue-500/8 border-blue-500/15'
+const _changeBg = computed(() => {
+  if (!props.diff) return "bg-blue-500/8 border-blue-500/15"
   switch (props.diff.change_type) {
-    case 'CREATE': return 'bg-emerald-500/8 border-emerald-500/15'
-    case 'DELETE': return 'bg-red-500/8 border-red-500/15'
-    default: return 'bg-amber-500/8 border-amber-500/15'
+    case "CREATE":
+      return "bg-emerald-500/8 border-emerald-500/15"
+    case "DELETE":
+      return "bg-red-500/8 border-red-500/15"
+    default:
+      return "bg-amber-500/8 border-amber-500/15"
   }
 })
 
 // ── 操作 ──
-function copyDiff() {
+function _copyDiff() {
   if (!props.diff) return
   navigator.clipboard.writeText(props.diff.diff_text)
 }
 
-function downloadDiff() {
+function _downloadDiff() {
   if (!props.diff) return
-  const blob = new Blob([props.diff.diff_text], { type: 'text/plain' })
+  const blob = new Blob([props.diff.diff_text], { type: "text/plain" })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
+  const a = document.createElement("a")
   a.href = url
   a.download = `${props.diff.file_name}.diff`
   a.click()
@@ -131,19 +149,35 @@ function downloadDiff() {
 }
 
 // ── 语法高亮类名映射 ──
-function langClass(lang: string): string {
+function _langClass(lang: string): string {
   const map: Record<string, string> = {
-    python: 'language-python', javascript: 'language-javascript',
-    typescript: 'language-typescript', tsx: 'language-tsx',
-    vue: 'language-html', css: 'language-css', html: 'language-html',
-    json: 'language-json', yaml: 'language-yaml', markdown: 'language-markdown',
-    sql: 'language-sql', shell: 'language-bash', go: 'language-go',
-    rust: 'language-rust', java: 'language-java', cpp: 'language-cpp',
-    c: 'language-c', kotlin: 'language-kotlin', swift: 'language-swift',
-    ruby: 'language-ruby', php: 'language-php', dart: 'language-dart',
-    graphql: 'language-graphql', xml: 'language-xml', toml: 'language-toml',
+    python: "language-python",
+    javascript: "language-javascript",
+    typescript: "language-typescript",
+    tsx: "language-tsx",
+    vue: "language-html",
+    css: "language-css",
+    html: "language-html",
+    json: "language-json",
+    yaml: "language-yaml",
+    markdown: "language-markdown",
+    sql: "language-sql",
+    shell: "language-bash",
+    go: "language-go",
+    rust: "language-rust",
+    java: "language-java",
+    cpp: "language-cpp",
+    c: "language-c",
+    kotlin: "language-kotlin",
+    swift: "language-swift",
+    ruby: "language-ruby",
+    php: "language-php",
+    dart: "language-dart",
+    graphql: "language-graphql",
+    xml: "language-xml",
+    toml: "language-toml",
   }
-  return map[lang] || ''
+  return map[lang] || ""
 }
 </script>
 

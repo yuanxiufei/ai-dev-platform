@@ -8,58 +8,47 @@
  *  - API 密钥管理（创建 / 复制 / 撤销 / 列表）
  *  - 休眠/唤醒手动控制
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+import { Radio } from "lucide-vue-next"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import {
-  getStandaloneStatus,
-  pingStandalone,
-  listFeatures,
-  setFeature,
-  toggleFeature,
+  type ApiKeyCreated,
+  type ApiKeyInfo,
+  cancelOsSleep,
+  createApiKey,
+  type FeatureState,
   forceSleep,
   forceWake,
-  listApiKeys,
-  createApiKey,
-  revokeApiKey,
   getOsSleepStatus,
-  triggerOsSleep,
-  cancelOsSleep,
+  getStandaloneStatus,
   getWOLInfo,
-  sendWOL,
-  configureWOL,
-  redetectWOL,
-  type StandaloneStatus,
-  type FeatureState,
-  type ApiKeyInfo,
-  type ApiKeyCreated,
+  listApiKeys,
+  listFeatures,
   type OsSleepState,
+  redetectWOL,
+  revokeApiKey,
+  type StandaloneStatus,
+  sendWOL,
+  toggleFeature,
+  triggerOsSleep,
   type WOLInfo,
-} from '@/api/standalone'
-import {
-  Globe, Fingerprint, Moon, Shield, Cpu, Zap,
-  RefreshCw, Play, Square, Power, Eye, EyeOff,
-  Copy, Check, Plus, Trash2, Loader2,
-  Monitor, Server, Clock, KeyRound, BarChart3,
-  Activity, Gauge, Radio, AlertTriangle,
-  ChevronDown, ChevronUp, Info, X, Battery,
-  BatteryWarning, Timer, TimerOff,
-  Wifi, Network, Terminal, Radio, Send,
-} from 'lucide-vue-next'
+} from "@/api/standalone"
 
 // ===== 状态 =====
 const status = ref<StandaloneStatus | null>(null)
 const features = ref<FeatureState[]>([])
 const apiKeys = ref<ApiKeyInfo[]>([])
 const loading = ref(true)
-const toast = ref('')
-const toastType = ref<'success' | 'error' | 'info'>('info')
+const toast = ref("")
+const toastType = ref<"success" | "error" | "info">("info")
 const autoRefresh = ref(true)
 const refreshInterval = 8_000 // 8s
 let _timer: ReturnType<typeof setInterval> | null = null
 
 // API Key 表单
-const showKeyForm = ref(false)
+const _showKeyForm = ref(false)
 const showCreatedKey = ref<ApiKeyCreated | null>(null)
-const keyForm = ref({ tenant: 'default', name: '', roles: '*' as string })
+const keyForm = ref({ tenant: "default", name: "", roles: "*" as string })
 const keyLoading = ref(false)
 
 // 正在切换的功能 key
@@ -68,56 +57,82 @@ const togglingKey = ref<string | null>(null)
 // OS 休眠状态（独立管理，因为可能频繁变化）
 const osSleepState = ref<OsSleepState | null>(null)
 const osSleepLoading = ref(false)
-const osSleepAction = ref<'trigger' | 'cancel' | null>(null)
+const osSleepAction = ref<"trigger" | "cancel" | null>(null)
 
 // 倒计时显示
-const osSleepCountdown = ref('')
+const osSleepCountdown = ref("")
 let _osSleepCountdownTimer: ReturnType<typeof setInterval> | null = null
 
 // WOL 状态
 const wolInfo = ref<WOLInfo | null>(null)
 const wolLoading = ref(false)
 const wolSendingTo = ref<string | null>(null)
-const wolSendForm = ref({ mac_address: '', broadcast: '', port: 9 })
+const wolSendForm = ref({ mac_address: "", broadcast: "", port: 9 })
 
 // ===== 计算属性 =====
 
-const uptime = computed(() => {
-  if (!status.value) return '—'
-  const s = (Date.now() / 1000) - status.value.timestamp
+const _uptime = computed(() => {
+  if (!status.value) return "—"
+  const s = Date.now() / 1000 - status.value.timestamp
   if (s < 60) return `${Math.floor(s)}s`
   if (s < 3600) return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
 })
 
-const sleepState = computed(() => status.value?.subsystems?.sleep?.state ?? 'unknown')
-const sleepActiveLabel = computed(() => {
+const sleepState = computed(
+  () => status.value?.subsystems?.sleep?.state ?? "unknown",
+)
+const _sleepActiveLabel = computed(() => {
   const s = sleepState.value
-  if (s === 'sleeping') return '休眠中'
-  if (s === 'waking') return '唤醒中…'
-  if (s === 'pre_sleep') return '准备休眠…'
-  return '活跃'
+  if (s === "sleeping") return "休眠中"
+  if (s === "waking") return "唤醒中…"
+  if (s === "pre_sleep") return "准备休眠…"
+  return "活跃"
 })
 
-const watchdogState = computed(() => status.value?.subsystems?.watchdog?.state ?? 'unknown')
-const activeKeyCount = computed(() => status.value?.subsystems?.api_auth?.active_keys ?? apiKeys.value.length)
+const _watchdogState = computed(
+  () => status.value?.subsystems?.watchdog?.state ?? "unknown",
+)
+const _activeKeyCount = computed(
+  () => status.value?.subsystems?.api_auth?.active_keys ?? apiKeys.value.length,
+)
 
 // 休眠统计
-const sleepStats = computed(() => status.value?.subsystems?.sleep)
+const _sleepStats = computed(() => status.value?.subsystems?.sleep)
 
 // OS 休眠状态
-const osSleepEnabled = computed(() => osSleepState.value?.enabled ?? status.value?.subsystems?.sleep?.os_sleep?.enabled ?? false)
-const osSleepScheduled = computed(() => osSleepState.value?.scheduled ?? status.value?.subsystems?.sleep?.os_sleep?.scheduled ?? false)
+const _osSleepEnabled = computed(
+  () =>
+    osSleepState.value?.enabled ??
+    status.value?.subsystems?.sleep?.os_sleep?.enabled ??
+    false,
+)
+const osSleepScheduled = computed(
+  () =>
+    osSleepState.value?.scheduled ??
+    status.value?.subsystems?.sleep?.os_sleep?.scheduled ??
+    false,
+)
 const osSleepRemaining = computed(() => {
-  const s = osSleepState.value?.seconds_until_os_sleep ?? status.value?.subsystems?.sleep?.os_sleep?.seconds_until_os_sleep ?? 0
+  const s =
+    osSleepState.value?.seconds_until_os_sleep ??
+    status.value?.subsystems?.sleep?.os_sleep?.seconds_until_os_sleep ??
+    0
   return s
 })
-const osSleepMode = computed(() => osSleepState.value?.mode ?? status.value?.subsystems?.sleep?.os_sleep?.mode ?? 'sleep')
-const osSleepModeLabel = computed(() => osSleepMode.value === 'hibernate' ? '休眠（断电）' : '睡眠（内存保持）')
+const osSleepMode = computed(
+  () =>
+    osSleepState.value?.mode ??
+    status.value?.subsystems?.sleep?.os_sleep?.mode ??
+    "sleep",
+)
+const _osSleepModeLabel = computed(() =>
+  osSleepMode.value === "hibernate" ? "休眠（断电）" : "睡眠（内存保持）",
+)
 const osSleepCountdownDisplay = computed(() => {
-  if (!osSleepScheduled.value) return ''
+  if (!osSleepScheduled.value) return ""
   const s = osSleepRemaining.value
-  if (s <= 0) return '即将触发…'
+  if (s <= 0) return "即将触发…"
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = Math.floor(s % 60)
@@ -126,29 +141,31 @@ const osSleepCountdownDisplay = computed(() => {
   return `${sec}s`
 })
 
-const connected = computed(() => status.value !== null && status.value.started)
+const _connected = computed(() => status.value?.started)
 
 // WOL 计算属性
-const wolEnabled = computed(() => !!wolInfo.value?.target_mac)
-const wolCommandPython = computed(() => {
-  if (!wolInfo.value?.target_mac) return ''
+const _wolEnabled = computed(() => !!wolInfo.value?.target_mac)
+const _wolCommandPython = computed(() => {
+  if (!wolInfo.value?.target_mac) return ""
   const mac = wolInfo.value.target_mac
-  const bc = wolInfo.value.broadcast_address || '255.255.255.255'
+  const bc = wolInfo.value.broadcast_address || "255.255.255.255"
   const port = wolInfo.value.port || 9
   return `python scripts/wake_server.py --mac ${mac} --broadcast ${bc} --port ${port}`
 })
-const wolCommandCurl = computed(() => {
-  if (!wolInfo.value?.target_mac) return ''
+const _wolCommandCurl = computed(() => {
+  if (!wolInfo.value?.target_mac) return ""
   const mac = wolInfo.value.target_mac
-  return `curl -X POST http://<服务器IP>:18000/api/v1/standalone/wol/send -H "Content-Type: application/json" -d '{"mac_address":"${mac}","broadcast":"${wolInfo.value.broadcast_address || '255.255.255.255'}","port":${wolInfo.value.port || 9}}'`
+  return `curl -X POST http://<服务器IP>:18000/api/v1/standalone/wol/send -H "Content-Type: application/json" -d '{"mac_address":"${mac}","broadcast":"${wolInfo.value.broadcast_address || "255.255.255.255"}","port":${wolInfo.value.port || 9}}'`
 })
 
 // ===== 方法 =====
 
-function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {
+function showToast(msg: string, type: "success" | "error" | "info" = "info") {
   toast.value = msg
   toastType.value = type
-  setTimeout(() => { toast.value = '' }, 3500)
+  setTimeout(() => {
+    toast.value = ""
+  }, 3500)
 }
 
 async function fetchStatus() {
@@ -166,57 +183,72 @@ async function fetchFeatures() {
   try {
     const res = await listFeatures()
     features.value = res.data.features ?? []
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchKeys() {
   try {
     const res = await listApiKeys()
     apiKeys.value = res.data.keys ?? []
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchAll() {
   loading.value = true
-  await Promise.all([fetchStatus(), fetchFeatures(), fetchKeys(), fetchWOLInfo()])
+  await Promise.all([
+    fetchStatus(),
+    fetchFeatures(),
+    fetchKeys(),
+    fetchWOLInfo(),
+  ])
   loading.value = false
 }
 
-async function handleToggleFeature(feat: FeatureState) {
+async function _handleToggleFeature(feat: FeatureState) {
   if (!feat.dynamic) {
-    showToast(`「${feat.name}」由环境变量锁定，不可动态切换`, 'info')
+    showToast(`「${feat.name}」由环境变量锁定，不可动态切换`, "info")
     return
   }
   togglingKey.value = feat.key
   try {
     const res = await toggleFeature(feat.key)
-    const idx = features.value.findIndex(f => f.key === feat.key)
+    const idx = features.value.findIndex((f) => f.key === feat.key)
     if (idx >= 0) features.value[idx].enabled = res.data.enabled
-    showToast(`「${feat.name}」已${res.data.enabled ? '启用' : '禁用'}`, 'success')
+    showToast(
+      `「${feat.name}」已${res.data.enabled ? "启用" : "禁用"}`,
+      "success",
+    )
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '切换失败', 'error')
+    showToast(e?.response?.data?.detail || "切换失败", "error")
   } finally {
     togglingKey.value = null
   }
 }
 
-async function handleSleep() {
+async function _handleSleep() {
   try {
     const res = await forceSleep()
-    showToast(res.data.message || '已进入休眠', 'success')
+    showToast(res.data.message || "已进入休眠", "success")
     setTimeout(fetchStatus, 500)
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '无法休眠（可能有活跃请求）', 'error')
+    showToast(
+      e?.response?.data?.detail || "无法休眠（可能有活跃请求）",
+      "error",
+    )
   }
 }
 
-async function handleWake() {
+async function _handleWake() {
   try {
     const res = await forceWake()
-    showToast(res.data.message || '已唤醒', 'success')
+    showToast(res.data.message || "已唤醒", "success")
     setTimeout(fetchStatus, 500)
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '唤醒失败', 'error')
+    showToast(e?.response?.data?.detail || "唤醒失败", "error")
   }
 }
 
@@ -224,34 +256,41 @@ async function fetchOsSleepStatus() {
   try {
     const res = await getOsSleepStatus()
     osSleepState.value = res.data
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
-async function handleOsSleepNow() {
-  if (!confirm('⚠️ 这将立即使操作系统进入睡眠状态！\n\n电脑将停止响应，需要按电源键或通过 Wake-on-LAN 远程唤醒。\n\n确定要继续吗？')) return
+async function _handleOsSleepNow() {
+  if (
+    !confirm(
+      "⚠️ 这将立即使操作系统进入睡眠状态！\n\n电脑将停止响应，需要按电源键或通过 Wake-on-LAN 远程唤醒。\n\n确定要继续吗？",
+    )
+  )
+    return
   osSleepLoading.value = true
-  osSleepAction.value = 'trigger'
+  osSleepAction.value = "trigger"
   try {
     await triggerOsSleep()
-    showToast('OS 睡眠命令已发出，电脑即将睡眠…', 'info')
+    showToast("OS 睡眠命令已发出，电脑即将睡眠…", "info")
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '触发失败', 'error')
+    showToast(e?.response?.data?.detail || "触发失败", "error")
   } finally {
     osSleepLoading.value = false
     osSleepAction.value = null
   }
 }
 
-async function handleCancelOsSleep() {
+async function _handleCancelOsSleep() {
   osSleepLoading.value = true
-  osSleepAction.value = 'cancel'
+  osSleepAction.value = "cancel"
   try {
     await cancelOsSleep()
     osSleepState.value = null
-    showToast('已取消 OS 休眠倒计时', 'success')
+    showToast("已取消 OS 休眠倒计时", "success")
     setTimeout(fetchOsSleepStatus, 300)
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '取消失败', 'error')
+    showToast(e?.response?.data?.detail || "取消失败", "error")
   } finally {
     osSleepLoading.value = false
     osSleepAction.value = null
@@ -264,13 +303,16 @@ function startOsSleepCountdown() {
     if (osSleepScheduled.value) {
       osSleepCountdown.value = osSleepCountdownDisplay.value
     } else {
-      osSleepCountdown.value = ''
+      osSleepCountdown.value = ""
     }
     // 同步更新 osSleepState 的 remaining 时间
-    if (osSleepState.value && osSleepState.value.scheduled) {
+    if (osSleepState.value?.scheduled) {
       osSleepState.value = {
         ...osSleepState.value,
-        seconds_until_os_sleep: Math.max(0, osSleepState.value.seconds_until_os_sleep - 1),
+        seconds_until_os_sleep: Math.max(
+          0,
+          osSleepState.value.seconds_until_os_sleep - 1,
+        ),
       }
     }
   }, 1000)
@@ -287,17 +329,19 @@ async function fetchWOLInfo() {
   try {
     const res = await getWOLInfo()
     wolInfo.value = res.data
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
-async function handleSendWOL() {
-  const mac = wolSendForm.value.mac_address || wolInfo.value?.target_mac || ''
+async function _handleSendWOL() {
+  const mac = wolSendForm.value.mac_address || wolInfo.value?.target_mac || ""
   if (!mac) {
-    showToast('请先输入目标 MAC 地址', 'error')
+    showToast("请先输入目标 MAC 地址", "error")
     return
   }
   if (!/^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/.test(mac)) {
-    showToast('MAC 地址格式无效', 'error')
+    showToast("MAC 地址格式无效", "error")
     return
   }
   wolLoading.value = true
@@ -305,99 +349,119 @@ async function handleSendWOL() {
   try {
     const res = await sendWOL(wolSendForm.value)
     if (res.data.success) {
-      showToast(`魔术包已发送 → ${res.data.target_mac}`, 'success')
+      showToast(`魔术包已发送 → ${res.data.target_mac}`, "success")
       // 刷新 WOL 信息
       setTimeout(fetchWOLInfo, 500)
     } else {
-      showToast(res.data.message || '发送失败', 'error')
+      showToast(res.data.message || "发送失败", "error")
     }
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || 'WOL 发送失败，请检查网络权限', 'error')
+    showToast(
+      e?.response?.data?.detail || "WOL 发送失败，请检查网络权限",
+      "error",
+    )
   } finally {
     wolLoading.value = false
     wolSendingTo.value = null
   }
 }
 
-async function handleRedetectWOL() {
+async function _handleRedetectWOL() {
   wolLoading.value = true
   try {
     const res = await redetectWOL()
     wolInfo.value = res.data
-    showToast('网络接口已重新检测', 'success')
-  } catch (e: any) {
-    showToast('重新检测失败', 'error')
+    showToast("网络接口已重新检测", "success")
+  } catch (_e: any) {
+    showToast("重新检测失败", "error")
   } finally {
     wolLoading.value = false
   }
 }
 
-function copyWOLCommand(cmd: string) {
-  navigator.clipboard.writeText(cmd).then(() => {
-    showToast('命令已复制到剪贴板', 'success')
-  }).catch(() => showToast('复制失败，请手动复制', 'error'))
+function _copyWOLCommand(cmd: string) {
+  navigator.clipboard
+    .writeText(cmd)
+    .then(() => {
+      showToast("命令已复制到剪贴板", "success")
+    })
+    .catch(() => showToast("复制失败，请手动复制", "error"))
 }
 
-async function handleCreateKey() {
+async function _handleCreateKey() {
   if (!keyForm.value.name) return
   keyLoading.value = true
   try {
     const roles = keyForm.value.roles
-      ? keyForm.value.roles.split(',').map(s => s.trim()).filter(Boolean)
+      ? keyForm.value.roles
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : null
     const res = await createApiKey({
-      tenant: keyForm.value.tenant || 'default',
+      tenant: keyForm.value.tenant || "default",
       name: keyForm.value.name,
       roles,
     })
     showCreatedKey.value = res.data
-    keyForm.value = { tenant: 'default', name: '', roles: '*' }
-    showToast('API Key 已创建', 'success')
+    keyForm.value = { tenant: "default", name: "", roles: "*" }
+    showToast("API Key 已创建", "success")
     fetchKeys()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '创建失败', 'error')
+    showToast(e?.response?.data?.detail || "创建失败", "error")
   } finally {
     keyLoading.value = false
   }
 }
 
-async function handleRevokeKey(hashedKey: string) {
-  if (!confirm('确定撤销此 API Key？操作不可撤销。')) return
+async function _handleRevokeKey(hashedKey: string) {
+  if (!confirm("确定撤销此 API Key？操作不可撤销。")) return
   try {
     await revokeApiKey(hashedKey)
-    showToast('API Key 已撤销', 'success')
+    showToast("API Key 已撤销", "success")
     fetchKeys()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '撤销失败', 'error')
+    showToast(e?.response?.data?.detail || "撤销失败", "error")
   }
 }
 
-function copyKey(fullKey: string) {
-  navigator.clipboard.writeText(fullKey).then(() => {
-    showToast('已复制到剪贴板（仅显示一次，请妥善保存）', 'success')
-  }).catch(() => showToast('复制失败，请手动复制', 'error'))
+function _copyKey(fullKey: string) {
+  navigator.clipboard
+    .writeText(fullKey)
+    .then(() => {
+      showToast("已复制到剪贴板（仅显示一次，请妥善保存）", "success")
+    })
+    .catch(() => showToast("复制失败，请手动复制", "error"))
 }
 
-function dismissCreatedKey() {
+function _dismissCreatedKey() {
   showCreatedKey.value = null
 }
 
-function featureIcon(key: string) {
+function _featureIcon(key: string) {
   const map: Record<string, string> = {
-    smart_sleep: '🌙', api_auth: '🔑', watchdog: '🛡️',
-    gpu_enabled: '⚡', remote_access: '🌐', auto_optimize: '🔧',
-    background_tasks: '📋', auto_download_models: '📦', os_sleep: '💤',
+    smart_sleep: "🌙",
+    api_auth: "🔑",
+    watchdog: "🛡️",
+    gpu_enabled: "⚡",
+    remote_access: "🌐",
+    auto_optimize: "🔧",
+    background_tasks: "📋",
+    auto_download_models: "📦",
+    os_sleep: "💤",
   }
-  return map[key] ?? '🔹'
+  return map[key] ?? "🔹"
 }
 
-function sleepStateColor(state: string): string {
+function _sleepStateColor(state: string): string {
   const map: Record<string, string> = {
-    sleeping: 'text-amber-400', waking: 'text-cyan-400',
-    idle: 'text-green-400', active: 'text-blue-400',
-    pre_sleep: 'text-yellow-400',
+    sleeping: "text-amber-400",
+    waking: "text-cyan-400",
+    idle: "text-green-400",
+    active: "text-blue-400",
+    pre_sleep: "text-yellow-400",
   }
-  return map[state] ?? 'text-gray-400'
+  return map[state] ?? "text-gray-400"
 }
 
 // ===== 生命周期 =====
@@ -412,16 +476,20 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (_timer) { clearInterval(_timer); _timer = null }
+  if (_timer) {
+    clearInterval(_timer)
+    _timer = null
+  }
   stopOsSleepCountdown()
 })
 
-function toggleAutoRefresh() {
+function _toggleAutoRefresh() {
   autoRefresh.value = !autoRefresh.value
   if (autoRefresh.value) {
     _timer = setInterval(fetchAll, refreshInterval)
   } else if (_timer) {
-    clearInterval(_timer); _timer = null
+    clearInterval(_timer)
+    _timer = null
   }
 }
 </script>

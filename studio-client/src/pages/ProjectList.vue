@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { listProjects, deleteProject } from '@/api/studio'
-import type { Project } from '@/types/studio'
-import { Plus, Trash2, ExternalLink, LayoutGrid, Search } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
+import { deleteProject, listProjects } from "@/api/studio"
+import type { Project } from "@/types/studio"
 
 const router = useRouter()
 const projects = ref<Project[]>([])
 const loading = ref(true)
-const searchText = ref('')
+const searchText = ref("")
 
 onMounted(async () => {
   try {
@@ -21,41 +20,43 @@ onMounted(async () => {
   }
 })
 
-const filteredProjects = computed(() => {
+const _filteredProjects = computed(() => {
   if (!searchText.value) return projects.value
   const q = searchText.value.toLowerCase()
   return projects.value.filter(
-    (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)),
+    (p) =>
+      p.name.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q),
   )
 })
 
-const statusLabel: Record<string, string> = {
-  draft: '草稿',
-  building: '构建中',
-  deploying: '部署中',
-  running: '运行中',
-  failed: '失败',
+const _statusLabel: Record<string, string> = {
+  draft: "草稿",
+  building: "构建中",
+  deploying: "部署中",
+  running: "运行中",
+  failed: "失败",
 }
 
-const statusColor: Record<string, string> = {
-  draft: 'bg-gray-500/15 text-gray-400',
-  building: 'bg-yellow-500/15 text-yellow-400',
-  deploying: 'bg-blue-500/15 text-blue-400',
-  running: 'bg-green-500/15 text-green-400',
-  failed: 'bg-red-500/15 text-red-400',
+const _statusColor: Record<string, string> = {
+  draft: "bg-gray-500/15 text-gray-400",
+  building: "bg-yellow-500/15 text-yellow-400",
+  deploying: "bg-blue-500/15 text-blue-400",
+  running: "bg-green-500/15 text-green-400",
+  failed: "bg-red-500/15 text-red-400",
 }
 
-const handleDelete = async (id: string) => {
-  if (!confirm('确定删除该项目？')) return
+const _handleDelete = async (id: string) => {
+  if (!confirm("确定删除该项目？")) return
   await deleteProject(id)
   projects.value = projects.value.filter((p) => p.id !== id)
 }
 
-const goCreate = () => {
-  router.push('/projects/new')
+const _goCreate = () => {
+  router.push("/projects/new")
 }
 
-const goDetail = (id: string) => {
+const _goDetail = (id: string) => {
   router.push(`/projects/${id}`)
 }
 </script>

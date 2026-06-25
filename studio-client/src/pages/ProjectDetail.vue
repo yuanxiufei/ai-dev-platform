@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { getProject } from '@/api/studio'
-import type { Project } from '@/types/studio'
-import { ArrowLeft, LayoutGrid } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { getProject } from "@/api/studio"
+import type { Project } from "@/types/studio"
 
 const route = useRoute()
 const router = useRouter()
@@ -12,20 +11,20 @@ const loading = ref(true)
 
 const id = route.params.id as string
 
-const statusLabel: Record<string, string> = {
-  draft: '草稿',
-  building: '构建中',
-  deploying: '部署中',
-  running: '运行中',
-  failed: '失败',
+const _statusLabel: Record<string, string> = {
+  draft: "草稿",
+  building: "构建中",
+  deploying: "部署中",
+  running: "运行中",
+  failed: "失败",
 }
 
-const statusColor: Record<string, string> = {
-  draft: 'bg-gray-500/20 text-gray-400',
-  building: 'bg-yellow-500/20 text-yellow-400',
-  deploying: 'bg-blue-500/20 text-blue-400',
-  running: 'bg-green-500/20 text-green-400',
-  failed: 'bg-red-500/20 text-red-400',
+const _statusColor: Record<string, string> = {
+  draft: "bg-gray-500/20 text-gray-400",
+  building: "bg-yellow-500/20 text-yellow-400",
+  deploying: "bg-blue-500/20 text-blue-400",
+  running: "bg-green-500/20 text-green-400",
+  failed: "bg-red-500/20 text-red-400",
 }
 
 onMounted(async () => {
@@ -39,8 +38,8 @@ onMounted(async () => {
   }
 })
 
-const goBack = () => {
-  router.push('/projects')
+const _goBack = () => {
+  router.push("/projects")
 }
 </script>
 

@@ -2,15 +2,8 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 import { type UserPublic, UsersService } from "@/client"
-import { handleError } from "@/utils"
-import { userColumns } from "@/components/Admin/columns"
 
-import Button from "@/components/ui/Button.vue"
-import { UserPlus, Users } from "lucide-vue-next"
-import DataTable from "@/components/Common/DataTable.vue"
-import AddUser from "@/components/Admin/AddUser.vue"
-
-const addOpen = ref(false)
+const _addOpen = ref(false)
 
 const query = useQuery({
   queryKey: ["users"],
@@ -20,7 +13,7 @@ const query = useQuery({
   },
 })
 
-const users = computed(() => query.data.value?.data || [])
+const _users = computed(() => query.data.value?.data || [])
 </script>
 
 <template>

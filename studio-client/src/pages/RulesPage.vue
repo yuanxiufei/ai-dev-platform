@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from "vue"
 import {
-  listRules, createRule, updateRule, deleteRule, toggleRule, getRulesStats,
-  type RuleItem, type RuleCreatePayload, type RuleUpdatePayload,
-} from '@/api/rules'
-import {
-  ScrollText, Plus, Trash2, Edit3, Search, Loader2, X,
-  Globe, FolderGit2, Tag, Clock, Shield,
-} from 'lucide-vue-next'
-import ToggleSwitch from '@/components/ToggleSwitch.vue'
+  createRule,
+  deleteRule,
+  getRulesStats,
+  listRules,
+  type RuleCreatePayload,
+  type RuleItem,
+  type RuleUpdatePayload,
+  toggleRule,
+  updateRule,
+} from "@/api/rules"
 
 const rules = ref<RuleItem[]>([])
 const loading = ref(true)
@@ -16,45 +18,63 @@ const total = ref(0)
 const page = ref(1)
 const size = 20
 
-const selectedType = ref('')
-const searchQuery = ref('')
+const selectedType = ref("")
+const searchQuery = ref("")
 const debounceTimer = ref<ReturnType<typeof setTimeout>>()
 
 const editRule = ref<RuleItem | null>(null)
 const showCreate = ref(false)
-const toast = ref('')
+const toast = ref("")
 
-const stats = ref({ total: 0, enabled: 0, by_type: {} as Record<string, number>, by_scope: {} as Record<string, number> })
-
-const form = ref<RuleCreatePayload>({
-  name: '', description: '', rule_type: 'always', scope: 'project', content: '', triggers: [], priority: 0,
+const stats = ref({
+  total: 0,
+  enabled: 0,
+  by_type: {} as Record<string, number>,
+  by_scope: {} as Record<string, number>,
 })
 
-const tagInput = ref('')
+const form = ref<RuleCreatePayload>({
+  name: "",
+  description: "",
+  rule_type: "always",
+  scope: "project",
+  content: "",
+  triggers: [],
+  priority: 0,
+})
 
-const typeOptions = [
-  { value: '', label: '全部', color: '' },
-  { value: 'always', label: '始终生效', color: 'bg-green-400' },
-  { value: 'requested', label: '按需加载', color: 'bg-amber-400' },
-  { value: 'manual', label: '手动激活', color: 'bg-gray-500' },
+const tagInput = ref("")
+
+const _typeOptions = [
+  { value: "", label: "全部", color: "" },
+  { value: "always", label: "始终生效", color: "bg-green-400" },
+  { value: "requested", label: "按需加载", color: "bg-amber-400" },
+  { value: "manual", label: "手动激活", color: "bg-gray-500" },
 ]
-const typeLabel: Record<string, string> = { always: '始终生效', requested: '按需加载', manual: '手动激活' }
-const typeColor: Record<string, string> = {
-  always: 'bg-green-500/10 text-green-400 border-green-500/20',
-  requested: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  manual: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+const _typeLabel: Record<string, string> = {
+  always: "始终生效",
+  requested: "按需加载",
+  manual: "手动激活",
+}
+const _typeColor: Record<string, string> = {
+  always: "bg-green-500/10 text-green-400 border-green-500/20",
+  requested: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  manual: "bg-gray-500/10 text-gray-400 border-gray-500/20",
 }
 
 function showToast(msg: string) {
   toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+  setTimeout(() => {
+    toast.value = ""
+  }, 3000)
 }
 
 async function fetchRules() {
   loading.value = true
   try {
     const res = await listRules({
-      page: page.value, size,
+      page: page.value,
+      size,
       type: selectedType.value || undefined,
       search: searchQuery.value || undefined,
     })
@@ -62,17 +82,21 @@ async function fetchRules() {
     total.value = res.data.total
   } catch {
     // ignore
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchStats() {
   try {
     const res = await getRulesStats()
     stats.value = res.data
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-function debouncedSearch() {
+function _debouncedSearch() {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   debounceTimer.value = setTimeout(() => {
     page.value = 1
@@ -80,91 +104,105 @@ function debouncedSearch() {
   }, 300)
 }
 
-function handleTypeChange(type: string) {
+function _handleTypeChange(type: string) {
   selectedType.value = type
   page.value = 1
   fetchRules()
 }
 
-async function handleCreate() {
+async function _handleCreate() {
   if (!form.value.name || !form.value.content) return
   try {
     await createRule(form.value)
     showCreate.value = false
-    form.value = { name: '', description: '', rule_type: 'always', scope: 'project', content: '', triggers: [], priority: 0 }
-    showToast('规则已创建')
+    form.value = {
+      name: "",
+      description: "",
+      rule_type: "always",
+      scope: "project",
+      content: "",
+      triggers: [],
+      priority: 0,
+    }
+    showToast("规则已创建")
     await Promise.all([fetchRules(), fetchStats()])
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '创建失败')
+    showToast(e?.response?.data?.detail || "创建失败")
   }
 }
 
-async function handleEdit(rule: RuleItem) {
+async function _handleEdit(rule: RuleItem) {
   editRule.value = { ...rule }
 }
 
-async function saveEdit() {
+async function _saveEdit() {
   if (!editRule.value) return
   try {
     const { id, created_at, updated_at, ...rest } = editRule.value
     const payload: RuleUpdatePayload = { ...rest }
     await updateRule(id, payload)
     editRule.value = null
-    showToast('规则已更新')
+    showToast("规则已更新")
     await fetchRules()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '更新失败')
+    showToast(e?.response?.data?.detail || "更新失败")
   }
 }
 
-async function handleDelete(id: string) {
-  if (!confirm('确定删除此规则？')) return
+async function _handleDelete(id: string) {
+  if (!confirm("确定删除此规则？")) return
   try {
     await deleteRule(id)
-    showToast('规则已删除')
+    showToast("规则已删除")
     await Promise.all([fetchRules(), fetchStats()])
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '删除失败')
+    showToast(e?.response?.data?.detail || "删除失败")
   }
 }
 
-async function handleToggle(rule: RuleItem) {
+async function _handleToggle(rule: RuleItem) {
   try {
     await toggleRule(rule.id)
     rule.enabled = !rule.enabled
     fetchStats()
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-function addTrigger() {
+function _addTrigger() {
   const t = tagInput.value.trim()
   if (t && !form.value.triggers?.includes(t)) {
     form.value.triggers = [...(form.value.triggers || []), t]
-    tagInput.value = ''
+    tagInput.value = ""
   }
 }
-function removeTrigger(t: string) {
-  form.value.triggers = (form.value.triggers || []).filter(x => x !== t)
+function _removeTrigger(t: string) {
+  form.value.triggers = (form.value.triggers || []).filter((x) => x !== t)
 }
 
-function addEditTrigger() {
+function _addEditTrigger() {
   if (!editRule.value) return
   const t = tagInput.value.trim()
   if (t && !(editRule.value.triggers || []).includes(t)) {
     editRule.value.triggers = [...(editRule.value.triggers || []), t]
-    tagInput.value = ''
+    tagInput.value = ""
   }
 }
-function removeEditTrigger(t: string) {
+function _removeEditTrigger(t: string) {
   if (!editRule.value) return
-  editRule.value.triggers = (editRule.value.triggers || []).filter(x => x !== t)
+  editRule.value.triggers = (editRule.value.triggers || []).filter(
+    (x) => x !== t,
+  )
 }
 
 onMounted(() => {
   Promise.all([fetchRules(), fetchStats()])
 })
 
-const enabledCount = computed(() => rules.value.filter(r => r.enabled).length)
+const _enabledCount = computed(
+  () => rules.value.filter((r) => r.enabled).length,
+)
 </script>
 
 <template>

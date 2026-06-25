@@ -1,7 +1,7 @@
 /**
  * Integrations API — 第三方服务集成管理
  */
-import { apiClient } from './client'
+import { apiClient } from "./client"
 
 export interface IntegrationItem {
   id: string
@@ -41,7 +41,9 @@ export interface ConnectPayload {
 // ── API Functions ────────────────────────────────────────
 
 export async function listIntegrations(category?: string) {
-  return apiClient.get('/integrations', { params: category ? { category } : undefined })
+  return apiClient.get("/integrations", {
+    params: category ? { category } : undefined,
+  })
 }
 
 export async function getIntegration(id: string) {
@@ -49,10 +51,13 @@ export async function getIntegration(id: string) {
 }
 
 export async function createIntegration(payload: IntegrationCreatePayload) {
-  return apiClient.post('/integrations', payload)
+  return apiClient.post("/integrations", payload)
 }
 
-export async function updateIntegration(id: string, payload: IntegrationUpdatePayload) {
+export async function updateIntegration(
+  id: string,
+  payload: IntegrationUpdatePayload,
+) {
   return apiClient.put(`/integrations/${id}`, payload)
 }
 
@@ -69,5 +74,5 @@ export async function disconnectIntegration(id: string) {
 }
 
 export async function getIntegrationStats() {
-  return apiClient.get('/integrations/stats')
+  return apiClient.get("/integrations/stats")
 }

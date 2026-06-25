@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { analyticsApi, type AnalyticsOverview, type ModelStats, type TrendPoint } from '@/api/model-features'
-import { BarChart3, TrendingUp, Zap, DollarSign, Clock } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  type AnalyticsOverview,
+  analyticsApi,
+  type ModelStats,
+  type TrendPoint,
+} from "@/api/model-features"
 
-const period = ref(7); const loading = ref(false)
+const period = ref(7)
+const loading = ref(false)
 const overview = ref<AnalyticsOverview | null>(null)
 const modelStats = ref<ModelStats[]>([])
 const trends = ref<TrendPoint[]>([])
@@ -14,13 +19,20 @@ async function fetchAll() {
     const [ov, byM, tr] = await Promise.all([
       analyticsApi.overview(period.value),
       analyticsApi.byModel(period.value),
-      analyticsApi.trends(period.value, 'day'),
+      analyticsApi.trends(period.value, "day"),
     ])
-    overview.value = ov.data; modelStats.value = byM.data.models || []; trends.value = tr.data.trends || []
-  } finally { loading.value = false }
+    overview.value = ov.data
+    modelStats.value = byM.data.models || []
+    trends.value = tr.data.trends || []
+  } finally {
+    loading.value = false
+  }
 }
 
-function barWidth(calls: number) { const max = Math.max(...trends.value.map(t => t.calls), 1); return (calls / max) * 100 }
+function _barWidth(calls: number) {
+  const max = Math.max(...trends.value.map((t) => t.calls), 1)
+  return (calls / max) * 100
+}
 
 onMounted(fetchAll)
 </script>

@@ -30,43 +30,197 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
-import { useShortcuts, type CommandPaletteItem } from '@/composables/useShortcuts'
-import { usePlugins } from '@/composables/usePlugins'
-import { Search, Inbox, FilePlus, FolderOpen, Save, Undo2, Redo, Copy, ClipboardPaste, PanelLeftClose, PanelBottomClose, ZoomIn, ZoomOut, FileSearch, Terminal, MessageSquare, Settings, GitBranch, Code, Sparkles, Play, Square, Pause, ChevronsRight, ChevronRight, ChevronsLeft, SkipForward, CircleDot, Variable, Eye, Layers, Lightbulb, Wand2, TestTube2, Bug, Zap, FileText, Plus, Download, CheckCircle2, ArrowUpFromLine, ArrowDownToLine, GitBranchPlus, GitCommit, RotateCcw } from 'lucide-vue-next'
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Bug,
+  CheckCircle2,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  CircleDot,
+  ClipboardPaste,
+  Code,
+  Copy,
+  Download,
+  Eye,
+  FilePlus,
+  FileSearch,
+  FileText,
+  FolderOpen,
+  GitBranch,
+  GitBranchPlus,
+  GitCommit,
+  Layers,
+  Lightbulb,
+  MessageSquare,
+  PanelBottomClose,
+  PanelLeftClose,
+  Pause,
+  Play,
+  Plus,
+  Redo,
+  RotateCcw,
+  Save,
+  Search,
+  Settings,
+  SkipForward,
+  Sparkles,
+  Square,
+  Terminal,
+  TestTube2,
+  Undo2,
+  Variable,
+  Wand2,
+  Zap,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-vue-next"
+import { computed, nextTick, ref, watch } from "vue"
+import { usePlugins } from "@/composables/usePlugins"
+import {
+  type CommandPaletteItem,
+  useShortcuts,
+} from "@/composables/useShortcuts"
 
 const props = defineProps<{ visible: boolean }>()
-const emit = defineEmits<{ 'update:visible': [val: boolean]; 'execute': [cmdId: string] }>()
+const emit = defineEmits<{
+  "update:visible": [val: boolean]
+  execute: [cmdId: string]
+}>()
 const { getFiltered, getCategories } = useShortcuts()
 const { allCommands } = usePlugins()
-const q = ref(''), selectedIdx = ref(0), ac = ref<string | null>(null)
-const inputRef = ref<HTMLInputElement>(), panelRef = ref<HTMLDivElement>(), resultsRef = ref<HTMLDivElement>()
+let q = ref(""),
+  selectedIdx = ref(0),
+  ac = ref<string | null>(null)
+const inputRef = ref<HTMLInputElement>(),
+  _panelRef = ref<HTMLDivElement>(),
+  _resultsRef = ref<HTMLDivElement>()
 const irm = new Map<number, HTMLElement>()
 
-const cats = computed(() => ['全部', ...getCategories()])
+const _cats = computed(() => ["全部", ...getCategories()])
 const fr = computed<CommandPaletteItem[]>(() => {
   const sc = getFiltered(q.value, ac.value)
-  const pc: CommandPaletteItem[] = (allCommands.value||[]).map(c=>({id:c.id,title:c.title,category:c.category||'插件',key:'',icon:c.icon||'Puzzle',score:0,keywords:`${c.title} ${c.category}`.toLowerCase()}))
+  const pc: CommandPaletteItem[] = (allCommands.value || []).map((c) => ({
+    id: c.id,
+    title: c.title,
+    category: c.category || "插件",
+    key: "",
+    icon: c.icon || "Puzzle",
+    score: 0,
+    keywords: `${c.title} ${c.category}`.toLowerCase(),
+  }))
   let fp = pc
-  if (q.value) { const ql=q.value.toLowerCase(); fp=pc.filter(p=>p.keywords.includes(ql)).map(p=>({...p,score:p.keywords.includes(ql)?80:40})) }
-  return [...sc,...fp]
+  if (q.value) {
+    const ql = q.value.toLowerCase()
+    fp = pc
+      .filter((p) => p.keywords.includes(ql))
+      .map((p) => ({ ...p, score: p.keywords.includes(ql) ? 80 : 40 }))
+  }
+  return [...sc, ...fp]
 })
 
-function close() { emit('update:visible',false) }; function si() { selectedIdx.value=0 }
-function sn() { if(fr.value.length) { selectedIdx=(selectedIdx.value+1)%fr.value.length; ss() } }
-function sp() { if(fr.value.length) { selectedIdx=selectedIdx.value<=0?fr.value.length-1:selectedIdx.value-1; ss() } }
-function ex() { if(fr.value[selectedIdx.value]) exec(fr.value[selectedIdx.value]) }
-function exec(item:CommandPaletteItem) { emit('execute',item.id); close() }
-function ss() { nextTick(()=>{ const e=irm.get(selectedIdx.value); e?.scrollIntoView({block:'nearest',behavior:'smooth'}) }) }
-function ir(i:number, el:any) { el ? irm.set(i,el) : irm.delete(i) }
-
-function gi(icon?:string): any {
-  const m:{[k:string]:any}={FilePlus,FolderOpen,Save,Undo2,Redo,Copy,ClipboardPaste,PanelLeftClose,PanelBottomClose,ZoomIn,ZoomOut,FileSearch,Terminal,MessageSquare,Settings,GitBranch,Code,Sparkles,Play,Square,Pause,ChevronsRight,ChevronRight,ChevronsLeft,SkipForward,CircleDot,Variable,Eye,Layers,Lightbulb,Wand2,TestTube2,Bug,Zap,FileText,Plus,Download,CheckCircle2,ArrowUpFromLine,ArrowDownToLine,GitBranchPlus,GitCommit,RotateCcw}
-  return m[icon??'']||Search
+function close() {
+  emit("update:visible", false)
 }
-function fk(k:string): string { return k.replace(/Ctrl/g,'\u2318').replace(/Shift/g,'\u21E7').replace(/Alt/g,'\u2325') }
+function _si() {
+  selectedIdx.value = 0
+}
+function _sn() {
+  if (fr.value.length) {
+    selectedIdx = (selectedIdx.value + 1) % fr.value.length
+    ss()
+  }
+}
+function _sp() {
+  if (fr.value.length) {
+    selectedIdx =
+      selectedIdx.value <= 0 ? fr.value.length - 1 : selectedIdx.value - 1
+    ss()
+  }
+}
+function _ex() {
+  if (fr.value[selectedIdx.value]) exec(fr.value[selectedIdx.value])
+}
+function exec(item: CommandPaletteItem) {
+  emit("execute", item.id)
+  close()
+}
+function ss() {
+  nextTick(() => {
+    const e = irm.get(selectedIdx.value)
+    e?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+  })
+}
+function _ir(i: number, el: any) {
+  el ? irm.set(i, el) : irm.delete(i)
+}
 
-watch(() => props.visible, (val: boolean) => { if(val) { q.value = ''; selectedIdx.value = 0; nextTick(() => inputRef.value?.focus()) } })
+function _gi(icon?: string): any {
+  const m: { [k: string]: any } = {
+    FilePlus,
+    FolderOpen,
+    Save,
+    Undo2,
+    Redo,
+    Copy,
+    ClipboardPaste,
+    PanelLeftClose,
+    PanelBottomClose,
+    ZoomIn,
+    ZoomOut,
+    FileSearch,
+    Terminal,
+    MessageSquare,
+    Settings,
+    GitBranch,
+    Code,
+    Sparkles,
+    Play,
+    Square,
+    Pause,
+    ChevronsRight,
+    ChevronRight,
+    ChevronsLeft,
+    SkipForward,
+    CircleDot,
+    Variable,
+    Eye,
+    Layers,
+    Lightbulb,
+    Wand2,
+    TestTube2,
+    Bug,
+    Zap,
+    FileText,
+    Plus,
+    Download,
+    CheckCircle2,
+    ArrowUpFromLine,
+    ArrowDownToLine,
+    GitBranchPlus,
+    GitCommit,
+    RotateCcw,
+  }
+  return m[icon ?? ""] || Search
+}
+function _fk(k: string): string {
+  return k
+    .replace(/Ctrl/g, "\u2318")
+    .replace(/Shift/g, "\u21E7")
+    .replace(/Alt/g, "\u2325")
+}
+
+watch(
+  () => props.visible,
+  (val: boolean) => {
+    if (val) {
+      q.value = ""
+      selectedIdx.value = 0
+      nextTick(() => inputRef.value?.focus())
+    }
+  },
+)
 </script>
 
 <style scoped>.command-palette-enter-active,.command-palette-leave-active{transition:all .15s ease}.command-palette-enter-from,.command-palette-leave-to{opacity:0;transform:translateY(-10px)}</style>

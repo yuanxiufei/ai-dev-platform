@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { listKnowledgeBases, ragSearch, type KnowledgeBase, type RAGSearchResult } from '@/api/rag'
-import { BookOpen, Search, Database, Loader2, FileText } from 'lucide-vue-next'
+import { onMounted, ref } from "vue"
+import {
+  type KnowledgeBase,
+  listKnowledgeBases,
+  type RAGSearchResult,
+  ragSearch,
+} from "@/api/rag"
 
 const kbs = ref<KnowledgeBase[]>([])
 const loading = ref(true)
-const searchQuery = ref('')
+const searchQuery = ref("")
 const searchResults = ref<RAGSearchResult[]>([])
 const searching = ref(false)
 const selectedKb = ref<string | null>(null)
@@ -21,7 +25,7 @@ onMounted(async () => {
   }
 })
 
-const handleSearch = async () => {
+const _handleSearch = async () => {
   if (!searchQuery.value.trim() || searching.value) return
   searching.value = true
   try {
@@ -35,7 +39,7 @@ const handleSearch = async () => {
   }
 }
 
-const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
+const _formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 </script>
 
 <template>

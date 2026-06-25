@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient from "./client"
 
 /* ========== 图像生成 ========== */
 
@@ -44,17 +44,16 @@ export interface GenerateImagePayload {
 export const imageGenApi = {
   /** 获取可用引擎列表 */
   providers: () =>
-    apiClient.get<{ providers: string[] }>('/image-gen/providers'),
+    apiClient.get<{ providers: string[] }>("/image-gen/providers"),
 
   /** 单张/批量生成图像 */
   generate: (data: GenerateImagePayload) =>
-    apiClient.post<ImageGenResult>('/image-gen/generate', data),
+    apiClient.post<ImageGenResult>("/image-gen/generate", data),
 
   /** 批量 Prompt 生成 */
   batchGenerate: (data: {
     prompts: string[]
     size?: string
     engine?: string
-  }) =>
-    apiClient.post<BatchGenResult>('/image-gen/batch-generate', data),
+  }) => apiClient.post<BatchGenResult>("/image-gen/batch-generate", data),
 }

@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
 import {
-  Search, Loader2, ExternalLink, Download, CheckCircle, Store,
-  Package, Wrench, Globe, Database, FileCode, Bot, Server, Unlink2,
-  Settings2, X, RefreshCw, Plus, Trash2, FolderOpen,
-  Github, Archive, FolderGit2, Tag, Sparkles, Terminal, Webhook, Eye, EyeOff,
-} from 'lucide-vue-next'
+  Bot,
+  Database,
+  FileCode,
+  Globe,
+  Package,
+  Search,
+  Server,
+  Sparkles,
+  Terminal,
+  Webhook,
+  Wrench,
+} from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
 import {
-  getPluginRegistry, installPlugin, uninstallPlugin,
-  getInstalledPlugins, togglePlugin, getCategories,
-  getMarketplaceSources, addMarketplaceSource,
-  removeMarketplaceSource, toggleMarketplaceSource,
+  addMarketplaceSource,
+  getCategories,
+  getInstalledPlugins,
+  getMarketplaceSources,
   getMarketplaceStats,
-  type PluginRegistryItem, type MarketplaceSource, type MarketplaceStats,
-} from '@/api/plugin-marketplace'
+  getPluginRegistry,
+  installPlugin,
+  type MarketplaceSource,
+  type MarketplaceStats,
+  type PluginRegistryItem,
+  removeMarketplaceSource,
+  toggleMarketplaceSource,
+  togglePlugin,
+  uninstallPlugin,
+} from "@/api/plugin-marketplace"
 
 // ── 响应式状态 ──────────────────────────────────────────
 const plugins = ref<PluginRegistryItem[]>([])
@@ -23,22 +38,22 @@ const sources = ref<MarketplaceSource[]>([])
 const stats = ref<MarketplaceStats | null>(null)
 const loading = ref(false)
 const installing = ref<string | null>(null)
-const toastMsg = ref('')
+const toastMsg = ref("")
 const total = ref(0)
 const page = ref(1)
 const size = 20
 
-const activeTab = ref<'market' | 'installed'>('market')
-const search = ref('')
-const selectedCategory = ref('')
-const selectedType = ref('')
-const selectedSource = ref('')
-const showPluginDetail = ref<PluginRegistryItem | null>(null)
+const activeTab = ref<"market" | "installed">("market")
+const search = ref("")
+const selectedCategory = ref("")
+const selectedType = ref("")
+const selectedSource = ref("")
+const _showPluginDetail = ref<PluginRegistryItem | null>(null)
 const showAddSource = ref(false)
-const sourceType = ref<'github' | 'zip' | 'local'>('github')
-const sourceUrl = ref('')
-const sourceName = ref('')
-const sourceDesc = ref('')
+const sourceType = ref<"github" | "zip" | "local">("github")
+const sourceUrl = ref("")
+const sourceName = ref("")
+const sourceDesc = ref("")
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -48,60 +63,83 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null
 function showToast(msg: string) {
   toastMsg.value = msg
   if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = '' }, 3000)
+  toastTimer = setTimeout(() => {
+    toastMsg.value = ""
+  }, 3000)
 }
 
-const ratingStars = (r: number) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r))
+const _ratingStars = (r: number) =>
+  "★".repeat(Math.round(r)) + "☆".repeat(5 - Math.round(r))
 
-const formatCount = (n: number): string => {
+const _formatCount = (n: number): string => {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return `${n}`
 }
 
 // ── 类型标签配置 ────────────────────────────────────────
 
-const typeMeta: Record<string, { label: string; icon: any; cls: string }> = {
-  mcp: { label: 'MCP', icon: Server, cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  awp: { label: 'AWP', icon: Package, cls: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-  skill: { label: 'Skill', icon: Sparkles, cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  command: { label: '命令', icon: Terminal, cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  hook: { label: 'Hook', icon: Webhook, cls: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+const _typeMeta: Record<string, { label: string; icon: any; cls: string }> = {
+  mcp: {
+    label: "MCP",
+    icon: Server,
+    cls: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  },
+  awp: {
+    label: "AWP",
+    icon: Package,
+    cls: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  },
+  skill: {
+    label: "Skill",
+    icon: Sparkles,
+    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  },
+  command: {
+    label: "命令",
+    icon: Terminal,
+    cls: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  },
+  hook: {
+    label: "Hook",
+    icon: Webhook,
+    cls: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  },
 }
 
-const categoryMeta: Record<string, { label: string; icon: any }> = {
-  filesystem: { label: '文件系统', icon: FileCode },
-  devops: { label: 'DevOps', icon: Wrench },
-  database: { label: '数据库', icon: Database },
-  search: { label: '搜索', icon: Search },
-  browser: { label: '浏览器', icon: Globe },
-  'code-quality': { label: '代码质量', icon: Package },
-  generator: { label: '代码生成', icon: Bot },
-  translation: { label: '翻译', icon: Globe },
-  documentation: { label: '文档', icon: FileCode },
-  communication: { label: '通讯', icon: Globe },
-  design: { label: '设计', icon: Package },
-  ai: { label: 'AI 模型', icon: Bot },
-  agent: { label: 'Agent', icon: Bot },
+const _categoryMeta: Record<string, { label: string; icon: any }> = {
+  filesystem: { label: "文件系统", icon: FileCode },
+  devops: { label: "DevOps", icon: Wrench },
+  database: { label: "数据库", icon: Database },
+  search: { label: "搜索", icon: Search },
+  browser: { label: "浏览器", icon: Globe },
+  "code-quality": { label: "代码质量", icon: Package },
+  generator: { label: "代码生成", icon: Bot },
+  translation: { label: "翻译", icon: Globe },
+  documentation: { label: "文档", icon: FileCode },
+  communication: { label: "通讯", icon: Globe },
+  design: { label: "设计", icon: Package },
+  ai: { label: "AI 模型", icon: Bot },
+  agent: { label: "Agent", icon: Bot },
 }
 
-const typeFilterOptions = [
-  { value: '', label: '全部类型', icon: Package },
-  { value: 'mcp', label: 'MCP 服务器', icon: Server },
-  { value: 'awp', label: 'AWP 插件', icon: Package },
-  { value: 'skill', label: '技能指令', icon: Sparkles },
-  { value: 'command', label: '命令', icon: Terminal },
-  { value: 'hook', label: '钩子', icon: Webhook },
+const _typeFilterOptions = [
+  { value: "", label: "全部类型", icon: Package },
+  { value: "mcp", label: "MCP 服务器", icon: Server },
+  { value: "awp", label: "AWP 插件", icon: Package },
+  { value: "skill", label: "技能指令", icon: Sparkles },
+  { value: "command", label: "命令", icon: Terminal },
+  { value: "hook", label: "钩子", icon: Webhook },
 ]
 
 // ── 计算属性 ────────────────────────────────────────────
 
-const enabledSources = computed(() => sources.value.filter(s => s.enabled))
+const _enabledSources = computed(() => sources.value.filter((s) => s.enabled))
 
-const filteredSources = computed(() => sources.value)
+const _filteredSources = computed(() => sources.value)
 
-const installedCount = computed(() => installedPlugins.value.length)
+const _installedCount = computed(() => installedPlugins.value.length)
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
+const _totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
 
 // ── 数据获取 ────────────────────────────────────────────
 
@@ -120,7 +158,7 @@ async function fetchData() {
     total.value = res.total || 0
     if (!categories.value.length) categories.value = res.categories || []
   } catch {
-    showToast('无法加载插件市场')
+    showToast("无法加载插件市场")
   } finally {
     loading.value = false
   }
@@ -129,33 +167,43 @@ async function fetchData() {
 async function fetchCategories() {
   try {
     const res = await getCategories()
-    categories.value = res.categories?.map((c: any) => typeof c === 'string' ? c : c.name) || []
-  } catch { /* */ }
+    categories.value =
+      res.categories?.map((c: any) => (typeof c === "string" ? c : c.name)) ||
+      []
+  } catch {
+    /* */
+  }
 }
 
 async function fetchSources() {
   try {
     const res = await getMarketplaceSources()
     sources.value = res.sources || []
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
 async function fetchInstalled() {
   try {
     const result = await getInstalledPlugins()
     installedPlugins.value = Array.isArray(result) ? result : []
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
 async function fetchStats() {
   try {
     stats.value = await getMarketplaceStats()
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
 // ── 操作函数 ────────────────────────────────────────────
 
-async function handleInstall(plugin: PluginRegistryItem) {
+async function _handleInstall(plugin: PluginRegistryItem) {
   if (installing.value) return
   installing.value = plugin.name
   try {
@@ -166,13 +214,13 @@ async function handleInstall(plugin: PluginRegistryItem) {
     showToast(`${plugin.display_name} 安装成功`)
     fetchInstalled()
   } catch {
-    showToast('安装失败')
+    showToast("安装失败")
   } finally {
     installing.value = null
   }
 }
 
-async function handleUninstall(plugin: PluginRegistryItem) {
+async function _handleUninstall(plugin: PluginRegistryItem) {
   if (!confirm(`确定卸载 ${plugin.display_name}？`)) return
   installing.value = plugin.name
   try {
@@ -182,18 +230,24 @@ async function handleUninstall(plugin: PluginRegistryItem) {
     showToast(`${plugin.display_name} 已卸载`)
     fetchInstalled()
   } catch {
-    showToast('卸载失败')
+    showToast("卸载失败")
   } finally {
     installing.value = null
   }
 }
 
-async function handleToggle(plugin: PluginRegistryItem) {
+async function _handleToggle(plugin: PluginRegistryItem) {
   try {
     const res = await togglePlugin(plugin.name)
     plugin.installed_enabled = res.enabled
-    showToast(res.enabled ? `${plugin.display_name} 已启用` : `${plugin.display_name} 已禁用`)
-  } catch { /* */ }
+    showToast(
+      res.enabled
+        ? `${plugin.display_name} 已启用`
+        : `${plugin.display_name} 已禁用`,
+    )
+  } catch {
+    /* */
+  }
 }
 
 function handleSearch() {
@@ -204,15 +258,21 @@ function handleSearch() {
   }, 300)
 }
 
-function handleSourceSelect(sourceId: string) {
+function _handleSourceSelect(sourceId: string) {
   selectedSource.value = sourceId
   page.value = 1
   fetchData()
 }
 
-async function handleAddSource() {
-  if (!sourceName.value.trim()) { showToast('请输入市场源名称'); return }
-  if (!sourceUrl.value.trim() && sourceType.value !== 'local') { showToast('请输入市场源地址'); return }
+async function _handleAddSource() {
+  if (!sourceName.value.trim()) {
+    showToast("请输入市场源名称")
+    return
+  }
+  if (!sourceUrl.value.trim() && sourceType.value !== "local") {
+    showToast("请输入市场源地址")
+    return
+  }
   try {
     await addMarketplaceSource({
       name: sourceName.value.trim(),
@@ -221,41 +281,47 @@ async function handleAddSource() {
       description: sourceDesc.value.trim(),
     })
     showToast(`市场源「${sourceName.value}」已添加`)
-    sourceName.value = ''
-    sourceUrl.value = ''
-    sourceDesc.value = ''
-    sourceType.value = 'github'
+    sourceName.value = ""
+    sourceUrl.value = ""
+    sourceDesc.value = ""
+    sourceType.value = "github"
     showAddSource.value = false
     fetchSources()
   } catch {
-    showToast('添加失败')
+    showToast("添加失败")
   }
 }
 
-async function handleRemoveSource(source: MarketplaceSource) {
+async function _handleRemoveSource(source: MarketplaceSource) {
   if (!confirm(`确定删除市场源「${source.name}」？`)) return
   try {
     await removeMarketplaceSource(source.id)
     showToast(`市场源「${source.name}」已删除`)
     if (selectedSource.value === source.id) {
-      selectedSource.value = ''
+      selectedSource.value = ""
       fetchData()
     }
     fetchSources()
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-async function handleToggleSource(source: MarketplaceSource) {
+async function _handleToggleSource(source: MarketplaceSource) {
   try {
     const res = await toggleMarketplaceSource(source.id)
     source.enabled = res.enabled
-    showToast(res.enabled ? `已启用「${source.name}」` : `已禁用「${source.name}」`)
+    showToast(
+      res.enabled ? `已启用「${source.name}」` : `已禁用「${source.name}」`,
+    )
     fetchData()
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 }
 
-function onSearchKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter') {
+function _onSearchKeydown(e: KeyboardEvent) {
+  if (e.key === "Enter") {
     if (searchTimer) clearTimeout(searchTimer)
     page.value = 1
     fetchData()
@@ -276,12 +342,12 @@ onMounted(() => {
 
 // ── 样式辅助 ────────────────────────────────────────────
 
-function tabClass(tab: string) {
+function _tabClass(tab: string) {
   return [
-    'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+    "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
     activeTab === tab
-      ? 'bg-brand-500/10 text-brand-400'
-      : 'text-gray-500 hover:text-gray-300',
+      ? "bg-brand-500/10 text-brand-400"
+      : "text-gray-500 hover:text-gray-300",
   ]
 }
 </script>

@@ -9,19 +9,108 @@ const store = useIDEStore(), si = ref<HTMLInputElement|null>(null), rl = ref<HTM
 const query = computed({ get:()=>store.searchState.query, set:(v:string)=>store.searchState.query=v })
 const rq = computed({ get:()=>store.searchState.replaceQuery, set:(v:string)=>store.searchState.replaceQuery=v })
 
-async function doSearch(): Promise<void> {
-  if (!query.value.trim()) return; store.searchState.searching=true; store.searchState.results=[]
-  await new Promise(r=>setTimeout(r,400))
-  const files=['backend/app/core/mcp/__init__.py','studio-client/src/pages/MCPSettings.vue','backend/app/main.py','studio-client/src/api/agent.ts']
-  store.searchState.results=files.map((f,i)=>({file:f,line:10+i*3,column:1,lineText:`Found "${query.value}" match at ${10+i*3}`,matchLength:query.value.length,matches:[{start:10,end:10+query.value.length}]})).slice(0,3+Math.floor(Math.random()*3))
-  store.searchState.searching=false; store.searchState.currentResultIndex=store.searchState.results.length?0:-1; nextTick(()=>{if(rl.value)rl.value.scrollTop=0})
+let _isTauri: boolean | null = null
+function isTauri(): boolean {
+  if (_isTauri !== null) return _isTauri
+  try { _isTauri = !!(window as any).__TAURI_INTERNALS__; return !!_isTauri } catch { _isTauri = false; return false }
 }
-watch(query,()=>{})
-function onKD(e:KeyboardEvent): void { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSearch()} else if(e.key==='Escape') emit('close') }
-function goToPrev(): void { if(store.searchState.results.length) store.searchState.currentResultIndex=(store.searchState.currentResultIndex-1+store.searchState.results.length)%store.searchState.results.length }
-function goToNext(): void { if(store.searchState.results.length) store.searchState.currentResultIndex=(store.searchState.currentResultIndex+1)%store.searchState.results.length }
-function hl(lineText:string, matches:any[]):string {
-  if(!matches.length) return lineText; let r='',le=0; for(const m of matches){r+=lineText.slice(le,m.start);r+=`<mark class="bg-yellow-500/40 text-yellow-200 rounded px-0.5">${lineText.slice(m.start,m.end)}</mark>`;le=m.end} return r+lineText.slice(le)
+
+async function doSearch(): Promise<void> {
+  if (!query.value.trim()) return
+  store.searchState.searching = true
+  store.searchState.results = []
+
+  if (isTauri() && store.workspaceRoot) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      // Search files by name
+      const matchedFiles: string[] = await invoke('search_files', {
+        request: {
+          path: store.workspaceRoot,
+          pattern: query.value,
+          excludePatterns: ['node_modules', '.git', 'dist', '__pycache__', 'target'],
+          caseSensitive: store.searchState.caseSensitive,
+          maxResults: 100,
+        },
+      })
+      // Also search content within files
+      const contentResults: any[] = await invoke('search_in_file', {
+        request: {
+          path: store.workspaceRoot,
+          pattern: query.value,
+          excludePatterns: ['node_modules', '.git', 'dist', '__pycache__', 'target'],
+          caseSensitive: store.searchState.caseSensitive,
+          maxResults: 50,
+        },
+      })
+
+      // Merge results
+      const fileSet = new Set<string>()
+      const results: any[] = []
+
+      for (const f of matchedFiles.slice(0, 20)) {
+        if (!fileSet.has(f)) {
+          fileSet.add(f)
+          results.push({
+            file: f, line: 1, column: 1,
+            lineText: f.replace(store.workspaceRoot, ''),
+            matchLength: query.value.length,
+            matches: [{ start: 0, end: query.value.length }],
+          })
+        }
+      }
+
+      for (const r of contentResults) {
+        const key = `${r.file}:${r.line}`
+        if (!fileSet.has(key)) {
+          fileSet.add(key)
+          results.push({
+            file: r.file, line: r.line, column: r.column,
+            lineText: r.text,
+            matchLength: r.matchLength ?? query.value.length,
+            matches: [{ start: r.column - 1, end: r.column - 1 + (r.matchLength ?? query.value.length) }],
+          })
+        }
+        if (results.length >= 30) break
+      }
+
+      store.searchState.results = results.slice(0, 30)
+    } catch (e) {
+      console.warn('[Search] Tauri search failed:', e)
+    }
+  } else {
+    // Web fallback: basic mock
+    await new Promise(r => setTimeout(r, 300))
+    store.searchState.results = []
+  }
+
+  store.searchState.searching = false
+  store.searchState.currentResultIndex = store.searchState.results.length ? 0 : -1
+  nextTick(() => { if (rl.value) rl.value.scrollTop = 0 })
+}
+
+watch(query, () => {})
+function onKD(e: KeyboardEvent): void {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSearch() }
+  else if (e.key === 'Escape') emit('close')
+}
+function goToPrev(): void {
+  if (store.searchState.results.length)
+    store.searchState.currentResultIndex = (store.searchState.currentResultIndex - 1 + store.searchState.results.length) % store.searchState.results.length
+}
+function goToNext(): void {
+  if (store.searchState.results.length)
+    store.searchState.currentResultIndex = (store.searchState.currentResultIndex + 1) % store.searchState.results.length
+}
+function hl(lineText: string, matches: any[]): string {
+  if (!matches.length) return lineText
+  let r = '', le = 0
+  for (const m of matches) {
+    r += lineText.slice(le, m.start)
+    r += `<mark class="bg-yellow-500/40 text-yellow-200 rounded px-0.5">${lineText.slice(m.start, m.end)}</mark>`
+    le = m.end
+  }
+  return r + lineText.slice(le)
 }
 </script>
 
@@ -33,7 +122,7 @@ function hl(lineText:string, matches:any[]):string {
         <div class="mx-auto mt-16 w-[720px] max-w-[90vw] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl flex flex-col overflow-hidden relative z-10">
           <div class="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--color-ide-border)]">
             <Search :size="16" class="text-[var(--color-ide-text-dim)] shrink-0"/>
-            <input ref="si" v-model="query" type="text" placeholder="搜索" class="flex-1 bg-transparent outline-none text-[13px] text-[var(--color-ide-text)] placeholder:[var(--color-ide-text-dim)]" @keydown="onKD"/>
+            <input ref="si" v-model="query" type="text" placeholder="搜索文件内容..." class="flex-1 bg-transparent outline-none text-[13px] text-[var(--color-ide-text)] placeholder:[var(--color-ide-text-dim)]" @keydown="onKD"/>
             <button class="p-1 rounded hover:bg-white/5 transition-colors text-[var(--color-ide-text-dim)]" @click="emit('close')"><X :size="16"/></button>
           </div>
           <div class="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-ide-border)]">
@@ -48,14 +137,23 @@ function hl(lineText:string, matches:any[]):string {
                 class="flex items-start gap-2 px-3 py-2 border-b border-[var(--color-ide-border)]/50 cursor-pointer transition-colors hover:bg-[var(--color-ide-surface-hover)]"
                 :class="{ 'bg-[var(--color-ide-surface-active)]': idx === store.searchState.currentResultIndex }"
                 @click="store.openFile(result.file); emit('close')">
-                <div class="flex-1 min-w-0"><div class="flex items-center gap-1 text-[11px]"><span class="text-[var(--color-ide-text)] truncate">{{ result.file.split('/').pop() }}</span><ChevronRight :size="10" class="opacity-40"/><span class="text-[var(--color-ide-text-dim)]">{{ result.line }} 行</span></div>
-                  <div class="text-[11px] text-[var(--color-ide-text-dim)] truncate mt-0.5 font-mono" v-html="hl(result.lineText,result.matches)" /></div>
-                <span class="text-[10px] text-[var(--color-ide-text-dim)] bg-[var(--color-ide-bg)] px-1.5 py-0.5 rounded shrink-0">:{{ result.line }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1 text-[11px]">
+                    <span class="text-[var(--color-ide-text)] truncate">{{ result.file.split('/').pop() }}</span>
+                    <ChevronRight :size="10" class="opacity-40"/>
+                    <span class="text-[var(--color-ide-text-dim)] opacity-50 truncate">{{ result.file }}</span>
+                    <span class="text-[var(--color-ide-text-dim)] ml-auto shrink-0">{{ result.line }} 行</span>
+                  </div>
+                  <div class="text-[11px] text-[var(--color-ide-text-dim)] truncate mt-0.5 font-mono" v-html="hl(result.lineText,result.matches)" />
+                </div>
               </div>
             </div>
             <div v-else class="flex flex-col items-center justify-center py-12 text-[var(--color-ide-text-dim)] text-[12px]"><Search :size="24" class="mb-2 opacity-30"/><p>输入以开始搜索</p></div>
           </div>
-          <div v-if="store.searchState.results.length>0" class="px-3 py-1.5 border-t border-[var(--color-ide-border)] flex justify-between text-[10px] text-[var(--color-ide-text-dim)] bg-[var(--color-ide-bg)]/50"><span>{{ store.searchState.results.length }} 个文件中找到 {{ store.searchState.results.reduce((s,r)=>s+r.matches.length,0) }} 处匹配</span><div class="flex gap-1"><button class="px-2 py-0.5 rounded hover:bg-white/5" @click="goToPrev">↑</button><button class="px-2 py-0.5 rounded hover:bg-white/5" @click="goToNext">↓</button></div></div>
+          <div v-if="store.searchState.results.length>0" class="px-3 py-1.5 border-t border-[var(--color-ide-border)] flex justify-between text-[10px] text-[var(--color-ide-text-dim)] bg-[var(--color-ide-bg)]/50">
+            <span>{{ store.searchState.results.length }} 个结果</span>
+            <div class="flex gap-1"><button class="px-2 py-0.5 rounded hover:bg-white/5" @click="goToPrev">↑</button><button class="px-2 py-0.5 rounded hover:bg-white/5" @click="goToNext">↓</button></div>
+          </div>
         </div>
       </div>
     </Transition>

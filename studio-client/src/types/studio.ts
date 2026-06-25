@@ -2,7 +2,7 @@ export interface Project {
   id: string
   name: string
   description?: string
-  status: 'draft' | 'building' | 'deploying' | 'running' | 'failed'
+  status: "draft" | "building" | "deploying" | "running" | "failed"
   created_at: string
   updated_at?: string
 }
@@ -18,7 +18,7 @@ export interface Template {
 // Agent 对话消息
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant' | 'tool' | 'system'
+  role: "user" | "assistant" | "tool" | "system"
   content: string
   tool_calls?: ToolCallRecord[]
   metadata?: Record<string, unknown>
@@ -35,14 +35,14 @@ export interface ToolCallRecord {
 
 // SSE 事件类型
 export type SSEEventType =
-  | 'turn_start'
-  | 'tool_call'
-  | 'tool_executing'
-  | 'tool_result'
-  | 'diff'
-  | 'final_answer'
-  | 'error'
-  | 'done'
+  | "turn_start"
+  | "tool_call"
+  | "tool_executing"
+  | "tool_result"
+  | "diff"
+  | "final_answer"
+  | "error"
+  | "done"
 
 export interface SSEEvent {
   type: SSEEventType
@@ -67,7 +67,7 @@ export interface DiffData {
   file_path: string
   file_name: string
   language: string
-  change_type: 'CREATE' | 'MODIFY' | 'DELETE'
+  change_type: "CREATE" | "MODIFY" | "DELETE"
   is_new_file: boolean
   diff_text: string
   hunks: DiffHunk[]

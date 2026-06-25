@@ -1,14 +1,7 @@
 <script setup lang="ts" generic="TData">
 import type { ColumnDef } from "@tanstack/vue-table"
-import { FlexRender, getCoreRowModel, useVueTable } from "@tanstack/vue-table"
+import { getCoreRowModel, useVueTable } from "@tanstack/vue-table"
 import { computed, ref } from "vue"
-import Table from "@/components/ui/Table.vue"
-import TableHeader from "@/components/ui/TableHeader.vue"
-import TableRow from "@/components/ui/TableRow.vue"
-import TableHead from "@/components/ui/TableHead.vue"
-import TableBody from "@/components/ui/TableBody.vue"
-import TableCell from "@/components/ui/TableCell.vue"
-import Pagination from "@/components/ui/Pagination.vue"
 
 const props = defineProps<{
   data: TData[]
@@ -18,13 +11,13 @@ const props = defineProps<{
 
 const page = ref(1)
 const pageSize = ref(10)
-const pageSizeOptions = [5, 10, 25, 50]
+const _pageSizeOptions = [5, 10, 25, 50]
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(props.data.length / pageSize.value)),
 )
-const currentPageStart = computed(() => (page.value - 1) * pageSize.value + 1)
-const currentPageEnd = computed(() =>
+const _currentPageStart = computed(() => (page.value - 1) * pageSize.value + 1)
+const _currentPageEnd = computed(() =>
   Math.min(page.value * pageSize.value, props.data.length),
 )
 
@@ -33,7 +26,7 @@ const paginatedData = computed(() => {
   return props.data.slice(start, start + pageSize.value)
 })
 
-const table = useVueTable({
+const _table = useVueTable({
   get data() {
     return paginatedData.value
   },
@@ -43,7 +36,7 @@ const table = useVueTable({
   getCoreRowModel: getCoreRowModel(),
 })
 
-function onPageChange(newPage: number) {
+function _onPageChange(newPage: number) {
   page.value = Math.max(1, Math.min(newPage, totalPages.value))
 }
 </script>

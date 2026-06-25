@@ -1,46 +1,100 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { structuredOutputApi, type GBNFConvertResult, type ResponseFormatPreviewResult } from '@/api/model-features'
-import { Code, Braces } from 'lucide-vue-next'
+import { ref } from "vue"
+import {
+  type GBNFConvertResult,
+  type ResponseFormatPreviewResult,
+  structuredOutputApi,
+} from "@/api/model-features"
 
-const schemaText = ref('')
+const schemaText = ref("")
 const convertResult = ref<GBNFConvertResult | null>(null)
 const converting = ref(false)
-const error = ref('')
+const error = ref("")
 
-const previewSchema = ref('{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}}}')
-const previewProvider = ref('openai')
+const previewSchema = ref(
+  '{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}}}',
+)
+const previewProvider = ref("openai")
 const previewResult = ref<ResponseFormatPreviewResult | null>(null)
 const previewing = ref(false)
 
-const tab = ref<'convert' | 'preview'>('convert')
+const _tab = ref<"convert" | "preview">("convert")
 
 const sampleSchemas = [
-  { label: '用户对象', json: { type: 'object', properties: { name: { type: 'string' }, email: { type: 'string' }, age: { type: 'integer' } }, required: ['name', 'email'] } },
-  { label: '产品列表', json: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, title: { type: 'string' }, price: { type: 'number' } } } } },
-  { label: '工具调用', json: { type: 'object', properties: { name: { type: 'string' }, arguments: { type: 'object' } }, required: ['name', 'arguments'] } },
+  {
+    label: "用户对象",
+    json: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        email: { type: "string" },
+        age: { type: "integer" },
+      },
+      required: ["name", "email"],
+    },
+  },
+  {
+    label: "产品列表",
+    json: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "integer" },
+          title: { type: "string" },
+          price: { type: "number" },
+        },
+      },
+    },
+  },
+  {
+    label: "工具调用",
+    json: {
+      type: "object",
+      properties: { name: { type: "string" }, arguments: { type: "object" } },
+      required: ["name", "arguments"],
+    },
+  },
 ]
 
-async function doConvert() {
+async function _doConvert() {
   if (!schemaText.value.trim()) return
-  converting.value = true; error.value = ''
+  converting.value = true
+  error.value = ""
   try {
-    convertResult.value = (await structuredOutputApi.schemaToGbnf(JSON.parse(schemaText.value))).data
-  } catch (e: any) { error.value = e?.message || '转换失败' }
-  finally { converting.value = false }
+    convertResult.value = (
+      await structuredOutputApi.schemaToGbnf(JSON.parse(schemaText.value))
+    ).data
+  } catch (e: any) {
+    error.value = e?.message || "转换失败"
+  } finally {
+    converting.value = false
+  }
 }
 
-function loadSample(s: typeof sampleSchemas[0]) {
-  schemaText.value = JSON.stringify(s.json, null, 2); error.value = ''; convertResult.value = null
+function _loadSample(s: (typeof sampleSchemas)[0]) {
+  schemaText.value = JSON.stringify(s.json, null, 2)
+  error.value = ""
+  convertResult.value = null
 }
 
-async function doPreview() {
+async function _doPreview() {
   previewing.value = true
   try {
     const schema = JSON.parse(previewSchema.value)
-    previewResult.value = (await structuredOutputApi.previewResponseFormat({ type: 'json_schema', json_schema: { name: 'response', schema, strict: true } }, previewProvider.value)).data
-  } catch {}
-  finally { previewing.value = false }
+    previewResult.value = (
+      await structuredOutputApi.previewResponseFormat(
+        {
+          type: "json_schema",
+          json_schema: { name: "response", schema, strict: true },
+        },
+        previewProvider.value,
+      )
+    ).data
+  } catch {
+  } finally {
+    previewing.value = false
+  }
 }
 </script>
 

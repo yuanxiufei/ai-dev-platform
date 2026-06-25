@@ -8,7 +8,7 @@ pub struct TerminalSession {
     pub cwd: String,
 }
 
-pub fn init(app: &AppHandle) -> Result<()> {
+pub fn init(app: &AppHandle) -> anyhow::Result<()> {
     log::info!("Terminal manager initialized");
     Ok(())
 }

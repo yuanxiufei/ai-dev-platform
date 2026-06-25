@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { kgApi, type GraphNode, type GraphEdge, type BacklinkItem } from '@/api/model-features'
-import { GitGraph, Search, RefreshCw } from 'lucide-vue-next'
+import { computed, onMounted, ref } from "vue"
+import {
+  type BacklinkItem,
+  type GraphEdge,
+  type GraphNode,
+  kgApi,
+} from "@/api/model-features"
 
-const viewMode = ref<'graph' | 'backlinks' | 'parse' | 'stats'>('graph')
-const graphData = ref<{ nodes: GraphNode[]; edges: GraphEdge[]; node_count: number; edge_count: number }>({ nodes: [], edges: [], node_count: 0, edge_count: 0 })
+const _viewMode = ref<"graph" | "backlinks" | "parse" | "stats">("graph")
+const graphData = ref<{
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  node_count: number
+  edge_count: number
+}>({ nodes: [], edges: [], node_count: 0, edge_count: 0 })
 const backlinks = ref<BacklinkItem[]>([])
 const stats = ref<any>(null)
-const parseKey = ref('')
+const parseKey = ref("")
 const parseResult = ref<any>(null)
 
 async function refreshAll() {
@@ -23,40 +32,66 @@ async function refreshAll() {
   } catch {}
 }
 
-async function doParse() {
+async function _doParse() {
   if (!parseKey.value) return
-  try { parseResult.value = (await kgApi.parse(parseKey.value)).data }
-  catch { parseResult.value = null }
+  try {
+    parseResult.value = (await kgApi.parse(parseKey.value)).data
+  } catch {
+    parseResult.value = null
+  }
 }
 
-const graphLayout = computed(() => {
+const _graphLayout = computed(() => {
   const nodes = graphData.value.nodes || []
   const edges = graphData.value.edges || []
   const cols = Math.ceil(Math.sqrt(nodes.length)) || 3
-  const cellW = 160; const cellH = 70; const gap = 30
+  const cellW = 160
+  const cellH = 70
+  const gap = 30
   const nodeMap: Record<string, number> = {}
-  const ln = nodes.map((n, i) => { nodeMap[n.id] = i; return { ...n, x: (i % cols) * (cellW + gap) + gap, y: Math.floor(i / cols) * (cellH + gap) + gap, w: cellW, h: cellH } })
-  const le = edges.map(e => ({
-    x1: nodeMap[e.from] !== undefined ? (nodeMap[e.from] % cols) * (cellW + gap) + gap + cellW : 0,
-    y1: nodeMap[e.from] !== undefined ? Math.floor(nodeMap[e.from] / cols) * (cellH + gap) + gap + cellH / 2 : 0,
-    x2: nodeMap[e.to] !== undefined ? (nodeMap[e.to] % cols) * (cellW + gap) + gap : 0,
-    y2: nodeMap[e.to] !== undefined ? Math.floor(nodeMap[e.to] / cols) * (cellH + gap) + gap + cellH / 2 : 0,
+  const ln = nodes.map((n, i) => {
+    nodeMap[n.id] = i
+    return {
+      ...n,
+      x: (i % cols) * (cellW + gap) + gap,
+      y: Math.floor(i / cols) * (cellH + gap) + gap,
+      w: cellW,
+      h: cellH,
+    }
+  })
+  const le = edges.map((e) => ({
+    x1:
+      nodeMap[e.from] !== undefined
+        ? (nodeMap[e.from] % cols) * (cellW + gap) + gap + cellW
+        : 0,
+    y1:
+      nodeMap[e.from] !== undefined
+        ? Math.floor(nodeMap[e.from] / cols) * (cellH + gap) + gap + cellH / 2
+        : 0,
+    x2:
+      nodeMap[e.to] !== undefined
+        ? (nodeMap[e.to] % cols) * (cellW + gap) + gap
+        : 0,
+    y2:
+      nodeMap[e.to] !== undefined
+        ? Math.floor(nodeMap[e.to] / cols) * (cellH + gap) + gap + cellH / 2
+        : 0,
   }))
   return { nodes: ln, edges: le }
 })
 
-const svgViewBox = computed(() => {
+const _svgViewBox = computed(() => {
   const n = graphData.value.nodes?.length || 1
   const cols = Math.ceil(Math.sqrt(n)) || 1
   const rows = Math.ceil(n / cols) || 1
   return `0 0 ${cols * 190 + 30} ${rows * 100 + 30}`
 })
 
-function nodeColor(importance: number) {
-  if (importance >= 0.8) return '#E74C3C'
-  if (importance >= 0.5) return '#E67E22'
-  if (importance >= 0.3) return '#3498DB'
-  return '#2ECC71'
+function _nodeColor(importance: number) {
+  if (importance >= 0.8) return "#E74C3C"
+  if (importance >= 0.5) return "#E67E22"
+  if (importance >= 0.3) return "#3498DB"
+  return "#2ECC71"
 }
 
 onMounted(refreshAll)

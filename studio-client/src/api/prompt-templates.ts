@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient from "./client"
 
 /* ========== Prompt 模板 ========== */
 
@@ -52,29 +52,26 @@ export const promptTemplateApi = {
   /** 列出所有模板 */
   list: (category?: string, search?: string) =>
     apiClient.get<{ templates: PromptTemplateData[]; count: number }>(
-      '/prompt-templates',
+      "/prompt-templates",
       { params: { category, search } },
     ),
 
   /** 获取分类列表 */
   categories: () =>
     apiClient.get<{ categories: { name: string; count: number }[] }>(
-      '/prompt-templates/categories',
+      "/prompt-templates/categories",
     ),
 
   /** 搜索斜杠命令 */
   search: (q: string) =>
     apiClient.get<{ commands: CommandSearchResult[] }>(
-      '/prompt-templates/search',
+      "/prompt-templates/search",
       { params: { q } },
     ),
 
   /** 创建模板 */
   create: (data: TemplateCreatePayload) =>
-    apiClient.post<{ template: PromptTemplateData }>(
-      '/prompt-templates',
-      data,
-    ),
+    apiClient.post<{ template: PromptTemplateData }>("/prompt-templates", data),
 
   /** 获取单个模板 */
   get: (id: string) =>

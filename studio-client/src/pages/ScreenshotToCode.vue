@@ -1,43 +1,33 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { screenshotToCode, type ScreenshotCodeResult } from '@/api/screenshot-code'
+import { computed, ref } from "vue"
 import {
-  Upload,
-  Image,
-  RefreshCw,
-  Copy,
-  Download,
-  Code2,
-  Trash2,
-  Plus,
-  Check,
-  X,
-  Sparkles,
-} from 'lucide-vue-next'
+  type ScreenshotCodeResult,
+  screenshotToCode,
+} from "@/api/screenshot-code"
 
 // 截图相关
 const screenshots = ref<string[]>([]) // base64 数组
-const prompt = ref('')
-const framework = ref('auto')
+const prompt = ref("")
+const framework = ref("auto")
 
 // 结果
 const generating = ref(false)
 const result = ref<ScreenshotCodeResult | null>(null)
-const error = ref('')
+const error = ref("")
 
 // 文件输入 ref
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const _fileInputRef = ref<HTMLInputElement | null>(null)
 
 // 拖拽/粘贴
 const isDragging = ref(false)
 
 const frameworks = [
-  { value: 'auto', label: '自动检测' },
-  { value: 'vue3', label: 'Vue 3 + TypeScript' },
-  { value: 'react', label: 'React + TypeScript' },
-  { value: 'html', label: 'HTML + Tailwind CSS' },
-  { value: 'miniapp', label: '微信小程序' },
-  { value: 'flutter', label: 'Flutter' },
+  { value: "auto", label: "自动检测" },
+  { value: "vue3", label: "Vue 3 + TypeScript" },
+  { value: "react", label: "React + TypeScript" },
+  { value: "html", label: "HTML + Tailwind CSS" },
+  { value: "miniapp", label: "微信小程序" },
+  { value: "flutter", label: "Flutter" },
 ]
 
 // 提取代码块
@@ -49,27 +39,27 @@ const codeBlocks = computed(() => {
   let match
   while ((match = regex.exec(content)) !== null) {
     blocks.push({
-      language: match[1] || 'text',
+      language: match[1] || "text",
       code: match[2].trim(),
     })
   }
   if (blocks.length === 0) {
-    blocks.push({ language: 'text', code: content })
+    blocks.push({ language: "text", code: content })
   }
   return blocks
 })
 
-const hasCode = computed(() => codeBlocks.value.length > 0)
+const _hasCode = computed(() => codeBlocks.value.length > 0)
 
 // 文件处理
-function handleFileSelect(e: Event) {
+function _handleFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files) return
   processFiles(input.files)
-  input.value = ''
+  input.value = ""
 }
 
-function handleDrop(e: DragEvent) {
+function _handleDrop(e: DragEvent) {
   isDragging.value = false
   if (!e.dataTransfer?.files) return
   processFiles(e.dataTransfer.files)
@@ -77,10 +67,10 @@ function handleDrop(e: DragEvent) {
 
 function processFiles(files: FileList) {
   for (const file of Array.from(files)) {
-    if (!file.type.startsWith('image/')) continue
+    if (!file.type.startsWith("image/")) continue
     const reader = new FileReader()
     reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1]
+      const base64 = (reader.result as string).split(",")[1]
       // 去重
       if (!screenshots.value.includes(base64)) {
         screenshots.value.push(base64)
@@ -91,16 +81,16 @@ function processFiles(files: FileList) {
 }
 
 // 粘贴截图
-function handlePaste(e: ClipboardEvent) {
+function _handlePaste(e: ClipboardEvent) {
   const items = e.clipboardData?.items
   if (!items) return
   for (const item of Array.from(items)) {
-    if (!item.type.startsWith('image/')) continue
+    if (!item.type.startsWith("image/")) continue
     const blob = item.getAsFile()
     if (!blob) continue
     const reader = new FileReader()
     reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1]
+      const base64 = (reader.result as string).split(",")[1]
       if (!screenshots.value.includes(base64)) {
         screenshots.value.push(base64)
       }
@@ -109,54 +99,53 @@ function handlePaste(e: ClipboardEvent) {
   }
 }
 
-function removeScreenshot(index: number) {
+function _removeScreenshot(index: number) {
   screenshots.value.splice(index, 1)
 }
 
 // 生成代码
-async function doGenerate() {
+async function _doGenerate() {
   if (screenshots.value.length === 0) return
   generating.value = true
-  error.value = ''
+  error.value = ""
   result.value = null
 
-  let fullPrompt = prompt.value || '请将这张UI截图转换为前端代码'
-  if (framework.value !== 'auto') {
-    fullPrompt += `，使用${frameworks.find(f => f.value === framework.value)?.label || framework.value}框架`
+  let fullPrompt = prompt.value || "请将这张UI截图转换为前端代码"
+  if (framework.value !== "auto") {
+    fullPrompt += `，使用${frameworks.find((f) => f.value === framework.value)?.label || framework.value}框架`
   }
 
   try {
-    result.value = (
-      await screenshotToCode(screenshots.value, fullPrompt)
-    ).data as ScreenshotCodeResult
+    result.value = (await screenshotToCode(screenshots.value, fullPrompt))
+      .data as ScreenshotCodeResult
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || '生成失败，请稍后重试'
+    error.value = e?.response?.data?.detail || "生成失败，请稍后重试"
   } finally {
     generating.value = false
   }
 }
 
 // 复制代码
-function copyCode(text: string) {
+function _copyCode(text: string) {
   navigator.clipboard.writeText(text)
 }
 
 // 下载代码
-function downloadCode(language: string, code: string) {
+function _downloadCode(language: string, code: string) {
   const extMap: Record<string, string> = {
-    vue: '.vue',
-    typescript: '.ts',
-    tsx: '.tsx',
-    javascript: '.js',
-    jsx: '.jsx',
-    html: '.html',
-    css: '.css',
-    dart: '.dart',
-    python: '.py',
+    vue: ".vue",
+    typescript: ".ts",
+    tsx: ".tsx",
+    javascript: ".js",
+    jsx: ".jsx",
+    html: ".html",
+    css: ".css",
+    dart: ".dart",
+    python: ".py",
   }
-  const ext = extMap[language] || '.txt'
-  const blob = new Blob([code], { type: 'text/plain' })
-  const a = document.createElement('a')
+  const ext = extMap[language] || ".txt"
+  const blob = new Blob([code], { type: "text/plain" })
+  const a = document.createElement("a")
   a.href = URL.createObjectURL(blob)
   a.download = `generated-${Date.now()}${ext}`
   a.click()

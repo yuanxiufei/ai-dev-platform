@@ -1,30 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
 import {
-  listAgents, createAgent, updateAgent, deleteAgent, toggleAgent, cloneAgent,
+  Edit3,
+  FileText,
+  Globe,
+  Sparkles,
+  Terminal,
+  Wrench,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import {
+  type AgentCreatePayload,
+  type AgentItem,
+  type AgentUpdatePayload,
+  cloneAgent,
+  createAgent,
+  deleteAgent,
   getToolsMetadata,
-  type AgentItem, type AgentCreatePayload, type AgentUpdatePayload,
-  type ToolCategory, type MCPStatus,
-} from '@/api/agents-mgmt'
-import {
-  ArrowRightLeft, Bot, Brain, ChevronDown,
-  Copy, Cpu, Edit3, FileText, FolderGit2,
-  Globe, Loader2, Pause, Play, Plus,
-  Search, Sparkles, Terminal, Trash2,
-  Unplug, Users, Wrench, X, Zap,
-} from 'lucide-vue-next'
-import ToggleSwitch from '@/components/ToggleSwitch.vue'
+  listAgents,
+  type MCPStatus,
+  type ToolCategory,
+  toggleAgent,
+  updateAgent,
+} from "@/api/agents-mgmt"
 
 // ── Tab state ──────────────────────────────────────────
-type TabScope = 'user' | 'project'
-const activeTab = ref<TabScope>('user')
+type TabScope = "user" | "project"
+const activeTab = ref<TabScope>("user")
 
 const agents = ref<AgentItem[]>([])
 const loading = ref(true)
-const toast = ref('')
+const toast = ref("")
 
 // 筛选模式下拉
-const filterMode = ref('')
+const filterMode = ref("")
 
 // ── Tools Metadata ─────────────────────────────────────
 const toolCategories = ref<ToolCategory[]>([])
@@ -34,44 +42,46 @@ const toolsMetaLoaded = ref(false)
 // ── Dialog state ───────────────────────────────────────
 const showCreate = ref(false)
 const editAgent = ref<AgentItem | null>(null)
-const expandedAgent = ref<string | null>(null)
+const _expandedAgent = ref<string | null>(null)
 
 // ── Available Models ───────────────────────────────────
 const availableModels = [
-  { value: 'auto', label: 'Auto (自动选择)', provider: '系统' },
-  { value: 'openai-gpt4o', label: 'GPT-4o', provider: 'OpenAI' },
-  { value: 'openai-o3', label: 'o3', provider: 'OpenAI' },
-  { value: 'claude-sonnet', label: 'Claude Sonnet 4', provider: 'Anthropic' },
-  { value: 'deepseek-v3', label: 'DeepSeek-V3', provider: 'DeepSeek' },
-  { value: 'qwen25-coder-7b', label: 'Qwen2.5-Coder-7B', provider: '本地' },
-  { value: 'gemma-31b', label: 'Gemma-3-1B', provider: '本地' },
+  { value: "auto", label: "Auto (自动选择)", provider: "系统" },
+  { value: "openai-gpt4o", label: "GPT-4o", provider: "OpenAI" },
+  { value: "openai-o3", label: "o3", provider: "OpenAI" },
+  { value: "claude-sonnet", label: "Claude Sonnet 4", provider: "Anthropic" },
+  { value: "deepseek-v3", label: "DeepSeek-V3", provider: "DeepSeek" },
+  { value: "qwen25-coder-7b", label: "Qwen2.5-Coder-7B", provider: "本地" },
+  { value: "gemma-31b", label: "Gemma-3-1B", provider: "本地" },
 ]
 
 // ── 搜索 ───────────────────────────────────────────────
-const searchQuery = ref('')
+const searchQuery = ref("")
 
 // ── 表单 ───────────────────────────────────────────────
-function defaultForm(): AgentCreatePayload & { tool_cats_map?: Record<string, boolean> } {
+function defaultForm(): AgentCreatePayload & {
+  tool_cats_map?: Record<string, boolean>
+} {
   return {
-    name: '',
-    description: '',
-    mode: 'craft',
-    agentic_mode: 'agentic',
-    model: 'auto',
-    system_prompt: '',
-    tools: ['code-search', 'filesystem-read'],
-    tool_categories: ['read', 'edit', 'execute'],
+    name: "",
+    description: "",
+    mode: "craft",
+    agentic_mode: "agentic",
+    model: "auto",
+    system_prompt: "",
+    tools: ["code-search", "filesystem-read"],
+    tool_categories: ["read", "edit", "execute"],
     mcp_servers: [],
     auto_run: true,
     enabled: true,
-    scope: 'user',
+    scope: "user",
   }
 }
 const form = ref<ReturnType<typeof defaultForm>>(defaultForm())
 
 const formExpandedCategories = ref<Record<string, boolean>>({})
 
-function toggleFormCategory(catId: string) {
+function _toggleFormCategory(catId: string) {
   if (!form.value.tool_categories) form.value.tool_categories = []
   const idx = form.value.tool_categories.indexOf(catId)
   if (idx === -1) {
@@ -82,19 +92,20 @@ function toggleFormCategory(catId: string) {
   }
 }
 
-function toggleFormTool(toolId: string) {
+function _toggleFormTool(toolId: string) {
   if (!form.value.tools) form.value.tools = []
   const idx = form.value.tools.indexOf(toolId)
   if (idx === -1) form.value.tools.push(toolId)
   else form.value.tools.splice(idx, 1)
 }
 
-function isCatExpanded(catId: string) {
-  if (catId in formExpandedCategories.value) return formExpandedCategories.value[catId]
+function _isCatExpanded(catId: string) {
+  if (catId in formExpandedCategories.value)
+    return formExpandedCategories.value[catId]
   return false
 }
 
-function isFormToolEnabled(toolId: string): boolean {
+function _isFormToolEnabled(toolId: string): boolean {
   return (form.value.tools || []).includes(toolId)
 }
 
@@ -102,11 +113,11 @@ function mcpToolId(server: string, toolName: string) {
   return `mcp:${server}:${toolName}`
 }
 
-function isMcpToolEnabled(server: string, toolName: string): boolean {
+function _isMcpToolEnabled(server: string, toolName: string): boolean {
   return (form.value.mcp_servers || []).includes(mcpToolId(server, toolName))
 }
 
-function toggleMcpTool(server: string, toolName: string) {
+function _toggleMcpTool(server: string, toolName: string) {
   if (!form.value.mcp_servers) form.value.mcp_servers = []
   const id = mcpToolId(server, toolName)
   const idx = form.value.mcp_servers.indexOf(id)
@@ -115,23 +126,29 @@ function toggleMcpTool(server: string, toolName: string) {
 }
 
 // ── Computed ───────────────────────────────────────────
-const filteredAgents = computed(() => {
-  let list = agents.value.filter(a => a.scope === activeTab.value)
+const _filteredAgents = computed(() => {
+  let list = agents.value.filter((a) => a.scope === activeTab.value)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter(a =>
-      a.name.toLowerCase().includes(q) ||
-      (a.description || '').toLowerCase().includes(q),
+    list = list.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        (a.description || "").toLowerCase().includes(q),
     )
   }
   if (filterMode.value) {
-    list = list.filter(a => a.mode === filterMode.value)
+    list = list.filter((a) => a.mode === filterMode.value)
   }
   return list
 })
 
-const catIconMap: Record<string, any> = {
-  FileText, Edit3, Terminal, Globe, Sparkles, Wrench,
+const _catIconMap: Record<string, any> = {
+  FileText,
+  Edit3,
+  Terminal,
+  Globe,
+  Sparkles,
+  Wrench,
 }
 
 // ── 生命周期 ───────────────────────────────────────────
@@ -144,8 +161,11 @@ async function fetchAgents() {
   try {
     const res = await listAgents()
     agents.value = res.data?.data || []
-  } catch { /* */ }
-  finally { loading.value = false }
+  } catch {
+    /* */
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchToolsMetadata() {
@@ -153,7 +173,11 @@ async function fetchToolsMetadata() {
     const res = await getToolsMetadata()
     if (res.data) {
       toolCategories.value = res.data.categories || []
-      mcpStatus.value = res.data.mcp || { connected: false, servers: [], tools: [] }
+      mcpStatus.value = res.data.mcp || {
+        connected: false,
+        servers: [],
+        tools: [],
+      }
     }
     toolsMetaLoaded.value = true
   } catch {
@@ -164,79 +188,83 @@ async function fetchToolsMetadata() {
 // ── Toast ──────────────────────────────────────────────
 function showToast(msg: string) {
   toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+  setTimeout(() => {
+    toast.value = ""
+  }, 3000)
 }
 
 // ── CRUD Handlers ──────────────────────────────────────
-async function handleCreate() {
+async function _handleCreate() {
   if (!form.value.name || !form.value.system_prompt) return
   try {
     await createAgent({ ...form.value, scope: activeTab.value })
     showCreate.value = false
     form.value = defaultForm()
     formExpandedCategories.value = {}
-    showToast('Agent 已创建')
+    showToast("Agent 已创建")
     await fetchAgents()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '创建失败')
+    showToast(e?.response?.data?.detail || "创建失败")
   }
 }
 
-async function saveEdit() {
+async function _saveEdit() {
   if (!editAgent.value) return
   try {
     const { id, created_at, updated_at, ...rest } = editAgent.value
     const payload: AgentUpdatePayload = { ...rest }
     await updateAgent(id, payload)
     editAgent.value = null
-    showToast('Agent 已更新')
+    showToast("Agent 已更新")
     await fetchAgents()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '更新失败')
+    showToast(e?.response?.data?.detail || "更新失败")
   }
 }
 
-async function handleDelete(id: string) {
-  if (!confirm('确定删除此 Agent？')) return
+async function _handleDelete(id: string) {
+  if (!confirm("确定删除此 Agent？")) return
   try {
     await deleteAgent(id)
-    showToast('Agent 已删除')
+    showToast("Agent 已删除")
     await fetchAgents()
   } catch (e: any) {
-    showToast(e?.response?.data?.detail || '删除失败')
+    showToast(e?.response?.data?.detail || "删除失败")
   }
 }
 
-async function handleToggle(agent: AgentItem) {
+async function _handleToggle(agent: AgentItem) {
   try {
     await toggleAgent(agent.id)
     agent.enabled = !agent.enabled
-  } catch { /* */ }
-}
-
-async function handleClone(agent: AgentItem) {
-  try {
-    await cloneAgent(agent.id)
-    showToast('Agent 已克隆')
-    await fetchAgents()
-  } catch (e: any) {
-    showToast(e?.response?.data?.detail || '克隆失败')
+  } catch {
+    /* */
   }
 }
 
-function startEdit(agent: AgentItem) {
+async function _handleClone(agent: AgentItem) {
+  try {
+    await cloneAgent(agent.id)
+    showToast("Agent 已克隆")
+    await fetchAgents()
+  } catch (e: any) {
+    showToast(e?.response?.data?.detail || "克隆失败")
+  }
+}
+
+function _startEdit(agent: AgentItem) {
   editAgent.value = { ...agent }
 }
 
-function getModelLabel(modelVal: string) {
-  return availableModels.find(m => m.value === modelVal)?.label || modelVal
+function _getModelLabel(modelVal: string) {
+  return availableModels.find((m) => m.value === modelVal)?.label || modelVal
 }
-function getModelProvider(modelVal: string) {
-  return availableModels.find(m => m.value === modelVal)?.provider || '系统'
+function _getModelProvider(modelVal: string) {
+  return availableModels.find((m) => m.value === modelVal)?.provider || "系统"
 }
 
 // 编辑表单中工具的处理（复用 form 的函数逻辑）
-function editToggleCategory(catId: string) {
+function _editToggleCategory(catId: string) {
   if (!editAgent.value) return
   const cats = editAgent.value.tool_categories || []
   const idx = cats.indexOf(catId)
@@ -245,7 +273,7 @@ function editToggleCategory(catId: string) {
   editAgent.value.tool_categories = [...cats]
 }
 
-function editToggleTool(toolId: string) {
+function _editToggleTool(toolId: string) {
   if (!editAgent.value) return
   const tools = editAgent.value.tools || []
   const idx = tools.indexOf(toolId)
@@ -254,7 +282,7 @@ function editToggleTool(toolId: string) {
   editAgent.value.tools = [...tools]
 }
 
-function editIsToolEnabled(toolId: string): boolean {
+function _editIsToolEnabled(toolId: string): boolean {
   return (editAgent.value?.tools || []).includes(toolId)
 }
 </script>
