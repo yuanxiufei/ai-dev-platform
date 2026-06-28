@@ -11,6 +11,12 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.standalone
+.env.prod
+.env.staging
+
+# DDNS config (contains cloud credentials)
+standalone-tools/ddns/aliddns_config.json
 
 # Python
 __pycache__/
