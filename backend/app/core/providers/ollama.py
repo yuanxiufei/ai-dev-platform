@@ -24,23 +24,38 @@ class OllamaProvider(BaseProvider):
         model_name = self._get_model_name(request)
         messages = self._build_messages(request)
 
+        payload: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "stream": False,
+        }
+
+        # 传递 tools（如果请求中包含）
+        if request.tools:
+            payload["tools"] = request.tools
+
         try:
-            resp = await self.client.post("/v1/chat/completions", json={
-                "model": model_name,
-                "messages": messages,
-                "max_tokens": request.max_tokens,
-                "temperature": request.temperature,
-                "stream": False,
-            })
+            resp = await self.client.post("/v1/chat/completions", json=payload)
             resp.raise_for_status()
             data = resp.json()
 
+            choice = data["choices"][0]
+            msg = choice["message"]
+            content = msg.get("content") or ""
+            tool_calls = msg.get("tool_calls", [])
+
+            # 有 tool_calls 时强制 finish_reason = "tool_calls"
+            finish_reason = "tool_calls" if tool_calls else choice.get("finish_reason", "stop")
+
             return ModelResponse(
-                content=data["choices"][0]["message"]["content"],
+                content=content,
                 model_used=data.get("model", model_name),
                 provider="ollama",
                 tokens_used=data.get("usage", {}).get("total_tokens"),
-                finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                finish_reason=finish_reason,
+                tool_calls=tool_calls,
             )
         except httpx.ConnectError as e:
             detail = (

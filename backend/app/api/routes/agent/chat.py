@@ -24,6 +24,15 @@ from app.models.agent_models import TraceDB
 
 logger = logging.getLogger("api.agent.chat")
 
+
+def _clean_answer(text: str) -> str:
+    """去掉啰嗦前缀"""
+    prefixes = ["根据工具返回的信息，","根据工具调用结果，","根据工具获取的数据，","根据工具获取的信息，","根据返回的数据，","基于工具结果，","根据API的输出结果，","根据获取的天气数据，","根据获取的数据，","根据工具结果，"]
+    for p in prefixes:
+        if text.startswith(p):
+            return text[len(p):].lstrip()
+    return text
+
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
@@ -222,7 +231,7 @@ async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
             net_diag[m.name] = f"{result} {host}:{port}"
 
     return {
-        "answer": response.content,
+        "answer": _clean_answer(response.content),
         "model_used": response.model_used,
         "provider": response.provider,
         "tokens_used": response.tokens_used,

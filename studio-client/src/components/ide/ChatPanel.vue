@@ -13,6 +13,7 @@
 
 import { computed, nextTick, ref } from "vue"
 import { agentChatSimple } from "@/api/agent"
+import apiClient from "@/api/client"
 
 interface Message {
   role: "user" | "assistant" | "system"
@@ -25,19 +26,12 @@ interface Message {
 
 /** Available AI models for selector */
 const models = [
-  { id: "gpt-4o", label: "GPT-4o", desc: "(最强智能)", active: true },
-  {
-    id: "claude-sonnet",
-    label: "Claude Sonnet",
-    desc: "(长文本)",
-    active: false,
-  },
-  {
-    id: "deepseek-v3",
-    label: "DeepSeek V3",
-    desc: "(代码专家)",
-    active: false,
-  },
+  { id: "llama3.1:8b", label: "Llama 3.1", desc: "(本地·8B·Tools)", active: true },
+  { id: "qwen2.5-coder:7b", label: "Qwen2.5-Coder", desc: "(本地·7B·代码)", active: false },
+  { id: "gemma2:27b", label: "Gemma 2", desc: "(本地·27B)", active: false },
+  { id: "deepseek-coder-v2", label: "DeepSeek Coder", desc: "(本地·代码)", active: false },
+  { id: "gpt-4o", label: "GPT-4o", desc: "(API·最强)", active: false },
+  { id: "claude-sonnet", label: "Claude Sonnet", desc: "(API·长文本)", active: false },
 ]
 
 const modes = [
@@ -49,12 +43,12 @@ const messages = ref<Message[]>([])
 const inputText = ref("")
 const isLoading = ref(false)
 const mc = ref<HTMLDivElement | null>(null)
-const _selectedModel = ref(models[0])
-const _selectedMode = ref(modes[0])
-const _showModelMenu = ref(false)
-const _showModeMenu = ref(false)
+const selectedModel = ref(models[0] ?? { id: 'default', label: '选择模型', desc: '' })
+const selectedMode = ref(modes[0])
+const showModelMenu = ref(false)
+const showModeMenu = ref(false)
 
-const _hasMessages = computed(() => messages.value.length > 0)
+const hasMessages = computed(() => messages.value.length > 0)
 
 function sb(): void {
   nextTick(() => {
@@ -62,12 +56,12 @@ function sb(): void {
   })
 }
 
-function _formatTime(ts: number): string {
+function formatTime(ts: number): string {
   const d = new Date(ts)
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
-async function _sendMessage(): Promise<void> {
+async function sendMessage(): Promise<void> {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
 
@@ -88,8 +82,14 @@ async function _sendMessage(): Promise<void> {
   sb()
 
   try {
-    const resp = await agentChatSimple({ message: text })
-    am.content = resp.data.answer
+    const resp = await apiClient.post("/agent/chat/simple", {
+      message: text,
+      tools: ["calculate", "datetime_now", "get_weather", "web_search", "file_read"],
+      preferred_model: selectedModel.value.id,
+      max_turns: 3,
+      max_turns: 2,
+    })
+    am.content = resp.data.answer || resp.data.content
     am.modelUsed = resp.data.model_used
     am.provider = resp.data.provider
   } catch (e: any) {
@@ -207,7 +207,7 @@ async function _sendMessage(): Promise<void> {
             @click="showModelMenu = !showModelMenu"
             class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-semibold transition-colors border"
             style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            @blur="setTimeout(()=>showModelMenu=false,150)"
+            @blur="setTimeout(()=>showModelMenu=false,250)"
           >
             <span>{{ selectedModel.label }} {{ selectedModel.desc }}</span>
             <ChevronDown :size="10" />
@@ -215,6 +215,7 @@ async function _sendMessage(): Promise<void> {
           <!-- Dropdown -->
           <div v-if="showModelMenu" class="absolute bottom-full mb-1 left-0 min-w-[140px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
             <button v-for="m in models" :key="m.id"
+              @mousedown.prevent
               @click="selectedModel=m;showModelMenu=false"
               class="w-full text-left text-[11px] font-semibold px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
               :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedModel.id ? '#C0C1FF15' : 'transparent' }"
@@ -231,13 +232,14 @@ async function _sendMessage(): Promise<void> {
             @click="showModeMenu = !showModeMenu"
             class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-medium transition-colors border"
             style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            @blur="setTimeout(()=>showModeMenu=false,150)"
+            @blur="setTimeout(()=>showModeMenu=false,250)"
           >
             <span>{{ selectedMode.label }}</span>
             <ChevronDown :size="10" />
           </button>
           <div v-if="showModeMenu" class="absolute bottom-full mb-1 left-0 min-w-[110px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
             <button v-for="m in modes" :key="m.id"
+              @mousedown.prevent
               @click="selectedMode=m;showModeMenu=false"
               class="w-full text-left text-[11px] font-medium px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
               :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedMode.id ? '#C0C1FF15' : 'transparent' }"

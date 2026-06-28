@@ -4,6 +4,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: "/login",
+      name: "login",
+      component: () => import("@/pages/LoginPage.vue"),
+    },
+    {
       path: "/",
       redirect: "/chat",
     },
@@ -140,3 +145,13 @@ const router = createRouter({
 })
 
 export default router
+
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token')
+  if (!token && to.path !== '/login') {
+    return '/login'
+  }
+  if (token && to.path === '/login') {
+    return '/chat'
+  }
+})

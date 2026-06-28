@@ -12,6 +12,14 @@ import { onMounted, ref } from "vue"
 import { usePlugins } from "@/composables/usePlugins"
 import { useShortcuts } from "@/composables/useShortcuts"
 import { useIDEStore } from "@/stores/useIDEStore"
+import MenuBar from "@/components/ide/MenuBar.vue"
+import Sidebar from "@/components/ide/Sidebar.vue"
+import EditorArea from "@/components/ide/EditorArea.vue"
+import RightPanel from "@/components/ide/RightPanel.vue"
+import StatusBar from "@/components/ide/StatusBar.vue"
+import GlobalSearch from "@/components/ide/GlobalSearch.vue"
+import CommandPalette from "@/components/ide/CommandPalette.vue"
+import SettingsPanel from "@/components/ide/SettingsPanel.vue"
 
 const store = useIDEStore()
 const {
@@ -83,7 +91,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ide-root h-full w-full flex flex-col bg-[var(--color-ide-bg)] overflow-hidden">
+  <RouterView v-if="$route.path === '/login'" />
+  <div v-else class="ide-root h-full w-full flex flex-col bg-[var(--color-ide-bg)] overflow-hidden">
     <!-- Top Menu Bar -->
     <MenuBar v-if="store.layout.menuBarVisible" @open-settings="showSettings = true" />
 

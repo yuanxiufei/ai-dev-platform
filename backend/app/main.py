@@ -120,6 +120,14 @@ async def lifespan(app: FastAPI):
 
         logger.info("ToolRegistry initialized (%d tools)", registry.count)
 
+        # 初始化 Skills 技能系统
+        try:
+            from app.core.skills_manager import init_skills
+            init_skills("skills")
+            logger.info("SkillsManager initialized")
+        except Exception as e:
+            logger.warning("SkillsManager init skipped: %s", e)
+
         # 加载 MCP 服务器配置
         import json as _json
         mcp_configs = _json.loads(settings.MCP_SERVERS or "[]")

@@ -11,5 +11,9 @@
     "build:video-admin": "pnpm --filter video-admin build",
     "build:studio-admin": "pnpm --filter studio-admin build",
     "build:studio-client": "pnpm --filter studio-client build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1"
   }
 }

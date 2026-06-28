@@ -21,6 +21,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from typing import Any
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
@@ -80,6 +81,7 @@ class ChatRequest(BaseModel):
     project_id: uuid.UUID | None = None
     system_prompt: str | None = None
     images_base64: list[str] | None = None  # 截图→代码：base64 图片列表
+    tools: list[str] | None = None  # tool calling 工具名列表
 
 class ChatResponse(BaseModel):
     """消息响应"""
@@ -170,6 +172,7 @@ async def chat(
         history=history,
         images=images,
         task_type=_detect_task_type(chat_in.message),
+        tools=chat_in.tools or [],
     )
 
     response: ModelResponse

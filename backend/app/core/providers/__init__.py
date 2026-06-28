@@ -107,7 +107,7 @@ def _default_configs() -> list[ProviderConfig]:
             name="ollama",
             display_name="Ollama (本地)",
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            models=["qwen2.5-coder:7b", "gemma2:27b"],
+            models=["llama3.1:8b", "qwen2.5-coder:7b", "gemma2:27b"],
             priority=60,
             strengths=["ui_design", "frontend_code", "general_code"],
             extra_config={"no_auth_required": True},

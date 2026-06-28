@@ -38,7 +38,7 @@ import type {
 // 路由 & 项目上下文
 // ════════════════════════════════════════════════
 const route = useRoute()
-const _projectId = computed(() => route.params.id as string | undefined)
+const projectId = computed(() => route.params.id as string | undefined)
 
 // ════════════════════════════════════════════════
 // 对话核心状态
@@ -66,7 +66,7 @@ const showModelPicker = ref(false)
 
 // 面板开关 — 默认为 true，独立 /chat 页面直接显示对话界面
 const hasStarted = ref(true)
-const _showRightPanel = ref(false)
+const showRightPanel = ref(false)
 const showHistoryPanel = ref(false)
 
 // 工具调用展开 ID 集合
@@ -159,7 +159,7 @@ async function loadModels() {
   }
 }
 
-function _selectModel(name: string) {
+function selectModel(name: string) {
   preferredModel.value = name
   showModelPicker.value = false
   showToast(`已切换模型：${name || "自动选择"}`)
@@ -182,13 +182,13 @@ async function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
-function _toggleExpand(id: string) {
+function toggleExpand(id: string) {
   const s = expandedToolIds.value
   s.has(id) ? s.delete(id) : s.add(id)
 }
 
 /** 根据工具名推断图标组件 */
-function _toolIcon(name: string) {
+function toolIcon(name: string) {
   const n = name.toLowerCase()
   if (/read|search|find|list|grep/.test(n)) return Search
   if (/write|edit|replace|create|delete|save/.test(n)) return FileCode
@@ -198,7 +198,7 @@ function _toolIcon(name: string) {
   return Wrench
 }
 
-function _formatTime(iso: string): string {
+function formatTime(iso: string): string {
   const d = new Date(iso)
   const diff = Date.now() - d.getTime()
   const min = Math.floor(diff / 60000)
@@ -209,7 +209,7 @@ function _formatTime(iso: string): string {
   return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" })
 }
 
-function _copyText(t: string) {
+function copyText(t: string) {
   navigator.clipboard
     .writeText(t)
     .then(() => showToast("已复制"))
@@ -217,7 +217,7 @@ function _copyText(t: string) {
 }
 
 /** 判断消息是否为当前最后一条助手消息（用于流式动画定位） */
-function _isLastAssistant(msg: ChatMessage): boolean {
+function isLastAssistant(msg: ChatMessage): boolean {
   const len = messages.value.length
   if (len === 0) return false
   // 倒序查找最后一条 assistant 或 tool 角色
@@ -232,7 +232,7 @@ function _isLastAssistant(msg: ChatMessage): boolean {
 // ════════════════════════════════════════════════
 // 会话管理操作
 // ════════════════════════════════════════════════
-function _newChat() {
+function newChat() {
   saveCurrentSession()
   messages.value = []
   sessionId.value = crypto.randomUUID()
@@ -245,7 +245,7 @@ function _newChat() {
   inputText.value = ""
 }
 
-function _switchToSession(s: ChatSession) {
+function switchToSession(s: ChatSession) {
   saveCurrentSession()
   sessionId.value = s.id
   messages.value = []
@@ -255,13 +255,13 @@ function _switchToSession(s: ChatSession) {
   showToast(`已切换到「${s.title}」`)
 }
 
-function _deleteSession(id: string, e: Event) {
+function deleteSession(id: string, e: Event) {
   e.stopPropagation()
   sessions.value = sessions.value.filter((s) => s.id !== id)
   persistSessions()
 }
 
-function _resetChat() {
+function resetChat() {
   messages.value = []
   sessionId.value = crypto.randomUUID()
   agentState.value = "idle"
@@ -276,12 +276,12 @@ function _resetChat() {
 // ════════════════════════════════════════════════
 // 启动聊天 / 快捷提示
 // ════════════════════════════════════════════════
-function _startChat() {
+function startChat() {
   hasStarted.value = true
   setTimeout(() => textareaEl.value?.focus(), 80)
 }
 
-function _quickPrompt(text: string) {
+function quickPrompt(text: string) {
   hasStarted.value = true
   setTimeout(() => {
     inputText.value = text
@@ -347,9 +347,9 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
         message: content,
         agent_name: chatMode.value === "agent" ? "agent" : "default",
         instructions: "",
-        max_turns:
-          chatMode.value === "plan" ? 15 : chatMode.value === "ask" ? 5 : 10,
-        preferred_model: preferredModel.value || undefined,
+        tools: ["get_weather", "web_search", "calculate", "datetime_now", "file_read"],
+        max_turns: 3,
+        preferred_model: preferredModel.value || "llama3.1:8b",
         session_id: sessionId.value,
       }),
       signal: ctrl.signal,
@@ -439,7 +439,6 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
         currentToolCalls.value.push(record)
         msg.tool_calls = msg.tool_calls || []
         msg.tool_calls.push({ ...record })
-        expandedToolIds.value.add(record.id)
       }
       break
     }
@@ -511,11 +510,11 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
 // ════════════════════════════════════════════════
 // 操作：停止 / 重试
 // ════════════════════════════════════════════════
-function _stopGeneration() {
+function stopGeneration() {
   abortController.value?.abort()
 }
 
-async function _retryMessage(targetMsg: ChatMessage) {
+async function retryMessage(targetMsg: ChatMessage) {
   if (isStreaming.value) return
   const idx = messages.value.indexOf(targetMsg)
   if (idx <= 0) return
@@ -542,7 +541,7 @@ async function _retryMessage(targetMsg: ChatMessage) {
 // ════════════════════════════════════════════════
 // 输入框交互
 // ════════════════════════════════════════════════
-function _onInputKeydown(e: KeyboardEvent) {
+function onInputKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault()
     doSend()
@@ -924,26 +923,29 @@ function _onInputKeydown(e: KeyboardEvent) {
                     >
                       <!-- 卡片头 -->
                       <button @click="toggleExpand(tc.id)" class="card-header">
-                        <component :is="toolIcon(tc.name)" class="icon" />
-                        <span class="name truncate">{{ tc.name }}</span>
-
-                        <!-- 状态图标 -->
-                        <span v-if="tc.success === true" class="status-icon success"><Check class="w-3.5 h-3.5" /></span>
-                        <Loader2 v-else-if="tc.success === undefined" class="status-icon spinning text-brand-400 animate-spin" />
-                        <X v-else class="status-icon error" />
-
-                        <ChevronRight :class="['chevron', expandedToolIds.has(tc.id) && 'rotated']" />
+                        <!-- 执行中动画 -->
+                        <Loader2 v-if="tc.success === undefined" class="w-3 h-3 text-brand-400 animate-spin shrink-0" />
+                        <Check v-else-if="tc.success" class="w-3 h-3 text-green-400 shrink-0" />
+                        <X v-else class="w-3 h-3 text-red-400 shrink-0" />
+                        <span class="card-name">{{ tc.name }}</span>
+                        <!-- 折叠时显示结果缩略 -->
+                        <span v-if="!expandedToolIds.has(tc.id) && tc.result" class="card-preview">{{
+                          typeof tc.result === 'string' 
+                            ? (() => { try { const p = JSON.parse(tc.result); return p.city ? `${p.city} ${p.temperature}°C ${p.condition || ''}` : p.error || p.result || '' } catch { return tc.result.slice(0, 40) } })()
+                            : JSON.stringify(tc.result).slice(0, 40)
+                        }}</span>
+                        <span class="card-chevron" :class="{ rotated: expandedToolIds.has(tc.id) }">▸</span>
                       </button>
 
                       <!-- 展开内容 -->
                       <div v-if="expandedToolIds.has(tc.id)" class="card-body">
-                        <div v-if="tc.arguments && Object.keys(tc.arguments).length" class="section">
-                          <span class="label">参数 Arguments</span>
-                          <pre class="code-block">{{ JSON.stringify(tc.arguments, null, 2) }}</pre>
+                        <div v-if="tc.arguments && Object.keys(tc.arguments).length" class="card-section">
+                          <span class="card-label">参数</span>
+                          <code class="card-code">{{ typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments, null, 2) }}</code>
                         </div>
-                        <div v-if="tc.result" class="section">
-                          <span class="label" :class="tc.success ? 'text-green-400/60' : 'text-red-400/60'">结果 Result</span>
-                          <pre :class="['code-block', tc.success ? '' : 'error-text']">{{ typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result, null, 2) }}</pre>
+                        <div v-if="tc.result" class="card-section">
+                          <span class="card-label" :class="tc.success ? 'text-green-400' : 'text-red-400'">结果</span>
+                          <code :class="['card-code', tc.success ? '' : 'text-red-300']">{{ typeof tc.result === 'string' ? (() => { try { return JSON.stringify(JSON.parse(tc.result), null, 2) } catch { return tc.result } })() : JSON.stringify(tc.result, null, 2) }}</code>
                         </div>
                       </div>
                     </div>
@@ -1193,18 +1195,19 @@ function _onInputKeydown(e: KeyboardEvent) {
 
 /* ═══════════ 工具调用卡片 ════════════ */
 .tool-call-card {
-  border-radius: .75rem;
-  background: rgba(0,0,0,.25);
-  border: 1px solid rgba(255,255,255,.05);
+  border-radius: .5rem;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.12);
   overflow: hidden;
   transition: all .2s;
 }
+.tool-call-card:hover { border-color: rgba(99, 102, 241, 0.25); }
 .card-header {
   display: flex;
   align-items: center;
   gap: .5rem;
   width: 100%;
-  padding: .625rem .75rem;
+  padding: .5rem .75rem;
   cursor: pointer;
   background: transparent;
   border: none;
@@ -1213,15 +1216,49 @@ function _onInputKeydown(e: KeyboardEvent) {
   text-align: left;
   transition: background .15s;
 }
-.card-header:hover { background: rgba(255,255,255,.02); }
-.card-header .icon { width: 14px; height: 14px; flex-shrink: 0; color: rgb(99 102 241); }
-.card-header .name { font-size: .75rem; font-weight: 600; color: rgb(199 210 254); flex: 1; min-width: 0; }
-.card-header .status-icon { width: 14px; height: 14px; flex-shrink: 0; }
-.card-header .status-icon.success { color: rgb(74 222 128); }
-.card-header .status-icon.error { color: rgb(248 113 113); }
-.card-header .spinning { margin-left: auto; }
-.card-header .chevron { width: 14px; height: 14px; flex-shrink: 0; color: rgb(75 85 99); transition: transform .2s; }
-.card-header .chevron.rotated { transform: rotate(90deg); }
+.card-header:hover { background: rgba(255,255,255,.03); }
+.card-name { font-size: .75rem; font-weight: 600; color: rgb(199 210 254); white-space: nowrap; }
+.card-preview {
+  font-size: .7rem;
+  color: rgb(148 163 184);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.card-chevron {
+  font-size: .75rem;
+  color: rgb(100 116 139);
+  transition: transform .2s;
+  flex-shrink: 0;
+}
+.card-chevron.rotated { transform: rotate(90deg); }
+.card-body { padding: 0 .75rem .625rem; }
+.card-section { margin-bottom: .5rem; }
+.card-section:last-child { margin-bottom: 0; }
+.card-label {
+  display: block;
+  font-size: .65rem;
+  font-weight: 600;
+  color: rgb(148 163 184);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: .25rem;
+}
+.card-code {
+  display: block;
+  font-size: .7rem;
+  color: rgb(203 213 225);
+  background: rgba(0,0,0,.3);
+  border-radius: .375rem;
+  padding: .5rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+  line-height: 1.5;
+}
 
 .card-body { border-top: 1px solid rgba(255,255,255,.03); }
 .section { padding: .5rem .75rem; }
