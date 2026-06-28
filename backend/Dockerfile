@@ -42,4 +42,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 WORKDIR /app/backend/
 
+# Create a non-root user for security
+RUN addgroup --system app && adduser --system --group app
+
+# Ensure the app user owns the application directory
+RUN chown -R app:app /app
+
+# Switch to non-root user
+USER app
+
 CMD ["fastapi", "run", "--workers", "4", "app/main.py"]

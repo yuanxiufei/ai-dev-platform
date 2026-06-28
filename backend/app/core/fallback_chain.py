@@ -52,6 +52,7 @@ class FallbackEvent:
     latency_ms: int | None = None
     error_message: str | None = None
     timestamp: float = field(default_factory=time.time)
+    response: ModelResponse | None = None
 
 
 @dataclass
@@ -90,6 +91,8 @@ class ChainNode:
 
         返回：成功则返回包含响应的 FallbackEvent；失败返回 None
         """
+        last_error: str | None = None
+
         for model in self.models:
             if not model.is_available:
                 logger.debug(f"Skipping unavailable model: {model.name}")
@@ -116,6 +119,7 @@ class ChainNode:
                         model_name=model.name,
                         success=True,
                         latency_ms=latency,
+                        response=response,
                     )
 
                 except asyncio.TimeoutError:
@@ -127,12 +131,8 @@ class ChainNode:
                         self.retry_count + 1,
                     )
                     if attempt >= self.retry_count:
-                        return FallbackEvent(
-                            layer=self.layer,
-                            model_name=model.name,
-                            success=False,
-                            error_message="timeout",
-                        )
+                        last_error = "timeout"
+                        break
 
                 except Exception as e:
                     logger.warning(
@@ -144,19 +144,15 @@ class ChainNode:
                         self.retry_count + 1,
                     )
                     if attempt >= self.retry_count:
-                        return FallbackEvent(
-                            layer=self.layer,
-                            model_name=model.name,
-                            success=False,
-                            error_message=str(e)[:200],
-                        )
+                        last_error = str(e)[:200]
+                        break
 
-        # 所有模型都不可用
+        # 所有模型都不可用或已耗尽重试
         return FallbackEvent(
             layer=self.layer,
             model_name="none",
             success=False,
-            error_message="no models available in this layer",
+            error_message=last_error or "no models available in this layer",
         )
 
 
@@ -202,7 +198,6 @@ class FallbackChain:
           4. 理论上最后一层（builtin）永远成功
         """
         events: list[FallbackEvent] = []
-        final_response: ModelResponse | None = None
         layers_tried = 0
 
         for node in self.nodes:
@@ -224,9 +219,7 @@ class FallbackChain:
             events.append(event)
 
             if event.success:
-                # 成功！获取响应
-                # 注意：我们需要从 execute 获取实际响应
-                # 这里简化为从事件重建
+                # 成功！使用 event 中携带的实际响应
                 logger.info(
                     f"Fallback chain succeeded at layer '{node.layer.value}' "
                     f"({layers_tried}/{len(self.nodes)} layers tried)"
@@ -235,18 +228,29 @@ class FallbackChain:
                 # 标记是否为回退（非第一层成功即为回退）
                 is_fallback = layers_tried > 1
 
-                return FallbackResult(
-                    response=ModelResponse(
-                        content="[reconstructed from chain]",
-                        model_used=event.model_name,
-                        provider="unknown",
-                        latency_ms=event.latency_ms or 0,
+                if event.response:
+                    response = event.response
+                    response.is_fallback = is_fallback
+                    return FallbackResult(
+                        response=response,
+                        events=events,
+                        total_layers_tried=layers_tried,
+                        is_fallback=response.is_fallback,
+                    )
+                else:
+                    # 兼容性回退：如果响应未存储（旧代码路径）
+                    return FallbackResult(
+                        response=ModelResponse(
+                            content="[reconstructed from chain]",
+                            model_used=event.model_name,
+                            provider="unknown",
+                            latency_ms=event.latency_ms or 0,
+                            is_fallback=is_fallback,
+                        ),
+                        events=events,
+                        total_layers_tried=layers_tried,
                         is_fallback=is_fallback,
-                    ),
-                    events=events,
-                    total_layers_tried=layers_tried,
-                    is_fallback=is_fallback,
-                )
+                    )
 
             # 触发回退回调
             if self._on_fallback:

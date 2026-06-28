@@ -64,7 +64,9 @@ class UserPublic(UserBase):
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
-    count: int
+    total: int
+    page: int
+    size: int
 
 
 # ── Item ─────────────────────────────────────────────

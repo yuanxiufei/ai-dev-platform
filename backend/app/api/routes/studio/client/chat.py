@@ -14,6 +14,7 @@ Studio — AI 对话 API
   5. 流式输出（SSE）→ 前端实时渲染
 """
 
+import asyncio
 import json
 import uuid
 
@@ -264,6 +265,8 @@ async def chat_stream(
     session.add(user_msg)
     session.commit()
 
+    # TODO: 真正的流式输出需要Provider层支持流式API（SSE/WebSocket），
+    # 当前通过按词分块+延迟模拟实时流式体验。
     async def event_stream():
         from app.core.model_router import (
             ModelRequest,
@@ -283,11 +286,14 @@ async def chat_stream(
             router = get_model_router()
             response = await router.generate(request)
 
-            # 流式输出内容
-            for i in range(0, len(response.content), 10):
-                chunk = response.content[i:i+10]
+            # 流式输出内容 — 按词分块模拟实时流式体验
+            words = response.content.split()
+            for word in words:
+                chunk = word + " "
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
+                await asyncio.sleep(0.02)  # 模拟token级延迟
 
+            # 发送完成信号
             yield f"data: {json.dumps({'done': True, 'model_used': response.model_used, 'provider': response.provider, 'latency_ms': response.latency_ms})}\n\n"
 
         except Exception as e:

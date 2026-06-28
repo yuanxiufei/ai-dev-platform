@@ -137,7 +137,7 @@ class AutoOptimizer:
         self.promote_step = 5
         self.demote_threshold_error_rate = 0.3
         self.promote_threshold_success_rate = 0.9
-        self.disable_threshold_error_rate = 0.8
+        self.disable_threshold_error_rate = 0.1
 
     def analyze(self, days: int = 7) -> list[OptimizationSuggestion]:
         """
@@ -163,8 +163,19 @@ class AutoOptimizer:
             if total_calls < 10:
                 continue
 
+            # === 禁用检测（最严重，优先检查）===
+            if success_rate < self.disable_threshold_error_rate and total_calls > 20:
+                suggestions.append(OptimizationSuggestion(
+                    model_name=model_name,
+                    action=OptimizationAction.DISABLE,
+                    reason=f"Critical error rate {success_rate:.1%} (threshold {self.disable_threshold_error_rate:.1%})",
+                    current_priority=priority,
+                    suggested_priority=0,
+                    metrics={"success_rate": success_rate, "total_calls": total_calls},
+                ))
+
             # === 降级检测 ===
-            if success_rate < self.demote_threshold_error_rate:
+            elif success_rate < self.demote_threshold_error_rate:
                 new_priority = max(self.min_priority, priority - self.demote_step)
                 suggestions.append(OptimizationSuggestion(
                     model_name=model_name,
@@ -172,17 +183,6 @@ class AutoOptimizer:
                     reason=f"Success rate {success_rate:.1%} below threshold {self.demote_threshold_error_rate:.1%}",
                     current_priority=priority,
                     suggested_priority=new_priority,
-                    metrics={"success_rate": success_rate, "total_calls": total_calls},
-                ))
-
-            # === 禁用检测 ===
-            elif success_rate < self.disable_threshold_error_rate and total_calls > 20:
-                suggestions.append(OptimizationSuggestion(
-                    model_name=model_name,
-                    action=OptimizationAction.DISABLE,
-                    reason=f"Critical error rate {success_rate:.1%} (threshold {self.disable_threshold_error_rate:.1%})",
-                    current_priority=priority,
-                    suggested_priority=0,
                     metrics={"success_rate": success_rate, "total_calls": total_calls},
                 ))
 
@@ -306,9 +306,9 @@ class AutoOptimizer:
         # 工作日 9-12, 14-18 为代码生成高峰
         # 晚间 19-23 为视频生成高峰
         peak_hours = {
-            "code_gen": [9, 10, 11, 14, 15, 16, 17],
-            "video_gen": [19, 20, 21, 22],
-            "chat": [10, 11, 14, 15, 20, 21],
+            "code_generation": [9, 10, 11, 14, 15, 16, 17],
+            "video_generation": [19, 20, 21, 22],
+            "text_generation": [10, 11, 14, 15, 20, 21],
         }
 
         preload_models = []

@@ -67,7 +67,7 @@ class AgentTrace(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
     # 标识
-    agent_id: str = Field(max_length=255, description="Agent 名称/标识")
+    agent_id: str = Field(max_length=255, description="Agent 名称/标识", index=True)
     session_id: str = Field(default="", max_length=255, description="会话 ID")
     conversation_id: uuid.UUID | None = Field(default=None, nullable=True, description="关联对话 session")
 
@@ -77,7 +77,7 @@ class AgentTrace(SQLModel, table=True):
     plan: dict | None = Field(default=None, sa_column=Column("plan", Text), description="Agent 生成的计划(JSON)")
 
     # 状态
-    status: str = Field(default=TraceStatus.PENDING, max_length=20, description="PENDING|PLANNING|EXECUTING|REFLECTING|COMPLETED|ERROR|CANCELLED")
+    status: str = Field(default=TraceStatus.PENDING, max_length=20, description="PENDING|PLANNING|EXECUTING|REFLECTING|COMPLETED|ERROR|CANCELLED", index=True)
 
     # 统计
     total_steps: int = Field(default=0, description="总轮次")
@@ -121,7 +121,7 @@ class AgentToolCall(SQLModel, table=True):
     __tablename__ = "agent_tool_calls"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    trace_id: uuid.UUID = Field(foreign_key="agent_traces.id", ondelete="CASCADE", description="所属轨迹")
+    trace_id: uuid.UUID = Field(foreign_key="agent_traces.id", ondelete="CASCADE", description="所属轨迹", index=True)
 
     # 位置信息
     step_number: int = Field(default=1, description="Agent 循环中的第几步")
@@ -129,7 +129,7 @@ class AgentToolCall(SQLModel, table=True):
 
     # 工具信息
     tool_name: str = Field(max_length=100, description="工具名称")
-    tool_call_id: str = Field(default="", max_length=100, description="LLM 返回的 tool_call_id")
+    tool_call_id: str = Field(default="", max_length=100, description="LLM 返回的 tool_call_id", index=True)
 
     # 输入/输出
     arguments: dict | None = Field(default=None, sa_column=Column("arguments", Text), description="调用参数(JSON)")
@@ -161,8 +161,8 @@ class AgentFileChange(SQLModel, table=True):
     __tablename__ = "agent_file_changes"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    tool_call_id: uuid.UUID = Field(foreign_key="agent_tool_calls.id", ondelete="CASCADE", description="触发变更的工具调用")
-    trace_id: uuid.UUID = Field(foreign_key="agent_traces.id", ondelete="CASCADE", description="所属轨迹(便于直接查询)")
+    tool_call_id: uuid.UUID = Field(foreign_key="agent_tool_calls.id", ondelete="CASCADE", description="触发变更的工具调用", index=True)
+    trace_id: uuid.UUID = Field(foreign_key="agent_traces.id", ondelete="CASCADE", description="所属轨迹(便于直接查询)", index=True)
 
     # 文件信息
     file_path: str = Field(max_length=2000, description="文件路径")
@@ -191,8 +191,8 @@ class AgentExecLog(SQLModel, table=True):
     __tablename__ = "agent_execution_logs"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    trace_id: uuid.UUID | None = Field(default=None, foreign_key="agent_traces.id", ondelete="SET NULL", nullable=True, description="关联轨迹")
-    tool_call_id: uuid.UUID | None = Field(default=None, foreign_key="agent_tool_calls.id", ondelete="SET NULL", nullable=True, description="关联工具调用")
+    trace_id: uuid.UUID | None = Field(default=None, foreign_key="agent_traces.id", ondelete="SET NULL", nullable=True, description="关联轨迹", index=True)
+    tool_call_id: uuid.UUID | None = Field(default=None, foreign_key="agent_tool_calls.id", ondelete="SET NULL", nullable=True, description="关联工具调用", index=True)
 
     # 日志级别
     level: str = Field(default="INFO", max_length=10, description="DEBUG|INFO|WARNING|ERROR")

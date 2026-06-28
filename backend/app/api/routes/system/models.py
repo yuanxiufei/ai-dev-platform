@@ -10,6 +10,7 @@
   - 自动优化触发
 """
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -313,6 +314,7 @@ def delete_model(
 
 # 全局已加载模型缓存：{model_name: BaseModel instance}
 _loaded_models: dict[str, Any] = {}
+_loaded_models_lock = asyncio.Lock()
 
 
 def _get_model_class(model_type: str):
@@ -342,7 +344,7 @@ def _get_model_class(model_type: str):
 
 
 @router.post("/{model_name}/load")
-def load_model(
+async def load_model(
     model_name: str,
     user: CurrentUser,
 ):
@@ -356,15 +358,16 @@ def load_model(
     from ai_models.base import ModelConfig
 
     # 检查是否已加载
-    if model_name in _loaded_models:
-        cached = _loaded_models[model_name]
-        return {
-            "model_name": model_name,
-            "status": "already_loaded",
-            "message": f"Model {model_name} is already loaded",
-            "display_name": getattr(cached.config, "display_name", model_name),
-            "is_loaded": cached.is_loaded if hasattr(cached, "is_loaded") else True,
-        }
+    async with _loaded_models_lock:
+        if model_name in _loaded_models:
+            cached = _loaded_models[model_name]
+            return {
+                "model_name": model_name,
+                "status": "already_loaded",
+                "message": f"Model {model_name} is already loaded",
+                "display_name": getattr(cached.config, "display_name", model_name),
+                "is_loaded": cached.is_loaded if hasattr(cached, "is_loaded") else True,
+            }
 
     # 获取模型配置
     config: ModelConfig | None = get_config(model_name)
@@ -389,7 +392,8 @@ def load_model(
         model.load()
 
         if model.is_loaded:
-            _loaded_models[model_name] = model
+            async with _loaded_models_lock:
+                _loaded_models[model_name] = model
             return {
                 "model_name": model_name,
                 "status": "loaded",
@@ -417,7 +421,7 @@ def load_model(
 
 
 @router.post("/{model_name}/unload")
-def unload_model(
+async def unload_model(
     model_name: str,
     user: CurrentUser,
 ):
@@ -425,8 +429,13 @@ def unload_model(
 
     从全局缓存中移除模型实例并调用 .unload() 释放资源。
     """
-    if model_name in _loaded_models:
-        model = _loaded_models.pop(model_name)
+    async with _loaded_models_lock:
+        if model_name in _loaded_models:
+            model = _loaded_models.pop(model_name)
+        else:
+            model = None
+
+    if model is not None:
         try:
             if hasattr(model, "unload"):
                 model.unload()
@@ -462,8 +471,10 @@ def unload_model(
 
 
 @router.get("/loaded")
-def list_loaded_models(user: CurrentUser):
+async def list_loaded_models(user: CurrentUser):
     """列出当前已加载到内存的模型。"""
+    async with _loaded_models_lock:
+        loaded = dict(_loaded_models)
     return {
         "loaded_models": [
             {
@@ -471,9 +482,9 @@ def list_loaded_models(user: CurrentUser):
                 "display_name": getattr(model.config, "display_name", name),
                 "is_loaded": model.is_loaded if hasattr(model, "is_loaded") else True,
             }
-            for name, model in _loaded_models.items()
+            for name, model in loaded.items()
         ],
-        "count": len(_loaded_models),
+        "count": len(loaded),
     }
 
 

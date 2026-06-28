@@ -37,6 +37,17 @@ from app.models.system_models import (
     ModelDownload,
     ModelUsageStat,
     ApiCredential,
+    Rule,
+    Integration,
+    AgentConfig,
+)
+from app.models.model_presets import (
+    ModelPreset,
+    ArenaComparison,
+    ArenaVote,
+    ModelEloRanking,
+    ModelUsageLog,
+    MemoryEntry,
 )
 from app.models.agent_models import (
     AgentTrace,
@@ -77,4 +88,13 @@ __all__ = [
     "AgentToolCall",
     "AgentFileChange",
     "AgentExecLog",
+    "Rule",
+    "Integration",
+    "AgentConfig",
+    "ModelPreset",
+    "ArenaComparison",
+    "ArenaVote",
+    "ModelEloRanking",
+    "ModelUsageLog",
+    "MemoryEntry",
 ]

@@ -34,7 +34,7 @@ router = APIRouter(prefix="/users", tags=["users"])
     dependencies=[Depends(get_current_active_superuser)],
     response_model=UsersPublic,
 )
-def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
+def read_users(session: SessionDep, page: int = 1, size: int = 20) -> Any:
     """
     Retrieve users.
     """
@@ -42,13 +42,14 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     count_statement = select(func.count()).select_from(User)
     count = session.exec(count_statement).one()
 
+    skip = (page - 1) * size
     statement = (
-        select(User).order_by(col(User.created_at).desc()).offset(skip).limit(limit)
+        select(User).order_by(col(User.created_at).desc()).offset(skip).limit(size)
     )
     users = session.exec(statement).all()
 
     users_public = [UserPublic.model_validate(user) for user in users]
-    return UsersPublic(data=users_public, count=count)
+    return UsersPublic(data=users_public, total=count, page=page, size=size)
 
 
 @router.post(
@@ -68,7 +69,7 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     user = crud.create_user(session=session, user_create=user_in)
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
+            email_to=user_in.email, username=user_in.email
         )
         send_email(
             email_to=user_in.email,

@@ -42,7 +42,7 @@ class VideoTask(SQLModel, table=True):
     error_message: str | None = Field(default=None, sa_column=Column("error_message", Text))
     progress: int = Field(default=0)  # 0 - 100
 
-    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
 
@@ -56,7 +56,7 @@ class VideoAsset(SQLModel, table=True):
     title: str = Field(max_length=255)
     description: str | None = Field(default=None, max_length=2000)
 
-    task_id: uuid.UUID | None = Field(default=None, foreign_key="video_tasks.id", nullable=True)
+    task_id: uuid.UUID | None = Field(default=None, foreign_key="video_tasks.id", nullable=True, index=True)
     file_path: str = Field(max_length=500)
     thumbnail_path: str | None = Field(default=None, max_length=500)
     duration: float | None = None
@@ -66,5 +66,5 @@ class VideoAsset(SQLModel, table=True):
     is_public: bool = Field(default=True)
     is_approved: bool = Field(default=False)
 
-    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))

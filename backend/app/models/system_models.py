@@ -47,7 +47,7 @@ class Rule(SQLModel, table=True):
     triggers: list[str] | None = Field(default=None, sa_column=Column("triggers", Text), description="触发文件 glob 列表(JSON)")
     priority: float = Field(default=0.0, description="优先级，越高越先匹配")
 
-    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
@@ -72,7 +72,7 @@ class Integration(SQLModel, table=True):
     status: str = Field(default="disconnected", max_length=20, description="connected|disconnected|connecting|error")
     error_message: str | None = Field(default=None, sa_column=Column("error_message", Text))
 
-    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
@@ -99,9 +99,9 @@ class AgentConfig(SQLModel, table=True):
     enabled: bool = Field(default=True)
     sort_order: int = Field(default=0)
     scope: str = Field(default="user", max_length=20, description="user|project — 作用域")
-    project_id: uuid.UUID | None = Field(default=None, nullable=True)
+    project_id: uuid.UUID | None = Field(default=None, nullable=True, index=True)
 
-    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
@@ -123,7 +123,7 @@ class ModelDownload(SQLModel, table=True):
     file_size: int = Field(default=0, description="总文件大小(字节)")
 
     error_message: str | None = Field(default=None, sa_column=Column("error_message", Text))
-    started_by: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    started_by: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
 
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
@@ -141,7 +141,7 @@ class ModelUsageStat(SQLModel, table=True):
     latency_ms: float = Field(default=0.0, description="调用耗时(毫秒)")
     token_count: int = Field(default=0, description="Token 消耗")
 
-    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
 
@@ -152,11 +152,11 @@ class ApiCredential(SQLModel, table=True):
     __tablename__ = "api_credentials"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    provider: str = Field(max_length=50, description="openai|anthropic|deepseek|zhipu|qwen|replicate")
+    provider: str = Field(max_length=50, description="openai|anthropic|deepseek|zhipu|qwen|replicate", index=True)
     api_key_encrypted: str = Field(sa_column=Column("api_key_encrypted", Text), description="加密后的 API Key")
     endpoint: str | None = Field(default=None, max_length=500, description="自定义 API Endpoint")
     is_active: bool = Field(default=True)
 
-    owner_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    owner_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True, index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))

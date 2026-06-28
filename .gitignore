@@ -6,3 +6,25 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /vchat/
+
+# Environment files (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Build output
+dist/
+
+# Runtime data
+output/
+trajectories/
+.playwright-cli/
+workspace/
+storage/
+data/

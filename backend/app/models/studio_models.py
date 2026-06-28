@@ -51,14 +51,14 @@ class StudioProject(SQLModel, table=True):
     stack: str | None = Field(default=None, max_length=100)     # fastapi+vue | django+react
 
     # 模板关联
-    template_id: uuid.UUID | None = Field(default=None, foreign_key="studio_templates.id")
+    template_id: uuid.UUID | None = Field(default=None, foreign_key="studio_templates.id", index=True)
 
     # 生成结果
     generated_code: dict | None = Field(default=None, sa_column=Column("generated_code", Text))
     build_log: str | None = Field(default=None, sa_column=Column("build_log", Text))
     deploy_url: str | None = Field(default=None, max_length=500)
 
-    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
@@ -97,9 +97,9 @@ class ChatSession(SQLModel, table=True):
     title: str = Field(default="New Chat", max_length=255)
     model_name: str | None = Field(default=None, max_length=100)
 
-    project_id: uuid.UUID | None = Field(default=None, foreign_key="studio_projects.id", nullable=True)
+    project_id: uuid.UUID | None = Field(default=None, foreign_key="studio_projects.id", nullable=True, index=True)
 
-    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
 
@@ -112,7 +112,7 @@ class ChatMessage(SQLModel, table=True):
     __tablename__ = "chat_messages"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    session_id: uuid.UUID = Field(foreign_key="chat_sessions.id", nullable=False, ondelete="CASCADE")
+    session_id: uuid.UUID = Field(foreign_key="chat_sessions.id", nullable=False, ondelete="CASCADE", index=True)
     role: MessageRole
     content: str = Field(sa_column=Column("content", Text))
 

@@ -8,6 +8,8 @@
   - 内存/磁盘使用
 """
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter
 from sqlmodel import select, func
 
@@ -33,7 +35,8 @@ def detailed_health(session: SessionDep):
     # 数据库检查
     try:
         from app.core.db import engine
-        engine.connect()
+        with engine.connect() as conn:
+            conn.execute(select(1))
         db_status = "ok"
     except Exception as e:
         db_status = "error"
@@ -70,9 +73,7 @@ def detailed_health(session: SessionDep):
 
     return {
         "status": "degraded" if issues else "healthy",
-        "timestamp": __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        ).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "components": {
             "database": db_status,
             "models": model_status,
