@@ -3,7 +3,7 @@ name: debug
 display: 调试分析
 icon: Bug
 version: 1.0
-triggers: [调试, debug, 报错, 错误, error, 崩溃, crash, 修复bug, fix bug]
+triggers: [调试, debug, 报错, 错误, error, 崩溃, crash, 修复bug, fix bug, bug, BUG, 出bug, 出错了, 不运行, malfunction, troubleshoot, 排查, 异常]
 category: code
 ---
 

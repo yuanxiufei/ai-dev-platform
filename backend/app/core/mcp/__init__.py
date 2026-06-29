@@ -1088,7 +1088,7 @@ class MCPManager:
 
     async def connect_all(self) -> MCPManagerResult:
         """并发连接所有已启用的 MCP 服务器"""
-        result = MCPManagerResult()
+        result = MCPManagerResult(success=False)
         result.total_servers = len(self._clients)
 
         tasks = []

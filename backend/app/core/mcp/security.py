@@ -31,6 +31,8 @@ _DEFAULT_STDIO_COMMAND_ALLOWLIST: frozenset[str] = frozenset({
     "node", "npx", "npm", "pnpm", "yarn",
     "bun", "bunx", "deno",
     "uv", "uvx",
+    # MCP 服务器
+    "codebase-memory-mcp",
 })
 
 

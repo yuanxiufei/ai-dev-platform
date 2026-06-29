@@ -34,3 +34,11 @@ trajectories/
 workspace/
 storage/
 data/
+
+# CodebaseMemory runtime artifacts
+.codebase-memory/
+backend/.codebase-memory/
+
+# Build artifacts
+studio-client/.vite/
+

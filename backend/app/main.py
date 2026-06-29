@@ -21,6 +21,111 @@ from app.core.config import settings
 logger = logging.getLogger("app.main")
 
 
+def _register_native_codebase_tools() -> int:
+    """将原生 Codebase Memory 工具注册到平台 ToolRegistry"""
+    from app.core.codebase_memory.tools import TOOL_REGISTRY, call_tool
+    from app.core.tools.registry import get_tool_registry
+    from app.core.tools.schema import FunctionTool, ToolSchema, ToolParam, ParamType
+
+    registry = get_tool_registry()
+
+    tool_defs = [
+        {
+            "name": "cbm_search_graph",
+            "desc": "搜索代码知识图谱，查找函数、类、路由和变量。用于代替 grep/glob 发现代码定义和关系。",
+            "params": [
+                ToolParam(name="query", type=ParamType.STRING, description="搜索查询关键词"),
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+                ToolParam(name="limit", type=ParamType.INTEGER, description="最大结果数", required=False, default=20),
+            ],
+            "tool_name": "search_graph",
+        },
+        {
+            "name": "cbm_search_code",
+            "desc": "图增强代码搜索，按模式搜索代码内容并按结构重要性排序。",
+            "params": [
+                ToolParam(name="pattern", type=ParamType.STRING, description="搜索模式"),
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+                ToolParam(name="limit", type=ParamType.INTEGER, description="最大结果数", required=False, default=20),
+            ],
+            "tool_name": "search_code",
+        },
+        {
+            "name": "cbm_get_code_snippet",
+            "desc": "获取函数/类/符号的源代码。先调用 search_graph 找到准确名称再传入。",
+            "params": [
+                ToolParam(name="qualified_name", type=ParamType.STRING, description="函数/类的限定名称"),
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+            ],
+            "tool_name": "get_code_snippet",
+        },
+        {
+            "name": "cbm_get_architecture",
+            "desc": "获取项目架构总览 — 包、服务、依赖关系和项目结构。",
+            "params": [
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+            ],
+            "tool_name": "get_architecture",
+        },
+        {
+            "name": "cbm_trace_path",
+            "desc": "追踪代码调用链路径。用于调用者/被调用者分析、影响力分析和数据流追踪。",
+            "params": [
+                ToolParam(name="function_name", type=ParamType.STRING, description="函数名称"),
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+                ToolParam(name="direction", type=ParamType.STRING, description="追踪方向", required=False, enum=["inbound", "outbound", "both"]),
+                ToolParam(name="depth", type=ParamType.INTEGER, description="追踪深度", required=False, default=3),
+            ],
+            "tool_name": "trace_path",
+        },
+        {
+            "name": "cbm_index_repository",
+            "desc": "将仓库索引到知识图谱中。",
+            "params": [
+                ToolParam(name="repo_path", type=ParamType.STRING, description="仓库路径"),
+            ],
+            "tool_name": "index_repository",
+        },
+        {
+            "name": "cbm_list_projects",
+            "desc": "列出所有已索引的项目。",
+            "params": [],
+            "tool_name": "list_projects",
+        },
+        {
+            "name": "cbm_index_status",
+            "desc": "获取项目的索引状态。",
+            "params": [
+                ToolParam(name="project", type=ParamType.STRING, description="项目名称", required=False),
+            ],
+            "tool_name": "index_status",
+        },
+    ]
+
+    count = 0
+    for td in tool_defs:
+        tool_name = td["tool_name"]
+
+        def make_handler(tn):
+            async def handler(**kwargs):
+                return call_tool(tn, kwargs)
+            return handler
+
+        tool = FunctionTool(
+            schema=ToolSchema(
+                name=td["name"],
+                description=td["desc"],
+                parameters=td["params"],
+                category="code",
+            ),
+            func=make_handler(tool_name),
+        )
+        registry.register_sync(tool)
+        count += 1
+
+    return count
+
+
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
@@ -128,7 +233,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("SkillsManager init skipped: %s", e)
 
-        # 加载 MCP 服务器配置
+        # 初始化原生 Codebase Memory（代码库知识图谱）
+        try:
+            from app.core.codebase_memory import init_codebase_memory
+            cbm_result = init_codebase_memory()
+            if cbm_result:
+                _register_native_codebase_tools()
+                logger.info(
+                    "Codebase Memory: %d nodes, %d edges, %d tools registered",
+                    cbm_result.get("nodes", 0),
+                    cbm_result.get("edges", 0),
+                    cbm_result.get("tools", 0),
+                )
+        except Exception as e:
+            logger.debug("Codebase Memory init skipped: %s", e)
+
+        # 加载外部 MCP 服务器配置
         import json as _json
         mcp_configs = _json.loads(settings.MCP_SERVERS or "[]")
         if mcp_configs:

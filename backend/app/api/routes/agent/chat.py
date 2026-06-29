@@ -175,6 +175,7 @@ async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
         len(api_candidates),
         {k: len(v) for k, v in chain_diag.items()},
     )
+    logger.debug("fallback_chain detail: %s", chain_diag)
 
     request = ModelRequest(
         capability=ModelCapability.TEXT_GENERATION,
@@ -186,56 +187,54 @@ async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
 
     response = await router.generate(request)
 
-    # 回退链中每个模型的 last_error（用于诊断）:
-    chain_errors: dict[str, list[dict]] = {}
-    for node in router._fallback_chain:
-        chain_errors[node.name] = []
-        for m in node.models:
-            err = getattr(m, "last_error", None)
-            chain_errors[node.name].append({
-                "name": m.name,
-                "available": m.is_available,
-                "error": err,
-            })
+    logger.debug(
+        "fallback_chain errors: %s",
+        {
+            node.name: [
+                {"name": m.name, "available": m.is_available, "error": getattr(m, "last_error", None)}
+                for m in node.models
+            ]
+            for node in router._fallback_chain
+        },
+    )
 
-    # 网络连通性快速预检（asyncio 非阻塞，2s 超时）
-    import asyncio
-    from urllib.parse import urlparse
-    import socket as _socket
+    # 网络连通性诊断（仅 DEBUG 日志级别，避免无谓的 TCP 连接开销）
+    if logger.isEnabledFor(logging.DEBUG):
+        import asyncio
+        from urllib.parse import urlparse
+        import socket as _socket
 
-    async def _check_tcp(host: str, port: int) -> str:
-        try:
-            _, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port),
-                timeout=2.0,
-            )
-            writer.close()
-            await writer.wait_closed()
-            return "✅"
-        except asyncio.TimeoutError:
-            return "⏱️ 连接超时 (2s)"
-        except _socket.gaierror:
-            return "❌ DNS 解析失败"
-        except OSError as e:
-            return f"❌ {e.strerror if hasattr(e,'strerror') else e}"
+        async def _check_tcp(host: str, port: int) -> str:
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=2.0,
+                )
+                writer.close()
+                await writer.wait_closed()
+                return "OK"
+            except asyncio.TimeoutError:
+                return "timeout (2s)"
+            except _socket.gaierror:
+                return "DNS failed"
+            except OSError as e:
+                return f"{e.strerror if hasattr(e, 'strerror') else e}"
 
-    net_diag: dict[str, str] = {}
-    for node in router._fallback_chain:
-        for m in node.models:
-            base_url = getattr(getattr(m, "config", None), "base_url", None)
-            if not base_url:
-                continue
-            host = urlparse(base_url).hostname or base_url
-            port = urlparse(base_url).port or (443 if base_url.startswith("https") else 80)
-            result = await _check_tcp(host, port)
-            net_diag[m.name] = f"{result} {host}:{port}"
+        net_diag: dict[str, str] = {}
+        for node in router._fallback_chain:
+            for m in node.models:
+                base_url = getattr(getattr(m, "config", None), "base_url", None)
+                if not base_url:
+                    continue
+                host = urlparse(base_url).hostname or base_url
+                port = urlparse(base_url).port or (443 if base_url.startswith("https") else 80)
+                result = await _check_tcp(host, port)
+                net_diag[m.name] = f"{result} {host}:{port}"
+        logger.debug("fallback_chain network: %s", net_diag)
 
     return {
         "answer": _clean_answer(response.content),
         "model_used": response.model_used,
         "provider": response.provider,
         "tokens_used": response.tokens_used,
-        "_diag": chain_diag,
-        "_errors": chain_errors,
-        "_network": net_diag,
     }
