@@ -49,6 +49,7 @@ class AgentMode:
     max_turns: int = 10                # 最大轮次
     icon: str = "🤖"                   # 图标
     color: str = "#6366f1"             # UI 颜色
+    skills: list[str] = field(default_factory=list)  # 🆕 绑定的 Skills
     custom: dict[str, Any] = field(default_factory=dict)  # 自定义扩展
 
     def to_dict(self) -> dict[str, Any]:
@@ -63,6 +64,7 @@ class AgentMode:
             "max_turns": self.max_turns,
             "icon": self.icon,
             "color": self.color,
+            "skills": self.skills,
         }
 
     def to_agent_config(self) -> "AgentConfig":
@@ -106,6 +108,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=15,
         icon="🏗️",
         color="#f59e0b",
+        skills=["code-review", "explain"],
     ),
     AgentMode(
         slug="code",
@@ -132,6 +135,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=20,
         icon="💻",
         color="#10b981",
+        skills=["frontend-design", "refactor"],
     ),
     AgentMode(
         slug="debug",
@@ -158,6 +162,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=25,
         icon="🪲",
         color="#ef4444",
+        skills=["debug", "explain"],
     ),
     AgentMode(
         slug="test",
@@ -184,6 +189,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=15,
         icon="🧪",
         color="#8b5cf6",
+        skills=["test-gen", "webapp-testing"],
     ),
     AgentMode(
         slug="review",
@@ -210,6 +216,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=10,
         icon="📋",
         color="#06b6d4",
+        skills=["code-review"],
     ),
     AgentMode(
         slug="docs",
@@ -235,6 +242,7 @@ PRESET_MODES: list[AgentMode] = [
         max_turns=12,
         icon="📖",
         color="#d946ef",
+        skills=["explain"],
     ),
 ]
 
@@ -440,22 +448,24 @@ class ModeManager:
         return {"modes": modes}
 
 
-# ── CKG 模式 ──────────────────────────────────────────────────
+# ── Codebase Memory 模式 ────────────────────────────────────
 
 @dataclass
 class CKGMode(AgentMode):
     """
-    代码知识图谱探索模式
+    代码知识图谱探索模式（已迁移到 CodebaseMemory 工具）
 
     继承 AgentMode，额外提供代码分析专用的搜索工具。
+    工具名已从 ckg_* 更新为 codebase-memory/cbm_* 命名。
     """
     ckg_tools: list[str] = field(default_factory=lambda: [
-        "ckg_search_function", "ckg_search_class", "ckg_search_method",
-        "ckg_list_symbols", "ckg_get_call_graph",
+        "search_graph", "search_code", "get_code_snippet",
+        "get_architecture", "trace_path", "index_repository",
+        "list_projects", "index_status",
     ])
 
     def __post_init__(self):
-        # 自动合并 CKG 专用工具
+        # 自动合并 CodebaseMemory 专用工具
         all_tools = list(self.tools) + self.ckg_tools
         self.tools = list(dict.fromkeys(all_tools))  # 去重保序
 

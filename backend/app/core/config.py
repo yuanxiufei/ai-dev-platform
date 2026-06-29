@@ -232,9 +232,9 @@ class Settings(BaseSettings):
     TRAJECTORY_ENABLED: bool = True          # 是否启用轨迹记录
     TRAJECTORY_OUTPUT_DIR: str = "trajectories/"  # 轨迹输出目录
 
-    # ── CKG 代码知识图谱配置 ───────────────────────
+    # ── CodebaseMemory 配置（已合并 CKG）─────────
     CKG_ENABLED: bool = True                 # 是否启用代码知识图谱
-    CKG_DB_PATH: str = "data/ckg.db"         # CKG SQLite 数据库路径
+    CKG_DB_PATH: str = "data/ckg.db"         # CKG SQLite 数据库路径（向后兼容，实际使用 .codebase-memory/index.db）
 
     # ── Redis 分布式缓存配置 ─────────────────────
     REDIS_ENABLED: bool = True               # 是否启用 Redis
