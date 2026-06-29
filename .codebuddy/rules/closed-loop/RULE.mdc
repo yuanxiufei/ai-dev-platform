@@ -1,0 +1,144 @@
+---
+description: 四大闭环系统开发规范 — CodebaseMemory / LongTermMemory / Agent协同 / AutoCLI。所有修改必须遵循闭环联动原则。
+alwaysApply: true
+enabled: true
+updatedAt: 2026-06-29T22:00:00.000Z
+provider: 
+---
+
+# 闭环系统开发规范
+
+## 概述
+
+本项目在 2026-06-29 完成了四大闭环系统的自主实现，59 项端到端测试全部通过。
+所有后续开发必须维护闭环联动，不可引入外部依赖破坏自主性。
+
+## 闭环 1：CodebaseMemory（代码库知识图谱）
+
+### 文件位置
+```
+backend/app/core/codebase_memory/
+```
+
+### 核心约束
+1. **零外部依赖** — 仅使用 Python 内置 `ast` 模块和 `sqlite3`，tree-sitter 为可选增强
+2. **三层回退** — 解析顺序: tree-sitter AST → regex → skip，不可跳过
+3. **SQLite 为主** — 使用 `CodeGraph.save_to_db()` / `load_from_db()` 持久化，JSON 仅作后备
+4. **CKG 已删除** — 原 `backend/app/core/ckg/` 已合并，不可重新创建
+5. **8 个工具固定** — `TOOL_REGISTRY` 中的工具名不可随意修改，Agent 依赖这些名称
+
+### 新增语言支持时的规范
+- 在 `EXT_LANG_MAP` 注册扩展名 → 语言映射
+- 在 `TS_LANG_MAP` 注册 tree-sitter 语言名
+- 在 `FUNC_PATTERNS` / `CLASS_PATTERNS` 添加 regex 回退模式
+
+## 闭环 2：LongTermMemory（长期记忆）
+
+### 文件位置
+```
+backend/app/core/memory/memory_store.py      — 图记忆存储
+backend/app/core/memory/memory_extractor.py  — 记忆提取
+backend/app/core/memory/memory_retriever.py  — 记忆检索
+backend/app/core/memory/store.py             — 向量记忆 [原有]
+backend/app/core/memory/embedding.py         — embedding 生成 [原有]
+```
+
+### 核心约束
+1. **双层架构** — 图记忆 (memory_store) + 向量记忆 (store)，两者互补不可替代
+2. **衰减公式不可改** — `decay = importance × 1/(1 + hours×0.01) + log(1 + access_count) × 0.1`
+3. **6 种记忆类型** — code/conversation/decision/lesson/fact/pattern/preference
+4. **遗忘阈值预设 0.05** — `forget(threshold)` 默认不过度清除
+
+### Agent 集成规范
+- AgentOrchestrator 结束时自动调用 `_save_to_memory()`
+- AgentRunner 应在 `before_run` 中注入 `retrieve_as_context()`
+
+## 闭环 3：Agent 协同系统
+
+### 文件位置
+```
+backend/app/core/agent/orchestrator.py    — 多 Agent 协同调度
+backend/app/core/agent/tool_priority.py   — 工具优先级
+backend/app/core/agent/agent_modes.py     — 6 modes × skills
+```
+
+### 核心约束
+1. **流水线顺序不可变** — Planner → Coder → Reviewer → Memory
+2. **工具优先级** — HIGH(理解) → MEDIUM(探索) → LOW(修改)，不可颠倒
+3. **Mode-Skill 绑定** — 每个 Agent 模式必须绑定至少 1 个 Skill
+4. **新增模式** — 必须在 `PRESET_MODES` 中注册，必须指定 `skills` 字段
+
+### 当前 Mode-Skill 映射（不可随意删除）
+| Mode | Skills |
+|------|--------|
+| architect | code-review, explain |
+| code | frontend-design, refactor |
+| debug | debug, explain |
+| test | test-gen, webapp-testing |
+| review | code-review |
+| docs | explain |
+
+## 闭环 4：AutoCLI（安全命令行）
+
+### 文件位置
+```
+backend/app/core/tools/autocli.py
+```
+
+### 核心约束
+1. **5 级安全策略** — READ_ONLY → FILE_CREATE → FILE_MODIFY → SYSTEM → UNSAFE
+2. **默认级别 = SYSTEM** — Agent 不可执行 UNSAFE 命令，需 `allow_unsafe=True`
+3. **命令白名单** — 新增命令必须添加到 `COMMAND_WHITELIST`
+4. **Git 子命令** — 必须在 `GIT_SUBCOMMAND_LEVELS` 注册，否则默认 SYSTEM
+5. **注入检测** — `DANGEROUS_CHARS` 正则匹配 `[;&|\`$(){}!#~]`，不可绕过
+
+### 新增命令规范
+```python
+# 1. 添加到 COMMAND_WHITELIST
+COMMAND_WHITELIST["new_cmd"] = SecurityLevel.SYSTEM
+
+# 2. 如果是 git 子命令
+GIT_SUBCOMMAND_LEVELS["new_subcmd"] = SecurityLevel.READ_ONLY
+```
+
+## 闭环联动约束
+
+### 联动链路（不可破坏）
+```
+用户请求 → AgentOrchestrator
+  1. SkillsManager 加载对应技能
+  2. PrioritizedToolSet 排序工具
+  3. CodebaseMemory 提供代码上下文
+  4. MemoryRetriever 注入历史记忆
+  5. ModelRouter 调度模型
+  6. AutoCLI 安全执行
+  7. MemoryExtractor 保存记忆
+```
+
+### 修改某层时必须检查的影响
+- 修改 `CodeGraph` → 检查 `FileIndexer`、`tools.py`、`ckg.py` 路由
+- 修改 `MemoryStore` → 检查 `MemoryExtractor`、`MemoryRetriever`、`AgentOrchestrator`
+- 修改 `AgentOrchestrator` → 检查 `tool_priority.py`、`agent_modes.py`、`agent_runner.py`
+- 修改 `AutoCLI` → 检查所有调用 CLI 的 Agent 工具
+
+## 测试规范
+
+### 运行闭环测试
+```bash
+cd /path/to/ai-fullstack-platform
+PYTHONPATH="$PWD/backend:$PYTHONPATH" python3 tests/test_closed_loop.py
+```
+
+### 添加新测试
+- 测试文件放在 `tests/` 目录
+- 必须覆盖跨系统联动（至少 1 个跨系统 test case）
+- 使用临时目录，零副作用
+
+## 禁止事项
+
+1. ❌ 不可重新创建 `backend/app/core/ckg/` 目录
+2. ❌ 不可在 Memory 中引入外部向量数据库（如 Qdrant/Pinecone）
+3. ❌ 不可绕过 AutoCLI 安全检测直接执行命令
+4. ❌ 不可删除 Agent Mode 的 skills 绑定
+5. ❌ 不可在 `tools.py` 中修改已有工具的函数签名
+6. ❌ 不可在 codebase_memory 中引入非标准库依赖

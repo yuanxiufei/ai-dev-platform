@@ -14,12 +14,13 @@
 2. [Studio 项目架构](#2-studio-项目架构)
 3. [Video 项目架构](#3-video-项目架构)
 4. [共享基础设施](#4-共享基础设施)
-5. [数据模型定义](#5-数据模型定义)
-6. [API 接口契约](#6-api-接口契约)
-7. [模型管理层架构](#7-模型管理层架构)
-8. [多模型动态调度](#8-多模型动态调度)
-9. [实现路线图](#9-实现路线图)
-10. [代码规范](#10-代码规范)
+  5. [数据模型定义](#5-数据模型定义)
+  6. [API 接口契约](#6-api-接口契约)
+  7. [模型管理层架构](#7-模型管理层架构)
+  8. [多模型动态调度](#8-多模型动态调度)
+  9. [实现路线图](#9-实现路线图)
+  10. [代码规范](#10-代码规范)
+  11. [闭环系统架构](#11-闭环系统架构)
 
 ---
 
@@ -831,6 +832,138 @@ import { ref, computed } from 'vue'
 
 ---
 
+## 11. 闭环系统架构
+
+> **状态**：四大闭环系统已于 2026-06-29 完成实现，59 项端到端测试全部通过。
+
+### 11.1 闭环总览
+
+```
+                         ┌──────────────────────────────────────┐
+                         │        Agent 层 (决策中心)            │
+                         │  AgentOrchestrator (Planner→Coder→    │
+                         │  Reviewer→Memory) + PrioritizedToolSet│
+                         │  + AgentModes (6 modes)               │
+                         └──────┬──────────────────────┬────────┘
+                                │                      │
+                   ┌────────────▼──────────┐  ┌────────▼──────────┐
+                   │   Skills 层            │  │   Memory 层        │
+                   │   (能力注入)            │  │   (上下文提供)      │
+                   │   SkillManager          │  │   CodebaseMemory  │
+                   │   SKILL.md × 8          │  │   LongTermMemory  │
+                   │   6 modes ├ skills      │  │   MemoryExtractor │
+                   └────────────────────────┘  │   MemoryRetriever │
+                                               └───────────────────┘
+                                │                      │
+                   ┌────────────▼──────────────────────▼─────────┐
+                   │         Tool 层 (执行能力)                    │
+                   │  AutoCLI (5-level security) / FileOps /      │
+                   │  ModelRouter / ToolRegistry                  │
+                   └──────────────────────────────────────────────┘
+```
+
+### 11.2 闭环 1：CodebaseMemory（代码库知识图谱）
+
+**定位**：自研 Python 代码解析 + 知识图谱系统，无需外部 MCP Server。
+
+```
+backend/app/core/codebase_memory/
+  graph.py         — CodeGraph + Node/Edge 数据模型 + SQLite 持久化
+  parser.py        — PythonParser (AST) + GenericParser (regex) + TreeSitterParser (三层回退)
+  indexer.py       — FileIndexer (文件扫描 + 增量哈希索引 + SQLite 持久化)
+  tools.py         — 8 个查询工具 (search_graph/search_code/get_code_snippet/...)
+  __init__.py      — init_codebase_memory() 全局入口
+```
+
+**数据模型**：
+- 13 种节点类型: File/Folder/Module/Class/Function/Method/Variable/Import/Route/Decorator/Type/Enum/Field
+- 10 种边类型: CONTAINS/DEFINES/CALLS/IMPORTS/INHERITS/DECORATES/USAGE/HTTP_CALLS/TESTS/DATA_FLOWS
+
+**关键设计**：
+- 三层解析回退：tree-sitter AST → regex → skip
+- SQLite WAL 模式持久化，支持增量更新（文件哈希对比）
+- JSON 文件作为后备加载
+- 已合并原 CKG 系统（`backend/app/core/ckg/` 已删除）
+
+### 11.3 闭环 2：LongTermMemory（长期记忆）
+
+**定位**：双层记忆架构 — 图记忆 + 向量记忆，自主实现零外部依赖。
+
+```
+backend/app/core/memory/
+  memory_store.py      — MemoryNode/Edge 数据模型 + SQLite 持久化 + 重要性衰减
+  memory_extractor.py  — 从对话/代码变更/反思提取结构化记忆
+  memory_retriever.py  — 关键词 + 图遍历综合检索 + Agent 上下文注入
+  store.py             — 原有向量记忆 (语义搜索)
+  embedding.py         — 多 Provider embedding 生成
+```
+
+**关键设计**：
+- 衰减公式: `decay = importance × 1/(1 + hours_since_access) + log(1 + access_count) × 0.1`
+- 6 种记忆类型: code/conversation/decision/lesson/fact/pattern/preference
+- 8 种关系类型: RELATES_TO/DEPENDS_ON/BEFORE/AFTER/CAUSED_BY/...
+- 自动遗忘: `forget(threshold)` 清除低分段记忆
+
+### 11.4 闭环 3：Agent 协同（多 Agent 流水线）
+
+**定位**：借鉴 Agent-Reach 的 Planner→Coder→Reviewer→Tester 流水线。
+
+```
+backend/app/core/agent/
+  orchestrator.py    — AgentOrchestrator (Planner→Coder→Reviewer→Memory 全链路)
+  tool_priority.py   — PrioritizedToolSet (HIGH/MEDIUM/LOW 三级) + 前置推荐
+  agent_runner.py    — AgentRunner (多轮工具调用循环) [已有]
+  agent_modes.py     — 6 modes × skills 绑定 [已增强]
+  tool_executor.py   — ToolExecutor [已有]
+  handoff.py         — SubAgent 委派 [已有]
+  reflection.py      — Agent 自省 [已有]
+```
+
+**Agent Mode → Skill 绑定**：
+| Mode | Skills |
+|------|--------|
+| architect | code-review, explain |
+| code | frontend-design, refactor |
+| debug | debug, explain |
+| test | test-gen, webapp-testing |
+| review | code-review |
+| docs | explain |
+
+### 11.5 闭环 4：AutoCLI（安全命令行）
+
+**定位**：5 级安全策略梯度 + 命令白名单 + Shell 注入检测。
+
+```
+backend/app/core/tools/autocli.py
+  SecurityLevel: READ_ONLY(0) → FILE_CREATE(1) → FILE_MODIFY(2) → SYSTEM(3) → UNSAFE(4)
+  55 个命令白名单 + Git 子命令分级
+  Shell 注入检测 (危险字符正则)
+  输出截断 (max_output_chars=8000)
+```
+
+### 11.6 闭环联动流程
+
+```
+用户请求 → AgentOrchestrator
+  1. SkillsManager 加载对应技能 (build_skills_prompt)
+  2. PrioritizedToolSet 排序工具 (HIGH→MEDIUM→LOW)
+  3. CodebaseMemory 提供代码结构上下文 (search_graph/trace_path)
+  4. MemoryRetriever 注入历史记忆 (retrieve_as_context)
+  5. ModelRouter 调度模型执行 (回退链)
+  6. AutoCLI 安全执行命令 (白名单+注入检测)
+  7. MemoryExtractor 保存决策/教训 (extract_and_save)
+```
+
+### 11.7 测试验证
+
+```bash
+cd /path/to/ai-fullstack-platform
+PYTHONPATH="$PWD/backend:$PYTHONPATH" python3 tests/test_closed_loop.py
+# 预期: 59/59 通过
+```
+
+---
+
 ## 附录：关键技术决策记录
 
 | 决策 | 选择 | 原因 |
@@ -841,9 +974,12 @@ import { ref, computed } from 'vue'
 | 流式响应 | SSE (Server-Sent Events) | 相比WebSocket更轻量，浏览器原生支持 |
 | 任务队列 | 复用 workers/ 目录 | 已有基础，视频生成需要异步 |
 | 模型下载源 | HuggingFace + ModelScope 双源 | 国内可用性保障 |
+| 代码解析 | Python ast + tree-sitter 三层回退 | 零外部依赖，自研可控 |
+| 长期记忆 | SQLite 图存储 | 无需向量数据库，闭环自主 |
+| CLI 安全 | 5 级白名单 + 注入检测 | 借鉴 AutoCLI 策略梯度设计 |
 
 ---
 
-> **文档版本**: v1.0
-> **最后更新**: 2026-06-13
+> **文档版本**: v2.0
+> **最后更新**: 2026-06-29
 > **维护者**: AI Fullstack Platform Team
