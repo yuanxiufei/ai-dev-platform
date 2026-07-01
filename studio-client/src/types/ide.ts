@@ -43,6 +43,19 @@ export interface TerminalLine {
   text: string
   type: "input" | "output" | "error" | "success" | "info"
   timestamp: number
+  /** Session 10: optional pre-parsed ANSI segments */
+  segments?: TerminalSegment[]
+}
+
+/** Session 10: ANSI-parsed segment for rich terminal rendering */
+export interface TerminalSegment {
+  text: string
+  fg?: string
+  bg?: string
+  bold?: boolean
+  dim?: boolean
+  italic?: boolean
+  underline?: boolean
 }
 
 /** Output panel channel */

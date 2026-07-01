@@ -1,4 +1,4 @@
-"""
+﻿"""
 Memory Store — 长期向量化记忆存储核心
 
 借鉴 Open WebUI Memory 功能：
@@ -230,7 +230,7 @@ class MemoryStore:
                 domain_ids.remove(record_id)
 
         try:
-            from app.models.model_presets import MemoryEntry
+            from app.models.memory_models import MemoryEntry
             import sqlalchemy as sa
             from sqlmodel import Session
 
@@ -240,7 +240,11 @@ class MemoryStore:
                     entry = session.get(MemoryEntry, uuid.UUID(record_id))
                     if entry and (not user_id or str(entry.user_id) == user_id):
                         session.delete(entry)
-                        session.commit()
+                        try:
+                            session.commit()
+                        except Exception:
+                            session.rollback()
+                            raise
                         return True
         except Exception as e:
             logger.warning("Failed to delete memory from DB: %s", e)
@@ -444,7 +448,7 @@ Merged:"""
     async def _persist_to_db(self, record: MemoryRecord, user_id: str, is_new: bool) -> None:
         """持久化到数据库"""
         try:
-            from app.models.model_presets import MemoryEntry
+            from app.models.memory_models import MemoryEntry
             from sqlmodel import Session
 
             engine = _get_engine()
@@ -478,7 +482,11 @@ Merged:"""
                         entry.access_count = record.access_count
                         session.add(entry)
 
-                session.commit()
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+                    raise
 
         except Exception as e:
             logger.debug("DB persist skipped (MemoryStore running in memory-only mode): %s", e)
@@ -486,7 +494,7 @@ Merged:"""
     async def _load_from_db(self, record_id: str, user_id: str = "") -> MemoryRecord | None:
         """从 DB 加载记忆"""
         try:
-            from app.models.model_presets import MemoryEntry
+            from app.models.memory_models import MemoryEntry
             from sqlmodel import Session
 
             engine = _get_engine()
@@ -509,9 +517,9 @@ Merged:"""
     ) -> list[MemorySearchResult]:
         """从 DB 搜索（回退方案）"""
         try:
-            from app.models.model_presets import MemoryEntry
+            from app.models.memory_models import MemoryEntry
             from sqlmodel import Session, select
-            from app.models.model_presets import MemoryEntry as ME
+            from app.models.memory_models import MemoryEntry as ME
 
             engine = _get_engine()
             if not engine:

@@ -1,12 +1,21 @@
-<script setup lang="ts">/** CodeBuddy IDE — File Tree Component */
+<script setup lang="ts">/** CodeBuddy IDE — File Tree Component (Zed/CodeEdit 风格增强) */
 import { ref, computed } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
 import type { FileEntry } from '@/types/ide'
-import { ChevronDown, ChevronRight, FolderOpen, FolderClosed, FileCode, FileJson, FileText, Image as ImgIcon, Archive, File, FileSymlink, FilePlus, FolderPlus, Pencil, Trash2 } from 'lucide-vue-next'
+import {
+  ChevronDown, ChevronRight, FolderOpen, FolderClosed, FileCode, FileJson,
+  FileText, Image as ImgIcon, Archive, File, FileSymlink, FilePlus, FolderPlus,
+  Pencil, Trash2, Copy, ClipboardPaste, AtSign,
+} from 'lucide-vue-next'
 
 const store = useIDEStore()
 const props = defineProps<{ entries?: FileEntry[]; depth?: number }>()
 const entries = computed(() => props.entries ?? store.fileTree)
+
+const emit = defineEmits<{
+  /** 🆕 CodeEdit/Zed 风格: 请求在聊天中 @-引用此文件 */
+  (e: "mentionFile", path: string, name: string): void
+}>()
 
 /** Right-click context menu state */
 const contextMenu = ref<{ x: number; y: number; entry: FileEntry | null } | null>(null)
@@ -51,6 +60,24 @@ function handleContextMenu(ev: MouseEvent, entry: FileEntry): void {
   contextMenu.value = { x: ev.clientX, y: ev.clientY, entry }
 }
 function closeContextMenu(): void { contextMenu.value = null }
+
+/** 🆕 复制文件路径 (CodeEdit 风格) */
+async function handleCopyPath(): Promise<void> {
+  const entry = contextMenu.value?.entry
+  if (!entry?.path) return
+  try {
+    await navigator.clipboard.writeText(entry.path)
+  } catch { /* ignore */ }
+  closeContextMenu()
+}
+
+/** 🆕 @-引用到 AI 对话 (自定义 IDE 特有功能) */
+function handleMentionInChat(): void {
+  const entry = contextMenu.value?.entry
+  if (!entry?.path) return
+  emit("mentionFile", entry.path, entry.name)
+  closeContextMenu()
+}
 
 async function handleNewFile(): Promise<void> {
   const parentDir = contextMenu.value!.entry?.isDir
@@ -161,10 +188,35 @@ function closeOnClickOutside(): void {
       <FileTree v-if="entry.isDir && entry.expanded && entry.children?.length" :entries="entry.children" :depth="(depth ?? 0) + 1" />
     </template>
 
-    <!-- Right-Click Context Menu -->
+    <!-- 🆕 Right-Click Context Menu (Zed/CodeEdit 风格增强) -->
     <Teleport to="body">
       <div v-if="contextMenu" class="fixed z-[300]" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @click.stop>
-        <div class="w-40 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-md shadow-xl py-1 text-xs">
+        <div class="w-48 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl py-1.5 text-xs">
+          <!-- 🆕 打开 (文件) -->
+          <button
+            v-if="!contextMenu.entry?.isDir"
+            class="context-menu-item w-full text-left flex items-center gap-2"
+            @click="contextMenu.entry?.path && store.openFile(contextMenu.entry.path); closeContextMenu()"
+          >
+            <FileCode :size="13" /> 打开
+          </button>
+          <!-- 🆕 复制路径 -->
+          <button
+            v-if="!contextMenu.entry?.isDir"
+            class="context-menu-item w-full text-left flex items-center gap-2"
+            @click="handleCopyPath()"
+          >
+            <Copy :size="13" /> 复制路径
+          </button>
+          <!-- 🆕 @-引用到对话 -->
+          <button
+            v-if="!contextMenu.entry?.isDir"
+            class="context-menu-item w-full text-left flex items-center gap-2 text-brand-400 hover:text-brand-300"
+            @click="handleMentionInChat()"
+          >
+            <AtSign :size="13" /> @-引用到对话
+          </button>
+          <hr class="my-1 border-[var(--color-ide-border)]" />
           <button v-if="contextMenu.entry?.isDir" class="context-menu-item w-full text-left flex items-center gap-2" @click="handleNewFile()">
             <FilePlus :size="13" /> 新建文件
           </button>

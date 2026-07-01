@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Brain, Code2, Layers, Palette, Rocket, Zap } from "lucide-vue-next"
 
-const _emit = defineEmits<{
+const emit = defineEmits<{
   (e: "start"): void
   (e: "quickPrompt", prompt: string): void
 }>()
 
-const _features = [
+const features = [
   {
     icon: Code2,
     title: "Vibe 编程",
@@ -51,7 +51,7 @@ const _features = [
   },
 ]
 
-const _quickPrompts = [
+const quickPrompts = [
   { icon: Code2, text: "帮我创建一个 React 待办事项应用" },
   { icon: Palette, text: "生成一个现代化的登录页面设计" },
   { icon: Brain, text: "分析这个项目的架构并给出优化建议" },

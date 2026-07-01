@@ -1,23 +1,190 @@
 """
-MCP 市场路由 — 预设 MCP 服务器集市
+MCP 市场路由 — 预设 MCP 服务器集市 (Session 09: 数据库持久化)
 
 端点:
-  GET  /agent/mcp/marketplace       — MCP 市场列表（分类展示）
-  POST /agent/mcp/marketplace/install — 安装/配置市场中的 MCP 服务器
+  GET  /agent/mcp/marketplace       — MCP 市场列表（分类展示，含动态评分）
+  POST /agent/mcp/marketplace/install — 安装/配置市场中的 MCP 服务器（记录统计）
+  GET  /agent/mcp/marketplace/stats  — 市场统计（安装排行 + 分类统计）
+  POST /agent/mcp/marketplace/seed   — 初始化种子数据
 """
 
 from __future__ import annotations
 
+import json
+import logging
+import math
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from sqlmodel import select, func
 
+from app.api.deps import SessionDep, commit_or_rollback
 from app.api.routes.agent.mcp_servers import get_mcp_manager, MCPAddServerRequest
 from app.core.mcp import MCPServerConfig, MCPTransport
+from app.models.mcp_models import McpMarketplaceEntry, McpInstalledServer
+
+logger = logging.getLogger("api.agent.mcp_marketplace")
 
 router = APIRouter(prefix="/agent/mcp/marketplace", tags=["agent"])
 
 
-# ── 市场预设数据 ──────────────────────────────────────────────
+# ── Session 09: 动态评分 & 数据库辅助 ──────────────────────────
+
+def _dynamic_score(base_stars: int, total_installs: int, recent_installs_30d: int) -> float:
+    """综合动态评分 (0~5)。
+
+    公式: score = min(5, log₂(1+installs)×0.6 + log₂(1+recent)×0.3 + log₂(1+stars)×0.1)
+    """
+    raw = (
+        math.log2(1 + total_installs) * 0.6 +
+        math.log2(1 + recent_installs_30d) * 0.3 +
+        math.log2(1 + base_stars) * 0.1
+    )
+    return round(min(5.0, raw), 2)
+
+
+def _recalc_dynamic_stats(session, entry: McpMarketplaceEntry) -> None:
+    """根据安装记录重新计算 installs 和 score。"""
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    total = session.exec(
+        select(func.count()).where(McpInstalledServer.preset_id == entry.preset_id)
+    ).one()
+    recent = session.exec(
+        select(func.count()).where(
+            McpInstalledServer.preset_id == entry.preset_id,
+            McpInstalledServer.installed_at >= thirty_days_ago,
+        )
+    ).one()
+    entry.installs = total
+    entry.score = _dynamic_score(entry.stars, total, recent)
+    entry.updated_at = datetime.now(timezone.utc)
+
+
+def _entry_to_item(entry: McpMarketplaceEntry) -> dict:
+    """数据库模型 → API 响应字典。"""
+    def _load(raw, default):
+        if raw is None:
+            return default
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return default
+    return {
+        "id": entry.preset_id,
+        "name": entry.name,
+        "description": entry.description or "",
+        "icon": entry.icon,
+        "category": entry.category,
+        "features": _load(entry.features, []),
+        "tags": _load(entry.tags, []),
+        "author": entry.author,
+        "version": entry.version,
+        "stars": entry.stars,
+        "installs": entry.installs,
+        "score": entry.score,
+        "transport": entry.transport,
+        "url": entry.url,
+        "command": entry.command,
+        "args": _load(entry.args, []),
+        "env_config": _load(entry.env_config, {}),
+        "setup_guide": entry.setup_guide or "",
+        "homepage": entry.homepage,
+        "source_code": entry.source_code,
+        "license": entry.license_name,
+    }
+
+
+_MCP_MARKETPLACE_MAX = 200
+
+async def _get_db_entries(session) -> list[McpMarketplaceEntry]:
+    """获取数据库中活跃的市场条目（自动种子化）。"""
+    entries = session.exec(
+        select(McpMarketplaceEntry).where(McpMarketplaceEntry.is_active == True)
+        .order_by(McpMarketplaceEntry.score.desc())
+        .limit(_MCP_MARKETPLACE_MAX)
+    ).all()
+    if not entries:
+        # 自动种子化
+        await _seed_marketplace(session)
+        entries = session.exec(
+            select(McpMarketplaceEntry).where(McpMarketplaceEntry.is_active == True)
+            .order_by(McpMarketplaceEntry.score.desc())
+            .limit(_MCP_MARKETPLACE_MAX)
+        ).all()
+    # 触发动态评分重算
+    for e in entries:
+        if e.installs > 0:
+            _recalc_dynamic_stats(session, e)
+    if entries:
+        commit_or_rollback(session)
+    return entries
+
+
+# ── 种子数据 ────────────────────────────────────────────────
+
+# 种子预设 ID 列表（已在旧版内存中定义，这里只存最小元数据用于自动填充）
+_SEED_PRESET_IDS = [
+    "cnb", "cloudbase", "tapd", "cos", "edgeone", "cloudstudio",
+    "lighthouse", "tca", "tdesign", "coding-devops", "demoway",
+    "gitlab", "github", "postgres", "sqlite", "filesystem",
+    "brave-search", "puppeteer", "mem0", "sequential-thinking",
+    "figma", "notion", "slack", "zhipu-mcp",
+]
+
+
+def _FIND_PRESET(preset_id: str) -> MCPPresetServer | None:
+    """从旧版内存预设列表中查找条目。"""
+    for s in MARKETPLACE_SERVERS:
+        if s.id == preset_id:
+            return s
+    return None
+
+
+async def _seed_marketplace(session) -> int:
+    """Session 09: 从硬编码预设种子化数据库（幂等，已有则跳过）。"""
+    seeded = 0
+    for preset_id in _SEED_PRESET_IDS:
+        exists = session.exec(
+            select(McpMarketplaceEntry).where(McpMarketplaceEntry.preset_id == preset_id)
+        ).first()
+        if exists:
+            continue
+        # 从旧版 MARKETPLACE_SERVERS 查找详细数据
+        preset = _FIND_PRESET(preset_id)
+        if not preset:
+            continue
+        entry = McpMarketplaceEntry(
+            preset_id=preset.id,
+            name=preset.name,
+            description=preset.description,
+            icon=preset.icon,
+            category=preset.category,
+            features=json.dumps(preset.features) if preset.features else None,
+            tags=json.dumps(preset.tags) if preset.tags else None,
+            author=preset.author,
+            version=preset.version,
+            homepage=preset.homepage,
+            source_code=preset.source_code,
+            setup_guide=preset.setup_guide,
+            transport=preset.transport,
+            url=preset.url,
+            command=preset.command,
+            args=json.dumps(preset.args) if preset.args else None,
+            env_config=json.dumps(preset.env_config) if preset.env_config else None,
+            stars=preset.stars,
+            installs=preset.installs,
+            score=_dynamic_score(preset.stars, preset.installs, 0),
+        )
+        session.add(entry)
+        seeded += 1
+    if seeded:
+        commit_or_rollback(session)
+        logger.info("MCP marketplace seeded: %d entries", seeded)
+    return seeded
+
+
+# ── 市场预设数据（保留旧版兼容）───────────────────────────────
 
 class MCPPresetServer(BaseModel):
     """市场中预设的 MCP 服务器"""
@@ -551,81 +718,109 @@ class MCPInstallRequest(BaseModel):
 
 @router.get("")
 async def get_marketplace(
+    session: SessionDep,
     category: str = "",
     search: str = "",
-) -> MCPMarketplaceResponse:
-    """获取 MCP 市场列表，支持按分类筛选和搜索"""
-    servers = MARKETPLACE_SERVERS
+):
+    """获取 MCP 市场列表（DB 持久化），支持按分类筛选和搜索"""
+    entries = await _get_db_entries(session)
+    items = [_entry_to_item(e) for e in entries]
 
+    # 筛选
     if category:
-        servers = [s for s in servers if s.category == category]
+        items = [it for it in items if it["category"] == category]
 
     if search:
         q = search.lower()
-        servers = [
-            s for s in servers
-            if q in s.name.lower()
-            or q in s.description.lower()
-            or any(q in t.lower() for t in s.tags)
-            or any(q in f.lower() for f in s.features)
+        items = [
+            it for it in items
+            if q in it["name"].lower()
+            or q in (it.get("description") or "").lower()
+            or any(q in t.lower() for t in it.get("tags", []))
+            or any(q in f.lower() for f in it.get("features", []))
         ]
 
-    categories = sorted(set(s.category for s in MARKETPLACE_SERVERS))
+    # 分类列表（从 DB 聚合）
+    cat_rows = session.exec(
+        select(McpMarketplaceEntry.category, func.count(McpMarketplaceEntry.id))
+        .where(McpMarketplaceEntry.is_active == True)
+        .group_by(McpMarketplaceEntry.category)
+    ).all()
+    categories = sorted([cat for cat, _ in cat_rows if cat])
 
-    return MCPMarketplaceResponse(
-        servers=servers,
-        total=len(servers),
-        categories=categories,
-    )
+    return {
+        "servers": items,
+        "total": len(items),
+        "categories": categories,
+    }
 
 
 @router.get("/categories")
-async def get_categories() -> dict:
-    """获取 MCP 市场所有分类"""
-    cats = {}
-    for s in MARKETPLACE_SERVERS:
-        cats.setdefault(s.category, 0)
-        cats[s.category] += 1
+async def get_categories(session: SessionDep) -> dict:
+    """获取 MCP 市场所有分类（DB 聚合）"""
+    rows = session.exec(
+        select(McpMarketplaceEntry.category, func.count(McpMarketplaceEntry.id))
+        .where(McpMarketplaceEntry.is_active == True)
+        .group_by(McpMarketplaceEntry.category)
+        .order_by(McpMarketplaceEntry.category)
+    ).all()
 
     return {
         "categories": [
-            {"id": k, "name": CATEGORY_LABELS.get(k, k), "count": v}
-            for k, v in sorted(cats.items())
+            {"id": cat, "name": CATEGORY_LABELS.get(cat, cat), "count": count}
+            for cat, count in rows if cat
         ],
     }
 
 
 @router.get("/{preset_id}")
-async def get_preset_detail(preset_id: str) -> MCPPresetServer:
-    """获取某个 MCP 服务器的详细信息"""
+async def get_preset_detail(session: SessionDep, preset_id: str):
+    """获取某个 MCP 服务器的详细信息（DB）"""
     from fastapi import HTTPException
-    for s in MARKETPLACE_SERVERS:
-        if s.id == preset_id:
-            return s
-    raise HTTPException(status_code=404, detail=f"Preset '{preset_id}' not found")
+    entry = session.exec(
+        select(McpMarketplaceEntry).where(
+            McpMarketplaceEntry.preset_id == preset_id,
+            McpMarketplaceEntry.is_active == True,
+        )
+    ).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Preset '{preset_id}' not found")
+    # 动态重算评分
+    _recalc_dynamic_stats(session, entry)
+    commit_or_rollback(session)
+    return _entry_to_item(entry)
 
 
 @router.post("/install")
-async def install_from_marketplace(payload: MCPInstallRequest) -> dict:
-    """从市场安装 MCP 服务器"""
+async def install_from_marketplace(session: SessionDep, payload: MCPInstallRequest) -> dict:
+    """从市场安装 MCP 服务器（DB 持久化安装记录 + 统计更新）"""
     from fastapi import HTTPException
 
-    # 查找预设
-    preset = None
-    for s in MARKETPLACE_SERVERS:
-        if s.id == payload.preset_id:
-            preset = s
-            break
+    # 查找数据库条目（优先 DB，回退内存预设）
+    entry = session.exec(
+        select(McpMarketplaceEntry).where(
+            McpMarketplaceEntry.preset_id == payload.preset_id,
+            McpMarketplaceEntry.is_active == True,
+        )
+    ).first()
 
-    if not preset:
-        raise HTTPException(status_code=404, detail=f"Preset '{payload.preset_id}' not found")
-
-    # 使用预设默认值，用户可覆盖
-    transport = payload.transport or preset.transport
-    url = payload.url or preset.url
-    command = payload.command or preset.command
-    args = payload.args or preset.args
-    env_vars = payload.env or preset.env_config
+    if not entry:
+        preset = _FIND_PRESET(payload.preset_id)
+        if not preset:
+            raise HTTPException(status_code=404, detail=f"Preset '{payload.preset_id}' not found")
+        name = preset.name
+        transport_val = payload.transport or preset.transport
+        url = payload.url or preset.url
+        command = payload.command or preset.command
+        args = payload.args or preset.args
+        env_vars = payload.env or preset.env_config
+    else:
+        name = entry.name
+        transport_val = payload.transport or entry.transport
+        url = payload.url or (entry.url or "")
+        command = payload.command or entry.command
+        args = payload.args or (json.loads(entry.args) if entry.args else [])
+        env_vars = payload.env or (json.loads(entry.env_config) if entry.env_config else {})
 
     # 构建 MCP 服务器配置
     transport_map = {
@@ -635,13 +830,13 @@ async def install_from_marketplace(payload: MCPInstallRequest) -> dict:
     }
 
     config = MCPServerConfig(
-        name=preset.name,
-        transport=transport_map.get(transport, MCPTransport.SSE),
+        name=name,
+        transport=transport_map.get(transport_val, MCPTransport.SSE),
         url=url,
         command=command,
         args=args,
         env=env_vars,
-        tool_prefix=preset.id,
+        tool_prefix=payload.preset_id,
         auto_discover=True,
         timeout_seconds=payload.timeout,
     )
@@ -649,7 +844,10 @@ async def install_from_marketplace(payload: MCPInstallRequest) -> dict:
     manager = get_mcp_manager()
     manager.add_server(config)
 
+    import time
+    t0 = time.perf_counter()
     result = await manager.connect_all()
+    elapsed_ms = (time.perf_counter() - t0) * 1000
 
     tools_count = 0
     tools_names = []
@@ -658,13 +856,206 @@ async def install_from_marketplace(payload: MCPInstallRequest) -> dict:
         tools_count = len(tools)
         tools_names = [t.name for t in tools]
 
+    # ── Session 09: 写入安装记录 + 更新市场统计 ──
+    install_record = McpInstalledServer(
+        preset_id=payload.preset_id,
+        user_id=None,  # TODO: 从 auth 上下文获取
+        server_name=name,
+        status="connected" if result.success else "failed",
+        error_message="; ".join(result.errors) if result.errors else None,
+        tools_discovered=tools_count,
+        install_duration_ms=round(elapsed_ms, 1),
+        installed_at=datetime.now(timezone.utc),
+        last_used_at=datetime.now(timezone.utc) if result.success else None,
+    )
+    session.add(install_record)
+
+    # 更新市场条目统计
+    if entry:
+        _recalc_dynamic_stats(session, entry)
+        entry.last_installed_at = datetime.now(timezone.utc)
+
+    commit_or_rollback(session)
+
     return {
         "success": result.success,
-        "message": f"已安装 '{preset.name}'" if result.success else f"连接失败: {preset.name}",
-        "preset": preset.id,
+        "message": f"已安装 '{name}'" if result.success else f"连接失败: {name}",
+        "preset": payload.preset_id,
         "tools_discovered": tools_count,
         "tools": tools_names,
         "errors": result.errors,
+    }
+
+
+@router.get("/stats")
+async def get_marketplace_stats(session: SessionDep) -> dict:
+    """Session 09: 市场统计 — 总安装数、热门排行、分类分布"""
+    # 总安装数
+    total_installs = session.exec(
+        select(func.count()).select_from(McpInstalledServer)
+        .where(McpInstalledServer.status == "connected")
+    ).one()
+
+    # Top 5 安装排行
+    top_installed = session.exec(
+        select(McpMarketplaceEntry.preset_id, McpMarketplaceEntry.name,
+               McpMarketplaceEntry.installs, McpMarketplaceEntry.score)
+        .where(McpMarketplaceEntry.is_active == True)
+        .order_by(McpMarketplaceEntry.installs.desc())
+        .limit(5)
+    ).all()
+
+    # Top 5 评分排行
+    top_rated = session.exec(
+        select(McpMarketplaceEntry.preset_id, McpMarketplaceEntry.name,
+               McpMarketplaceEntry.installs, McpMarketplaceEntry.score)
+        .where(McpMarketplaceEntry.is_active == True)
+        .order_by(McpMarketplaceEntry.score.desc())
+        .limit(5)
+    ).all()
+
+    # 分类安装分布
+    cat_dist = session.exec(
+        select(McpMarketplaceEntry.category, func.sum(McpMarketplaceEntry.installs))
+        .where(McpMarketplaceEntry.is_active == True)
+        .group_by(McpMarketplaceEntry.category)
+        .order_by(McpMarketplaceEntry.category)
+    ).all()
+
+    # 活跃服务器数
+    active_count = session.exec(
+        select(func.count()).select_from(McpMarketplaceEntry)
+        .where(McpMarketplaceEntry.is_active == True)
+    ).one()
+
+    return {
+        "total_installs": total_installs,
+        "active_servers": active_count,
+        "top_installed": [
+            {"id": pid, "name": name, "installs": inst, "score": score}
+            for pid, name, inst, score in top_installed
+        ],
+        "top_rated": [
+            {"id": pid, "name": name, "installs": inst, "score": score}
+            for pid, name, inst, score in top_rated
+        ],
+        "category_distribution": [
+            {"category": cat, "label": CATEGORY_LABELS.get(cat, cat), "installs": int(inst or 0)}
+            for cat, inst in cat_dist if cat
+        ],
+    }
+
+
+@router.post("/seed")
+async def seed_marketplace(session: SessionDep) -> dict:
+    """Session 09: 手动触发种子数据初始化（幂等）"""
+    count = await _seed_marketplace(session)
+    return {"seeded": count, "message": f"种子数据已初始化: {count} 条"}
+
+
+# ── Session 09: 安装追踪 & 动态评分独立 API ──────────────────
+
+@router.get("/installed")
+async def get_installed_history(
+    session: SessionDep,
+    preset_id: str = "",
+    limit: int = 20,
+    offset: int = 0,
+) -> dict:
+    """获取安装历史记录（支持按 preset_id 筛选）"""
+    stmt = select(McpInstalledServer).order_by(McpInstalledServer.installed_at.desc())
+    count_stmt = select(func.count()).select_from(McpInstalledServer)
+
+    if preset_id:
+        stmt = stmt.where(McpInstalledServer.preset_id == preset_id)
+        count_stmt = count_stmt.where(McpInstalledServer.preset_id == preset_id)
+
+    total = session.exec(count_stmt).one()
+    records = session.exec(stmt.offset(offset).limit(limit)).all()
+
+    return {
+        "data": [
+            {
+                "id": str(r.id),
+                "preset_id": r.preset_id,
+                "server_name": r.server_name,
+                "status": r.status,
+                "tools_discovered": r.tools_discovered,
+                "install_duration_ms": r.install_duration_ms,
+                "installed_at": r.installed_at.isoformat() if r.installed_at else None,
+                "last_used_at": r.last_used_at.isoformat() if r.last_used_at else None,
+                "error_message": r.error_message,
+            }
+            for r in records
+        ],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+@router.post("/{preset_id}/uninstall")
+async def uninstall_preset(session: SessionDep, preset_id: str) -> dict:
+    """卸载追踪：标记最近一次安装为已卸载"""
+    from fastapi import HTTPException
+
+    # 查找最近的 connected 安装记录
+    record = session.exec(
+        select(McpInstalledServer).where(
+            McpInstalledServer.preset_id == preset_id,
+            McpInstalledServer.status == "connected",
+        ).order_by(McpInstalledServer.installed_at.desc())
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active install found for '{preset_id}'",
+        )
+
+    record.status = "uninstalled"
+    record.uninstalled_at = datetime.now(timezone.utc)
+
+    # 降级市场 installs 计数
+    entry = session.exec(
+        select(McpMarketplaceEntry).where(
+            McpMarketplaceEntry.preset_id == preset_id,
+            McpMarketplaceEntry.is_active == True,
+        )
+    ).first()
+    if entry and entry.installs > 0:
+        entry.installs -= 1
+        _recalc_dynamic_stats(session, entry)
+
+    commit_or_rollback(session)
+    return {
+        "success": True,
+        "message": f"已卸载 '{preset_id}'",
+        "uninstalled_at": record.uninstalled_at.isoformat(),
+    }
+
+
+@router.post("/recalc")
+async def recalc_all_scores(session: SessionDep) -> dict:
+    """手动触发所有活跃市场条目的动态评分重算"""
+    entries = session.exec(
+        select(McpMarketplaceEntry).where(McpMarketplaceEntry.is_active == True)
+    ).all()
+
+    updated = 0
+    for e in entries:
+        old_score = e.score
+        _recalc_dynamic_stats(session, e)
+        if e.score != old_score:
+            updated += 1
+
+    if updated:
+        commit_or_rollback(session)
+
+    return {
+        "message": f"评分重算完成: {updated}/{len(entries)} 条记录已更新",
+        "total_entries": len(entries),
+        "updated": updated,
     }
 
 

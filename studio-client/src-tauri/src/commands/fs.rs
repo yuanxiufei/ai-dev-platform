@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs::{self, File};
 use walkdir::WalkDir;
 use chrono::{DateTime, Utc};
@@ -245,15 +245,15 @@ pub async fn copy_path(src: String, dst: String) -> Result<FileInfo, String> {
     get_file_info(dst).await
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::result::Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in WalkDir::new(src).min_depth(1) {
         let entry = entry.map_err(|e| e.to_string())?;
         let dest_path = dst.join(entry.file_name());
         if entry.path().is_dir() {
-            fs::create_dir_all(&dest_path)?;
+            fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
         } else {
-            fs::copy(entry.path(), &dest_path)?;
+            fs::copy(entry.path(), &dest_path).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -338,11 +338,10 @@ pub async fn search_in_file(request: SearchRequest) -> Result<Vec<SearchResult>,
     let mut results = Vec::new();
     let max_results = request.max_results.unwrap_or(500);
     
-    let re_builder = if request.case_sensitive.unwrap_or(false) {
-        regex::RegexBuilder::new(&request.pattern)
-    } else {
-        regex::RegexBuilder::new(&request.pattern).case_insensitive(true)
-    };
+    let mut re_builder = regex::RegexBuilder::new(&request.pattern);
+    if !request.case_sensitive.unwrap_or(false) {
+        re_builder.case_insensitive(true);
+    }
     
     let re = re_builder
         .dot_matches_new_line(false)
@@ -443,7 +442,7 @@ pub async fn get_file_info(path: String) -> Result<FileInfo, String> {
 
 /// Get recently accessed files
 #[tauri::command]
-pub async fn get_recent_files(limit: Option<u32>) -> Result<Vec<FileInfo>, String> {
+pub async fn get_recent_files(_limit: Option<u32>) -> Result<Vec<FileInfo>, String> {
     // This would typically be implemented with OS-specific APIs
     // For now, return empty list - the frontend tracks recent files
     Ok(Vec::new())

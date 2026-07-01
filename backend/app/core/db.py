@@ -13,9 +13,10 @@ engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 
 
 def init_db(session: Session) -> None:
-    # Tables should be created with Alembic migrations
-    # But if you don't want to use migrations, create
-    # the tables un-commenting the next lines
+    # Tables should primarily be managed via Alembic migrations.
+    # create_all serves as a safety net for any tables not yet covered
+    # by migrations — it is not idempotent for schema changes but safe
+    # for initial schema bootstrap.
     from sqlmodel import SQLModel
 
     # This works because the models are already imported and registered from app.models

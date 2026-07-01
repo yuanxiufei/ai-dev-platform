@@ -5,6 +5,7 @@ import {
   type OpenAPIToolSchema,
   openapiDiscoveryApi,
 } from "@/api/model-features"
+import { Globe, Plus, RefreshCw, Zap } from "lucide-vue-next"
 
 const servers = ref<OpenAPIServerInfo[]>([])
 const tools = ref<OpenAPIToolSchema[]>([])
@@ -30,7 +31,7 @@ async function loadServers() {
   }
 }
 
-async function _discover() {
+async function discover() {
   if (!discoverUrl.value) return
   await openapiDiscoveryApi.discover(discoverUrl.value, discoverName.value)
   showDiscover.value = false
@@ -39,13 +40,13 @@ async function _discover() {
   await loadServers()
 }
 
-async function _viewTools(serverId: string) {
+async function viewTools(serverId: string) {
   selectedServerId.value = serverId
   const res = await openapiDiscoveryApi.tools(serverId)
   tools.value = res.data.tools
 }
 
-function _openToolCall(tool: OpenAPIToolSchema) {
+function openToolCall(tool: OpenAPIToolSchema) {
   callToolId.value = tool.function.name
   const params = tool.function.parameters
   if (params && (params as any).properties) {
@@ -57,10 +58,10 @@ function _openToolCall(tool: OpenAPIToolSchema) {
   showToolCall.value = true
 }
 
-async function _doToolCall() {
+async function doToolCall() {
   try {
     const args = JSON.parse(callArgs.value)
-    const _tool = tools.value.find((t) => t.function.name === callToolId.value)
+    const tool = tools.value.find((t) => t.function.name === callToolId.value)
     const server = servers.value.find(
       (s) =>
         s.tools &&

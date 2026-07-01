@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select, func
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, commit_or_rollback
 from app.models.system_models import Integration
 
 router = APIRouter(prefix="/integrations", tags=["Integrations"])
@@ -87,6 +87,8 @@ def _to_response(entry: Integration) -> IntegrationResponse:
 
 # ── Endpoints ────────────────────────────────────────────
 
+_INTEGRATIONS_MAX_LIST = 200
+
 @router.get("")
 async def list_integrations(
     category: str | None = Query(None),
@@ -97,7 +99,9 @@ async def list_integrations(
     stmt = select(Integration).where(Integration.user_id == current_user.id)
     if category:
         stmt = stmt.where(Integration.category == category)
-    items = db.exec(stmt.order_by(Integration.name)).all()
+    items = db.exec(
+        stmt.order_by(Integration.name).limit(_INTEGRATIONS_MAX_LIST)
+    ).all()
     return {"data": [_to_response(i) for i in items], "total": len(items)}
 
 
@@ -139,7 +143,7 @@ async def create_integration(
         user_id=current_user.id,
     )
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return {"data": _to_response(entry).model_dump(), "message": "集成已注册"}
 
@@ -167,7 +171,7 @@ async def update_integration(
 
     entry.updated_at = datetime.now(timezone.utc)
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return {"data": _to_response(entry).model_dump(), "message": "集成已更新"}
 
@@ -185,7 +189,7 @@ async def delete_integration(
     if entry.connected:
         raise HTTPException(status_code=400, detail="请先断开连接")
     db.delete(entry)
-    db.commit()
+    commit_or_rollback(db)
     return {"message": "集成已删除", "ok": True}
 
 
@@ -232,7 +236,7 @@ async def connect_integration(
     entry.updated_at = datetime.now(timezone.utc)
 
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return {
         "data": _to_response(entry).model_dump(),
@@ -255,7 +259,7 @@ async def disconnect_integration(
     entry.status = "disconnected"
     entry.updated_at = datetime.now(timezone.utc)
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return {"data": _to_response(entry).model_dump(), "message": f"已断开 {entry.display_name}"}
 

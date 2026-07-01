@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::process::Command;
 use anyhow::{Result, Context};
 
@@ -147,6 +146,7 @@ pub async fn git_status(path: String) -> Result<GitStatus, String> {
         }
     }
 
+    let clean = staged.is_empty() && unstaged.is_empty() && untracked.is_empty();
     Ok(GitStatus {
         branch,
         ahead,
@@ -154,7 +154,7 @@ pub async fn git_status(path: String) -> Result<GitStatus, String> {
         staged,
         unstaged,
         untracked,
-        clean: staged.is_empty() && unstaged.is_empty() && untracked.is_empty(),
+        clean,
     })
 }
 

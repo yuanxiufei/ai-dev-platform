@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select, func
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, commit_or_rollback
 from app.models.system_models import Rule
 
 router = APIRouter(prefix="/rules", tags=["Rules"])
@@ -153,7 +153,7 @@ async def create_rule(
         user_id=current_user.id,
     )
     db.add(rule)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(rule)
     return {"data": _rule_to_response(rule).model_dump(), "message": "规则已创建"}
 
@@ -189,7 +189,7 @@ async def update_rule(
 
     rule.updated_at = datetime.now(timezone.utc)
     db.add(rule)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(rule)
     return {"data": _rule_to_response(rule).model_dump(), "message": "规则已更新"}
 
@@ -205,7 +205,7 @@ async def delete_rule(
     if not rule or rule.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="规则不存在")
     db.delete(rule)
-    db.commit()
+    commit_or_rollback(db)
     return {"message": "规则已删除", "ok": True}
 
 
@@ -224,7 +224,7 @@ async def toggle_rule(
     rule.enabled = not rule.enabled
     rule.updated_at = datetime.now(timezone.utc)
     db.add(rule)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(rule)
     return {"name": rule.name, "enabled": rule.enabled}
 

@@ -10,7 +10,7 @@ defineEmits<(e: "update:modelValue", value: ChatMode) => void>()
 
 export type ChatMode = "craft" | "ask" | "plan" | "agent"
 
-const _modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
+const modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
   { value: "craft", label: "Craft", icon: PenLine },
   { value: "ask", label: "Ask", icon: Lightbulb },
   { value: "plan", label: "Plan", icon: FileText },

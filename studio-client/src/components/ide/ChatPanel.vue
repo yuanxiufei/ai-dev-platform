@@ -1,17 +1,11 @@
 <script setup lang="ts">
 /**
- * CodeBuddy IDE — AI Chat Panel
- * Figma Design: studio-ai (node-id=9-195) — Right Panel "AI 编程助手"
- *
- * Features:
- *  - Glassmorphism message bubbles (AI: blur+left-border, User: light purple)
- *  - Model selector (GPT-4o / Claude / DeepSeek)
- *  - Mode selector (对话模式 / Agent模式)
- *  - Loading dots animation
- *  - Ctrl+Enter hint
+ * CodeBuddy IDE — AI Chat Panel (Redesigned)
+ * Unified theme tokens · Clean component primitives
  */
 
 import { computed, nextTick, ref } from "vue"
+import { Bot, ChevronDown, ImagePlus, Paperclip, Send, Sparkles } from "lucide-vue-next"
 import { agentChatSimple } from "@/api/agent"
 import apiClient from "@/api/client"
 
@@ -24,7 +18,6 @@ interface Message {
   provider?: string
 }
 
-/** Available AI models for selector */
 const models = [
   { id: "llama3.1:8b", label: "Llama 3.1", desc: "(本地·8B·Tools)", active: true },
   { id: "qwen2.5-coder:7b", label: "Qwen2.5-Coder", desc: "(本地·7B·代码)", active: false },
@@ -65,13 +58,11 @@ async function sendMessage(): Promise<void> {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
 
-  // Add user message
   messages.value.push({ role: "user", content: text, timestamp: Date.now() })
   inputText.value = ""
   isLoading.value = true
   sb()
 
-  // Add assistant placeholder
   const am: Message = {
     role: "assistant",
     content: "",
@@ -86,8 +77,7 @@ async function sendMessage(): Promise<void> {
       message: text,
       tools: ["calculate", "datetime_now", "get_weather", "web_search", "file_read"],
       preferred_model: selectedModel.value.id,
-      max_turns: 3,
-      max_turns: 2,
+      max_turns: 10,
     })
     am.content = resp.data.answer || resp.data.content
     am.modelUsed = resp.data.model_used
@@ -108,89 +98,82 @@ async function sendMessage(): Promise<void> {
 <template>
   <div class="h-full flex flex-col bg-[var(--color-ide-surface)]">
     <!-- ── Header ───────────────────────────────────── -->
-    <div class="flex items-center justify-between px-4 py-4 border-b border-[var(--color-ide-border)] shrink-0">
+    <header class="flex items-center justify-between px-5 py-3 border-b border-[var(--color-ide-border)] shrink-0">
       <div class="flex items-center gap-2.5">
-        <!-- Bot Icon -->
-        <div class="w-7 h-7 rounded flex items-center justify-center" style="background:#C0C1FF20;">
-          <Bot :size="16" style="color:#C0C1FF;" />
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[rgba(192,193,255,0.1)]">
+          <Bot :size="17" class="text-[var(--color-ide-accent)]" />
         </div>
-        <span class="text-sm font-semibold" style="color:#DFE2F1;">AI 编程助手</span>
+        <div>
+          <span class="text-sm font-semibold text-[var(--color-ide-text)]">AI 编程助手</span>
+        </div>
       </div>
-      <div class="flex items-center gap-1">
-        <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] transition-colors">
+      <div class="flex items-center gap-0.5">
+        <button class="btn-ghost p-1.5" title="最小化">
           <svg width="14" height="12" viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <button class="p-1 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] transition-colors">
+        <button class="btn-ghost p-1.5" title="最大化">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
         </button>
       </div>
-    </div>
+    </header>
 
     <!-- ── Messages Area ──────────────────────────────── -->
-    <div ref="mc" class="flex-1 overflow-y-auto p-4 space-y-4">
-      <!-- No messages → Welcome -->
-      <div v-if="!hasMessages && !isLoading" class="h-full flex flex-col items-center justify-center text-center select-none">
-        <div class="mb-4 w-16 h-16 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #C0C1FF15, #C0C1FF05); border: 1px solid #C0C1FF25;">
-          <Sparkles :size="28" style="color:#C0C1FF;" />
+    <div ref="mc" class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <!-- Welcome State -->
+      <div v-if="!hasMessages && !isLoading" class="h-full flex flex-col items-center justify-center select-none">
+        <div class="mb-5 w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[rgba(192,193,255,0.08)] to-transparent border border-solid border-[rgba(192,193,255,0.15)] shadow-[0_0_40px_rgba(192,193,255,0.06)]">
+          <Sparkles :size="32" class="text-[var(--color-ide-accent)]" />
         </div>
-        <p class="text-sm font-medium mb-1" style="color:#DFE2F1;">AI 编程助手</p>
-        <p class="text-xs mb-5" style="color:#908FA0;">有什么可以帮你的？</p>
-        <div class="w-full space-y-2 max-w-xs">
+        <p class="text-base font-semibold mb-1 text-[var(--color-ide-text-bright)]">AI 编程助手</p>
+        <p class="text-xs mb-6 text-[var(--color-ide-text-dim)]">有什么可以帮你的？</p>
+
+        <div class="w-full space-y-2 max-w-[280px]">
           <button @click="inputText='帮我分析当前组件的性能'; sendMessage()"
-            class="w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors"
-            style="border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            :class="'hover:border-[#C0C1FF40]'">
+            class="quick-action-btn w-full text-left text-[13px] px-4 py-2.5 rounded-xl border border-solid transition-colors duration-150 border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/30 hover:bg-[rgba(192,193,255,0.04)]">
             分析代码性能
           </button>
           <button @click="inputText='生成一个 Vue 组件'; sendMessage()"
-            class="w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors"
-            style="border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            :class="'hover:border-[#C0C1FF40]'">
+            class="quick-action-btn w-full text-left text-[13px] px-4 py-2.5 rounded-xl border border-solid transition-colors duration-150 border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/30 hover:bg-[rgba(192,193,255,0.04)]">
             生成 Vue 组件
+          </button>
+          <button @click="inputText='解释这个项目的架构'; sendMessage()"
+            class="quick-action-btn w-full text-left text-[13px] px-4 py-2.5 rounded-xl border border-solid transition-colors duration-150 border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/30 hover:bg-[rgba(192,193,255,0.04)]">
+            解释项目架构
           </button>
         </div>
       </div>
 
       <!-- Messages List -->
       <template v-else>
-        <!-- AI Message (Glassmorphism bubble) -->
-        <div v-for="(msg, idx) in messages" :key="idx" class="flex gap-2 items-start">
-          <!-- AI message -->
+        <div v-for="(msg, idx) in messages" :key="idx" class="flex gap-2.5 items-start" :class="{ 'flex-row-reverse': msg.role === 'user' }">
+
+          <!-- AI Message Bubble -->
           <template v-if="msg.role === 'assistant'">
-            <div
-              class="max-w-[90%] rounded-lg px-3.5 py-3 relative backdrop-blur-md"
-              style="background: rgba(28,31,42,0.7); border-left: 4px solid #C0C1FF; box-shadow: 0 4px 6px -4px rgba(0,0,0,0.1), 0 10px 15px -3px rgba(0,0,0,0.1);"
-            >
-              <!-- Loading state -->
-              <div v-if="isLoading && !msg.content" class="flex items-center gap-1.5 py-1" style="color:#908FA0;">
+            <div class="ai-bubble max-w-[88%] rounded-xl px-4 py-3 backdrop-blur-md border-l-[3px] border-l-[var(--color-chat-ai-border)] bg-[var(--color-chat-ai-bg)] shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+              <!-- Loading dots -->
+              <div v-if="isLoading && !msg.content" class="flex items-center gap-2 py-1 text-[var(--color-ide-text-dim)]">
                 <span class="flex gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:0ms;"/>
-                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:150ms;"/>
-                  <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background:#C0C1FF;animation-delay:300ms;"/>
+                  <span class="w-2 h-2 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:0ms"/>
+                  <span class="w-2 h-2 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:150ms"/>
+                  <span class="w-2 h-2 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:300ms"/>
                 </span>
-                <span class="text-xs">正在分析代码...</span>
+                <span class="text-[13px]">正在思考...</span>
               </div>
               <!-- Content -->
-              <div v-else class="text-xs leading-relaxed whitespace-pre-wrap break-words" style="color:#DFE2F1;">{{ msg.content }}</div>
+              <div v-else class="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-[var(--color-ide-text)]">{{ msg.content }}</div>
             </div>
-            <!-- Timestamp -->
-            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap" style="color:#908FA0;">
-              {{ formatTime(msg.timestamp) }} · AI 助手
+            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap text-[var(--color-ide-text-dim)] tabular-nums">
+              {{ formatTime(msg.timestamp) }} · AI
             </span>
           </template>
 
-          <!-- User message (Light purple bubble) -->
+          <!-- User Message Bubble -->
           <template v-else-if="msg.role === 'user'">
-            <div class="flex-1" />
-            <div
-              class="rounded-lg px-4 py-2.5 max-w-[85%]"
-              style="background: rgba(192,193,255,0.1); border: 1px solid rgba(192,193,255,0.2);"
-            >
-              <p class="text-xs leading-relaxed whitespace-pre-wrap break-words" style="color:#DFE2F1;">{{ msg.content }}</p>
+            <div class="user-bubble rounded-xl px-4 py-2.5 max-w-[80%] bg-[var(--color-chat-user-bg)] border border-solid border-[var(--color-chat-user-border)]">
+              <p class="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-[var(--color-ide-text)]">{{ msg.content }}</p>
             </div>
-            <!-- Timestamp -->
-            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap" style="color:#908FA0;">
-              {{ formatTime(msg.timestamp) }} · 您
+            <span class="text-[10px] mt-auto ml-2 whitespace-nowrap text-[var(--color-ide-text-dim)] tabular-nums">
+              {{ formatTime(msg.timestamp) }} · 你
             </span>
           </template>
         </div>
@@ -198,85 +181,88 @@ async function sendMessage(): Promise<void> {
     </div>
 
     <!-- ── Bottom Input Panel ────────────────────────── -->
-    <div class="shrink-0 border-t border-[var(--color-ide-border)] px-4 py-3 space-y-3" style="background:#262A35;">
+    <div class="shrink-0 border-t border-[var(--color-ide-border)] px-4 pt-3 pb-3 space-y-3 bg-[var(--color-ide-bg-secondary)]">
       <!-- Model & Mode Selectors Row -->
       <div class="flex items-center justify-center gap-2">
         <!-- Model Selector -->
-        <div class="relative">
+        <div class="relative model-select-wrapper">
           <button
             @click="showModelMenu = !showModelMenu"
-            class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-semibold transition-colors border"
-            style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            @blur="setTimeout(()=>showModelMenu=false,250)"
+            class="model-trigger flex items-center gap-1.5 h-7 pl-3 pr-2.5 rounded-lg text-[11px] font-semibold transition-all duration-150 border border-solid bg-[var(--color-editor-bg)] border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/50 focus:border-[var(--color-ide-border-focus)]"
+            @blur="setTimeout(()=>showModelMenu=false,200)"
           >
-            <span>{{ selectedModel.label }} {{ selectedModel.desc }}</span>
-            <ChevronDown :size="10" />
+            <span>{{ selectedModel.label }}</span>
+            <span class="text-[var(--color-ide-text-dim)] font-normal">{{ selectedModel.desc }}</span>
+            <ChevronDown :size="11" class="ml-0.5 text-[var(--color-ide-text-dim)]" />
           </button>
           <!-- Dropdown -->
-          <div v-if="showModelMenu" class="absolute bottom-full mb-1 left-0 min-w-[140px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
-            <button v-for="m in models" :key="m.id"
-              @mousedown.prevent
-              @click="selectedModel=m;showModelMenu=false"
-              class="w-full text-left text-[11px] font-semibold px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
-              :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedModel.id ? '#C0C1FF15' : 'transparent' }"
-            >
-              <span>{{ m.label }} {{ m.desc }}</span>
-              <svg v-if="m.id===selectedModel.id" width="12" height="9" viewBox="0 0 12 9" fill="none" style="stroke:#C0C1FF;"><path d="M1 3l4 4 6-6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
+          <Transition name="fade">
+            <div v-if="showModelMenu" class="dropdown-menu absolute bottom-full left-0 mb-1.5 min-w-[180px] z-50">
+              <button v-for="m in models" :key="m.id"
+                @mousedown.prevent
+                @click="selectedModel=m;showModelMenu=false"
+                class="dropdown-item"
+                :class="{ 'active': m.id === selectedModel.id }"
+              >
+                <span>{{ m.label }} <em class="font-normal text-[var(--color-ide-text-dim)]">{{ m.desc }}</em></span>
+                <svg v-if="m.id===selectedModel.id" width="12" height="9" viewBox="0 0 12 9" fill="none" class="shrink-0 text-[var(--color-ide-accent)]"><path d="M1 3l4 4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </Transition>
         </div>
 
+        <div class="w-px h-4 bg-[var(--color-ide-border)]" />
+
         <!-- Mode Selector -->
-        <div class="relative">
+        <div class="relative mode-select-wrapper">
           <button
             @click="showModeMenu = !showModeMenu"
-            class="flex items-center gap-1.5 h-6 pl-2.5 pr-2 rounded text-[11px] font-medium transition-colors border"
-            style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
-            @blur="setTimeout(()=>showModeMenu=false,250)"
+            class="mode-trigger flex items-center gap-1.5 h-7 pl-3 pr-2.5 rounded-lg text-[11px] font-medium transition-all duration-150 border border-solid bg-[var(--color-editor-bg)] border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/50 focus:border-[var(--color-ide-border-focus)]"
+            @blur="setTimeout(()=>showModeMenu=false,200)"
           >
             <span>{{ selectedMode.label }}</span>
-            <ChevronDown :size="10" />
+            <ChevronDown :size="11" class="ml-0.5 text-[var(--color-ide-text-dim)]" />
           </button>
-          <div v-if="showModeMenu" class="absolute bottom-full mb-1 left-0 min-w-[110px] rounded-lg shadow-xl overflow-hidden z-50" style="background:#262A35;border:1px solid #464554;">
-            <button v-for="m in modes" :key="m.id"
-              @mousedown.prevent
-              @click="selectedMode=m;showModeMenu=false"
-              class="w-full text-left text-[11px] font-medium px-3 py-1.5 transition-colors flex items-center justify-between gap-2"
-              :style="{ color: m.active ? '#DFE2F1' : '#908FA0', background: m.id === selectedMode.id ? '#C0C1FF15' : 'transparent' }"
-            >
-              <span>{{ m.label }}</span>
-              <svg v-if="m.id===selectedMode.id" width="12" height="9" viewBox="0 0 12 9" fill="none" style="stroke:#C0C1FF;"><path d="M1 3l4 4 6-6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
+          <Transition name="fade">
+            <div v-if="showModeMenu" class="dropdown-menu absolute bottom-full left-0 mb-1.5 min-w-[120px] z-50">
+              <button v-for="m in modes" :key="m.id"
+                @mousedown.prevent
+                @click="selectedMode=m;showModeMenu=false"
+                class="dropdown-item"
+                :class="{ 'active': m.id === selectedMode.id }"
+              >
+                <span>{{ m.label }}</span>
+                <svg v-if="m.id===selectedMode.id" width="12" height="9" viewBox="0 0 12 9" fill="none" class="shrink-0 text-[var(--color-ide-accent)]"><path d="M1 3l4 4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </Transition>
         </div>
       </div>
 
       <!-- Input Box -->
-      <div class="relative">
+      <div class="input-box relative rounded-xl border border-solid border-[var(--color-ide-border)] bg-[var(--color-chat-input-bg)] transition-all duration-150 focus-within:border-[var(--color-ide-border-focus)] focus-within:shadow-[0_0_0_3px_rgba(192,193,255,0.06)]">
         <textarea
           v-model="inputText"
-          rows="3"
-          placeholder="在此输入指令或提问，按下回车发送..."
-          class="w-full resize-none outline-none text-[13px] rounded-lg border px-3 pt-2.5 pb-8 leading-relaxed"
-          style="background: var(--color-editor-bg); border-color: var(--color-ide-border); color: var(--color-ide-text);"
+          rows="2"
+          placeholder="在此输入指令或提问..."
+          class="w-full resize-none outline-none text-[13px] bg-transparent px-4 pt-3 pb-9 leading-relaxed text-[var(--color-ide-text)] placeholder:text-[rgba(144,143,160,0.45)]"
           @keydown.enter.exact.prevent="sendMessage"
         />
 
         <!-- Bottom toolbar inside textarea area -->
-        <div class="absolute bottom-2 left-3 flex items-center gap-1.5">
-          <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="附件">
-            <Paperclip :size="15" />
+        <div class="absolute bottom-2 left-3 flex items-center gap-1">
+          <button class="btn-ghost p-1.5" title="附件">
+            <Paperclip :size="14" />
           </button>
-          <button class="p-1 rounded hover:bg-white/5 transition-colors" style="color:#908FA0;" title="图片">
-            <ImagePlus :size="15" />
+          <button class="btn-ghost p-1.5" title="图片">
+            <ImagePlus :size="14" />
           </button>
         </div>
 
-        <!-- Send Button (absolute positioned bottom-right) -->
+        <!-- Send Button -->
         <button
-          class="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1.5 rounded text-[11px] font-bold transition-all"
-          style="background:#C0C1FF; color:#1000A9;"
-          :class="{ 'opacity-40 cursor-not-allowed': !inputText.trim() || isLoading }"
+          class="send-btn absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 bg-[var(--color-ide-accent)] text-[var(--color-chat-btn-primary-text)] hover:brightness-110 active:scale-[0.97]"
+          :class="{ 'opacity-35 cursor-not-allowed pointer-events-none': !inputText.trim() || isLoading }"
           :disabled="!inputText.trim() || isLoading"
           @click="sendMessage"
         >
@@ -286,19 +272,27 @@ async function sendMessage(): Promise<void> {
       </div>
 
       <!-- Keyboard Hint -->
-      <div class="flex items-center justify-center gap-1 text-[10px]" style="color:#908FA0;">
-        按
-        <kbd class="inline-flex items-center justify-center rounded px-1.5" style="background:var(--color-ide-surface);border:1px solid var(--color-ide-border);font-family:'Liberation Mono',monospace;height:13px;font-size:9px;line-height:13px;">Ctrl</kbd>
-        +
-        <kbd class="inline-flex items-center justify-center rounded px-1.5" style="background:var(--color-ide-surface);border:1px solid var(--color-ide-border);font-family:'Liberation Mono',monospace;height:13px;font-size:9px;line-height:13px;">Enter</kbd>
-        换行
+      <div class="flex items-center justify-center gap-1.5 text-[10px] text-[var(--color-ide-text-dim)]">
+        按 <kbd>Ctrl</kbd> + <kbd>Enter</kbd> 换行
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-textarea::placeholder {
-  color: rgba(144, 143, 160, 0.5);
+/* Component-scoped refinements on top of global tokens */
+.quick-action-btn {
+  background: transparent;
+  cursor: pointer;
+}
+
+.ai-bubble {
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.08),
+    0 4px 16px rgba(0,0,0,0.1);
+}
+
+.user-bubble {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 </style>

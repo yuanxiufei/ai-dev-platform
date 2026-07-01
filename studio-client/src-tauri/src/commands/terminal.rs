@@ -69,13 +69,16 @@ pub async fn spawn_shell(config: ShellConfig) -> Result<ProcessInfo, String> {
         cmd.arg("-i");
     }
 
+    let cwd_display = config.cwd.clone().unwrap_or_default();
+    let cwd_actual = config.cwd.unwrap_or_else(|| ".".to_string());
+
     match cmd.spawn() {
         Ok(child) => {
             let pid = child.id();
             let info = ProcessInfo {
                 id: pid,
-                command: format!("{} ({})", shell, config.cwd.unwrap_or_default()),
-                cwd: config.cwd.unwrap_or_else(|| ".".to_string()),
+                command: format!("{} ({})", shell, cwd_display),
+                cwd: cwd_actual,
                 status: "running".to_string(),
             };
             

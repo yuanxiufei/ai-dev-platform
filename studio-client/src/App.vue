@@ -57,11 +57,14 @@ onCommand("ai.chatPanel", () => {
   store.rightPanelView = "chat"
   store.layout.rightPanelVisible = true
 })
+onCommand("view.resetLayout", () => {
+  store.resetLayout()
+})
 
 // ── UI overlay state ───────────────────────────────────
 const showSettings = ref(false)
 
-function _onCommandExecute(cmdId: string): void {
+function onCommandExecute(cmdId: string): void {
   switch (cmdId) {
     case "settings.open":
       showSettings.value = true

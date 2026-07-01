@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Brain, Hash, Layers, Sparkles, Star } from "lucide-vue-next"
+import { Brain, Clock, Edit3, Hash, Layers, Loader2, Plus, Search, Sparkles, Star, Trash2, Check } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
 import { type MemoryEntry, memoryApi } from "@/api/model-features"
 
@@ -10,14 +10,14 @@ const sizeVal = ref(20)
 const total = ref(0)
 const filterDomain = ref("")
 const domains = ["", "general", "personal", "project", "code"]
-const _domainLabels: Record<string, string> = {
+const domainLabels: Record<string, string> = {
   "": "全部",
   general: "通用",
   personal: "个人",
   project: "项目",
   code: "代码",
 }
-const _domainIcons: Record<string, any> = {
+const domainIcons: Record<string, any> = {
   "": Layers,
   general: Brain,
   personal: Star,
@@ -95,7 +95,7 @@ async function fetchStats() {
   }
 }
 
-async function _doSearch() {
+async function doSearch() {
   if (!searchQuery.value) return
   try {
     const res = await memoryApi.search(
@@ -108,7 +108,7 @@ async function _doSearch() {
   }
 }
 
-async function _addMemory() {
+async function addMemory() {
   if (!newKey.value || !newValue.value) return
   try {
     await memoryApi.create({
@@ -126,7 +126,7 @@ async function _addMemory() {
   }
 }
 
-async function _deleteMemory(id: string) {
+async function deleteMemory(id: string) {
   if (!confirm("确定删除此记忆？")) return
   try {
     await memoryApi.delete(id)
@@ -137,7 +137,7 @@ async function _deleteMemory(id: string) {
   }
 }
 
-function _startEdit(m: MemoryEntry) {
+function startEdit(m: MemoryEntry) {
   editingId.value = m.id
   editKey.value = m.key
   editValue.value = m.value
@@ -145,7 +145,7 @@ function _startEdit(m: MemoryEntry) {
   editImportance.value = m.importance || 0.5
 }
 
-async function _saveEdit() {
+async function saveEdit() {
   if (!editingId.value) return
   try {
     await memoryApi.update(editingId.value, {
@@ -162,7 +162,7 @@ async function _saveEdit() {
   }
 }
 
-function _cancelEdit() {
+function cancelEdit() {
   editingId.value = null
 }
 
@@ -170,7 +170,7 @@ onMounted(() => {
   Promise.all([fetchMemories(), fetchStats()])
 })
 
-const _domainCounts = computed(() => {
+const domainCounts = computed(() => {
   const map: Record<string, number> = { total: total.value }
   for (const d of domains.slice(1))
     map[d] = memoryStats.value.by_domain?.[d] || 0

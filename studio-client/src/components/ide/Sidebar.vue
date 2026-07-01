@@ -9,9 +9,10 @@
  *   - Footer: 4 icon toolbar on #171B26 bg
  */
 
-import { Bug, Files, GitBranch, Search } from "lucide-vue-next"
+import { Bug, Files, GitBranch, Search, Settings } from "lucide-vue-next"
 import { onMounted, ref } from "vue"
 import { useIDEStore } from "@/stores/useIDEStore"
+import FileTree from "./FileTree.vue"
 
 const store = useIDEStore()
 const isDragging = ref(false)
@@ -22,7 +23,7 @@ onMounted(async () => {
   fileTreeReady.value = true
 })
 
-async function _handleNewFile(): Promise<void> {
+async function handleNewFile(): Promise<void> {
   const name = prompt("文件名:")
   if (!name?.trim()) return
   const parent = store.workspaceRoot
@@ -37,7 +38,7 @@ async function _handleNewFile(): Promise<void> {
   }
 }
 
-async function _handleNewFolder(): Promise<void> {
+async function handleNewFolder(): Promise<void> {
   const name = prompt("文件夹名:")
   if (!name?.trim()) return
   const parent = store.workspaceRoot
@@ -52,7 +53,7 @@ async function _handleNewFolder(): Promise<void> {
   }
 }
 
-function _onDragStart(e: MouseEvent): void {
+function onDragStart(e: MouseEvent): void {
   e.preventDefault()
   isDragging.value = true
   document.body.classList.add("cursor-col-resize", "select-none")
@@ -75,7 +76,7 @@ function _onDragStart(e: MouseEvent): void {
 }
 
 /** Bottom toolbar items matching Figma design */
-const _bottomTools = [
+const bottomTools = [
   { id: "explorer", icon: Files, label: "资源管理器" },
   { id: "search", icon: Search, label: "搜索" },
   { id: "git", icon: GitBranch, label: "源代码管理" },

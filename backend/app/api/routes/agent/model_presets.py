@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, commit_or_rollback
 from app.models.model_presets import ModelPreset
 
 router = APIRouter(prefix="/model-presets", tags=["model-presets"])
@@ -168,7 +168,7 @@ async def create_preset(
         owner_id=current_user.id,
     )
     db.add(preset)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(preset)
     return _preset_to_response(preset)
 
@@ -211,7 +211,7 @@ async def update_preset(
     from datetime import datetime, timezone
     preset.updated_at = datetime.now(timezone.utc)
     db.add(preset)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(preset)
     return _preset_to_response(preset)
 
@@ -229,7 +229,7 @@ async def delete_preset(
     if preset.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权删除该预设")
     db.delete(preset)
-    db.commit()
+    commit_or_rollback(db)
     return {"ok": True, "message": "预设已删除"}
 
 
@@ -250,7 +250,7 @@ async def apply_preset(
     from datetime import datetime, timezone
     preset.updated_at = datetime.now(timezone.utc)
     db.add(preset)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(preset)
     return _preset_to_response(preset)
 

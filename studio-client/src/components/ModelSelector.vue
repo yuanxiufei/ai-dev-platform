@@ -20,7 +20,7 @@ defineEmits<(e: "update:modelValue", value: string) => void>()
 const open = ref(false)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 
-const _defaultOptions: ModelOption[] = [
+const defaultOptions: ModelOption[] = [
   { value: "", label: "Auto 自动选择", source: "auto" },
   { value: "openai-gpt4o", label: "GPT-4o", source: "api", provider: "OpenAI" },
   {
@@ -45,7 +45,7 @@ const _defaultOptions: ModelOption[] = [
   { value: "gemma-31b", label: "Gemma 3 1B", source: "local" },
 ]
 
-const _sourceIcon = (source: string) => {
+const sourceIcon = (source: string) => {
   switch (source) {
     case "local":
       return HardDrive
@@ -56,7 +56,7 @@ const _sourceIcon = (source: string) => {
   }
 }
 
-const _sourceLabel = (source: string) => {
+const sourceLabel = (source: string) => {
   switch (source) {
     case "local":
       return "本地"

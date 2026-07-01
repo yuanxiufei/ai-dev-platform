@@ -60,9 +60,13 @@ class DataImporter:
         tmp_dir = tempfile.mkdtemp(prefix="import_")
 
         try:
-            # 解压
+            # 解压 — ZIP Slip 防护
             self._report("extract", 0, "Extracting backup...")
             with zipfile.ZipFile(zip_path, "r") as zf:
+                for member in zf.infolist():
+                    member_path = os.path.realpath(os.path.join(tmp_dir, member.filename))
+                    if os.path.commonpath([member_path, os.path.realpath(tmp_dir)]) != os.path.realpath(tmp_dir):
+                        raise ValueError(f"ZIP path traversal detected: {member.filename}")
                 zf.extractall(tmp_dir)
 
             # 1. 验证 manifest

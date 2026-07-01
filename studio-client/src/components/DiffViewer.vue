@@ -12,7 +12,21 @@
  * 数据源：AgentChat SSE 事件 {"type":"diff","data": DiffData}
  */
 
-import { FileEdit, FileMinus, FilePlus } from "lucide-vue-next"
+import {
+  AlignLeft,
+  ArrowDown,
+  ArrowUp,
+  Columns,
+  Copy,
+  Download,
+  FileEdit,
+  FileMinus,
+  FilePlus,
+  ChevronDown,
+  ChevronRight,
+  Minus,
+  Plus,
+} from "lucide-vue-next"
 import { computed, ref } from "vue"
 import type { DiffData } from "@/types/studio"
 
@@ -20,18 +34,73 @@ const props = defineProps<{
   diff: DiffData | null
   /** 当前 diff 是否可折叠 */
   collapsible?: boolean
+  /** 初始高亮的 hunk 索引（-1 表示不高亮） */
+  activeHunkIndex?: number
 }>()
 
-const _emit = defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void
   (e: "apply"): void
+  /** Monaco 风格 — 跳转到指定 hunk */
+  (e: "jumpToHunk", index: number): void
 }>()
 
 // ── 视图模式 ──
 type ViewMode = "unified" | "split"
-const _viewMode = ref<ViewMode>("unified")
-const _collapsed = ref(false)
-const _applied = ref(false)
+const viewMode = ref<ViewMode>("unified")
+const collapsed = ref(false)
+
+// ── Hunk 导航 (Monaco Editor 风格) ──
+const activeHunk = ref(props.activeHunkIndex ?? -1)
+
+/** 重置当前高亮 hunk */
+function resetActiveHunk() {
+  activeHunk.value = -1
+}
+
+// 计算 hunks 索引映射 (header line → hunk index)
+const hunkHeaders = computed(() => {
+  const headers: { lineIndex: number; hunkIndex: number }[] = []
+  let hunkIdx = -1
+  for (let i = 0; i < parsedLines.value.length; i++) {
+    if (parsedLines.value[i].type === "header") {
+      hunkIdx++
+      headers.push({ lineIndex: i, hunkIndex: hunkIdx })
+    }
+  }
+  return headers
+})
+
+const totalHunks = computed(() => hunkHeaders.value.length)
+
+function jumpToPrevHunk() {
+  if (totalHunks.value === 0) return
+  if (activeHunk.value <= 0) {
+    activeHunk.value = totalHunks.value - 1
+  } else {
+    activeHunk.value--
+  }
+  emit("jumpToHunk", activeHunk.value)
+}
+
+function jumpToNextHunk() {
+  if (totalHunks.value === 0) return
+  if (activeHunk.value >= totalHunks.value - 1) {
+    activeHunk.value = 0
+  } else {
+    activeHunk.value++
+  }
+  emit("jumpToHunk", activeHunk.value)
+}
+
+function isLineInActiveHunk(lineIndex: number): boolean {
+  if (activeHunk.value < 0) return false
+  const start = hunkHeaders.value[activeHunk.value]?.lineIndex
+  const end = activeHunk.value + 1 < totalHunks.value
+    ? hunkHeaders.value[activeHunk.value + 1]?.lineIndex
+    : parsedLines.value.length
+  return start !== undefined && lineIndex >= start && lineIndex < end!
+}
 
 // ── 解析 hunks 为行级数据 ──
 interface DiffLine {
@@ -41,7 +110,7 @@ interface DiffLine {
   newLineNum?: number
 }
 
-const _parsedLines = computed<DiffLine[]>(() => {
+const parsedLines = computed<DiffLine[]>(() => {
   if (!props.diff) return []
   const lines: DiffLine[] = []
   let oldLine = 0
@@ -83,7 +152,7 @@ const _parsedLines = computed<DiffLine[]>(() => {
 })
 
 // ── 变更类型图标 ──
-const _changeIcon = computed(() => {
+const changeIcon = computed(() => {
   if (!props.diff) return FileEdit
   switch (props.diff.change_type) {
     case "CREATE":
@@ -95,7 +164,7 @@ const _changeIcon = computed(() => {
   }
 })
 
-const _changeLabel = computed(() => {
+const changeLabel = computed(() => {
   if (!props.diff) return "修改"
   switch (props.diff.change_type) {
     case "CREATE":
@@ -107,7 +176,7 @@ const _changeLabel = computed(() => {
   }
 })
 
-const _changeColor = computed(() => {
+const changeColor = computed(() => {
   if (!props.diff) return "text-blue-400"
   switch (props.diff.change_type) {
     case "CREATE":
@@ -119,7 +188,7 @@ const _changeColor = computed(() => {
   }
 })
 
-const _changeBg = computed(() => {
+const changeBg = computed(() => {
   if (!props.diff) return "bg-blue-500/8 border-blue-500/15"
   switch (props.diff.change_type) {
     case "CREATE":
@@ -132,12 +201,12 @@ const _changeBg = computed(() => {
 })
 
 // ── 操作 ──
-function _copyDiff() {
+function copyDiff() {
   if (!props.diff) return
   navigator.clipboard.writeText(props.diff.diff_text)
 }
 
-function _downloadDiff() {
+function downloadDiff() {
   if (!props.diff) return
   const blob = new Blob([props.diff.diff_text], { type: "text/plain" })
   const url = URL.createObjectURL(blob)
@@ -149,7 +218,7 @@ function _downloadDiff() {
 }
 
 // ── 语法高亮类名映射 ──
-function _langClass(lang: string): string {
+function langClass(lang: string): string {
   const map: Record<string, string> = {
     python: "language-python",
     javascript: "language-javascript",
@@ -233,7 +302,50 @@ function _langClass(lang: string): string {
       >
         <Columns class="w-3.5 h-3.5" />
       </button>
+
       <div class="w-px h-4 bg-white/5 mx-1" />
+
+      <!-- Hunk 导航 (Monaco 风格) -->
+      <button
+        @click="jumpToPrevHunk"
+        :disabled="totalHunks === 0"
+        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        title="上一个变更 (Shift+F3)"
+      >
+        <ArrowUp class="w-3.5 h-3.5" />
+      </button>
+      <span class="text-[10px] text-gray-500 font-mono min-w-[36px] text-center select-none">
+        {{ activeHunk >= 0 ? `${activeHunk + 1}/${totalHunks}` : `${totalHunks}` }}
+      </span>
+      <button
+        @click="jumpToNextHunk"
+        :disabled="totalHunks === 0"
+        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        title="下一个变更 (F3)"
+      >
+        <ArrowDown class="w-3.5 h-3.5" />
+      </button>
+
+      <div class="w-px h-4 bg-white/5 mx-1" />
+
+      <!-- Hunk 快速跳转圆点 (类似 Monaco diff navigator) -->
+      <div v-if="totalHunks > 1" class="flex items-center gap-1 mr-1">
+        <button
+          v-for="h in totalHunks"
+          :key="h"
+          @click="activeHunk = h - 1; emit('jumpToHunk', h - 1)"
+          :class="[
+            'w-3.5 h-3.5 rounded-full transition-all duration-200',
+            activeHunk === h - 1
+              ? 'bg-brand-400 scale-110 shadow-sm shadow-brand-500/30'
+              : 'bg-white/[0.06] hover:bg-white/[0.12]'
+          ]"
+          :title="`跳转到变更 ${h}`"
+        />
+      </div>
+
+      <div class="w-px h-4 bg-white/5 mx-1" />
+
       <button
         @click="copyDiff"
         class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
@@ -261,8 +373,10 @@ function _langClass(lang: string): string {
             :class="[
               line.type === 'add' ? 'bg-emerald-500/[0.08]' :
               line.type === 'remove' ? 'bg-red-500/[0.08]' :
-              line.type === 'header' ? 'bg-blue-500/[0.06]' : ''
+              line.type === 'header' ? 'bg-blue-500/[0.06]' : '',
+              isLineInActiveHunk(i) ? '!bg-brand-500/[0.06] outline outline-[0.5px] outline-brand-500/20' : ''
             ]"
+            :style="isLineInActiveHunk(i) ? { boxShadow: 'inset 4px 0 0 var(--brand-400, #6366f1)' } : undefined"
           >
             <!-- 行号 -->
             <td v-if="line.type === 'header'" colspan="3" class="py-0.5 px-4 text-blue-400/70 text-xs font-semibold">

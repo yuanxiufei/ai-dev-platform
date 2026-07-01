@@ -5,7 +5,6 @@ ModelPreset — 将 system_prompt + tools + knowledge_bases + 参数打包为可
 ArenaComparison — 多模型并排对比记录（借鉴 Open WebUI Arena）
 ArenaVote — ELO 投票记录
 ModelUsageLog — 模型调用日志（用于 Analytics 看板）
-MemoryEntry — 长期向量化记忆
 """
 
 import uuid
@@ -144,57 +143,3 @@ class ModelUsageLog(SQLModel, table=True):
     session_id: uuid.UUID | None = Field(default=None, nullable=True)
 
     created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True), index=True)
-
-
-# ── 长期记忆 ────────────────────────────────────────────
-
-class MemoryEntry(SQLModel, table=True):
-    """借鉴 Open WebUI Memory + Obsidian Frontmatter — 向量化长期记忆
-
-    把 key+value 嵌入到 embedding 向量中，
-    后续通过语义相似度检索相关记忆注入到 prompt。
-
-    Frontmatter 字段（借鉴 Obsidian Properties）:
-    - frontmatter_tags: 标签列表（JSON）
-    - frontmatter_aliases: 别名列表（JSON）
-    - frontmatter_status: 状态（draft/in-progress/completed/archived）
-    - frontmatter_priority: 优先级（low/medium/high/critical）
-    - frontmatter_due_date: 截止日期
-    - linked_from: 反向链接（JSON 数组）
-    """
-    __tablename__ = "memory_entries"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    key: str = Field(max_length=500, description="记忆键（简短摘要）")
-    value: str = Field(sa_column=Column("value", Text), description="记忆内容（完整事实，支持 Obsidian 风格 Wikilinks + Callouts + Frontmatter）")
-
-    # 向量存为 JSON 文本（跨数据库兼容）；生产环境建议用 pgvector
-    embedding: str | None = Field(default=None, sa_column=Column("embedding", Text), description="embedding 向量 JSON")
-
-    # 维度与模型
-    embedding_dim: int = Field(default=768)
-    embedding_model: str = Field(default="BAAI/bge-base-en-v1.5", max_length=100)
-
-    # 域与权限
-    domain: str = Field(default="general", max_length=50, description="记忆域: personal / project / code / general")
-    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
-
-    # 元数据
-    importance: float = Field(default=0.5, sa_type=Float, description="记忆重要性 0-1")
-    access_count: int = Field(default=0, description="被检索次数")
-    last_accessed_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
-
-    # ── Frontmatter 属性（借鉴 Obsidian Properties）───
-    frontmatter_tags: str | None = Field(default=None, sa_column=Column("frontmatter_tags", Text), description="标签列表 JSON")
-    frontmatter_aliases: str | None = Field(default=None, sa_column=Column("frontmatter_aliases", Text), description="别名列表 JSON")
-    frontmatter_status: str | None = Field(default=None, max_length=50, description="状态: draft / in-progress / completed / archived")
-    frontmatter_priority: str | None = Field(default=None, max_length=20, description="优先级: low / medium / high / critical")
-    frontmatter_due_date: str | None = Field(default=None, max_length=30, description="截止日期")
-    frontmatter_extra: str | None = Field(default=None, sa_column=Column("frontmatter_extra", Text), description="其他 frontmatter 属性 JSON")
-
-    # ── 链接索引（服务端维护）───
-    forward_links: str | None = Field(default=None, sa_column=Column("forward_links", Text), description="正向链接目标列表 JSON")
-    linked_from: str | None = Field(default=None, sa_column=Column("linked_from", Text), description="反向链接来源列表 JSON")
-
-    created_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))
-    updated_at: datetime = Field(default_factory=_utc_now, sa_type=DateTime(timezone=True))

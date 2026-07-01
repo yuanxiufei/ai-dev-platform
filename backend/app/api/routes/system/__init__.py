@@ -15,6 +15,8 @@
   - /system/storage     — 存储管理
   - /system/checkpoints — Git 检查点
   - /system/guardrails  — 护栏系统
+  - /system/session-tree — Session 树 + 检查点恢复（借鉴 hermes-agent）
+  - /system/cli-pipeline — CLI 流水线组合（借鉴 AutoCLI YAML 适配器）
 """
 
 from app.api.routes.system.models import router as models_router
@@ -29,6 +31,11 @@ from app.api.routes.system.config import router as config_router
 from app.api.routes.system.storage import router as storage_router
 from app.api.routes.system.checkpoints import router as checkpoints_router
 from app.api.routes.system.guardrails import router as guardrails_router
+from app.api.routes.system.memory_graph import router as memory_graph_router
+from app.api.routes.system.cli_history import router as cli_history_router
+from app.api.routes.system.model_health import router as model_health_router
+from app.api.routes.system.session_tree import router as session_tree_router
+from app.api.routes.system.cli_pipeline import router as cli_pipeline_router
 
 __all__ = [
     "models_router",
@@ -43,4 +50,9 @@ __all__ = [
     "storage_router",
     "checkpoints_router",
     "guardrails_router",
+    "memory_graph_router",
+    "cli_history_router",
+    "model_health_router",
+    "session_tree_router",
+    "cli_pipeline_router",
 ]

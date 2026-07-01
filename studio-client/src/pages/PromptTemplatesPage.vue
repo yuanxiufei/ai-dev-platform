@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue"
+import { Loader2, Plus, Search, Trash2 } from "lucide-vue-next"
 import {
   type PromptTemplateData,
   promptTemplateApi,
@@ -30,7 +31,7 @@ const newVarType = ref("string")
 const newVarDesc = ref("")
 const resolveValues = ref<Record<string, string | number | boolean>>({})
 
-const _filtered = computed(() => {
+const filtered = computed(() => {
   let list = templates.value
   if (selectedCategory.value)
     list = list.filter((t) => t.category === selectedCategory.value)
@@ -60,13 +61,13 @@ async function loadTemplates() {
   }
 }
 
-function _openCreate() {
+function openCreate() {
   editingId.value = null
   resetForm()
   showModal.value = true
 }
 
-function _addVariable() {
+function addVariable() {
   const name = newVarName.value.trim()
   if (!name || form.variables[name]) return
   form.variables[name] = {
@@ -80,11 +81,11 @@ function _addVariable() {
   newVarDesc.value = ""
 }
 
-function _removeVariable(name: string) {
+function removeVariable(name: string) {
   delete form.variables[name]
 }
 
-async function _saveTemplate() {
+async function saveTemplate() {
   if (!form.command || !form.title || !form.prompt) return
   await promptTemplateApi.create({
     command: form.command,
@@ -100,13 +101,13 @@ async function _saveTemplate() {
   loadTemplates()
 }
 
-async function _deleteTemplate(id: string) {
+async function deleteTemplate(id: string) {
   if (!confirm("删除此模板？")) return
   await promptTemplateApi.delete(id)
   await loadTemplates()
 }
 
-async function _resolveTemplate(tpl: PromptTemplateData) {
+async function resolveTemplate(tpl: PromptTemplateData) {
   resolveValues.value = {}
   for (const name of Object.keys(tpl.variables)) {
     resolveValues.value[name] = String(tpl.variables[name].default || "")
@@ -116,7 +117,7 @@ async function _resolveTemplate(tpl: PromptTemplateData) {
   showResolve.value = true
 }
 
-async function _doResolve() {
+async function doResolve() {
   const res = await promptTemplateApi.resolve(
     editingId.value!,
     resolveValues.value,
@@ -124,7 +125,7 @@ async function _doResolve() {
   resolvedResult.value = res.resolved_prompt
 }
 
-function _useAsPrompt(text: string) {
+function useAsPrompt(text: string) {
   // 复制到剪贴板并提示可用在对话中
   navigator.clipboard.writeText(text)
 }

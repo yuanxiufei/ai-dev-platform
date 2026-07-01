@@ -9,8 +9,6 @@ mod plugins;
 mod shortcuts;
 mod settings;
 
-use tauri::Manager;
-
 fn main() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

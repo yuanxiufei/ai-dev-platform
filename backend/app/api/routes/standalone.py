@@ -23,6 +23,10 @@ logger = logging.getLogger("standalone.routes")
 
 router = APIRouter(prefix="/standalone", tags=["standalone"])
 
+# ── 注册 DDNS 子路由 ─────────────────────────────────
+from app.api.routes.standalone_ddns import router as ddns_router
+router.include_router(ddns_router)
+
 
 class FeatureToggleRequest(BaseModel):
     """功能开关切换请求"""

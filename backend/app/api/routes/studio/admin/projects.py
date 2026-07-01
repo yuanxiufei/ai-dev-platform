@@ -14,9 +14,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.studio_models import (
     StudioProject,
     StudioTemplate,
@@ -107,6 +107,9 @@ def _project_to_response(p: StudioProject) -> dict:
 
 # ── CRUD ─────────────────────────────────────────────────
 
+_MAX_PAGE_SIZE = 200
+
+
 @router.get("", response_model=ProjectListResponse)
 def list_projects(
     session: SessionDep,
@@ -117,6 +120,10 @@ def list_projects(
     framework: str | None = None,
 ):
     """获取项目列表（分页+筛选）"""
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(StudioProject).where(
         StudioProject.owner_id == user.id
     )
@@ -126,7 +133,9 @@ def list_projects(
     if framework:
         stmt = stmt.where(StudioProject.framework == framework)
 
-    total = len(session.exec(stmt).all())
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     projects = session.exec(
         stmt.order_by(StudioProject.updated_at.desc())
         .offset((page - 1) * size)
@@ -166,9 +175,7 @@ def create_project(
                 project.generated_code = template.template_data
             template.usage_count += 1
 
-    session.add(project)
-    session.commit()
-    session.refresh(project)
+    commit_or_rollback(session, project)
 
     return _project_to_response(project)
 
@@ -207,9 +214,7 @@ def update_project(
     for key, value in update_data.items():
         setattr(project, key, value)
 
-    session.add(project)
-    session.commit()
-    session.refresh(project)
+    commit_or_rollback(session, project)
 
     return _project_to_response(project)
 
@@ -228,7 +233,7 @@ def delete_project(
         raise HTTPException(status_code=403, detail="Access denied")
 
     session.delete(project)
-    session.commit()
+    commit_or_rollback(session)
 
 
 # ── AI 生成 ──────────────────────────────────────────────
@@ -289,9 +294,7 @@ async def generate_project(
             owner_id=user.id,
         )
 
-        session.add(project)
-        session.commit()
-        session.refresh(project)
+        commit_or_rollback(session, project)
 
         return {
             "project": _project_to_response(project),
@@ -350,8 +353,12 @@ def generate_project_async(
             owner_id=user.id,
         )
         db_session.add(project)
-        db_session.commit()
-        db_session.refresh(project)
+        try:
+            db_session.commit()
+            db_session.refresh(project)
+        except Exception:
+            db_session.rollback()
+            raise
         project_id = str(project.id)
 
     # 提交 Celery 任务
@@ -529,8 +536,7 @@ async def build_project(
 
     # 更新状态
     project.status = ProjectStatus.BUILDING
-    session.add(project)
-    session.commit()
+    commit_or_rollback(session, project)
 
     # 解析项目文件
     files = _parse_project_files(project.generated_code)
@@ -599,9 +605,7 @@ async def build_project(
     # 更新项目状态
     project.build_log = "\n".join(build_logs)
     project.status = ProjectStatus.RUNNING if build_success else ProjectStatus.FAILED
-    session.add(project)
-    session.commit()
-    session.refresh(project)
+    commit_or_rollback(session, project)
 
     return {
         **_project_to_response(project),
@@ -644,8 +648,7 @@ async def deploy_project(
         raise HTTPException(status_code=400, detail="No generated code to deploy")
 
     project.status = ProjectStatus.DEPLOYING
-    session.add(project)
-    session.commit()
+    commit_or_rollback(session, project)
 
     deploy_dir = ""
     deploy_success = False
@@ -724,9 +727,7 @@ async def deploy_project(
         deploy_success = False
 
     project.status = ProjectStatus.RUNNING if deploy_success else ProjectStatus.FAILED
-    session.add(project)
-    session.commit()
-    session.refresh(project)
+    commit_or_rollback(session, project)
 
     return {
         **_project_to_response(project),
@@ -940,9 +941,7 @@ async def screenshot_to_code(
             generated_code=json.dumps({"files": files}),
             owner_id=user.id,
         )
-        session.add(project)
-        session.commit()
-        session.refresh(project)
+        commit_or_rollback(session, project)
 
     return {
         "project": _project_to_response(project) if project else None,
@@ -954,3 +953,29 @@ async def screenshot_to_code(
         "is_fallback": is_fallback,
         "latency_ms": latency_ms,
     }
+
+
+# ── 静态文件部署服务 ────────────────────────────────────
+
+from starlette.responses import FileResponse
+from starlette.staticfiles import StaticFiles
+
+
+# 挂载部署静态文件目录
+_static_deploy_dir = Path(settings.STORAGE_ROOT) / "deploy" if settings.STORAGE_ROOT else Path("storage") / "deploy"
+_static_deploy_dir.mkdir(parents=True, exist_ok=True)
+
+# 单独注册一个 router 用于 serving 静态部署文件
+# 该 router 的 prefix 与 deploy_url 中 /api/v1/static/deploy 对应
+static_deploy_router = APIRouter(prefix="/static/deploy", tags=["static-deploy"])
+
+
+@static_deploy_router.get("/{project_id}/{filename:path}")
+async def serve_deployed_file(project_id: str, filename: str):
+    """Serve deployed project static files."""
+    file_path = _static_deploy_dir / project_id / filename
+    if not file_path.resolve().is_relative_to(_static_deploy_dir.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(file_path))

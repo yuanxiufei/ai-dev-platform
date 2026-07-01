@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { Globe, Server, Terminal } from "lucide-vue-next"
+import {
+  Activity, AlertCircle, Box, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy,
+  Download, ExternalLink, Heart, Loader2, Monitor, Plug, Pencil, Radio, RefreshCw, Search, ShieldCheck, Star, Store, Wrench, X, Zap
+} from "lucide-vue-next"
 import { computed, onMounted, reactive, ref } from "vue"
 import {
   addMCPServer,
@@ -60,19 +64,19 @@ const categories = ref<MCPCategory[]>([])
 const installing = ref<string | null>(null)
 
 // ── Constants ──
-const _transportLabel: Record<string, string> = {
+const transportLabel: Record<string, string> = {
   sse: "SSE",
   streamable_http: "HTTP",
   stdio: "Stdio",
 }
-const _transportIcon: Record<string, typeof Globe> = {
+const transportIcon: Record<string, typeof Globe> = {
   sse: Globe,
   streamable_http: Server,
   stdio: Terminal,
 }
 
 /** 连接状态 → 样式映射 */
-function _stateStyle(state: MCPConnState) {
+function stateStyle(state: MCPConnState) {
   const map: Record<
     MCPConnState,
     { bg: string; border: string; text: string; dot: string; label: string }
@@ -124,7 +128,7 @@ function _stateStyle(state: MCPConnState) {
 }
 
 // ── Computed ──
-const _filteredMarketplace = computed(() => {
+const filteredMarketplace = computed(() => {
   let list = marketplaceServers.value
   if (mpSearch.value) {
     const q = mpSearch.value.toLowerCase()
@@ -141,7 +145,7 @@ const _filteredMarketplace = computed(() => {
   return list
 })
 
-const _categoryLabelMap: Record<string, string> = {
+const categoryLabelMap: Record<string, string> = {
   dev_tools: "开发工具",
   cloud: "云服务",
   database: "数据库",
@@ -149,19 +153,19 @@ const _categoryLabelMap: Record<string, string> = {
   ai_model: "AI 模型",
 }
 
-const _connectedCount = computed(
+const connectedCount = computed(
   () => servers.value.filter((s) => s.connected).length,
 )
-const _totalTools = computed(() =>
+const totalTools = computed(() =>
   servers.value.reduce((sum, s) => sum + s.tools_count, 0),
 )
-const _sseCount = computed(
+const sseCount = computed(
   () => servers.value.filter((s) => s.transport === "sse").length,
 )
-const _httpCount = computed(
+const httpCount = computed(
   () => servers.value.filter((s) => s.transport === "streamable_http").length,
 )
-const _stdioCount = computed(
+const stdioCount = computed(
   () => servers.value.filter((s) => s.transport === "stdio").length,
 )
 
@@ -194,7 +198,7 @@ async function refreshMyServers() {
   }
 }
 
-async function _handleAdd() {
+async function handleAdd() {
   if (!newServer.name.trim()) return
   adding.value = true
   error.value = ""
@@ -232,7 +236,7 @@ function resetNewServer() {
   })
 }
 
-async function _handleRemove(name: string) {
+async function handleRemove(name: string) {
   if (
     !confirm(
       `确定断开并移除 MCP 服务器 "${name}"？\n这将删除配置并断开所有连接。`,
@@ -249,7 +253,7 @@ async function _handleRemove(name: string) {
   }
 }
 
-async function _handleReconnect(name: string) {
+async function handleReconnect(name: string) {
   reconnecting.value = name
   error.value = ""
   try {
@@ -288,7 +292,7 @@ async function handleHealthCheck(name: string) {
   }
 }
 
-function _toggleExpand(name: string) {
+function toggleExpand(name: string) {
   if (expandedServers.value.has(name)) expandedServers.value.delete(name)
   else {
     expandedServers.value.add(name)
@@ -296,7 +300,7 @@ function _toggleExpand(name: string) {
   }
 }
 
-function _startEdit(server: MCPServerStatus) {
+function startEdit(server: MCPServerStatus) {
   editingServer.value = server.name
   Object.assign(editForm, {
     url: server.url || undefined,
@@ -305,11 +309,11 @@ function _startEdit(server: MCPServerStatus) {
     timeout: server.timeout_seconds,
   })
 }
-function _cancelEdit() {
+function cancelEdit() {
   editingServer.value = null
 }
 
-async function _saveEdit(name: string) {
+async function saveEdit(name: string) {
   try {
     await updateMCPServer(name, editForm)
     showToast(`"${name}" 配置已更新`)
@@ -320,7 +324,7 @@ async function _saveEdit(name: string) {
   }
 }
 
-async function _handleDiscover() {
+async function handleDiscover() {
   try {
     const res = await discoverMCPTools()
     showToast(`扫描完成，共发现 ${res.data?.total ?? 0} 个工具`)
@@ -330,7 +334,7 @@ async function _handleDiscover() {
   }
 }
 
-async function _handleRegister() {
+async function handleRegister() {
   try {
     const res = await registerMCPTools()
     showToast(res.data?.message || "工具注册完成")
@@ -363,7 +367,7 @@ async function loadCategories() {
   }
 }
 
-async function _handleInstall(preset: MCPMarketplaceServer) {
+async function handleInstall(preset: MCPMarketplaceServer) {
   installing.value = preset.id
   error.value = ""
   try {
@@ -392,14 +396,16 @@ async function _handleInstall(preset: MCPMarketplaceServer) {
   }
 }
 
-const _formatCount = (n: number): string =>
+const formatCount = (n: number): string =>
   n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
-const _formatUptime = (s: number): string => {
+const formatUptime = (s: number): string => {
   if (!s) return "-"
   if (s < 60) return `${Math.floor(s)}s`
   if (s < 3600) return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
 }
+const successRateLabel = (rate: number): string =>
+  rate >= 1 ? '100%' : `${(rate * 100).toFixed(0)}%`
 </script>
 
 <template>
@@ -643,7 +649,7 @@ const _formatUptime = (s: number): string => {
                         <span class="flex items-center gap-1"><Wrench class="w-3 h-3" />{{ srv.tools_count }} 个工具</span>
                         <span>{{ srv.timeout_seconds }}s 超时</span>
                         <span v-if="srv.tool_prefix" class="text-brand-400/70">前缀: {{ srv.tool_prefix }}</span>
-                        <span v-if="srv.calls_total > 0" class="flex items-center gap-1"><Activity class="w-3 h-3" />{{ srv.success_rate >= 1 ? '100%' : `${(srv.success_rate * 100).toFixed(0)}%`} 成功率</span>
+                        <span v-if="srv.calls_total > 0" class="flex items-center gap-1"><Activity class="w-3 h-3" />{{ successRateLabel(srv.success_rate) }} 成功率</span>
                         <span v-if="srv.uptime_seconds > 0" class="flex items-center gap-1"><Clock class="w-3 h-3" />{{ formatUptime(srv.uptime_seconds) }}</span>
                       </div>
                     </div>
@@ -732,51 +738,33 @@ const _formatUptime = (s: number): string => {
 
 <!-- ── 子组件 ── -->
 <script lang="ts">
+import { h, type FunctionalComponent } from "vue"
+import { Activity, AlertCircle, CheckCircle2, Clock, Globe, Heart, Server, Terminal, Wrench } from "lucide-vue-next"
+
+const iconMap: Record<string, any> = { Globe, Server, Terminal, Wrench, Activity, CheckCircle2, AlertCircle, Clock, Heart }
+const statIconMap: Record<string, any> = { Activity, CheckCircle2, AlertCircle, Clock, }
+
 /* StatRow — 左侧栏统计行 */
-export const StatRow = defineComponent({
-  props: { icon: String, label: String, value: Number, color: { type: String, default: '' } },
-  setup(props: any) {
-    const icons: Record<string, any> = { Globe, Server, Terminal, Wrench, Activity, CheckCircle2, AlertCircle, Clock, Heart }
-    return () => (
-      <div class="flex items-center justify-between text-xs text-gray-500 py-1.5">
-        <span class="flex items-center gap-1.5">
-          {(icons[props.icon] as any) && <icons[props.icon] class="w-3 h-3" />}
-          {props.label}
-        </span>
-        <span class={['tabular-nums', props.color]}>{props.value}</span>
-      </div>
-    )
-  }
-})
+export const StatRow: FunctionalComponent<{ icon?: string; label?: string; value?: number; color?: string }> = (props) =>
+  h("div", { class: "flex items-center justify-between text-xs text-gray-500 py-1.5" }, [
+    h("span", { class: "flex items-center gap-1.5" }, [
+      iconMap[props.icon || ""] ? h(iconMap[props.icon], { class: "w-3 h-3" }) : null,
+      props.label,
+    ]),
+    h("span", { class: ["tabular-nums", props.color || ""] }, `${props.value ?? ""}`),
+  ])
 
 /* ExpandPanel — 折叠面板 */
-export const ExpandPanel = defineComponent({
-  setup(_, { slots }) {
-    const open = ref(true)
-    return () => (
-      <div class="expand-panel">
-        {slots.default?.()}
-      </div>
-    )
-  }
-})
+export const ExpandPanel: FunctionalComponent = (_, { slots }) =>
+  h("div", { class: "expand-panel" }, slots.default?.())
 
 /* StatCard — 统计卡片 */
-export const StatCard = defineComponent({
-  props: { label: String, value: [String, Number], icon: String, color: { type: String, default: 'text-gray-400' } },
-  setup(props: any) {
-    const icons: Record<string, any> = { Activity, CheckCircle2, AlertCircle, Clock, Heart }
-    return () => (
-      <div class={`rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2 text-center`}>
-        {(icons[props.icon] as any) && <icons[props.icon] class={`w-3.5 h-3.5 mx-auto mb-1 ${props.color}`} />}
-        <div class={`text-sm font-semibold ${props.color}`}>{props.value}</div>
-        <div class="text-[10px] text-gray-600">{props.label}</div>
-      </div>
-    )
-  }
-})
-
-defineComponent({ components: { StatRow, ExpandPanel, StatCard } })
+export const StatCard: FunctionalComponent<{ label?: string; value?: string | number; icon?: string; color?: string }> = (props) =>
+  h("div", { class: "rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2 text-center" }, [
+    statIconMap[props.icon || ""] ? h(statIconMap[props.icon], { class: `w-3.5 h-3.5 mx-auto mb-1 ${props.color || "text-gray-400"}` }) : null,
+    h("div", { class: `text-sm font-semibold ${props.color || "text-gray-400"}` }, `${props.value ?? ""}`),
+    h("div", { class: "text-[10px] text-gray-600" }, props.label || ""),
+  ])
 </script>
 <style scoped>
 /* ── Transitions ── */
@@ -786,16 +774,16 @@ defineComponent({ components: { StatRow, ExpandPanel, StatCard } })
 .fade-enter-from,.fade-leave-to{opacity:0}
 
 /* ── Shared input styles ── */
-.mcp-input{width:100%;rounded-xl;border:border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500/40 focus:ring-1 focus:ring-brand-500/20 transition-all}
+.mcp-input{width:100%;border-radius:.75rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);padding:1rem 1.5rem;font-size:.875rem;color:#fff;transition:border-color .15s,box-shadow .15s}.mcp-input::placeholder{color:#6b7280}.mcp-input:focus{outline:none;border-color:rgba(99,102,241,.4);box-shadow:0 0 0 1px rgba(99,102,241,.2)}
 .mcp-input:focus{box-shadow:none}
-.mcp-number{width:16;rounded-lg;border border-white/10 bg-white/[0.03] px-2 py-1 text-sm text-center focus:outline-none focus:border-brand-500/40 transition-all}
+.mcp-number{width:4rem;border-radius:.5rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);padding:.25rem .5rem;font-size:.875rem;text-align:center;outline:none;transition:border-color .15s}.mcp-number:focus{border-color:rgba(99,102,241,.4)}
 
 /* ── Buttons ── */
-.mcp-btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-sm font-medium text-white transition-colors}
-.mcp-btn-secondary{padding:.5rem 1rem;rounded-xl text-sm text-gray-400 hover:text-white transition-colors}
+.mcp-btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:.75rem;background:var(--color-brand-500,#6366f1)}.mcp-btn-primary:hover{background:var(--color-brand-600,#4f46e5)}.mcp-btn-primary:disabled{opacity:.4}.mcp-btn-primary,.mcp-btn-secondary{font-size:.875rem;font-weight:500;color:#fff;transition:color .15s,background .15s}
+.mcp-btn-secondary{padding:.5rem 1rem;border-radius:.75rem;font-size:.875rem;color:#9ca3af}.mcp-btn-secondary:hover{color:#fff}
 
 /* ── Action icons (hover reveal) ── */
-.action-icon{display:flex;align-items:center;justify-content:center;p:.375rem;border-radius-lg text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-all}
+.action-icon{display:flex;align-items:center;justify-content:center;padding:.375rem;border-radius:.5rem;font-size:.875rem;color:#4b5563;transition:color .15s,background .15s}.action-icon:hover{color:#d1d5db;background:rgba(255,255,255,.05)}
 .action-icon:disabled{opacity:.4;cursor:not-allowed}
 
 /* ── Card hover effect ── */

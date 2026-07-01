@@ -13,10 +13,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.studio_models import StudioTemplate
 
 router = APIRouter(prefix="/studio/templates", tags=["studio-templates"])
+
+# 分页安全上限
+_MAX_PAGE_SIZE = 200
 
 
 # ── Schemas ──────────────────────────────────────────────
@@ -70,6 +73,10 @@ def list_templates(
     framework: str | None = None,
 ):
     """获取模板列表"""
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(StudioTemplate).where(
         StudioTemplate.is_public == True
     )
@@ -79,7 +86,9 @@ def list_templates(
     if framework:
         stmt = stmt.where(StudioTemplate.framework == framework)
 
-    total = len(session.exec(stmt).all())
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     templates = session.exec(
         stmt.order_by(StudioTemplate.usage_count.desc())
         .offset((page - 1) * size)
@@ -112,9 +121,7 @@ def create_template(
         is_public=template_in.is_public,
         created_by=user.id,
     )
-    session.add(template)
-    session.commit()
-    session.refresh(template)
+    commit_or_rollback(session, template)
     return _template_to_dict(template)
 
 
@@ -155,9 +162,7 @@ def update_template(
     for key, value in update_data.items():
         setattr(template, key, value)
 
-    session.add(template)
-    session.commit()
-    session.refresh(template)
+    commit_or_rollback(session, template)
     return _template_to_dict(template)
 
 
@@ -175,7 +180,7 @@ def delete_template(
         raise HTTPException(status_code=403, detail="Access denied")
 
     session.delete(template)
-    session.commit()
+    commit_or_rollback(session)
 
 
 @router.post("/{template_id}/use")
@@ -207,9 +212,7 @@ def use_template(
         generated_code=template.template_data,
         owner_id=user.id,
     )
-    session.add(project)
-    session.commit()
-    session.refresh(project)
+    commit_or_rollback(session, project)
 
     return {
         "project_id": project.id,

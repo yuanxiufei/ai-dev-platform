@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import socket
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -83,6 +84,27 @@ class DeepSeekProvider(BaseProvider):
             finish_reason=finish_reason,
             tool_calls=tool_calls,
         )
+
+    async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
+        """流式推理 — token-by-token 产出（DeepSeek OpenAI 兼容 SSE）"""
+        model_name = self._get_model_name(request)
+        messages = self._build_messages(request)
+
+        body: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if request.tools:
+            body["tools"] = request.tools
+            if request.tool_choice:
+                body["tool_choice"] = request.tool_choice
+
+        async for token in self._parse_openai_sse_stream("/v1/chat/completions", body):
+            yield token
 
 
 def _describe_connect_error(err: httpx.ConnectError, base_url: str) -> str:

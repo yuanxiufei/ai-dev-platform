@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.system_models import (
     ModelDownload,
     DownloadStatus,
@@ -201,9 +201,7 @@ async def start_download(
         source_type=dl_in.source,
         started_by=user.id,
     )
-    session.add(record)
-    session.commit()
-    session.refresh(record)
+    commit_or_rollback(session, record)
 
     # 异步执行（创建独立 db session 避免异步上下文冲突）
     import asyncio
@@ -240,7 +238,10 @@ async def _run_download(downloader, dl_in, record_id, db_session):
                 record.downloaded = progress.downloaded_bytes
                 record.file_size = progress.total_bytes
                 db_session.add(record)
-                db_session.commit()
+                try:
+                    db_session.commit()
+                except Exception:
+                    db_session.rollback()
 
             if progress.state.value in ("completed", "failed", "cancelled"):
                 record = db_session.get(ModelDownload, record_id)
@@ -255,18 +256,25 @@ async def _run_download(downloader, dl_in, record_id, db_session):
                         record.status = DownloadStatus.FAILED
                         record.error_message = progress.error_message
                     db_session.add(record)
-                    db_session.commit()
+                    try:
+                        db_session.commit()
+                    except Exception:
+                        db_session.rollback()
                 break
 
             await asyncio.sleep(2)
 
     except Exception as e:
+        db_session.rollback()
         record = db_session.get(ModelDownload, record_id)
         if record:
             record.status = DownloadStatus.FAILED
             record.error_message = str(e)
             db_session.add(record)
-            db_session.commit()
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
 
 
 @router.get("/download/{task_id}")
@@ -531,9 +539,7 @@ def configure_provider(
         endpoint=cred.endpoint,
         owner_id=user.id,
     )
-    session.add(credential)
-    session.commit()
-    session.refresh(credential)
+    commit_or_rollback(session, credential)
 
     # 更新网关凭据（用原始密钥）
     from app.core.api_gateway import get_api_gateway

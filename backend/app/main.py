@@ -201,6 +201,49 @@ async def lifespan(app: FastAPI):
             api_models=api_models,
         )
         logger.info("ModelRouter initialized with %d local + %d API models", len(local_models), len(api_models))
+
+        # 🆕 模型健康检查器（借鉴 Agent-Reach Channel.check() 设计）
+        try:
+            from app.core.agent.model_health import (
+                init_model_health, MonitoredModel,
+            )
+            monitored = []
+            for adapter in local_models + api_models:
+                monitored.append(MonitoredModel(
+                    name=getattr(adapter, "name", "unknown"),
+                    provider=getattr(adapter, "provider", "unknown"),
+                    api_model_id=getattr(adapter, "api_model_id", ""),
+                    priority=getattr(adapter, "priority", 50),
+                    model_adapter=adapter,
+                ))
+            health_checker = init_model_health(
+                monitored_models=monitored,
+                auto_start=True,
+                interval=120.0,  # 每 2 分钟探测一次
+            )
+            logger.info("ModelHealthChecker started (interval=120s, %d models)", len(monitored))
+        except Exception as e:
+            logger.warning("ModelHealthChecker init skipped: %s", e)
+
+        # 🆕 Session 树 + 检查点系统（借鉴 hermes-agent，持久化到 MemoryStore + StorageManager）
+        try:
+            from app.core.agent.session_tree import init_session_tree
+            from app.core.memory.memory_store import get_memory_store
+            from app.core.storage import get_storage_manager
+
+            session_data_dir = os.path.join(settings.STORAGE_ROOT, "data") if settings.STORAGE_ROOT else "data"
+            init_session_tree(
+                max_nodes=settings.SESSION_TREE_MAX_NODES if hasattr(settings, "SESSION_TREE_MAX_NODES") else 100,
+                data_dir=session_data_dir,
+                memory_store=get_memory_store(),
+                storage_manager=get_storage_manager(),
+            )
+            logger.info("SessionTree initialized on MemoryStore (max_nodes=%d, data_dir=%s)", 
+                        settings.SESSION_TREE_MAX_NODES if hasattr(settings, "SESSION_TREE_MAX_NODES") else 100,
+                        session_data_dir)
+        except Exception as e:
+            logger.warning("SessionTree init skipped: %s", e)
+
     except Exception as e:
         logger.warning("ModelRouter init skipped: %s", e)
 
@@ -230,6 +273,12 @@ async def lifespan(app: FastAPI):
             from app.core.skills_manager import init_skills
             init_skills("skills")
             logger.info("SkillsManager initialized")
+
+            # 启动技能热加载监听 (P1.6)
+            from app.core.skills.skill_manager import SkillManager, init_skill_watcher
+            mgr = SkillManager("skills")
+            init_skill_watcher(mgr, poll_interval=5.0, auto_watch=True)
+            logger.info("SkillWatcher started (hot-reload enabled)")
         except Exception as e:
             logger.warning("SkillsManager init skipped: %s", e)
 
@@ -238,15 +287,31 @@ async def lifespan(app: FastAPI):
             from app.core.codebase_memory import init_codebase_memory
             cbm_result = init_codebase_memory()
             if cbm_result:
-                _register_native_codebase_tools()
+                # 旧版工具注册（cbm_ 前缀，向后兼容）
+                legacy_count = _register_native_codebase_tools()
+                # 新版工具注册（原始名称，供 Agent Function Calling 使用）
+                from app.core.codebase_memory.tools import init_codebase_tools_to_global_registry
+                global_count = init_codebase_tools_to_global_registry()
                 logger.info(
-                    "Codebase Memory: %d nodes, %d edges, %d tools registered",
+                    "Codebase Memory: %d nodes, %d edges, %d legacy + %d global tools registered",
                     cbm_result.get("nodes", 0),
                     cbm_result.get("edges", 0),
-                    cbm_result.get("tools", 0),
+                    legacy_count,
+                    global_count,
                 )
         except Exception as e:
             logger.debug("Codebase Memory init skipped: %s", e)
+
+        # 启动 Git 增量索引 (P1.5) — 依赖 Codebase Memory 就绪
+        if cbm_result:
+            try:
+                from app.core.codebase_memory.indexer import _indexers, GitIndexer
+                for _path, idx in _indexers.items():
+                    git_idx = GitIndexer(idx, poll_interval=60.0)
+                    git_idx.start_watching()
+                    logger.info("GitIndexer started for '%s' (poll=60s)", idx.project_name)
+            except Exception as e:
+                logger.debug("GitIndexer init skipped: %s", e)
 
         # 加载外部 MCP 服务器配置
         import json as _json
@@ -599,13 +664,13 @@ async def lifespan(app: FastAPI):
         import asyncio
         asyncio.ensure_future(gateway.close())
     except Exception:
-        pass
+        logger.warning("Failed to shutdown API Gateway", exc_info=True)
     try:
         from app.core.cache import close_redis_client
         import asyncio
         asyncio.ensure_future(close_redis_client())
     except Exception:
-        pass
+        logger.warning("Failed to shutdown Redis client", exc_info=True)
     # Shutdown GPU monitor
     try:
         from app.core.gpu import get_gpu_monitor
@@ -613,7 +678,7 @@ async def lifespan(app: FastAPI):
         if monitor:
             await monitor.stop()
     except Exception:
-        pass
+        logger.warning("Failed to shutdown GPU monitor", exc_info=True)
     # Shutdown resource collector
     try:
         from app.core.resources import get_resource_collector
@@ -621,7 +686,7 @@ async def lifespan(app: FastAPI):
         if collector:
             await collector.stop()
     except Exception:
-        pass
+        logger.warning("Failed to shutdown resource collector", exc_info=True)
     # Shutdown config reloader
     try:
         from app.core.config_reloader import get_config_reloader
@@ -629,7 +694,7 @@ async def lifespan(app: FastAPI):
         if reloader:
             reloader.stop_watching()
     except Exception:
-        pass
+        logger.warning("Failed to shutdown config reloader", exc_info=True)
     # Shutdown PTY backend
     try:
         from app.core.terminal import get_pty_backend
@@ -637,7 +702,7 @@ async def lifespan(app: FastAPI):
         if backend:
             backend.shutdown_all()
     except Exception:
-        pass
+        logger.warning("Failed to shutdown PTY backend", exc_info=True)
     # Shutdown StandaloneManager
     try:
         from app.core.standalone.manager import get_standalone_manager
@@ -645,7 +710,7 @@ async def lifespan(app: FastAPI):
         if mgr:
             await mgr.shutdown()
     except Exception:
-        pass
+        logger.warning("Failed to shutdown StandaloneManager", exc_info=True)
     logger.info("Server stopped.")
 
 
@@ -659,7 +724,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set all CORS enabled origins
+# CORS 配置 — 注意：allow_credentials=True 时 allow_origins 不能为 ["*"]
+# 若 BACKEND_CORS_ORIGINS 设为 "*"，浏览器将拒绝该 CORS 配置（违反 CORS 规范）
+# 生产环境应配置具体域名而非通配符
 if settings.all_cors_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -682,6 +749,10 @@ if settings.STANDALONE_SMART_SLEEP_ENABLED:
     app.add_middleware(SleepAwareMiddleware, sleep_manager=None)  # None = lazy lookup
 
 # ── Standalone 中间件: API 鉴权 ——————————————————
+# 注意：白名单包含前端核心路由（agent/studio/plugin-marketplace/auth），
+# 这些路由依赖自身的 JWT 认证（deps.py get_current_user），
+# 因此 Standalone API Auth 仅作为额外层，不影响 JWT 安全性。
+# 若需要更严格的鉴权，应从白名单中移除不需要公共访问的路径。
 if settings.STANDALONE_API_AUTH_ENABLED:
     from app.core.standalone.api_auth import ApiAuthMiddleware, ApiAuthConfig
     _api_auth_config = ApiAuthConfig(
@@ -700,6 +771,11 @@ if settings.STANDALONE_API_AUTH_ENABLED:
         ],
     )
     app.add_middleware(ApiAuthMiddleware, config=_api_auth_config)
+
+# ── 多租户中间件 ———————————————————————————————
+if settings.MULTI_TENANCY_ENABLED:
+    from app.middleware.tenant import TenantMiddleware, get_tenant_id
+    app.add_middleware(TenantMiddleware)
 
 # ── P3: Prometheus /metrics 端点 ——————————————————
 from app.core.metrics import is_metrics_enabled as _metrics_enabled

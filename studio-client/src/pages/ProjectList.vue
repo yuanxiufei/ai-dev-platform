@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { deleteProject, listProjects } from "@/api/studio"
 import type { Project } from "@/types/studio"
+import { FolderPlus, Plus, Search } from "lucide-vue-next"
 
 const router = useRouter()
 const projects = ref<Project[]>([])
@@ -20,7 +21,7 @@ onMounted(async () => {
   }
 })
 
-const _filteredProjects = computed(() => {
+const filteredProjects = computed(() => {
   if (!searchText.value) return projects.value
   const q = searchText.value.toLowerCase()
   return projects.value.filter(
@@ -30,7 +31,7 @@ const _filteredProjects = computed(() => {
   )
 })
 
-const _statusLabel: Record<string, string> = {
+const statusLabel: Record<string, string> = {
   draft: "草稿",
   building: "构建中",
   deploying: "部署中",
@@ -38,7 +39,7 @@ const _statusLabel: Record<string, string> = {
   failed: "失败",
 }
 
-const _statusColor: Record<string, string> = {
+const statusColor: Record<string, string> = {
   draft: "bg-gray-500/15 text-gray-400",
   building: "bg-yellow-500/15 text-yellow-400",
   deploying: "bg-blue-500/15 text-blue-400",
@@ -46,17 +47,17 @@ const _statusColor: Record<string, string> = {
   failed: "bg-red-500/15 text-red-400",
 }
 
-const _handleDelete = async (id: string) => {
+const handleDelete = async (id: string) => {
   if (!confirm("确定删除该项目？")) return
   await deleteProject(id)
   projects.value = projects.value.filter((p) => p.id !== id)
 }
 
-const _goCreate = () => {
+const goCreate = () => {
   router.push("/projects/new")
 }
 
-const _goDetail = (id: string) => {
+const goDetail = (id: string) => {
   router.push(`/projects/${id}`)
 }
 </script>

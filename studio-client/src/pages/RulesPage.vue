@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
 import {
-  createRule,
-  deleteRule,
-  getRulesStats,
-  listRules,
-  type RuleCreatePayload,
-  type RuleItem,
-  type RuleUpdatePayload,
-  toggleRule,
-  updateRule,
+  createRule, deleteRule, getRulesStats, listRules, type RuleCreatePayload,
+  type RuleItem, type RuleUpdatePayload, toggleRule, updateRule,
 } from "@/api/rules"
+import { Loader2, Plus, Search, Trash2 } from "lucide-vue-next"
+import ToggleSwitch from "@/components/ToggleSwitch.vue"
 
 const rules = ref<RuleItem[]>([])
 const loading = ref(true)
@@ -45,18 +40,18 @@ const form = ref<RuleCreatePayload>({
 
 const tagInput = ref("")
 
-const _typeOptions = [
+const typeOptions = [
   { value: "", label: "全部", color: "" },
   { value: "always", label: "始终生效", color: "bg-green-400" },
   { value: "requested", label: "按需加载", color: "bg-amber-400" },
   { value: "manual", label: "手动激活", color: "bg-gray-500" },
 ]
-const _typeLabel: Record<string, string> = {
+const typeLabel: Record<string, string> = {
   always: "始终生效",
   requested: "按需加载",
   manual: "手动激活",
 }
-const _typeColor: Record<string, string> = {
+const typeColor: Record<string, string> = {
   always: "bg-green-500/10 text-green-400 border-green-500/20",
   requested: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   manual: "bg-gray-500/10 text-gray-400 border-gray-500/20",
@@ -96,7 +91,7 @@ async function fetchStats() {
   }
 }
 
-function _debouncedSearch() {
+function debouncedSearch() {
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
   debounceTimer.value = setTimeout(() => {
     page.value = 1
@@ -104,13 +99,13 @@ function _debouncedSearch() {
   }, 300)
 }
 
-function _handleTypeChange(type: string) {
+function handleTypeChange(type: string) {
   selectedType.value = type
   page.value = 1
   fetchRules()
 }
 
-async function _handleCreate() {
+async function handleCreate() {
   if (!form.value.name || !form.value.content) return
   try {
     await createRule(form.value)
@@ -131,11 +126,11 @@ async function _handleCreate() {
   }
 }
 
-async function _handleEdit(rule: RuleItem) {
+async function handleEdit(rule: RuleItem) {
   editRule.value = { ...rule }
 }
 
-async function _saveEdit() {
+async function saveEdit() {
   if (!editRule.value) return
   try {
     const { id, created_at, updated_at, ...rest } = editRule.value
@@ -149,7 +144,7 @@ async function _saveEdit() {
   }
 }
 
-async function _handleDelete(id: string) {
+async function handleDelete(id: string) {
   if (!confirm("确定删除此规则？")) return
   try {
     await deleteRule(id)
@@ -160,7 +155,7 @@ async function _handleDelete(id: string) {
   }
 }
 
-async function _handleToggle(rule: RuleItem) {
+async function handleToggle(rule: RuleItem) {
   try {
     await toggleRule(rule.id)
     rule.enabled = !rule.enabled
@@ -170,18 +165,18 @@ async function _handleToggle(rule: RuleItem) {
   }
 }
 
-function _addTrigger() {
+function addTrigger() {
   const t = tagInput.value.trim()
   if (t && !form.value.triggers?.includes(t)) {
     form.value.triggers = [...(form.value.triggers || []), t]
     tagInput.value = ""
   }
 }
-function _removeTrigger(t: string) {
+function removeTrigger(t: string) {
   form.value.triggers = (form.value.triggers || []).filter((x) => x !== t)
 }
 
-function _addEditTrigger() {
+function addEditTrigger() {
   if (!editRule.value) return
   const t = tagInput.value.trim()
   if (t && !(editRule.value.triggers || []).includes(t)) {
@@ -189,7 +184,7 @@ function _addEditTrigger() {
     tagInput.value = ""
   }
 }
-function _removeEditTrigger(t: string) {
+function removeEditTrigger(t: string) {
   if (!editRule.value) return
   editRule.value.triggers = (editRule.value.triggers || []).filter(
     (x) => x !== t,
@@ -200,7 +195,7 @@ onMounted(() => {
   Promise.all([fetchRules(), fetchStats()])
 })
 
-const _enabledCount = computed(
+const enabledCount = computed(
   () => rules.value.filter((r) => r.enabled).length,
 )
 </script>

@@ -53,14 +53,14 @@ lazy_static::lazy_static! {
 /// List all installed plugins
 #[tauri::command]
 pub async fn list_plugins() -> Result<Vec<PluginInfo>, String> {
-    let registry = PLUGIN_REGISTRY.read();
+    let registry = PLUGIN_REGISTRY.read().map_err(|e| e.to_string())?;
     Ok(registry.values().cloned().collect())
 }
 
 /// Enable a plugin
 #[tauri::command]
 pub async fn enable_plugin(plugin_id: String) -> Result<(), String> {
-    let mut registry = PLUGIN_REGISTRY.write();
+    let mut registry = PLUGIN_REGISTRY.write().map_err(|e| e.to_string())?;
     if let Some(plugin) = registry.get_mut(&plugin_id) {
         plugin.enabled = true;
         Ok(())
@@ -72,7 +72,7 @@ pub async fn enable_plugin(plugin_id: String) -> Result<(), String> {
 /// Disable a plugin
 #[tauri::command]
 pub async fn disable_plugin(plugin_id: String) -> Result<(), String> {
-    let mut registry = PLUGIN_REGISTRY.write();
+    let mut registry = PLUGIN_REGISTRY.write().map_err(|e| e.to_string())?;
     if let Some(plugin) = registry.get_mut(&plugin_id) {
         plugin.enabled = false;
         Ok(())
@@ -83,15 +83,15 @@ pub async fn disable_plugin(plugin_id: String) -> Result<(), String> {
 
 /// Install a new plugin (from local path or URL)
 #[tauri::command]
-pub async fn install_plugin(source: String) -> Result<PluginInfo, String> {
+pub async fn install_plugin(_source: String) -> Result<PluginInfo, String> {
     // Placeholder - real implementation would download and load plugin
-    Err(format!("Plugin installation not yet implemented for source: {}", source))
+    Err("Plugin installation not yet implemented".to_string())
 }
 
 /// Uninstall a plugin
 #[tauri::command]
 pub async fn uninstall_plugin(plugin_id: String) -> Result<(), String> {
-    let mut registry = PLUGIN_REGISTRY.write();
+    let mut registry = PLUGIN_REGISTRY.write().map_err(|e| e.to_string())?;
     if registry.remove(&plugin_id).is_some() {
         Ok(())
     } else {
@@ -102,7 +102,7 @@ pub async fn uninstall_plugin(plugin_id: String) -> Result<(), String> {
 /// Call a command exposed by a plugin
 #[tauri::command]
 pub async fn call_plugin_command(request: PluginCallRequest) -> Result<PluginCallResult, String> {
-    let registry = PLUGIN_REGISTRY.read();
+    let registry = PLUGIN_REGISTRY.read().map_err(|e| e.to_string())?;
     
     if let Some(_plugin) = registry.get(&request.plugin_id) {
         // Check if plugin has this command

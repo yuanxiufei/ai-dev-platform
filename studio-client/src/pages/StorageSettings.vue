@@ -6,6 +6,7 @@ import {
   getStorageStats,
   updateStorageConfig,
 } from "@/api/system"
+import { AlertCircle, CheckCircle, Database, Folder, HardDrive, RefreshCw, Settings, Trash2 } from "lucide-vue-next"
 
 interface StorageStat {
   path: string
@@ -42,7 +43,7 @@ async function loadData() {
   }
 }
 
-async function _saveConfig() {
+async function saveConfig() {
   saving.value = true
   try {
     await updateStorageConfig({
@@ -57,7 +58,7 @@ async function _saveConfig() {
   }
 }
 
-async function _clean(path: string) {
+async function clean(path: string) {
   try {
     const res = await cleanupStorage(path, 72)
     cleanedCount.value = res.data.deleted
@@ -67,7 +68,7 @@ async function _clean(path: string) {
   }
 }
 
-function _formatGB(gb: number) {
+function formatGB(gb: number) {
   return gb >= 1024 ? `${(gb / 1024).toFixed(1)} TB` : `${gb.toFixed(1)} GB`
 }
 

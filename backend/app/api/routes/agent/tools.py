@@ -95,5 +95,5 @@ async def call_tool(name: str, payload: ToolCallRequest) -> dict[str, Any]:
         return {
             "success": False,
             "tool_name": name,
-            "error": str(e),
+            "error": f"Tool execution failed: {type(e).__name__}",
         }

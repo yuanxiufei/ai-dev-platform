@@ -116,6 +116,7 @@ class AgentOrchestrator:
     多 Agent 协同调度器
 
     借鉴 Agent-Reach 的 Planner→Coder→Reviewer→Tester 流水线。
+    通过 AgentRunner 运行每个子任务，复用 Middleware/Sandbox/TrajectoryRecorder。
 
     用法:
         orchestrator = AgentOrchestrator(model_router)
@@ -128,6 +129,14 @@ class AgentOrchestrator:
     def __init__(self, model_router=None):
         from app.core.model_router import get_model_router
         self._router = model_router or get_model_router()
+        self._agent_runner = None  # 懒加载
+
+    def _get_runner(self):
+        """懒加载 AgentRunner（复用 Sandbox + Middleware + TrajectoryRecorder）"""
+        if self._agent_runner is None:
+            from app.core.agent.agent_runner import AgentRunner
+            self._agent_runner = AgentRunner()
+        return self._agent_runner
 
     async def orchestrate(
         self,
@@ -284,22 +293,39 @@ Example response:
             )]
 
     async def _execute_subtask(self, subtask: SubTask, context: dict) -> str:
-        """Coder: 执行子任务（调用模型生成）"""
-        from app.core.model_router import ModelRequest, ModelCapability
+        """Coder: 通过 AgentRunner 执行子任务（复用 Middleware/Sandbox/TrajectoryRecorder）"""
+        from app.core.agent.agent_config import AgentConfig
 
-        capability_map = {
-            TaskType.CODE: ModelCapability.CODE_GENERATION,
-            TaskType.FIX: ModelCapability.CODE_GENERATION,
-            TaskType.REFACTOR: ModelCapability.CODE_GENERATION,
-            TaskType.TEST: ModelCapability.CODE_GENERATION,
-            TaskType.DESIGN: ModelCapability.TEXT_GENERATION,
-            TaskType.ANALYZE: ModelCapability.TEXT_GENERATION,
-            TaskType.DOCUMENT: ModelCapability.TEXT_GENERATION,
-        }
+        # 根据任务类型确定 Agent 配置
+        code_types = {TaskType.CODE, TaskType.FIX, TaskType.REFACTOR, TaskType.TEST}
 
-        capability = capability_map.get(subtask.task_type, ModelCapability.TEXT_GENERATION)
+        if subtask.task_type in code_types:
+            config = AgentConfig(
+                name=f"orchestrator-{subtask.task_type.value}",
+                description=f"Orchestrator {subtask.task_type.value} agent",
+                instructions=(
+                    "You are a coding agent in a multi-agent orchestration pipeline. "
+                    f"Your task type is: {subtask.task_type.value}.\n"
+                    "Complete the assigned subtask thoroughly. "
+                    "Use available tools to search code, read files, and verify your work."
+                ),
+                max_turns=5,
+                enable_memory=False,
+            )
+        else:
+            config = AgentConfig(
+                name=f"orchestrator-{subtask.task_type.value}",
+                description=f"Orchestrator {subtask.task_type.value} agent",
+                instructions=(
+                    "You are an analysis agent in a multi-agent orchestration pipeline. "
+                    f"Your task type is: {subtask.task_type.value}.\n"
+                    "Provide thorough analysis and clear responses."
+                ),
+                max_turns=3,
+                enable_memory=False,
+            )
 
-        prompt = f"""Complete the following subtask:
+        task_message = f"""Complete the following subtask:
 
 Type: {subtask.task_type}
 Description: {subtask.description}
@@ -309,14 +335,18 @@ Context: {context.get('summary', '')}
 
 Provide a thorough and complete response.
 """
-        request = ModelRequest(
-            capability=capability,
-            prompt=prompt,
-            max_tokens=4096,
-            temperature=0.3,
+
+        runner = self._get_runner()
+        result = await runner.run(
+            config=config,
+            user_message=task_message,
+            model_router=self._router,
         )
-        response = await self._router.generate(request)
-        return response.content or ""
+
+        if result.error:
+            raise RuntimeError(f"Subtask {subtask.id} failed: {result.error}")
+
+        return result.final_answer
 
     async def _review(self, code_outputs: list[str], context: dict) -> list[str]:
         """Reviewer: 审查生成的代码"""

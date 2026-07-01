@@ -9,7 +9,11 @@
  *  - 休眠/唤醒手动控制
  */
 
-import { Radio } from "lucide-vue-next"
+import {
+  Activity, AlertTriangle, Battery, BatteryWarning, Check, Clock, Copy,
+  Fingerprint, Gauge, Heart, KeyRound, Loader2, Monitor, Moon, Power, Radio,
+  RefreshCw, Server, Send, Shield, Terminal, Timer, TimerOff, Wifi
+} from "lucide-vue-next"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import {
   type ApiKeyCreated,
@@ -46,7 +50,7 @@ const refreshInterval = 8_000 // 8s
 let _timer: ReturnType<typeof setInterval> | null = null
 
 // API Key 表单
-const _showKeyForm = ref(false)
+const showKeyForm = ref(false)
 const showCreatedKey = ref<ApiKeyCreated | null>(null)
 const keyForm = ref({ tenant: "default", name: "", roles: "*" as string })
 const keyLoading = ref(false)
@@ -71,7 +75,7 @@ const wolSendForm = ref({ mac_address: "", broadcast: "", port: 9 })
 
 // ===== 计算属性 =====
 
-const _uptime = computed(() => {
+const uptime = computed(() => {
   if (!status.value) return "—"
   const s = Date.now() / 1000 - status.value.timestamp
   if (s < 60) return `${Math.floor(s)}s`
@@ -82,7 +86,7 @@ const _uptime = computed(() => {
 const sleepState = computed(
   () => status.value?.subsystems?.sleep?.state ?? "unknown",
 )
-const _sleepActiveLabel = computed(() => {
+const sleepActiveLabel = computed(() => {
   const s = sleepState.value
   if (s === "sleeping") return "休眠中"
   if (s === "waking") return "唤醒中…"
@@ -90,18 +94,18 @@ const _sleepActiveLabel = computed(() => {
   return "活跃"
 })
 
-const _watchdogState = computed(
+const watchdogState = computed(
   () => status.value?.subsystems?.watchdog?.state ?? "unknown",
 )
-const _activeKeyCount = computed(
+const activeKeyCount = computed(
   () => status.value?.subsystems?.api_auth?.active_keys ?? apiKeys.value.length,
 )
 
 // 休眠统计
-const _sleepStats = computed(() => status.value?.subsystems?.sleep)
+const sleepStats = computed(() => status.value?.subsystems?.sleep)
 
 // OS 休眠状态
-const _osSleepEnabled = computed(
+const osSleepEnabled = computed(
   () =>
     osSleepState.value?.enabled ??
     status.value?.subsystems?.sleep?.os_sleep?.enabled ??
@@ -126,7 +130,7 @@ const osSleepMode = computed(
     status.value?.subsystems?.sleep?.os_sleep?.mode ??
     "sleep",
 )
-const _osSleepModeLabel = computed(() =>
+const osSleepModeLabel = computed(() =>
   osSleepMode.value === "hibernate" ? "休眠（断电）" : "睡眠（内存保持）",
 )
 const osSleepCountdownDisplay = computed(() => {
@@ -141,18 +145,18 @@ const osSleepCountdownDisplay = computed(() => {
   return `${sec}s`
 })
 
-const _connected = computed(() => status.value?.started)
+const connected = computed(() => status.value?.started)
 
 // WOL 计算属性
-const _wolEnabled = computed(() => !!wolInfo.value?.target_mac)
-const _wolCommandPython = computed(() => {
+const wolEnabled = computed(() => !!wolInfo.value?.target_mac)
+const wolCommandPython = computed(() => {
   if (!wolInfo.value?.target_mac) return ""
   const mac = wolInfo.value.target_mac
   const bc = wolInfo.value.broadcast_address || "255.255.255.255"
   const port = wolInfo.value.port || 9
   return `python scripts/wake_server.py --mac ${mac} --broadcast ${bc} --port ${port}`
 })
-const _wolCommandCurl = computed(() => {
+const wolCommandCurl = computed(() => {
   if (!wolInfo.value?.target_mac) return ""
   const mac = wolInfo.value.target_mac
   return `curl -X POST http://<服务器IP>:18000/api/v1/standalone/wol/send -H "Content-Type: application/json" -d '{"mac_address":"${mac}","broadcast":"${wolInfo.value.broadcast_address || "255.255.255.255"}","port":${wolInfo.value.port || 9}}'`
@@ -208,7 +212,7 @@ async function fetchAll() {
   loading.value = false
 }
 
-async function _handleToggleFeature(feat: FeatureState) {
+async function handleToggleFeature(feat: FeatureState) {
   if (!feat.dynamic) {
     showToast(`「${feat.name}」由环境变量锁定，不可动态切换`, "info")
     return
@@ -229,7 +233,7 @@ async function _handleToggleFeature(feat: FeatureState) {
   }
 }
 
-async function _handleSleep() {
+async function handleSleep() {
   try {
     const res = await forceSleep()
     showToast(res.data.message || "已进入休眠", "success")
@@ -242,7 +246,7 @@ async function _handleSleep() {
   }
 }
 
-async function _handleWake() {
+async function handleWake() {
   try {
     const res = await forceWake()
     showToast(res.data.message || "已唤醒", "success")
@@ -261,7 +265,7 @@ async function fetchOsSleepStatus() {
   }
 }
 
-async function _handleOsSleepNow() {
+async function handleOsSleepNow() {
   if (
     !confirm(
       "⚠️ 这将立即使操作系统进入睡眠状态！\n\n电脑将停止响应，需要按电源键或通过 Wake-on-LAN 远程唤醒。\n\n确定要继续吗？",
@@ -281,7 +285,7 @@ async function _handleOsSleepNow() {
   }
 }
 
-async function _handleCancelOsSleep() {
+async function handleCancelOsSleep() {
   osSleepLoading.value = true
   osSleepAction.value = "cancel"
   try {
@@ -334,7 +338,7 @@ async function fetchWOLInfo() {
   }
 }
 
-async function _handleSendWOL() {
+async function handleSendWOL() {
   const mac = wolSendForm.value.mac_address || wolInfo.value?.target_mac || ""
   if (!mac) {
     showToast("请先输入目标 MAC 地址", "error")
@@ -366,7 +370,7 @@ async function _handleSendWOL() {
   }
 }
 
-async function _handleRedetectWOL() {
+async function handleRedetectWOL() {
   wolLoading.value = true
   try {
     const res = await redetectWOL()
@@ -379,7 +383,7 @@ async function _handleRedetectWOL() {
   }
 }
 
-function _copyWOLCommand(cmd: string) {
+function copyWOLCommand(cmd: string) {
   navigator.clipboard
     .writeText(cmd)
     .then(() => {
@@ -388,7 +392,7 @@ function _copyWOLCommand(cmd: string) {
     .catch(() => showToast("复制失败，请手动复制", "error"))
 }
 
-async function _handleCreateKey() {
+async function handleCreateKey() {
   if (!keyForm.value.name) return
   keyLoading.value = true
   try {
@@ -414,7 +418,7 @@ async function _handleCreateKey() {
   }
 }
 
-async function _handleRevokeKey(hashedKey: string) {
+async function handleRevokeKey(hashedKey: string) {
   if (!confirm("确定撤销此 API Key？操作不可撤销。")) return
   try {
     await revokeApiKey(hashedKey)
@@ -425,7 +429,7 @@ async function _handleRevokeKey(hashedKey: string) {
   }
 }
 
-function _copyKey(fullKey: string) {
+function copyKey(fullKey: string) {
   navigator.clipboard
     .writeText(fullKey)
     .then(() => {
@@ -434,11 +438,11 @@ function _copyKey(fullKey: string) {
     .catch(() => showToast("复制失败，请手动复制", "error"))
 }
 
-function _dismissCreatedKey() {
+function dismissCreatedKey() {
   showCreatedKey.value = null
 }
 
-function _featureIcon(key: string) {
+function featureIcon(key: string) {
   const map: Record<string, string> = {
     smart_sleep: "🌙",
     api_auth: "🔑",
@@ -453,7 +457,7 @@ function _featureIcon(key: string) {
   return map[key] ?? "🔹"
 }
 
-function _sleepStateColor(state: string): string {
+function sleepStateColor(state: string): string {
   const map: Record<string, string> = {
     sleeping: "text-amber-400",
     waking: "text-cyan-400",
@@ -483,7 +487,7 @@ onUnmounted(() => {
   stopOsSleepCountdown()
 })
 
-function _toggleAutoRefresh() {
+function toggleAutoRefresh() {
   autoRefresh.value = !autoRefresh.value
   if (autoRefresh.value) {
     _timer = setInterval(fetchAll, refreshInterval)

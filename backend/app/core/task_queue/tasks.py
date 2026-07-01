@@ -34,6 +34,7 @@ def model_download_task(self, model_name: str, source: str = "huggingface") -> d
         self.update_progress(10, "downloading")
 
         # 模拟下载进度（实际集成 downloader 的回调）
+        # 安全说明：Celery 任务运行在独立 worker 进程中，time.sleep 不会阻塞 ASGI 事件循环
         for progress in range(10, 100, 10):
             time.sleep(0.5)  # 实际场景为 downloader 的进度回调
             self.update_progress(progress, f"downloading ({progress}%)")

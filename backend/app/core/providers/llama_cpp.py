@@ -17,6 +17,7 @@ llama.cpp server 启动方式:
 from __future__ import annotations
 
 import logging
+from typing import Any, AsyncIterator
 
 from app.core.model_router import ModelRequest, ModelResponse
 from app.core.providers.base import BaseProvider
@@ -83,6 +84,27 @@ class LlamaCppProvider(BaseProvider):
             finish_reason=choice.get("finish_reason", "stop"),
             tool_calls=msg.get("tool_calls"),
         )
+
+    async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
+        """流式推理 — token-by-token 产出"""
+        model_name = self._get_model_name(request)
+        messages = self._build_messages(request)
+
+        payload: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": request.max_tokens or 2048,
+            "temperature": request.temperature or 0.7,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if request.tools:
+            payload["tools"] = request.tools
+            if request.tool_choice:
+                payload["tool_choice"] = request.tool_choice
+
+        async for token in self._parse_openai_sse_stream("/v1/chat/completions", payload):
+            yield token
 
     def _build_headers(self) -> dict[str, str]:
         # llama.cpp server 默认无需认证，但支持可选 API key

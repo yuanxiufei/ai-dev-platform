@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Cloud, Database, Globe, HardDrive, Server } from "lucide-vue-next"
+import { Cloud, Database, Globe, HardDrive, Link2, Loader2, Plus, Settings2, Trash2, Unlink2, X } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
 import {
   connectIntegration,
@@ -19,7 +19,7 @@ const toast = ref("")
 
 const activeCategory = ref("all")
 const showCreate = ref(false)
-const _showConfig = ref<IntegrationItem | null>(null)
+const showConfig = ref<IntegrationItem | null>(null)
 
 const form = ref<IntegrationCreatePayload>({
   name: "",
@@ -33,7 +33,7 @@ const formApiKey = ref("")
 const formUrl = ref("")
 const formToken = ref("")
 
-const _categories = [
+const categories = [
   { id: "all", label: "全部", icon: Globe },
   { id: "database", label: "数据库", icon: Database },
   { id: "deploy", label: "部署服务", icon: Cloud },
@@ -120,7 +120,7 @@ const stats = ref({
   connected: 0,
   by_category: {} as Record<string, number>,
 })
-const _filtered = computed(() => {
+const filtered = computed(() => {
   if (activeCategory.value === "all") return integrations.value
   return integrations.value.filter((i) => i.category === activeCategory.value)
 })
@@ -150,7 +150,7 @@ async function fetchData() {
   }
 }
 
-async function _handleConnect(integration: IntegrationItem) {
+async function handleConnect(integration: IntegrationItem) {
   if (connectingId.value) return
   connectingId.value = integration.id
   try {
@@ -169,7 +169,7 @@ async function _handleConnect(integration: IntegrationItem) {
   }
 }
 
-async function _handleDisconnect(integration: IntegrationItem) {
+async function handleDisconnect(integration: IntegrationItem) {
   if (!confirm(`确定断开 ${integration.display_name}？`)) return
   try {
     await disconnectIntegration(integration.id)
@@ -182,7 +182,7 @@ async function _handleDisconnect(integration: IntegrationItem) {
   }
 }
 
-async function _handleDelete(id: string) {
+async function handleDelete(id: string) {
   if (!confirm("确定删除此集成？")) return
   try {
     await deleteIntegration(id)
@@ -193,7 +193,7 @@ async function _handleDelete(id: string) {
   }
 }
 
-async function _handleCreate() {
+async function handleCreate() {
   if (!form.value.name || !form.value.display_name) return
   const config: Record<string, unknown> = {}
   if (formApiKey.value) config.api_key = formApiKey.value
@@ -221,7 +221,7 @@ async function _handleCreate() {
   }
 }
 
-function _usePreset(preset: (typeof presetIntegrations)[0]) {
+function usePreset(preset: (typeof presetIntegrations)[0]) {
   form.value = {
     name: preset.name,
     display_name: preset.display_name,

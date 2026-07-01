@@ -162,6 +162,39 @@ class FallbackNode:
                 model.last_error = str(e)
         return None
 
+    async def try_generate_stream(self, request: ModelRequest) -> AsyncIterator[str] | None:
+        """依次尝试该节点模型进行流式推理，返回第一个成功的 token 流。
+
+        通过尝试获取第一个 token 来判断流是否可用；
+        失败则自动回退到下一个模型。
+        """
+        for model in self.models:
+            if not model.is_available:
+                logger.debug("FallbackNode[%s]: model '%s' not available, skipping stream", self.name, getattr(model, 'name', type(model).__name__))
+                continue
+            try:
+                logger.info("FallbackNode[%s]: trying stream model '%s'...", self.name, getattr(model, 'name', type(model).__name__))
+                # 尝试获取第一个 token 作为验证
+                stream = model.generate_stream(request)
+                first = await asyncio.wait_for(stream.__anext__(), timeout=30.0)
+                # 第一个 token 成功 → 返回一个合并的生成器
+                async def _merged():
+                    yield first
+                    async for token in stream:
+                        yield token
+                return _merged()
+            except NotImplementedError:
+                logger.debug(f"Model {model.name} doesn't support streaming, skipping")
+            except StopAsyncIteration:
+                logger.debug(f"Stream model {model.name} returned empty, skipping")
+            except asyncio.TimeoutError:
+                logger.warning(f"Stream model {model.name} timed out")
+                model.last_error = "stream_timeout"
+            except Exception as e:
+                logger.warning(f"Stream model {model.name} FAILED: {type(e).__name__}: {e}")
+                model.last_error = str(e)
+        return None
+
 
 # ── ModelRouter 核心 ───────────────────────────────────────
 
@@ -377,9 +410,91 @@ class ModelRouter:
 
 
     async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
-        """流式生成入口"""
+        """流式生成入口 — 真正 token-by-token SSE
+
+        回退链：
+          1. 用户指定模型（stream）
+          2. 本地最优模型（stream）
+          3. 第三方 API（stream）
+          4. 降级为非流式 generate() → 词级 yield
+        """
+        # 1. 用户指定模型优先
+        if request.preferred_model:
+            stream = await self._try_specific_model_stream(request.preferred_model, request)
+            if stream:
+                async for token in stream:
+                    yield token
+                return
+            logger.info(f"Preferred model '{request.preferred_model}' stream unavailable, falling back")
+
+        # 2. 子任务类型加成 + 重建回退链
+        self._apply_task_boost(request.task_type)
+        self._rebuild_chain()
+
+        # 3. 依次尝试回退链节点的流式推理
+        for node in self._fallback_chain:
+            stream = await node.try_generate_stream(request)
+            if stream:
+                async for token in stream:
+                    yield token
+                return
+
+        # 4. 降级：所有流式失败 → 非流式兜底
+        logger.warning("All streaming models failed, falling back to non-streaming generate()")
         response = await self.generate(request)
-        yield response.content
+        # 按词拆分模拟流式输出
+        for word in response.content.split():
+            yield word + " "
+
+    async def _try_specific_model_stream(
+        self, model_name: str, request: ModelRequest
+    ) -> AsyncIterator[str] | None:
+        """尝试指定模型流式推理。
+
+        通过尝试获取第一个 token 来验证流是否可用；
+        成功则返回合并后的 token 生成器，失败返回 None。
+        """
+        def _find_model():
+            # 1. API 模型适配器
+            if self.api_models:
+                for model in self.api_models:
+                    if model.name == model_name:
+                        return model
+            # 2. 本地模型
+            for model in self.local_models:
+                if model.name == model_name:
+                    return model
+            # 3. API Gateway 候选
+            if self.api_gateway:
+                for model in self.api_gateway.get_candidates():
+                    if model.name == model_name or getattr(model, 'api_model_id', None) == model_name:
+                        return model
+            return None
+
+        model = _find_model()
+        if model is None:
+            logger.warning(f"Stream: preferred model '{model_name}' not found")
+            return None
+
+        try:
+            logger.info(f"ModelRouter: trying stream for '{model_name}'")
+            stream = model.generate_stream(request)
+            first = await asyncio.wait_for(stream.__anext__(), timeout=30.0)
+
+            async def _merged():
+                yield first
+                async for token in stream:
+                    yield token
+            return _merged()
+        except NotImplementedError:
+            logger.debug(f"Model {model_name} doesn't support streaming")
+        except StopAsyncIteration:
+            logger.debug(f"Stream model {model_name} returned empty")
+        except asyncio.TimeoutError:
+            logger.warning(f"Stream model {model_name} timed out")
+        except Exception as e:
+            logger.warning(f"Stream model {model_name} FAILED: {type(e).__name__}: {e}")
+        return None
 
     async def _try_specific_model(
         self, model_name: str, request: ModelRequest

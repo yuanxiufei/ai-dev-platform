@@ -1,7 +1,7 @@
 /**
  * Integrations API — 第三方服务集成管理
  */
-import { apiClient } from "./client"
+import apiClient from "./client"
 
 export interface IntegrationItem {
   id: string

@@ -18,11 +18,13 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
 
+from app.api.deps import CurrentUser, get_current_user_ws
 from app.core.benchmark import (
     BenchmarkEngine,
     BenchmarkState,
     get_benchmark_engine,
 )
+from app.core.ws_limiter import get_ws_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ async def create_benchmark(
     num_requests: int = Query(100, ge=1, le=10000, description="请求数"),
     concurrency: int = Query(1, ge=1, le=16, description="并发数"),
     max_tokens: int = Query(512, ge=1, le=4096, description="最大输出 token 数"),
+    user: CurrentUser = None,  # JWT 认证
 ) -> dict[str, Any]:
     """创建 Benchmark 任务"""
     engine = _require_engine()
@@ -65,6 +68,7 @@ async def create_benchmark(
 @router.get("")
 async def list_benchmarks(
     state: str | None = Query(None, description="按状态筛选"),
+    user: CurrentUser = None,
 ) -> list[dict[str, Any]]:
     """列出 Benchmark 任务"""
     engine = _require_engine()
@@ -74,7 +78,10 @@ async def list_benchmarks(
 
 
 @router.get("/{task_id}")
-async def get_benchmark(task_id: str) -> dict[str, Any]:
+async def get_benchmark(
+    task_id: str,
+    user: CurrentUser = None,
+) -> dict[str, Any]:
     """获取 Benchmark 任务详情"""
     engine = _require_engine()
     task = engine.get_task(task_id)
@@ -84,7 +91,10 @@ async def get_benchmark(task_id: str) -> dict[str, Any]:
 
 
 @router.post("/{task_id}/submit")
-async def submit_benchmark(task_id: str) -> dict[str, str]:
+async def submit_benchmark(
+    task_id: str,
+    user: CurrentUser = None,
+) -> dict[str, str]:
     """提交 Benchmark 执行"""
     engine = _require_engine()
     await engine.submit(task_id)
@@ -92,7 +102,10 @@ async def submit_benchmark(task_id: str) -> dict[str, str]:
 
 
 @router.post("/{task_id}/stop")
-async def stop_benchmark(task_id: str) -> dict[str, str]:
+async def stop_benchmark(
+    task_id: str,
+    user: CurrentUser = None,
+) -> dict[str, str]:
     """停止 Benchmark"""
     engine = _require_engine()
     success = await engine.stop(task_id)
@@ -102,7 +115,10 @@ async def stop_benchmark(task_id: str) -> dict[str, str]:
 
 
 @router.get("/{task_id}/export")
-async def export_benchmark(task_id: str) -> dict[str, str]:
+async def export_benchmark(
+    task_id: str,
+    user: CurrentUser = None,
+) -> dict[str, str]:
     """导出 Benchmark 结果为 YAML"""
     engine = _require_engine()
     yaml_str = engine.export_yaml(task_id)
@@ -116,57 +132,75 @@ async def export_benchmark(task_id: str) -> dict[str, str]:
 
 @router.websocket("/{task_id}/ws")
 async def benchmark_websocket(websocket: WebSocket, task_id: str) -> None:
-    """WebSocket 实时日志流"""
-    await websocket.accept()
-
-    engine = get_benchmark_engine()
-    if not engine:
-        await websocket.send_json({"error": "Engine not initialized"})
-        await websocket.close()
+    """WebSocket 实时日志流 — 通过 ?token=... 传递 JWT"""
+    # WebSocket 握手阶段验证 token
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
         return
-
-    task = engine.get_task(task_id)
-    if not task:
-        await websocket.send_json({"error": "Benchmark not found"})
-        await websocket.close()
-        return
-
-    log_idx = 0
     try:
-        while task.state in (BenchmarkState.QUEUED, BenchmarkState.RUNNING, BenchmarkState.PENDING):
-            # 推送新日志
-            while log_idx < len(task.logs):
-                await websocket.send_json({
-                    "type": "log",
-                    "message": task.logs[log_idx],
-                    "progress": len(task.logs) / max(task.num_requests, 1) * 100,
-                })
-                log_idx += 1
+        user = await get_current_user_ws(token)
+    except Exception:
+        await websocket.close(code=4001, reason="Invalid or expired token")
+        return
 
-            # 推送状态
+    # 连接数限制
+    limiter = get_ws_limiter()
+    try:
+        guard = await limiter.enforce(websocket, str(user.id))
+    except ConnectionRefusedError:
+        return
+    async with guard:
+        await websocket.accept()
+
+        engine = get_benchmark_engine()
+        if not engine:
+            await websocket.send_json({"error": "Engine not initialized"})
+            await websocket.close()
+            return
+
+        task = engine.get_task(task_id)
+        if not task:
+            await websocket.send_json({"error": "Benchmark not found"})
+            await websocket.close()
+            return
+
+        log_idx = 0
+        try:
+            while task.state in (BenchmarkState.QUEUED, BenchmarkState.RUNNING, BenchmarkState.PENDING):
+                # 推送新日志
+                while log_idx < len(task.logs):
+                    await websocket.send_json({
+                        "type": "log",
+                        "message": task.logs[log_idx],
+                        "progress": len(task.logs) / max(task.num_requests, 1) * 100,
+                    })
+                    log_idx += 1
+
+                # 推送状态
+                await websocket.send_json({
+                    "type": "status",
+                    "state": task.state.value,
+                    "metrics": {
+                        "tokens_per_second": task.metrics.tokens_per_second,
+                        "latency_avg_ms": task.metrics.latency_avg_ms,
+                    },
+                })
+
+                if task.state in (BenchmarkState.COMPLETED, BenchmarkState.FAILED, BenchmarkState.STOPPED):
+                    break
+
+                await asyncio.sleep(0.5)
+
+            # 最终推送
             await websocket.send_json({
-                "type": "status",
+                "type": "done",
                 "state": task.state.value,
-                "metrics": {
-                    "tokens_per_second": task.metrics.tokens_per_second,
-                    "latency_avg_ms": task.metrics.latency_avg_ms,
-                },
+                "task": task.to_dict(),
             })
 
-            if task.state in (BenchmarkState.COMPLETED, BenchmarkState.FAILED, BenchmarkState.STOPPED):
-                break
-
-            await asyncio.sleep(0.5)
-
-        # 最终推送
-        await websocket.send_json({
-            "type": "done",
-            "state": task.state.value,
-            "task": task.to_dict(),
-        })
-
-    except WebSocketDisconnect:
-        pass
+        except WebSocketDisconnect:
+            pass
     except Exception as e:
         logger.error("Benchmark WebSocket error: %s", e)
     finally:

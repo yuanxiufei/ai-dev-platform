@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-import requests
+import httpx
 import yaml
 
 from app.core.catalog.schemas import Catalog, ModelSet, ModelSpec, DraftModel
@@ -118,7 +118,7 @@ def _load_yaml(source: str) -> dict:
     """Load YAML from a file path or URL."""
     parsed = urlparse(source)
     if parsed.scheme in ("http", "https"):
-        resp = requests.get(source, timeout=10)
+        resp = httpx.get(source, timeout=10)
         resp.raise_for_status()
         return yaml.safe_load(resp.text)
     else:
@@ -158,9 +158,9 @@ def _get_builtin_catalog_path() -> str:
 def _can_access(url: str, timeout: int = 3) -> bool:
     """Check if a URL is accessible."""
     try:
-        resp = requests.get(url, timeout=timeout)
+        resp = httpx.get(url, timeout=timeout, follow_redirects=True)
         return 200 <= resp.status_code < 300
-    except requests.RequestException:
+    except httpx.RequestError:
         return False
 
 

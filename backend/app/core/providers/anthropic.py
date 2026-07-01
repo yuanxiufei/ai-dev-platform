@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any, AsyncIterator
 
 from app.core.model_router import ModelRequest, ModelResponse
 from app.core.providers.base import BaseProvider
@@ -85,6 +86,58 @@ class AnthropicProvider(BaseProvider):
             finish_reason=finish_reason,
             tool_calls=tool_calls,
         )
+
+    # ── 流式推理（Anthropic SSE 协议） ──────────────
+
+    async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
+        """流式推理 — token-by-token 产出（Anthropic Messages SSE 协议）
+
+        Anthropic 流式事件类型：
+          content_block_delta.delta.text_delta → 文本增量
+          其他事件（message_start/content_block_start/message_delta 等）跳过
+        """
+        model_name = self._get_model_name(request)
+
+        messages: list[dict] = []
+        if request.history:
+            messages.extend(request.history)
+        messages.append({"role": "user", "content": request.prompt})
+
+        body: dict[str, Any] = {
+            "model": model_name,
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "messages": messages,
+            "stream": True,
+        }
+        if request.system_prompt:
+            body["system"] = request.system_prompt
+
+        if request.tools:
+            anthropic_tools = self._to_anthropic_tools(request.tools)
+            if anthropic_tools:
+                body["tools"] = anthropic_tools
+            if request.tool_choice:
+                body["tool_choice"] = self._to_anthropic_tool_choice(request.tool_choice)
+
+        async with self.client.stream("POST", "/v1/messages", json=body) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                data_str = line[6:]
+                try:
+                    event = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+
+                event_type = event.get("type", "")
+                if event_type == "content_block_delta":
+                    delta = event.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        text = delta.get("text", "")
+                        if text:
+                            yield text
 
     def _build_headers(self) -> dict[str, str]:
         return {

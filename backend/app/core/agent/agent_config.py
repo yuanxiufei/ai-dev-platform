@@ -88,6 +88,20 @@ class AgentConfig:
     preferred_model: str = ""
     """首选模型名称（空 = 自动选择）"""
 
+    # ── Memory 配置 ──
+    enable_memory: bool = True
+    """是否启用 Memory 闭环（before_run 注入记忆 / after_run 提取保存）"""
+
+    # ── 预算配置（借鉴 hermes-agent 预算感知循环）──
+    enable_budget: bool = True
+    """是否启用预算追踪"""
+    token_budget: int = 200000
+    """最大 cumulative tokens（输入+输出），0 = 不限制"""
+    cost_budget_usd: float = 5.0
+    """最大累计成本（美元），0 = 不限制"""
+    time_budget_ms: float = 300000
+    """最大运行时间（毫秒），0 = 不限制"""
+
     # ── 钩子 ──
     hooks: list[AgentHook] = field(default_factory=list)
 

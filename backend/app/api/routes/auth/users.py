@@ -8,6 +8,7 @@ from app import crud
 from app.api.deps import (
     CurrentUser,
     SessionDep,
+    commit_or_rollback,
     get_current_active_superuser,
 )
 from app.core.config import settings
@@ -28,6 +29,9 @@ from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+# 分页安全上限
+_MAX_PAGE_SIZE = 200
+
 
 @router.get(
     "/",
@@ -38,6 +42,9 @@ def read_users(session: SessionDep, page: int = 1, size: int = 20) -> Any:
     """
     Retrieve users.
     """
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
 
     count_statement = select(func.count()).select_from(User)
     count = session.exec(count_statement).one()
@@ -95,9 +102,7 @@ def update_user_me(
             )
     user_data = user_in.model_dump(exclude_unset=True)
     current_user.sqlmodel_update(user_data)
-    session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
+    commit_or_rollback(session, current_user)
     return current_user
 
 
@@ -117,8 +122,7 @@ def update_password_me(
         )
     hashed_password = get_password_hash(body.new_password)
     current_user.hashed_password = hashed_password
-    session.add(current_user)
-    session.commit()
+    commit_or_rollback(session, current_user)
     return Message(message="Password updated successfully")
 
 
@@ -140,7 +144,7 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
     session.delete(current_user)
-    session.commit()
+    commit_or_rollback(session)
     return Message(message="User deleted successfully")
 
 
@@ -229,5 +233,5 @@ def delete_user(
     statement = delete(Item).where(col(Item.owner_id) == user_id)
     session.exec(statement)
     session.delete(user)
-    session.commit()
+    commit_or_rollback(session)
     return Message(message="User deleted successfully")

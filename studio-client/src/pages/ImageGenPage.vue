@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { type ImageGenResult, imageGenApi } from "@/api/image-gen"
+import { Download, Image as ImageIcon, RefreshCw, X } from "lucide-vue-next"
+
+// Re-export for template
+const Image = ImageIcon
 
 const prompt = ref("")
 const negativePrompt = ref("")
@@ -21,9 +25,9 @@ const batchResults = ref<
     error?: string
   }[]
 >([])
-const _showLightbox = ref<string>("")
+const showLightbox = ref<string>("")
 
-const _sizes = [
+const sizes = [
   { value: "256x256", label: "256×256" },
   { value: "512x512", label: "512×512" },
   { value: "1024x1024", label: "1024×1024" },
@@ -31,7 +35,7 @@ const _sizes = [
   { value: "1792x1024", label: "1792×1024（横版）" },
 ]
 
-const _styles = [
+const styles = [
   { value: "natural", label: "自然" },
   { value: "vivid", label: "鲜艳" },
   { value: "anime", label: "动漫" },
@@ -48,7 +52,7 @@ onMounted(async () => {
   }
 })
 
-async function _doGenerate() {
+async function doGenerate() {
   if (!prompt.value.trim()) return
   generating.value = true
   error.value = ""
@@ -71,7 +75,7 @@ async function _doGenerate() {
   }
 }
 
-async function _doBatch() {
+async function doBatch() {
   const prompts = batchPrompts.value.split("\n").filter((p) => p.trim())
   if (!prompts.length) return
   generating.value = true
@@ -91,7 +95,7 @@ async function _doBatch() {
   }
 }
 
-function _downloadB64(b64: string, index: number) {
+function downloadB64(b64: string, index: number) {
   const a = document.createElement("a")
   a.href = `data:image/png;base64,${b64}`
   a.download = `ai-generated-${Date.now()}-${index + 1}.png`

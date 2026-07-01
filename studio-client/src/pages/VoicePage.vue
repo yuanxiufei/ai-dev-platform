@@ -6,6 +6,7 @@ import {
   type VoiceInfo,
   voiceApi,
 } from "@/api/model-features"
+import { Mic, Upload, Volume2 } from "lucide-vue-next"
 
 const ttsText = ref("")
 const ttsVoice = ref("nova")
@@ -32,12 +33,12 @@ onMounted(async () => {
   } catch {}
 })
 
-const _allVoices = [
+const allVoices = [
   ...openaiVoices.value.map((v) => ({ ...v, provider: "OpenAI" })),
   ...edgeVoices.value.map((v) => ({ ...v, provider: "Edge TTS" })),
 ]
 
-async function _doTTS() {
+async function doTTS() {
   if (!ttsText.value.trim()) return
   ttsLoading.value = true
   error.value = ""
@@ -56,17 +57,17 @@ async function _doTTS() {
   }
 }
 
-function _playAudio(b64: string) {
+function playAudio(b64: string) {
   const audio = new Audio(`data:audio/mpeg;base64,${b64}`)
   audio.play()
 }
 
-function _onFileChange(e: Event) {
+function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   if (input.files?.[0]) sttFile.value = input.files[0]
 }
 
-async function _doSTT() {
+async function doSTT() {
   if (!sttFile.value) return
   sttLoading.value = true
   error.value = ""
@@ -79,7 +80,7 @@ async function _doSTT() {
   }
 }
 
-async function _doSTTUrl() {
+async function doSTTUrl() {
   if (!sttUrl.value.trim()) return
   sttLoading.value = true
   error.value = ""

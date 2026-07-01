@@ -21,6 +21,9 @@
 import { computed, nextTick, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { useIDEStore } from "@/stores/useIDEStore"
+import TabBar from "./TabBar.vue"
+import CodeEditor from "./CodeEditor.vue"
+import Terminal from "./Terminal.vue"
 
 const store = useIDEStore()
 const route = useRoute()
@@ -38,22 +41,22 @@ watch(
 const isEditingFile = computed(() => !!store.activeTab)
 
 /** True when a Studio/route page is active */
-const _isStudioView = computed(
+const isStudioView = computed(
   () => !isEditingFile.value && route.name !== undefined,
 )
 
 /** Whether to show bottom terminal panel (Figma: always visible in IDE mode) */
-const _showBottomPanel = computed(
+const showBottomPanel = computed(
   () => store.layout.bottomPanelVisible && isEditingFile.value,
 )
 
 /** Terminal panel tabs matching Figma design */
-const _terminalTabs = [
+const terminalTabs = [
   { id: "terminal", label: "终端" },
   { id: "problems", label: "问题" },
   { id: "debug", label: "调试控制台" },
 ]
-const _activeTerminalTab = ref("terminal")
+const activeTerminalTab = ref("terminal")
 </script>
 
 <template>
@@ -116,7 +119,7 @@ const _activeTerminalTab = ref("terminal")
             <!-- Preview Body: Card-style welcome content -->
             <div class="flex-1 flex items-center justify-center p-5" style="background:#12141C;">
               <div class="relative w-full max-w-[200px] rounded-lg p-5 flex flex-col items-center gap-4 text-center shadow-xl"
-                style="background:#F2A21BE0; border:1px solid rgba(70,69,84,0.3);">
+                style="background: rgba(28,31,42,0.85); border:1px solid rgba(70,69,84,0.3);">
                 <!-- Shadow overlay (Figma detail) -->
                 <div class="absolute inset-0 -z-10 rounded-lg"
                   style="box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);" />
@@ -144,7 +147,7 @@ const _activeTerminalTab = ref("terminal")
         </div>
 
         <!-- Bottom Terminal Panel (180px, Figma design) -->
-        <div v-if="showBottomPanel" class="shrink-0 flex flex-col border-t border-[var(--color-ide-border)]" style="height:180px; background:#F2A21BE0;">
+        <div v-if="showBottomPanel" class="shrink-0 flex flex-col border-t border-[var(--color-ide-border)]" style="height:180px; background:#171B26;">
           <!-- Terminal Tabs Header -->
           <div class="flex items-center justify-between px-4 h-9 shrink-0" style="background:#262A35; border-bottom:1px solid var(--color-ide-border);">
             <!-- Tabs -->

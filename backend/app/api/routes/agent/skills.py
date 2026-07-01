@@ -59,6 +59,21 @@ async def load_skills() -> dict:
     return {"message": f"Loaded {count} skills", "count": count, "categories": registry.list_categories()}
 
 
+@router.post("/reload")
+async def reload_skills() -> dict:
+    """触发技能热重载 (SkillWatcher.reload_now) — P1.6"""
+    try:
+        from app.core.skills.skill_manager import get_skill_watcher
+        watcher = get_skill_watcher()
+        if watcher:
+            result = watcher.reload_now()
+            return {"message": "Skills hot-reloaded", **result}
+        # 回退到 load_all
+        return await load_skills()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reload failed: {e}")
+
+
 @router.get("")
 async def list_skills(category: str = Query(default=None, description="按分类过滤")) -> dict:
     registry = get_skills_registry()

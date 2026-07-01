@@ -1,8 +1,8 @@
-use tauri::{Window, Manager};
+use tauri::WebviewWindow;
 
 /// Toggle fullscreen mode
 #[tauri::command]
-pub async fn toggle_fullscreen(window: Window) -> Result<(), String> {
+pub async fn toggle_fullscreen(window: WebviewWindow) -> Result<(), String> {
     window
         .set_fullscreen(!window.is_fullscreen().unwrap_or(false))
         .map_err(|e| e.to_string())
@@ -10,7 +10,7 @@ pub async fn toggle_fullscreen(window: Window) -> Result<(), String> {
 
 /// Zoom in (scale up)
 #[tauri::command]
-pub async fn zoom_in(window: Window) -> Result<(), String> {
+pub async fn zoom_in(window: WebviewWindow) -> Result<(), String> {
     let scale = window.scale_factor().unwrap_or(1.0);
     let new_scale = (scale + 0.1).min(3.0);
     
@@ -21,7 +21,7 @@ pub async fn zoom_in(window: Window) -> Result<(), String> {
 
 /// Zoom out (scale down)
 #[tauri::command]
-pub async fn zoom_out(window: Window) -> Result<(), String> {
+pub async fn zoom_out(window: WebviewWindow) -> Result<(), String> {
     let scale = window.scale_factor().unwrap_or(1.0);
     let new_scale = (scale - 0.1).max(0.5);
     
@@ -31,19 +31,19 @@ pub async fn zoom_out(window: Window) -> Result<(), String> {
 
 /// Reset zoom to 100%
 #[tauri::command]
-pub async fn reset_zoom(window: Window) -> Result<(), String> {
+pub async fn reset_zoom(window: WebviewWindow) -> Result<(), String> {
     window.eval("document.body.style.zoom = '1'").map_err(|e| e.to_string())
 }
 
 /// Open DevTools
 #[tauri::command]
-pub async fn open_devtools(window: Window) -> Result<(), String> {
+pub async fn open_devtools(window: WebviewWindow) -> Result<(), String> {
     window.open_devtools();
     Ok(())
 }
 
 /// Focus the window
 #[tauri::command]
-pub async fn focus_window(window: Window) -> Result<(), String> {
+pub async fn focus_window(window: WebviewWindow) -> Result<(), String> {
     window.set_focus().map_err(|e| e.to_string())
 }

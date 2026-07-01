@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
-import { listTemplates } from "@/api/studio"
+import { structuredOutputApi } from "@/api/model-features"
 import type { Template } from "@/types/studio"
+import { ExternalLink, LayoutGrid, Play, Search } from "lucide-vue-next"
 
 const router = useRouter()
 const templates = ref<Template[]>([])
@@ -12,7 +13,7 @@ const searchText = ref("")
 
 onMounted(async () => {
   try {
-    const res = await listTemplates()
+    const res = await structuredOutputApi.listTemplates()
     templates.value = res.data.data ?? []
     filtered.value = [...templates.value]
   } catch {
@@ -22,7 +23,7 @@ onMounted(async () => {
   }
 })
 
-function _filter() {
+function filter() {
   const q = searchText.value.toLowerCase()
   filtered.value = templates.value.filter(
     (t) =>
@@ -32,7 +33,7 @@ function _filter() {
   )
 }
 
-function _handleUse(_template: Template) {
+function handleUse(_template: Template) {
   router.push("/projects")
 }
 </script>

@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, func, select
 
-from app.api.deps import get_db
+from app.api.deps import get_db, commit_or_rollback
 from app.models.agent_models import (
     AgentTrace,
     AgentToolCall,
@@ -235,13 +235,13 @@ async def get_trace_detail(trace_id: str):
         # 查询关联的工具调用
         tc_stmt = select(AgentToolCall).where(
             AgentToolCall.trace_id == tid
-        ).order_by(AgentToolCall.step_number, AgentToolCall.sequence)
+        ).order_by(AgentToolCall.step_number, AgentToolCall.sequence).limit(10_000)
         tool_calls = db.exec(tc_stmt).all()
 
         # 查询关联的文件变更
         fc_stmt = select(AgentFileChange).where(
             AgentFileChange.trace_id == tid
-        ).order_by(AgentFileChange.created_at)
+        ).order_by(AgentFileChange.created_at).limit(10_000)
         file_changes = db.exec(fc_stmt).all()
 
         return {
@@ -406,7 +406,7 @@ async def get_agent_stats(
         if agent_id:
             base = base.where(AgentTrace.agent_id == agent_id)
 
-        traces = db.exec(base).all()
+        traces = db.exec(base.limit(100_000)).all()
 
         total = len(traces)
         if total == 0:
@@ -496,7 +496,7 @@ async def delete_trace(trace_id: str):
 
         # CASCADE 自动删除关联的 tool_calls / file_changes / logs
         db.delete(trace)
-        db.commit()
+        commit_or_rollback(db)
         return {"status": "deleted", "trace_id": trace_id}
     finally:
         db.close()

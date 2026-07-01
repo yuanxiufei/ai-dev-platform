@@ -1,4 +1,4 @@
-"""
+﻿"""
 Knowledge Graph API — 借鉴 Obsidian Wikilinks + JSON Canvas
 
 端点：
@@ -38,13 +38,16 @@ router = APIRouter(prefix="/knowledge-graph", tags=["knowledge-graph"])
 # 全局内存实例（单次请求重建）
 _g_link_index: Optional[LinkIndex] = None
 
+# 知识图谱操作安全上限（保护图构建不被极端数据量拖垮）
+_KG_MAX_MEMORIES = 50_000
+
 
 def _get_link_index(db: Session, user_id: uuid.UUID) -> LinkIndex:
     """构建链接索引（惰性构建）"""
-    from app.models.model_presets import MemoryEntry
+    from app.models.memory_models import MemoryEntry
 
     idx = LinkIndex()
-    stmt = select(MemoryEntry).where(MemoryEntry.user_id == user_id)
+    stmt = select(MemoryEntry).where(MemoryEntry.user_id == user_id).limit(_KG_MAX_MEMORIES)
     entries = db.exec(stmt).all()
     for e in entries:
         idx.index_memory(e.key, e.value or "")
@@ -53,9 +56,9 @@ def _get_link_index(db: Session, user_id: uuid.UUID) -> LinkIndex:
 
 def _get_all_memories(db: Session, user_id: uuid.UUID) -> list[dict]:
     """获取所有记忆 dict"""
-    from app.models.model_presets import MemoryEntry
+    from app.models.memory_models import MemoryEntry
 
-    stmt = select(MemoryEntry).where(MemoryEntry.user_id == user_id)
+    stmt = select(MemoryEntry).where(MemoryEntry.user_id == user_id).limit(_KG_MAX_MEMORIES)
     entries = db.exec(stmt).all()
     return [
         {
@@ -121,9 +124,9 @@ async def list_orphans(
     current_user=Depends(get_current_user),
 ) -> dict:
     """孤立节点 — 没有任何链接的记忆"""
-    from app.models.model_presets import MemoryEntry
+    from app.models.memory_models import MemoryEntry
 
-    stmt = select(MemoryEntry).where(MemoryEntry.user_id == current_user.id)
+    stmt = select(MemoryEntry).where(MemoryEntry.user_id == current_user.id).limit(_KG_MAX_MEMORIES)
     entries = db.exec(stmt).all()
     all_keys = {e.key for e in entries}
 
@@ -142,7 +145,7 @@ async def parse_memory(
     current_user=Depends(get_current_user),
 ) -> dict:
     """解析 memory value — wikilinks + frontmatter + callouts + tags"""
-    from app.models.model_presets import MemoryEntry
+    from app.models.memory_models import MemoryEntry
 
     stmt = select(MemoryEntry).where(
         MemoryEntry.user_id == current_user.id,
@@ -293,10 +296,10 @@ async def knowledge_graph_stats(
     current_user=Depends(get_current_user),
 ) -> dict:
     """知识图谱统计"""
-    from app.models.model_presets import MemoryEntry
+    from app.models.memory_models import MemoryEntry
     from sqlmodel import func
 
-    stmt = select(MemoryEntry).where(MemoryEntry.user_id == current_user.id)
+    stmt = select(MemoryEntry).where(MemoryEntry.user_id == current_user.id).limit(_KG_MAX_MEMORIES)
     entries = db.exec(stmt).all()
 
     idx = _get_link_index(db, current_user.id)

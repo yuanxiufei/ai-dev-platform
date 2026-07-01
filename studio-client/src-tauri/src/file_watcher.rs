@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Emitter};
-use notify::{RecursiveMode, Event, EventKind, RecommendedWatcher, Config as NotifyConfig};
+use notify::{RecursiveMode, Event, EventKind, RecommendedWatcher, Config as NotifyConfig, Watcher};
 use std::path::PathBuf;
 use std::sync::Arc;
 use parking_lot::Mutex;

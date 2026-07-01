@@ -1,7 +1,7 @@
 use tauri::AppHandle;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShortcutEntry {
@@ -13,7 +13,7 @@ pub struct ShortcutEntry {
 }
 
 // Default keybindings
-pub const DEFAULT_SHORTCUTS: &[(&str, &str, &str, &str)] = &[
+pub const DEFAULT_SHORTCUTS: &[(&str, &str, &str, &str, &str)] = &[
     // File
     ("Ctrl+N", "file.new", "", "New File", "File"),
     ("Ctrl+O", "file.open", "", "Open File", "File"),
@@ -66,13 +66,13 @@ pub const DEFAULT_SHORTCUTS: &[(&str, &str, &str, &str)] = &[
     ("F9", "debug.toggleBreakpoint", "", "Toggle Breakpoint", "Debug"),
 ];
 
-/// Shortcut registry
+// Shortcut registry
 lazy_static::lazy_static! {
     static ref SHORTCUT_REGISTRY: RwLock<HashMap<String, ShortcutEntry>> = RwLock::new(HashMap::new());
 }
 
-pub fn init(app: &AppHandle) -> anyhow::Result<()> {
-    let mut registry = SHORTCUT_REGISTRY.write();
+pub fn init(_app: &AppHandle) -> anyhow::Result<()> {
+    let mut registry = SHORTCUT_REGISTRY.write().map_err(|e| anyhow::anyhow!("Lock poisoned: {:?}", e))?;
     
     // Register all default shortcuts
     for (key, command, when, description, category) in DEFAULT_SHORTCUTS {
@@ -90,7 +90,7 @@ pub fn init(app: &AppHandle) -> anyhow::Result<()> {
 }
 
 pub fn lookup(key: &str) -> Vec<ShortcutEntry> {
-    let registry = SHORTCUT_REGISTRY.read();
+    let registry = SHORTCUT_REGISTRY.read().unwrap();
     registry.values()
         .filter(|s| s.key == key)
         .cloned()

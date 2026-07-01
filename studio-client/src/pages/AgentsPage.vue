@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import {
-  Edit3,
-  FileText,
-  Globe,
-  Sparkles,
-  Terminal,
-  Wrench,
+  Bot, ChevronDown, ChevronRight, Copy, Edit3, FileText, Globe, Loader2, Plus, RefreshCw,
+  Search, Sparkles, Terminal, Trash2, Wrench
 } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
+import ToggleSwitch from "@/components/ToggleSwitch.vue"
 import {
   type AgentCreatePayload,
   type AgentItem,
@@ -42,7 +39,7 @@ const toolsMetaLoaded = ref(false)
 // ── Dialog state ───────────────────────────────────────
 const showCreate = ref(false)
 const editAgent = ref<AgentItem | null>(null)
-const _expandedAgent = ref<string | null>(null)
+const expandedAgent = ref<string | null>(null)
 
 // ── Available Models ───────────────────────────────────
 const availableModels = [
@@ -81,7 +78,7 @@ const form = ref<ReturnType<typeof defaultForm>>(defaultForm())
 
 const formExpandedCategories = ref<Record<string, boolean>>({})
 
-function _toggleFormCategory(catId: string) {
+function toggleFormCategory(catId: string) {
   if (!form.value.tool_categories) form.value.tool_categories = []
   const idx = form.value.tool_categories.indexOf(catId)
   if (idx === -1) {
@@ -92,20 +89,20 @@ function _toggleFormCategory(catId: string) {
   }
 }
 
-function _toggleFormTool(toolId: string) {
+function toggleFormTool(toolId: string) {
   if (!form.value.tools) form.value.tools = []
   const idx = form.value.tools.indexOf(toolId)
   if (idx === -1) form.value.tools.push(toolId)
   else form.value.tools.splice(idx, 1)
 }
 
-function _isCatExpanded(catId: string) {
+function isCatExpanded(catId: string) {
   if (catId in formExpandedCategories.value)
     return formExpandedCategories.value[catId]
   return false
 }
 
-function _isFormToolEnabled(toolId: string): boolean {
+function isFormToolEnabled(toolId: string): boolean {
   return (form.value.tools || []).includes(toolId)
 }
 
@@ -113,11 +110,11 @@ function mcpToolId(server: string, toolName: string) {
   return `mcp:${server}:${toolName}`
 }
 
-function _isMcpToolEnabled(server: string, toolName: string): boolean {
+function isMcpToolEnabled(server: string, toolName: string): boolean {
   return (form.value.mcp_servers || []).includes(mcpToolId(server, toolName))
 }
 
-function _toggleMcpTool(server: string, toolName: string) {
+function toggleMcpTool(server: string, toolName: string) {
   if (!form.value.mcp_servers) form.value.mcp_servers = []
   const id = mcpToolId(server, toolName)
   const idx = form.value.mcp_servers.indexOf(id)
@@ -126,7 +123,7 @@ function _toggleMcpTool(server: string, toolName: string) {
 }
 
 // ── Computed ───────────────────────────────────────────
-const _filteredAgents = computed(() => {
+const filteredAgents = computed(() => {
   let list = agents.value.filter((a) => a.scope === activeTab.value)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
@@ -142,7 +139,7 @@ const _filteredAgents = computed(() => {
   return list
 })
 
-const _catIconMap: Record<string, any> = {
+const catIconMap: Record<string, any> = {
   FileText,
   Edit3,
   Terminal,
@@ -194,7 +191,7 @@ function showToast(msg: string) {
 }
 
 // ── CRUD Handlers ──────────────────────────────────────
-async function _handleCreate() {
+async function handleCreate() {
   if (!form.value.name || !form.value.system_prompt) return
   try {
     await createAgent({ ...form.value, scope: activeTab.value })
@@ -208,7 +205,7 @@ async function _handleCreate() {
   }
 }
 
-async function _saveEdit() {
+async function saveEdit() {
   if (!editAgent.value) return
   try {
     const { id, created_at, updated_at, ...rest } = editAgent.value
@@ -222,7 +219,7 @@ async function _saveEdit() {
   }
 }
 
-async function _handleDelete(id: string) {
+async function handleDelete(id: string) {
   if (!confirm("确定删除此 Agent？")) return
   try {
     await deleteAgent(id)
@@ -233,7 +230,7 @@ async function _handleDelete(id: string) {
   }
 }
 
-async function _handleToggle(agent: AgentItem) {
+async function handleToggle(agent: AgentItem) {
   try {
     await toggleAgent(agent.id)
     agent.enabled = !agent.enabled
@@ -242,7 +239,7 @@ async function _handleToggle(agent: AgentItem) {
   }
 }
 
-async function _handleClone(agent: AgentItem) {
+async function handleClone(agent: AgentItem) {
   try {
     await cloneAgent(agent.id)
     showToast("Agent 已克隆")
@@ -252,19 +249,19 @@ async function _handleClone(agent: AgentItem) {
   }
 }
 
-function _startEdit(agent: AgentItem) {
+function startEdit(agent: AgentItem) {
   editAgent.value = { ...agent }
 }
 
-function _getModelLabel(modelVal: string) {
+function getModelLabel(modelVal: string) {
   return availableModels.find((m) => m.value === modelVal)?.label || modelVal
 }
-function _getModelProvider(modelVal: string) {
+function getModelProvider(modelVal: string) {
   return availableModels.find((m) => m.value === modelVal)?.provider || "系统"
 }
 
 // 编辑表单中工具的处理（复用 form 的函数逻辑）
-function _editToggleCategory(catId: string) {
+function editToggleCategory(catId: string) {
   if (!editAgent.value) return
   const cats = editAgent.value.tool_categories || []
   const idx = cats.indexOf(catId)
@@ -273,7 +270,7 @@ function _editToggleCategory(catId: string) {
   editAgent.value.tool_categories = [...cats]
 }
 
-function _editToggleTool(toolId: string) {
+function editToggleTool(toolId: string) {
   if (!editAgent.value) return
   const tools = editAgent.value.tools || []
   const idx = tools.indexOf(toolId)
@@ -282,7 +279,7 @@ function _editToggleTool(toolId: string) {
   editAgent.value.tools = [...tools]
 }
 
-function _editIsToolEnabled(toolId: string): boolean {
+function editIsToolEnabled(toolId: string): boolean {
   return (editAgent.value?.tools || []).includes(toolId)
 }
 </script>

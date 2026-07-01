@@ -12,8 +12,12 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
         user_create, update={"hashed_password": get_password_hash(user_create.password)}
     )
     session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
+    try:
+        session.commit()
+        session.refresh(db_obj)
+    except Exception:
+        session.rollback()
+        raise
     return db_obj
 
 
@@ -26,8 +30,12 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
         extra_data["hashed_password"] = hashed_password
     db_user.sqlmodel_update(user_data, update=extra_data)
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    try:
+        session.commit()
+        session.refresh(db_user)
+    except Exception:
+        session.rollback()
+        raise
     return db_user
 
 
@@ -55,14 +63,22 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if updated_password_hash:
         db_user.hashed_password = updated_password_hash
         session.add(db_user)
-        session.commit()
-        session.refresh(db_user)
+        try:
+            session.commit()
+            session.refresh(db_user)
+        except Exception:
+            session.rollback()
+            raise
     return db_user
 
 
 def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -> Item:
     db_item = Item.model_validate(item_in, update={"owner_id": owner_id})
     session.add(db_item)
-    session.commit()
-    session.refresh(db_item)
+    try:
+        session.commit()
+        session.refresh(db_item)
+    except Exception:
+        session.rollback()
+        raise
     return db_item

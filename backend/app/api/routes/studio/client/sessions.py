@@ -11,12 +11,15 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import func, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.studio_models import ChatSession, ChatMessage
 
 router = APIRouter(prefix="/studio/sessions", tags=["studio-sessions"])
+
+# 分页安全上限
+_MAX_PAGE_SIZE = 100
 
 
 # ── Schemas ──────────────────────────────────────────────
@@ -42,16 +45,30 @@ def list_sessions(
     project_id: uuid.UUID | None = None,
 ):
     """获取会话列表"""
-    stmt = select(ChatSession).where(
+    # 分页安全上限
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
+    base_stmt = select(ChatSession).where(
         ChatSession.owner_id == user.id
     )
 
     if project_id:
-        stmt = stmt.where(ChatSession.project_id == project_id)
+        base_stmt = base_stmt.where(ChatSession.project_id == project_id)
 
-    total = len(session.exec(stmt).all())
-    sessions = session.exec(
-        stmt.order_by(ChatSession.updated_at.desc())
+    # 用 COUNT 查询代替 .all() 全量拉取
+    total = session.exec(
+        select(func.count()).select_from(base_stmt.subquery())
+    ).one()
+
+    # 预加载消息计数，避免 N+1 懒加载
+    sessions_rows = session.exec(
+        select(ChatSession, func.count(ChatMessage.id).label("msg_count"))
+        .outerjoin(ChatMessage, ChatMessage.session_id == ChatSession.id)
+        .where(ChatSession.owner_id == user.id)
+        .group_by(ChatSession.id)
+        .order_by(ChatSession.updated_at.desc())
         .offset((page - 1) * size)
         .limit(size)
     ).all()
@@ -63,11 +80,11 @@ def list_sessions(
                 "title": s.title,
                 "model_name": s.model_name,
                 "project_id": str(s.project_id) if s.project_id else None,
-                "message_count": len(s.messages) if s.messages else 0,
+                "message_count": msg_count,
                 "created_at": s.created_at.isoformat(),
                 "updated_at": s.updated_at.isoformat(),
             }
-            for s in sessions
+            for s, msg_count in sessions_rows
         ],
         "total": total,
         "page": page,
@@ -88,9 +105,7 @@ def create_session(
         project_id=session_in.project_id,
         owner_id=user.id,
     )
-    session.add(chat_session)
-    session.commit()
-    session.refresh(chat_session)
+    commit_or_rollback(session, chat_session)
 
     return {
         "id": str(chat_session.id),
@@ -114,12 +129,17 @@ def get_session(
     if chat_session.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # 用子查询获取消息计数，避免 N+1 懒加载
+    msg_count = session.exec(
+        select(func.count()).where(ChatMessage.session_id == session_id)
+    ).one()
+
     return {
         "id": str(chat_session.id),
         "title": chat_session.title,
         "model_name": chat_session.model_name,
         "project_id": str(chat_session.project_id) if chat_session.project_id else None,
-        "message_count": len(chat_session.messages) if chat_session.messages else 0,
+        "message_count": msg_count,
         "created_at": chat_session.created_at.isoformat(),
         "updated_at": chat_session.updated_at.isoformat(),
     }
@@ -144,9 +164,7 @@ def update_session(
     if session_in.model_name is not None:
         chat_session.model_name = session_in.model_name
 
-    session.add(chat_session)
-    session.commit()
-    session.refresh(chat_session)
+    commit_or_rollback(session, chat_session)
 
     return {
         "id": str(chat_session.id),
@@ -169,4 +187,4 @@ def delete_session(
         raise HTTPException(status_code=403, detail="Access denied")
 
     session.delete(chat_session)
-    session.commit()
+    commit_or_rollback(session)

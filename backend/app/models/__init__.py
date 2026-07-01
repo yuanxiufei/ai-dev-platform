@@ -22,6 +22,10 @@ from app.models.core_models import (
     Token,
     TokenPayload,
     NewPassword,
+    Tenant,
+    TenantPublic,
+    TenantCreate,
+    TenantUpdate,
 )
 from app.models.studio_models import (
     StudioProject,
@@ -32,6 +36,8 @@ from app.models.studio_models import (
 from app.models.video_models import (
     VideoTask,
     VideoAsset,
+    VideoSubtitle,
+    SubtitleCue,
 )
 from app.models.system_models import (
     ModelDownload,
@@ -47,7 +53,13 @@ from app.models.model_presets import (
     ArenaVote,
     ModelEloRanking,
     ModelUsageLog,
+)
+from app.models.memory_models import (
     MemoryEntry,
+)
+from app.models.mcp_models import (
+    McpMarketplaceEntry,
+    McpInstalledServer,
 )
 from app.models.agent_models import (
     AgentTrace,
@@ -75,12 +87,18 @@ __all__ = [
     "Token",
     "TokenPayload",
     "NewPassword",
+    "Tenant",
+    "TenantPublic",
+    "TenantCreate",
+    "TenantUpdate",
     "StudioProject",
     "StudioTemplate",
     "ChatSession",
     "ChatMessage",
     "VideoTask",
     "VideoAsset",
+    "VideoSubtitle",
+    "SubtitleCue",
     "ModelDownload",
     "ModelUsageStat",
     "ApiCredential",
@@ -97,4 +115,6 @@ __all__ = [
     "ModelEloRanking",
     "ModelUsageLog",
     "MemoryEntry",
+    "McpMarketplaceEntry",
+    "McpInstalledServer",
 ]

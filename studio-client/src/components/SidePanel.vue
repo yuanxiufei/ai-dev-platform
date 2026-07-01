@@ -8,14 +8,14 @@ interface PanelSection {
   collapsible?: boolean
 }
 
-const _props = defineProps<{
+const props = defineProps<{
   title: string
   sections?: PanelSection[]
 }>()
 
 const collapsedSections = ref<Set<string>>(new Set())
 
-const _toggleSection = (id: string) => {
+const toggleSection = (id: string) => {
   if (collapsedSections.value.has(id)) {
     collapsedSections.value.delete(id)
   } else {
@@ -23,7 +23,7 @@ const _toggleSection = (id: string) => {
   }
 }
 
-const _isCollapsed = (id: string) => collapsedSections.value.has(id)
+const isCollapsed = (id: string) => collapsedSections.value.has(id)
 </script>
 
 <template>

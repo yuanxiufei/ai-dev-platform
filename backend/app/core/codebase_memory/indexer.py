@@ -11,6 +11,7 @@ import hashlib
 import logging
 import os
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -204,3 +205,212 @@ class FileIndexer:
             "files_indexed": total,
             "indexed": total > 0,
         }
+
+
+# ══════════════════════════════════════════════
+# Git 增量索引器
+# ══════════════════════════════════════════════
+
+class GitIndexer:
+    """基于 Git 变更的增量索引 — 检测 git diff 后只重新解析变更文件"""
+
+    def __init__(self, indexer: FileIndexer, poll_interval: float = 30.0):
+        self._indexer = indexer
+        self._poll_interval = poll_interval
+        self._last_commit: str = ""
+        self._watch_thread: threading.Thread | None = None
+        self._running = False
+        self._callback: callable | None = None
+        # 确保数据库有 git 状态表
+        self._init_git_db()
+
+    def _init_git_db(self) -> None:
+        self._indexer._db.execute("""
+            CREATE TABLE IF NOT EXISTS git_status (
+                id INTEGER PRIMARY KEY CHECK (id=1),
+                last_commit_hash TEXT NOT NULL,
+                last_index_at REAL DEFAULT 0,
+                branch TEXT DEFAULT ''
+            )
+        """)
+        self._indexer._db.commit()
+        row = self._indexer._db.execute("SELECT last_commit_hash FROM git_status WHERE id=1").fetchone()
+        if row:
+            self._last_commit = row[0]
+
+    # ── 变更检测 ──
+
+    def get_changed_files(self, base_commit: str = "") -> list[str]:
+        """通过 git diff 获取变更文件列表"""
+        import subprocess
+        repo = str(self._indexer.project_path)
+
+        # 获取当前 HEAD
+        try:
+            head = subprocess.check_output(
+                ["git", "-C", repo, "rev-parse", "HEAD"],
+                text=True, stderr=subprocess.DEVNULL, timeout=5,
+            ).strip()
+        except Exception:
+            return []  # 非 git 仓库
+
+        # 确定对比基准
+        if not base_commit:
+            base_commit = self._last_commit
+            if not base_commit:
+                # 没有上次记录时对比 HEAD~1
+                try:
+                    base_commit = subprocess.check_output(
+                        ["git", "-C", repo, "rev-parse", "HEAD~1"],
+                        text=True, stderr=subprocess.DEVNULL, timeout=5,
+                    ).strip()
+                except Exception:
+                    base_commit = head
+
+        if base_commit == head:
+            return []
+
+        # git diff --name-only <base> <head>
+        try:
+            diff = subprocess.check_output(
+                ["git", "-C", repo, "diff", "--name-only", base_commit, head],
+                text=True, stderr=subprocess.DEVNULL, timeout=15,
+            )
+        except Exception:
+            return []
+
+        files = [f.strip() for f in diff.split("\n") if f.strip()]
+        return files
+
+    # ── 增量索引 ──
+
+    def incremental_index(self) -> dict:
+        """仅重新索引 git diff 检测到的变更文件"""
+        import subprocess as sp
+        repo = str(self._indexer.project_path)
+
+        # 获取当前 HEAD
+        try:
+            head = sp.check_output(
+                ["git", "-C", repo, "rev-parse", "HEAD"],
+                text=True, stderr=sp.DEVNULL, timeout=5,
+            ).strip()
+        except Exception:
+            return {"status": "non_git", "changed_files": 0, "indexed": 0}
+
+        # 获取变更文件
+        changed = self.get_changed_files(self._last_commit)
+        if not changed:
+            # 更新 commit 记录
+            self._save_commit(head)
+            return {"status": "up_to_date", "changed_files": 0, "indexed": 0}
+
+        logger.info("GitIndexer: %d files changed since %s", len(changed), self._last_commit[:8] if self._last_commit else "initial")
+
+        # 增量索引变更文件
+        import time as _time
+        indexed = 0
+        errors = 0
+        from .parser import parse_source
+
+        proj_path = self._indexer.project_path
+
+        for rel_path in changed:
+            full_path = proj_path / rel_path
+            if not full_path.exists():
+                # 文件被删除，从索引中移除
+                self._indexer._db.execute("DELETE FROM file_index WHERE file_path=?", (rel_path,))
+                continue
+            if full_path.suffix.lower() in DEFAULT_IGNORE_EXT:
+                continue
+
+            try:
+                content = full_path.read_bytes()
+                file_hash = hashlib.sha256(content).hexdigest()[:16]
+                source = content.decode("utf-8", errors="ignore")
+                ext = full_path.suffix.lower()
+
+                # 移除旧节点（该文件的）
+                old_nodes = [n.id for n in self._indexer.graph._nodes.values() if n.file_path == str(full_path)]
+                for nid in old_nodes:
+                    del self._indexer.graph._nodes[nid]
+                self._indexer.graph._edges = [
+                    e for e in self._indexer.graph._edges
+                    if e.source_id not in old_nodes and e.target_id not in old_nodes
+                ]
+
+                # 重新解析
+                fid = parse_source(str(full_path), source, self._indexer.graph, ext)
+                if fid:
+                    lang = self._indexer.graph.get_node(fid).language if self._indexer.graph.get_node(fid) else ""
+                    self._indexer._db.execute(
+                        "INSERT OR REPLACE INTO file_index (file_path, file_hash, language, indexed_at) VALUES (?,?,?,?)",
+                        (rel_path, file_hash, lang, _time.time()),
+                    )
+                    indexed += 1
+            except Exception:
+                errors += 1
+
+        self._indexer._db.commit()
+        self._indexer.graph.save_to_db(self._indexer.db_path)
+        self._save_commit(head)
+
+        logger.info("GitIndexer: incremental done — %d indexed, %d errors", indexed, errors)
+        return {
+            "status": "incremental_indexed",
+            "commit": head[:8],
+            "changed_files": len(changed),
+            "indexed": indexed,
+            "errors": errors,
+            "nodes": self._indexer.graph.node_count,
+            "edges": self._indexer.graph.edge_count,
+        }
+
+    def _save_commit(self, commit: str) -> None:
+        self._last_commit = commit
+        import time as _time
+        now = _time.time()
+        try:
+            branch = __import__("subprocess").check_output(
+                ["git", "-C", str(self._indexer.project_path), "rev-parse", "--abbrev-ref", "HEAD"],
+                text=True, stderr=__import__("subprocess").DEVNULL, timeout=3,
+            ).strip()
+        except Exception:
+            branch = ""
+        self._indexer._db.execute(
+            "INSERT OR REPLACE INTO git_status (id, last_commit_hash, last_index_at, branch) VALUES (1,?,?,?)",
+            (commit, now, branch),
+        )
+        self._indexer._db.commit()
+
+    # ── 后台监听 ──
+
+    def on_indexed(self, callback: callable) -> None:
+        self._callback = callback
+
+    def start_watching(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        import threading as _th
+        self._watch_thread = _th.Thread(target=self._watch_loop, daemon=True, name="git-indexer-watcher")
+        self._watch_thread.start()
+        logger.info("GitIndexer watcher started (interval=%.1fs)", self._poll_interval)
+
+    def stop_watching(self) -> None:
+        self._running = False
+        if self._watch_thread:
+            self._watch_thread.join(timeout=2.0)
+            self._watch_thread = None
+        logger.info("GitIndexer watcher stopped")
+
+    def _watch_loop(self) -> None:
+        import time as _time
+        while self._running:
+            try:
+                result = self.incremental_index()
+                if result.get("indexed", 0) > 0 and self._callback:
+                    self._callback(result)
+            except Exception as e:
+                logger.warning("GitIndexer watcher error: %s", e)
+            _time.sleep(self._poll_interval)

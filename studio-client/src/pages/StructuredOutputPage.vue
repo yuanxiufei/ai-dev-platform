@@ -5,6 +5,7 @@ import {
   type ResponseFormatPreviewResult,
   structuredOutputApi,
 } from "@/api/model-features"
+import { FileJson, RotateCw } from "lucide-vue-next"
 
 const schemaText = ref("")
 const convertResult = ref<GBNFConvertResult | null>(null)
@@ -18,7 +19,7 @@ const previewProvider = ref("openai")
 const previewResult = ref<ResponseFormatPreviewResult | null>(null)
 const previewing = ref(false)
 
-const _tab = ref<"convert" | "preview">("convert")
+const tab = ref<"convert" | "preview">("convert")
 
 const sampleSchemas = [
   {
@@ -57,7 +58,7 @@ const sampleSchemas = [
   },
 ]
 
-async function _doConvert() {
+async function doConvert() {
   if (!schemaText.value.trim()) return
   converting.value = true
   error.value = ""
@@ -72,13 +73,13 @@ async function _doConvert() {
   }
 }
 
-function _loadSample(s: (typeof sampleSchemas)[0]) {
+function loadSample(s: (typeof sampleSchemas)[0]) {
   schemaText.value = JSON.stringify(s.json, null, 2)
   error.value = ""
   convertResult.value = null
 }
 
-async function _doPreview() {
+async function doPreview() {
   previewing.value = true
   try {
     const schema = JSON.parse(previewSchema.value)

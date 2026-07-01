@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, commit_or_rollback
 from app.core.security import get_password_hash
 from app.models import (
     User,
@@ -32,7 +32,6 @@ def create_user(user_in: PrivateUserCreate, session: SessionDep) -> Any:
         hashed_password=get_password_hash(user_in.password),
     )
 
-    session.add(user)
-    session.commit()
+    commit_or_rollback(session, user)
 
     return user

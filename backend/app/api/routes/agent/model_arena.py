@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, commit_or_rollback
 from app.models.model_presets import ArenaComparison, ArenaVote, ModelEloRanking
 from app.core.model_router import ModelRequest, ModelCapability, get_model_router
 
@@ -100,7 +100,7 @@ def _get_or_create_elo(db: Session, model_name: str, category: str | None = None
             elo=1500.0,
         )
         db.add(ranking)
-        db.commit()
+        commit_or_rollback(db)
         db.refresh(ranking)
     return ranking
 
@@ -154,7 +154,7 @@ async def arena_compare(
         voter_id=current_user.id,
     )
     db.add(comparison)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(comparison)
 
     return ArenaResponse(
@@ -256,7 +256,7 @@ async def arena_vote(
         )
 
     db.add(vote)
-    db.commit()
+    commit_or_rollback(db)
 
     return {
         "ok": True,

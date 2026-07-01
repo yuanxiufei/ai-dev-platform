@@ -82,7 +82,9 @@ onMounted(() => {
   fetchData()
   getCategories().then(r => {
     categories.value = r.categories.map(c => c.name)
-  }).catch(() => {})
+  }).catch((err: unknown) => {
+    console.warn('[PluginMarketplace] Failed to fetch categories', err)
+  })
 })
 </script>
 

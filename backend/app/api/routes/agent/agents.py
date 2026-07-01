@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, commit_or_rollback
 from app.models.system_models import AgentConfig
 
 router = APIRouter(prefix="/agents", tags=["Agent Management"])
@@ -207,6 +207,8 @@ _BUILTIN_TOOL_CATEGORIES: list[dict[str, Any]] = [
 
 # ── Endpoints ────────────────────────────────────────────
 
+_AGENTS_MAX_LIST = 200
+
 @router.get("")
 async def list_agents(
     mode: str | None = Query(None),
@@ -220,7 +222,10 @@ async def list_agents(
         stmt = stmt.where(AgentConfig.mode == mode)
     if scope:
         stmt = stmt.where(AgentConfig.scope == scope)
-    items = db.exec(stmt.order_by(AgentConfig.sort_order, AgentConfig.created_at.desc())).all()
+    items = db.exec(
+        stmt.order_by(AgentConfig.sort_order, AgentConfig.created_at.desc())
+        .limit(_AGENTS_MAX_LIST)
+    ).all()
     return {"data": [_agent_to_response(a).model_dump() for a in items], "total": len(items)}
 
 
@@ -310,7 +315,7 @@ async def create_agent(
         user_id=current_user.id,
     )
     db.add(agent)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(agent)
     return {"data": _agent_to_response(agent).model_dump(), "message": "Agent 已创建"}
 
@@ -346,7 +351,7 @@ async def update_agent(
 
     agent.updated_at = datetime.now(timezone.utc)
     db.add(agent)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(agent)
     return {"data": _agent_to_response(agent).model_dump(), "message": "Agent 已更新"}
 
@@ -362,7 +367,7 @@ async def delete_agent(
     if not agent or agent.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Agent 不存在")
     db.delete(agent)
-    db.commit()
+    commit_or_rollback(db)
     return {"message": "Agent 已删除", "ok": True}
 
 
@@ -379,7 +384,7 @@ async def toggle_agent(
     agent.enabled = not agent.enabled
     agent.updated_at = datetime.now(timezone.utc)
     db.add(agent)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(agent)
     return {"name": agent.name, "enabled": agent.enabled}
 
@@ -413,6 +418,6 @@ async def clone_agent(
         user_id=current_user.id,
     )
     db.add(clone)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(clone)
     return {"data": _agent_to_response(clone).model_dump(), "message": "Agent 已克隆"}

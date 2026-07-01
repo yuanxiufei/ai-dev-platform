@@ -1,6 +1,4 @@
 use tauri::AppHandle;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 pub struct TerminalSession {
     pub id: String,
@@ -8,7 +6,7 @@ pub struct TerminalSession {
     pub cwd: String,
 }
 
-pub fn init(app: &AppHandle) -> anyhow::Result<()> {
+pub fn init(_app: &AppHandle) -> anyhow::Result<()> {
     log::info!("Terminal manager initialized");
     Ok(())
 }

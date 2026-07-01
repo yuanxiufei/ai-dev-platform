@@ -4,6 +4,7 @@ import {
   type ScreenshotCodeResult,
   screenshotToCode,
 } from "@/api/screenshot-code"
+import { Camera, Download, ImagePlus, Loader2, Trash2, Upload, X } from "lucide-vue-next"
 
 // 截图相关
 const screenshots = ref<string[]>([]) // base64 数组
@@ -16,7 +17,7 @@ const result = ref<ScreenshotCodeResult | null>(null)
 const error = ref("")
 
 // 文件输入 ref
-const _fileInputRef = ref<HTMLInputElement | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // 拖拽/粘贴
 const isDragging = ref(false)
@@ -49,17 +50,17 @@ const codeBlocks = computed(() => {
   return blocks
 })
 
-const _hasCode = computed(() => codeBlocks.value.length > 0)
+const hasCode = computed(() => codeBlocks.value.length > 0)
 
 // 文件处理
-function _handleFileSelect(e: Event) {
+function handleFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files) return
   processFiles(input.files)
   input.value = ""
 }
 
-function _handleDrop(e: DragEvent) {
+function handleDrop(e: DragEvent) {
   isDragging.value = false
   if (!e.dataTransfer?.files) return
   processFiles(e.dataTransfer.files)
@@ -81,7 +82,7 @@ function processFiles(files: FileList) {
 }
 
 // 粘贴截图
-function _handlePaste(e: ClipboardEvent) {
+function handlePaste(e: ClipboardEvent) {
   const items = e.clipboardData?.items
   if (!items) return
   for (const item of Array.from(items)) {
@@ -99,12 +100,12 @@ function _handlePaste(e: ClipboardEvent) {
   }
 }
 
-function _removeScreenshot(index: number) {
+function removeScreenshot(index: number) {
   screenshots.value.splice(index, 1)
 }
 
 // 生成代码
-async function _doGenerate() {
+async function doGenerate() {
   if (screenshots.value.length === 0) return
   generating.value = true
   error.value = ""
@@ -126,12 +127,12 @@ async function _doGenerate() {
 }
 
 // 复制代码
-function _copyCode(text: string) {
+function copyCode(text: string) {
   navigator.clipboard.writeText(text)
 }
 
 // 下载代码
-function _downloadCode(language: string, code: string) {
+function downloadCode(language: string, code: string) {
   const extMap: Record<string, string> = {
     vue: ".vue",
     typescript: ".ts",

@@ -1,0 +1,192 @@
+# Default values for ai-platform
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  environment: production
+  domain: example.com
+  registry: docker.io
+
+# --- Backend ---
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ai-platform-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+  livenessProbe:
+    httpGet:
+      path: /api/v1/utils/health-check/
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 15
+  readinessProbe:
+    httpGet:
+      path: /api/v1/utils/health-check/
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+# --- Frontends ---
+frontend:
+  studioAdmin:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: ai-platform-studio-admin
+      tag: latest
+  studioClient:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: ai-platform-studio-client
+      tag: latest
+  videoAdmin:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: ai-platform-video-admin
+      tag: latest
+  videoClient:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: ai-platform-video-client
+      tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# --- Celery Worker ---
+celery:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ai-platform-backend
+    tag: latest
+  command: celery -A task_queue.celery_app worker --loglevel=info
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+# --- Qdrant ---
+qdrant:
+  enabled: true
+  image:
+    repository: qdrant/qdrant
+    tag: latest
+  persistence:
+    size: 20Gi
+  service:
+    httpPort: 6333
+    grpcPort: 6334
+
+# --- Database (PostgreSQL) ---
+postgresql:
+  enabled: true
+  auth:
+    username: postgres
+    database: ai_platform
+    existingSecret: ai-platform-db-secret
+  primary:
+    persistence:
+      size: 50Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
+
+# --- Redis ---
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    existingSecret: ai-platform-redis-secret
+  master:
+    persistence:
+      size: 10Gi
+
+# --- Traefik Ingress ---
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: "default-secure-headers@kubernetescrd"
+  tls:
+    enabled: true
+    secretName: ai-platform-tls
+
+# --- Monitoring ---
+monitoring:
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+  grafana:
+    enabled: false
+
+# --- ConfigMap values ---
+config:
+  environment: production
+  debug: false
+  logLevel: INFO
+  modelDefaults:
+    defaultModel: gemma-31b
+    preferLocal: true
+    requestTimeout: 30
+    maxRetries: 2
+    fallbackEnabled: true
+  agent:
+    enabled: true
+    defaultMaxTurns: 10
+    toolTimeout: 30
+    maxContextTokens: 64000
+
+# --- Secrets (sensitive values via external secret manager) ---
+secrets:
+  secretKey: ""
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  # Use external-secrets or Vault instead of hardcoded values
+
+# --- Network Policies ---
+networkPolicy:
+  enabled: true
+
+# --- Pod Security ---
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000

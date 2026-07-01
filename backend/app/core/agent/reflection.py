@@ -444,23 +444,79 @@ class ReflectionManager:
         return "\n".join(lines) + "\n"
 
     async def _save_to_memory(self, result: ReflectionResult) -> None:
-        """将反思结果持久化到记忆系统"""
+        """将反思结果持久化到记忆系统 — 使用 MemoryExtractor 提取 LESSON 类型"""
         try:
-            from app.core.model_router import get_model_router
-            from app.core.memory import get_memory_store
+            # 使用图存储（MemoryNode/Edge），而非向量层 key-value 存储
+            from app.core.memory.memory_store import get_memory_store as get_graph_store
+            from app.core.memory.memory_extractor import MemoryExtractor
         except ImportError:
             return  # Memory 系统未加载，静默跳过
 
         try:
-            store = get_memory_store()
-            await store.save(
-                key=f"reflection:{result.run_id}",
-                value=json.dumps(result.to_dict(), ensure_ascii=False),
-                domain="agent_self_reflection",
-                importance=max(0.1, min(1.0, result.score / 100.0)),
+            # 构建反思文本（issues + suggestions）
+            reflection_text = ReflectionManager._build_reflection_text(result)
+            if not reflection_text:
+                return
+
+            store = get_graph_store()
+            extractor = MemoryExtractor(store)
+
+            # 提取 LESSON 类型的记忆节点
+            nodes = extractor.extract_from_reflection(
+                reflection_text=reflection_text,
+                agent_id=result.run_id,
             )
+
+            # 保存每个节点到图存储
+            for node in nodes:
+                store.save(node)
+
+            if nodes:
+                logger.info(
+                    "Saved %d reflection lessons to graph memory (score=%.1f, run_id=%s)",
+                    len(nodes), result.score, result.run_id,
+                )
+            else:
+                # 如果没有提取到结构化教训，至少保存原始反思摘要
+                import time as _time
+                from app.core.memory.memory_store import MemoryNode, MemoryType as MT
+                summary_node = MemoryNode(
+                    content=result.summary(),
+                    memory_type=MT.LESSON,
+                    importance=max(0.1, min(1.0, result.score / 100.0)),
+                    created_at=_time.time(),
+                    source=f"reflection:{result.run_id}",
+                    tags=["lesson", "reflection", "summary"],
+                    metadata=result.to_dict(),
+                )
+                store.save(summary_node)
+                logger.info(
+                    "Saved reflection summary to memory (score=%.1f, run_id=%s)",
+                    result.score, result.run_id,
+                )
+
         except Exception as e:
             logger.warning("Failed to save reflection to memory: %s", e)
+
+    @staticmethod
+    def _build_reflection_text(result: ReflectionResult) -> str:
+        """将 ReflectionResult 构建为适合 MemoryExtractor 解析的文本"""
+        lines: list[str] = []
+        if result.issues:
+            for issue in result.issues:
+                lines.append(issue)
+        if result.suggestions:
+            for s in result.suggestions:
+                lines.append(s)
+        if result.dimension_scores:
+            dims = ", ".join(
+                f"{k}={v:.0f}" for k, v in result.dimension_scores.items()
+            )
+            lines.append(
+                f"The agent achieved dimension scores: {dims} "
+                f"(overall {result.score:.0f}/100)."
+            )
+        return "\n".join(lines)
 
     @property
     def recent_scores(self) -> list[float]:

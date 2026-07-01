@@ -3,22 +3,20 @@ import {
   Beaker,
   BookOpen,
   Bot,
-  Code2,
-  Layers,
-  Search,
-  Shield,
-  Wrench,
+  Code2, Edit3, FileText, Layers, Plus, RefreshCw, Search, Sparkles, Trash2, X, Shield,
+  Wrench, Zap
 } from "lucide-vue-next"
 import { computed, onMounted, reactive, ref } from "vue"
 import { type SkillCreate, type SkillInfo, skillsApi } from "@/api/skills"
+import ToggleSwitch from "@/components/ToggleSwitch.vue"
 
 const skills = ref<SkillInfo[]>([])
 const categories = ref<{ name: string; count: number }[]>([])
 const selectedCategory = ref("")
 const searchQuery = ref("")
 const loading = ref(false)
-const _showPreview = ref("")
-const _previewName = ref("")
+const showPreview = ref("")
+const previewName = ref("")
 const showSystemPrompt = ref("")
 const appliedSkills = ref<Set<string>>(new Set())
 const editingSkill = ref<string | null>(null)
@@ -42,7 +40,7 @@ function showToast(msg: string) {
   }, 3000)
 }
 
-const _categoryMeta: Record<string, any> = {
+const categoryMeta: Record<string, any> = {
   general: Layers,
   "code-review": Search,
   testing: Beaker,
@@ -68,7 +66,7 @@ const filtered = computed(() => {
   return list
 })
 
-const _grouped = computed(() => {
+const grouped = computed(() => {
   const map: Record<string, SkillInfo[]> = {}
   for (const s of filtered.value) {
     const cat = s.category || "未分类"
@@ -95,17 +93,17 @@ async function loadSkills() {
   }
 }
 
-async function _reloadFromDisk() {
+async function reloadFromDisk() {
   await skillsApi.load()
   await loadSkills()
   showToast("技能已刷新")
 }
-async function _toggleSkill(name: string) {
+async function toggleSkill(name: string) {
   await skillsApi.toggle(name)
   await loadSkills()
 }
 
-async function _applySkills(names: string[]) {
+async function applySkills(names: string[]) {
   try {
     const res = await skillsApi.apply(names)
     showSystemPrompt.value = res.data.system_prompt
@@ -117,7 +115,7 @@ async function _applySkills(names: string[]) {
   }
 }
 
-async function _createSkill() {
+async function createSkill() {
   if (!form.name || !form.content) return
   const payload: SkillCreate = {
     name: form.name,
@@ -144,7 +142,7 @@ async function _createSkill() {
   }
 }
 
-async function _deleteSkill(name: string) {
+async function deleteSkill(name: string) {
   if (!confirm(`确定删除技能 "${name}"？`)) return
   try {
     await skillsApi.delete(name)
@@ -155,7 +153,7 @@ async function _deleteSkill(name: string) {
   }
 }
 
-function _editSkill(skill: SkillInfo) {
+function editSkill(skill: SkillInfo) {
   editingSkill.value = skill.name
   form.name = skill.name
   form.description = skill.description
@@ -168,14 +166,14 @@ function _editSkill(skill: SkillInfo) {
   window.scrollTo({ top: 0, behavior: "smooth" })
 }
 
-function _addTag() {
+function addTag() {
   const t = tagInput.value.trim()
   if (t && !form.tags.includes(t)) {
     form.tags.push(t)
     tagInput.value = ""
   }
 }
-function _removeTag(t: string) {
+function removeTag(t: string) {
   const i = form.tags.indexOf(t)
   if (i !== -1) form.tags.splice(i, 1)
 }
@@ -192,10 +190,10 @@ function resetForm() {
 
 onMounted(loadSkills)
 
-const _enabledCount = computed(
+const enabledCount = computed(
   () => skills.value.filter((s) => s.enabled).length,
 )
-const _isEditing = computed(() => !!editingSkill.value)
+const isEditing = computed(() => !!editingSkill.value)
 </script>
 
 <template>

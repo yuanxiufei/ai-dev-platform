@@ -17,8 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
-from app.api.deps import get_current_user, get_db
-from app.models.model_presets import MemoryEntry
+from app.api.deps import get_current_user, get_db, commit_or_rollback
+from app.models.memory_models import MemoryEntry
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
@@ -163,7 +163,7 @@ async def create_memory(
         user_id=current_user.id,
     )
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return _memory_to_response(entry)
 
@@ -182,7 +182,7 @@ async def get_memory(
     entry.access_count += 1
     entry.last_accessed_at = datetime.now(timezone.utc)
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return _memory_to_response(entry)
 
@@ -216,7 +216,7 @@ async def update_memory(
 
     entry.updated_at = datetime.now(timezone.utc)
     db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(entry)
     return _memory_to_response(entry)
 
@@ -232,9 +232,11 @@ async def delete_memory(
     if not entry or entry.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="记忆不存在")
     db.delete(entry)
-    db.commit()
+    commit_or_rollback(db)
     return {"ok": True, "message": "记忆已删除"}
 
+
+_MEMORY_SEARCH_PRE_LIMIT = 5000
 
 @router.post("/memory/search")
 async def search_memories(
@@ -251,6 +253,7 @@ async def search_memories(
     stmt = select(MemoryEntry).where(MemoryEntry.user_id == current_user.id)
     if body.domain:
         stmt = stmt.where(MemoryEntry.domain == body.domain)
+    stmt = stmt.limit(_MEMORY_SEARCH_PRE_LIMIT)
 
     entries = db.exec(stmt).all()
 
@@ -276,7 +279,7 @@ async def search_memories(
         entry.access_count += 1
         entry.last_accessed_at = now
         db.add(entry)
-    db.commit()
+    commit_or_rollback(db)
 
     return {
         "query": body.query,

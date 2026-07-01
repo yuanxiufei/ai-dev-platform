@@ -198,12 +198,56 @@ class AgentRunner:
         except Exception as e:
             logger.warning("TraceDB start_trace failed (non-blocking): %s", e)
 
+        # ── Budget 初始化（借鉴 hermes-agent 预算感知循环）──
+        budget_tracker = None
+        if config.enable_budget:
+            from app.core.agent.budget import BudgetTracker, BudgetStatus
+            budget_tracker = BudgetTracker(
+                token_budget=config.token_budget,
+                cost_budget_usd=config.cost_budget_usd,
+                time_budget_ms=config.time_budget_ms,
+            )
+            logger.info(
+                "Agent '%s': budget tracking enabled (tokens=%s, cost=$%.2f, time=%ss)",
+                config.name,
+                f"{config.token_budget:,}" if config.token_budget else "unlimited",
+                config.cost_budget_usd,
+                f"{config.time_budget_ms/1000:.0f}",
+            )
+
+        # ── Memory 注入：运行前加载相关记忆上下文 ──
+        memory_context = ""
+        if config.enable_memory:
+            try:
+                from app.core.memory.memory_retriever import get_retriever
+                retriever = get_retriever()
+                memory_context = retriever.retrieve_as_context(
+                    query=user_message,
+                    max_items=10,
+                )
+                if memory_context:
+                    logger.info(
+                        "Agent '%s': injected memory context (%d chars)",
+                        config.name, len(memory_context),
+                    )
+            except Exception as e:
+                logger.warning("Memory retrieval failed (non-blocking): %s", e)
+
         # ── 前置钩子 ──
         self._fire_hooks(config.hooks, "before_run", context)
 
+        # 存储 memory_context 供 after_run 复用
+        config._memory_context = memory_context
+
         try:
-            # 构建 system 消息（Agent 指令 + 工具使用指导）
+            # 构建 system 消息（Agent 指令 + 工具使用指导 + 记忆上下文）
             system_content = self._build_system_prompt(config, registry)
+            if memory_context:
+                system_content = (
+                    system_content
+                    + "\n\n## Relevant Context from Memory\n"
+                    + memory_context
+                )
 
             # 添加用户消息
             if not context.messages:
@@ -243,6 +287,38 @@ class AgentRunner:
                     result.cancelled = True
                     result.error = context.cancel_reason or "Agent cancelled"
                     break
+
+                # 🆕 预算检查（借鉴 hermes-agent 预算感知循环）
+                if budget_tracker and not budget_tracker.should_continue()[0]:
+                    logger.warning(
+                        "Agent '%s': budget exhausted at turn %d: %s",
+                        config.name, turn, budget_tracker.summary(),
+                    )
+                    result.final_answer = (
+                        f"⚠️ Agent budget exhausted after {turn} turns. "
+                        f"Tokens: {budget_tracker.total_tokens:,}/{budget_tracker.token_budget:,}. "
+                        f"The best answer so far is provided below."
+                    )
+                    # 尝试提取最近一轮的内容作为最终答案
+                    if context.messages:
+                        for msg in reversed(context.messages):
+                            if msg.get("role") == "assistant" and msg.get("content"):
+                                result.final_answer = msg["content"]
+                                break
+                    result.turns = turn
+                    result.error = f"Budget exhausted: {budget_tracker.summary()}"
+                    break
+
+                # 🆕 预算警告日志
+                if budget_tracker and budget_tracker.status == BudgetStatus.CRITICAL:
+                    logger.warning(
+                        "Agent '%s': budget CRITICAL at turn %d: tokens %s/%s, cost $%.4f/$%.2f",
+                        config.name, turn,
+                        f"{budget_tracker.total_tokens:,}",
+                        f"{budget_tracker.token_budget:,}",
+                        budget_tracker.total_cost_usd,
+                        budget_tracker.cost_budget_usd,
+                    )
 
                 context.turn = turn
 
@@ -289,6 +365,23 @@ class AgentRunner:
                 result.tokens_used += response.tokens_used or 0
                 result.final_model = response.model_used
                 result.final_provider = response.provider
+
+                # 🆕 Budget: 记录本轮 LLM 消耗
+                if budget_tracker:
+                    try:
+                        # 估算 input tokens（粗略：字符数 / 4）
+                        estimated_input = sum(
+                            len(str(m.get("content", ""))) // 4
+                            for m in context.messages[-5:]  # 最近 5 条
+                        )
+                        budget_tracker.record(
+                            input_tokens=max(estimated_input, 500),
+                            output_tokens=response.tokens_used or 0,
+                            model=response.model_used,
+                            latency_ms=turn_latency,
+                        )
+                    except Exception:
+                        pass  # 预算记录失败不阻塞执行
 
                 # 🆕 Trajectory: 记录 LLM 响应
                 recorder.record_llm_response(
@@ -481,7 +574,31 @@ class AgentRunner:
         # ── 后置钩子 ──
         result.tool_results = list(context.tool_results)
         result.total_latency_ms = (time.perf_counter() - context.start_time) * 1000
+
+        # 🆕 Budget: 注入预算摘要到结果
+        if budget_tracker:
+            result.metadata = result.metadata or {}
+            result.metadata["budget"] = budget_tracker.summary()
+
         self._fire_hooks(config.hooks, "after_run", context, result)
+
+        # ── Memory 闭环：运行后提取并保存记忆 ──
+        if config.enable_memory and result.success:
+            try:
+                from app.core.memory.memory_extractor import MemoryExtractor
+                from app.core.memory.memory_store import get_memory_store
+                store = get_memory_store()
+                extractor = MemoryExtractor(store)
+                await extractor.extract_from_conversation(
+                    messages=context.messages,
+                    session_id=context.request_id or str(uuid.uuid4()),
+                )
+                logger.info(
+                    "Agent '%s': memory extracted and saved after run",
+                    config.name,
+                )
+            except Exception as e:
+                logger.warning("Memory extraction failed (non-blocking): %s", e)
 
         # 🆕 TraceDB: 完成轨迹
         try:
@@ -530,6 +647,40 @@ class AgentRunner:
                 "tags_summary": lakeview_run.tags_summary,
                 "compact_summary": self._lakeview.get_compact_summary(),
             }
+
+        # 🆕 反思闭环：LLM 自省评估 + 保存 LESSON 记忆到图存储
+        try:
+            from app.core.agent.reflection import get_reflection_manager
+            rm = get_reflection_manager()
+            if rm.config.enabled:
+                # 错误时仅当 reflect_on_error=True 才触发反思
+                should_reflect = result.error == "" or rm.config.reflect_on_error
+                if should_reflect:
+                    actions_parts = [
+                        f"Agent: {config.name}",
+                        f"Turns: {result.turns}",
+                        f"Tool calls: {result.total_tool_calls}",
+                    ]
+                    if result.tool_results:
+                        tool_names = sorted(set(
+                            tr.tool_name for tr in result.tool_results
+                        ))
+                        actions_parts.append(
+                            f"Tools used: {', '.join(tool_names[:10])}"
+                        )
+                    if result.error:
+                        actions_parts.append(
+                            f"Error: {result.error[:200]}"
+                        )
+                    agent_actions = "\n".join(actions_parts)
+
+                    await rm.after_run(
+                        run_result=result,
+                        task_description=user_message,
+                        agent_actions=agent_actions,
+                    )
+        except Exception as e:
+            logger.warning("Reflection after_run failed (non-blocking): %s", e)
 
         logger.info(
             "Agent '%s' completed: %d turns, %d tool calls, %.0fms, model=%s",
@@ -734,7 +885,49 @@ class StreamingAgentRunner(AgentRunner):
                 "max_turns": config.max_turns,
             }
 
-            response = await router.generate(request)
+            # ── 流式 LLM 推理：逐 token 推送 + 收集完整响应 ──
+            streamed_content_parts: list[str] = []
+            has_streamed = False
+
+            try:
+                async for token in router.generate_stream(request):
+                    has_streamed = True
+                    streamed_content_parts.append(token)
+                    yield {
+                        "type": "token",
+                        "delta": token,
+                        "turn": turn,
+                    }
+            except NotImplementedError:
+                pass  # 模型不支持流式，回退到非流式
+
+            if has_streamed:
+                streamed_content = "".join(streamed_content_parts)
+                # 流式之后做一次轻量 generate 获取 tool_calls/finish_reason
+                # 仅当有工具且流式内容不像是完整工具调用结果时执行
+                if has_tools and streamed_content.strip():
+                    try:
+                        response = await router.generate(request)
+                    except Exception:
+                        # 假响应：如果工具信息没获取到，假定不是 tool_calls
+                        from app.core.model_router import ModelResponse
+                        response = ModelResponse(
+                            content=streamed_content,
+                            model_used="stream",
+                            provider="stream",
+                            finish_reason="stop",
+                        )
+                else:
+                    from app.core.model_router import ModelResponse
+                    response = ModelResponse(
+                        content=streamed_content,
+                        model_used="stream",
+                        provider="stream",
+                        finish_reason="stop",
+                    )
+            else:
+                # 回退到阻塞式
+                response = await router.generate(request)
 
             if response.finish_reason == "tool_calls" and response.tool_calls:
                 yield {

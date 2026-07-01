@@ -10,7 +10,7 @@ const store = useIDEStore()
 const openMenu = ref<string | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 
-const _menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
+const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
   {
     id: "file",
     label: "文件",
@@ -145,13 +145,13 @@ const _menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
   },
 ])
 
-function _toggleMenu(id: string): void {
+function toggleMenu(id: string): void {
   openMenu.value = openMenu.value === id ? null : id
 }
 function closeMenus(): void {
   openMenu.value = null
 }
-function _handleItemClick(item: MenuItem): void {
+function handleItemClick(item: MenuItem): void {
   if (item.action) item.action()
   closeMenus()
 }

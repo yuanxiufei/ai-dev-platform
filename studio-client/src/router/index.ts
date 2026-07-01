@@ -113,6 +113,11 @@ const router = createRouter({
       component: () => import("@/pages/KnowledgeGraphPage.vue"),
     },
     {
+      path: "/trajectory",
+      name: "trajectory",
+      component: () => import("@/pages/TrajectoryPage.vue"),
+    },
+    {
       path: "/storage",
       name: "storage-settings",
       component: () => import("@/pages/StorageSettings.vue"),

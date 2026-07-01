@@ -1,27 +1,28 @@
 <script setup lang="ts">
 /** CodeBuddy IDE — Tab Bar (Figma design) */
 
-import { FileCode, FileJson, FileText } from "lucide-vue-next"
+import { Circle, FileCode, FileJson, FileText } from "lucide-vue-next"
 import { computed, ref } from "vue"
 import { useIDEStore } from "@/stores/useIDEStore"
 import type { EditorTab } from "@/types/ide"
+import BreadcrumbsBar from "./BreadcrumbsBar.vue"
 
 const store = useIDEStore()
 const draggedTabId = ref<string | null>(null)
-const _visibleTabs = computed(() =>
+const visibleTabs = computed(() =>
   store.sortedTabs.filter((t) => t.id !== store.activeTabId),
 )
 
-function _onDragStart(e: DragEvent, id: string): void {
+function onDragStart(e: DragEvent, id: string): void {
   draggedTabId.value = id
   e.dataTransfer?.setData("text/plain", id)
   e.dataTransfer!.effectAllowed = "move"
 }
-function _onDragOver(e: DragEvent): void {
+function onDragOver(e: DragEvent): void {
   e.preventDefault()
   e.dataTransfer!.dropEffect = "move"
 }
-function _onDrop(e: DragEvent, targetId: string): void {
+function onDrop(e: DragEvent, targetId: string): void {
   e.preventDefault()
   const src = e.dataTransfer?.getData("text/plain")
   if (!src || src === targetId) return
@@ -34,12 +35,12 @@ function _onDrop(e: DragEvent, targetId: string): void {
   tabs.forEach((t, i) => (t.order = i))
   draggedTabId.value = null
 }
-function _onMouseUp(e: MouseEvent, id: string): void {
+function onMouseUp(e: MouseEvent, id: string): void {
   if (e.button === 1) store.closeTab(id)
 }
 
 /** Get file icon component based on file extension */
-function _getFileIcon(tab: EditorTab): any {
+function getFileIcon(tab: EditorTab): any {
   const ext = tab.filePath?.split(".").pop()?.toLowerCase() ?? ""
   if (["ts", "tsx", "js", "jsx", "py"].includes(ext)) return FileCode
   if (["json", "toml"].includes(ext)) return FileJson
@@ -48,7 +49,7 @@ function _getFileIcon(tab: EditorTab): any {
 }
 
 /** Get file color matching Figma design */
-function _getFileColor(label: string): string {
+function getFileColor(label: string): string {
   if (label === "App.vue") return "#38BDF8"
   if (label === "main.ts") return "#60A5FA"
   const c: Record<string, string> = {
@@ -63,16 +64,9 @@ function _getFileColor(label: string): string {
 
 <template>
   <div class="h-[var(--tabbar-height)] flex items-end bg-[var(--color-ide-bg)] border-b border-[var(--color-ide-border)] shrink-0 overflow-x-auto overflow-y-hidden" @dragover="onDragOver">
-    <!-- Breadcrumb / Active file path (left side) -->
-    <div class="shrink-0 h-full flex items-center px-3 text-xs border-r border-[var(--color-tab-border)] cursor-default select-none whitespace-nowrap"
-      style="background: var(--color-editor-bg); color: var(--color-ide-text-dim);">
-      <span v-if="store.activeTab?.filePath" class="flex items-center gap-1">
-        <span v-for="(seg, i) in store.activeTab.filePath.split(/[/\\]/)" :key="i" class="flex items-center gap-1">
-          <ChevronRight v-if="i > 0" :size="12" class="opacity-40" />
-          <span :class="{ 'text-[var(--color-ide-text)]': i === store.activeTab.filePath.split(/[/\\]/).length - 1 }">{{ seg }}</span>
-        </span>
-      </span>
-      <span v-else class="opacity-50">无打开的文件</span>
+    <!-- 🆕 VSCode 风格 BreadcrumbsBar -->
+    <div class="shrink-0 h-full flex items-center" style="background: var(--color-editor-bg);">
+      <BreadcrumbsBar />
     </div>
 
     <!-- Tab items -->
@@ -114,7 +108,7 @@ function _getFileColor(label: string): string {
         <!-- Active bottom indicator (Figma: accent line) -->
         <div v-if="tab.id === store.activeTabId" class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style="background:#C0C1FF;" />
       </div>
-      <div v-if="store.sortedTabs.length > 0" class="flex items-center justify-center px-4 text-[11px] cursor-pointer transition-colors shrink-0" style="color:var(--color-ide-text-dim);" @mouseover="$el.style.color='var(--color-ide-text)'" @mouseout="$el.style.color=''">
+      <div v-if="store.sortedTabs.length > 0" class="flex items-center justify-center px-4 text-[11px] cursor-pointer transition-colors shrink-0 hover:text-[var(--color-ide-text)]" style="color:var(--color-ide-text-dim);">
         Review Next File →
       </div>
     </div>

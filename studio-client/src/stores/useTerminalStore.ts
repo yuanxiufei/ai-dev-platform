@@ -1,9 +1,10 @@
 // ============================================
-// Terminal Store — terminal sessions & output
+// Terminal Store — terminal sessions & output (Session 10: ANSI auto-parse)
 // ============================================
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { OutputChannel, TerminalSession } from '@/types/ide'
+import { hasAnsi, parseAnsi } from '@/utils/ansi'
 import { uid } from './shared'
 
 export const useTerminalStore = defineStore('terminal', () => {
@@ -58,7 +59,17 @@ export const useTerminalStore = defineStore('terminal', () => {
   ): void {
     const term = terminalSessions.value.find((t) => t.active)
     if (!term) return
-    term.lines.push({ id: uid(), text, type, timestamp: Date.now() })
+    const line: TerminalSession['lines'][0] = {
+      id: uid(),
+      text,
+      type,
+      timestamp: Date.now(),
+    }
+    // Session 10: auto-detect ANSI and pre-parse segments
+    if (hasAnsi(text)) {
+      line.segments = parseAnsi(text)
+    }
+    term.lines.push(line)
   }
 
   const outputChannels = ref<OutputChannel[]>([

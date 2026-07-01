@@ -320,6 +320,27 @@ def tool_list_projects(args: dict) -> dict:
     return {"projects": list(_indexers.keys()), "count": len(_indexers)}
 
 
+def tool_query_graph(args: dict) -> dict:
+    """执行 Cypher 风格图查询"""
+    query = args.get("query", "")
+    project = args.get("project", "")
+    if not query:
+        return {"error": "query is required (Cypher MATCH/WHERE/RETURN syntax)"}
+    indexer = _find_by_project(project)
+    if not indexer:
+        # 使用全局图（无 project 时尝试第一个索引器）
+        if _indexers:
+            indexer = next(iter(_indexers.values()))
+        else:
+            return {"error": f"Project '{project}' not indexed", "results": []}
+    from .cypher import query_graph as run_query
+    return run_query(
+        query_text=query,
+        db_path=indexer.db_path,
+        graph=indexer.graph,
+    )
+
+
 def tool_index_status(args: dict) -> dict:
     """获取索引状态"""
     project = args.get("project", "")
@@ -341,7 +362,7 @@ def _find_by_project(project_name: str) -> FileIndexer | None:
     return None
 
 
-# ── 工具路由 ──────────────────────────────────
+# ── 工具路由（保留原有内部路由，供非 Agent 调用） ──
 
 TOOL_REGISTRY: dict[str, callable] = {
     "index_repository": tool_index_repository,
@@ -350,6 +371,7 @@ TOOL_REGISTRY: dict[str, callable] = {
     "get_code_snippet": tool_get_code_snippet,
     "get_architecture": tool_get_architecture,
     "trace_path": tool_trace_path,
+    "query_graph": tool_query_graph,
     "list_projects": tool_list_projects,
     "index_status": tool_index_status,
 }
@@ -366,3 +388,141 @@ def call_tool(tool_name: str, arguments: dict) -> str:
     except Exception as e:
         logger.exception("Tool %s failed", tool_name)
         return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+# ── 全局 ToolRegistry 注册 ─────────────────────
+
+def _wrap_sync_tool(func: callable) -> callable:
+    """将同步函数包装为适配 FunctionTool.call(**kwargs) 的形式"""
+    async def _wrapper(**kwargs):
+        return func(kwargs)
+    return _wrapper
+
+
+def init_codebase_tools_to_global_registry() -> int:
+    """将 8 个 CodebaseMemory 工具注册到全局 ToolRegistry，供 Agent Function Calling 使用"""
+    from app.core.tools.schema import FunctionTool, ToolParam, ToolSchema, ParamType
+    from app.core.tools.registry import get_tool_registry
+
+    registry = get_tool_registry()
+
+    tools_def: list[tuple[str, str, list[ToolParam]]] = [
+        (
+            "index_repository",
+            "索引代码仓库，构建代码知识图谱。索引后可使用搜索/溯源/架构分析等功能",
+            [
+                ToolParam(name="repo_path", type=ParamType.STRING,
+                          description="要索引的仓库路径（绝对路径）", required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称/别名（可选，默认为路径名）", required=False),
+            ],
+        ),
+        (
+            "search_graph",
+            "在代码知识图谱中搜索函数、类、模块。支持反引号精确查询或多关键词模糊搜索",
+            [
+                ToolParam(name="query", type=ParamType.STRING,
+                          description="搜索关键词，反引号内为精确匹配", required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+                ToolParam(name="limit", type=ParamType.INTEGER,
+                          description="返回结果数量上限（默认20，最大200）", required=False),
+                ToolParam(name="label", type=ParamType.STRING,
+                          description="节点类型过滤：function/class/module/route", required=False),
+            ],
+        ),
+        (
+            "search_code",
+            "在代码文件中搜索指定模式（grep 风格）。返回匹配行及所在文件、行号",
+            [
+                ToolParam(name="pattern", type=ParamType.STRING,
+                          description="搜索的正则或文本模式", required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+                ToolParam(name="limit", type=ParamType.INTEGER,
+                          description="返回结果数量上限（默认20，最大100）", required=False),
+                ToolParam(name="file_pattern", type=ParamType.STRING,
+                          description="文件名 glob 过滤，如 *.py（可选）", required=False),
+            ],
+        ),
+        (
+            "get_code_snippet",
+            "获取指定函数/类的完整源代码片段。使用 qualified_name 精确查找",
+            [
+                ToolParam(name="qualified_name", type=ParamType.STRING,
+                          description="完全限定名，如 module.MyClass.method", required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+            ],
+        ),
+        (
+            "get_architecture",
+            "获取代码仓库的架构总览：节点/边统计、语言分布、包结构、依赖关系",
+            [
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选，留空使用当前项目）", required=False),
+            ],
+        ),
+        (
+            "trace_path",
+            "追踪函数调用链路径。BFS 遍历展示入站（调用者）和出站（被调用者）关系",
+            [
+                ToolParam(name="function_name", type=ParamType.STRING,
+                          description="要追踪的函数名称", required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+                ToolParam(name="direction", type=ParamType.STRING,
+                          description="追踪方向：inbound/outbound/both（默认 both）", required=False),
+                ToolParam(name="depth", type=ParamType.INTEGER,
+                          description="追踪深度（默认3，最大10）", required=False),
+            ],
+        ),
+        (
+            "list_projects",
+            "列出所有已索引的项目及其路径",
+            [],
+        ),
+        (
+            "query_graph",
+            "执行 Cypher 风格图查询。支持 MATCH/WHERE/RETURN/ORDER BY/LIMIT 语法",
+            [
+                ToolParam(name="query", type=ParamType.STRING,
+                          description="Cypher 查询语句，如 MATCH (n:Function)-[r:CALLS]->(m) RETURN n.name,m.name LIMIT 10",
+                          required=True),
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+            ],
+        ),
+        (
+            "index_status",
+            "查询指定项目的索引状态：节点数、边数、最后索引时间",
+            [
+                ToolParam(name="project", type=ParamType.STRING,
+                          description="项目名称（可选）", required=False),
+            ],
+        ),
+    ]
+
+    count = 0
+    for name, description, params in tools_def:
+        func = TOOL_REGISTRY.get(name)
+        if not func:
+            continue
+
+        tool = FunctionTool(
+            schema=ToolSchema(
+                name=name,
+                description=description,
+                parameters=params,
+                category="codebase",
+                tags=["codebase-memory", "knowledge-graph", "code-search"],
+            ),
+            func=_wrap_sync_tool(func),
+            is_async=True,
+            timeout_seconds=60.0,
+        )
+        registry.register_sync(tool)
+        count += 1
+
+    logger.info("Registered %d codebase-memory tools to global ToolRegistry", count)
+    return count

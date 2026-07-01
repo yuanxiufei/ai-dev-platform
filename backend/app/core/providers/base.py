@@ -11,8 +11,9 @@ Provider 基类 — 所有第三方 API 提供商的抽象基类
 
 from __future__ import annotations
 
+import json as _json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -128,6 +129,60 @@ class BaseProvider(ICandidateModel):
     async def generate(self, request: ModelRequest) -> ModelResponse:
         """子类实现具体推理逻辑"""
         raise NotImplementedError(f"{self.__class__.__name__}.generate() not implemented")
+
+    # ── 流式推理 ──────────────────────────────────────────
+
+    async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
+        """子类实现流式推理逻辑（token-by-token）"""
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.generate_stream() not implemented"
+        )
+
+    async def _parse_openai_sse_stream(
+        self, url: str, payload: dict[str, Any]
+    ) -> AsyncIterator[str]:
+        """通用 OpenAI 兼容 SSE 流式解析器。
+
+        适用于 OpenAI / DeepSeek / 通义千问 / 智谱 / Ollama / llama.cpp 等
+        所有兼容 OpenAI Chat Completions SSE 协议的 API。
+
+        SSE 行格式：
+          data: {"choices":[{"delta":{"content":"Hello"}}],...}
+          data: [DONE]
+
+        逐 token 产出文本增量，自动跳过空 delta 和 [DONE] 标记。
+        最终的 tool_calls 和 finish_reason 会被缓存到 self._last_stream_meta。
+        """
+        meta: dict[str, Any] = {}
+        async with self.client.stream("POST", url, json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                data_str = line[6:]  # 去掉 "data: " 前缀
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = _json.loads(data_str)
+                    choices = chunk.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {})
+                        token = delta.get("content", "")
+                        if token:
+                            yield token
+                        # 缓存 tool_calls（最终 chunk 可能包含）
+                        tc_delta = delta.get("tool_calls")
+                        if tc_delta:
+                            if "tool_calls" not in meta:
+                                meta["tool_calls"] = []
+                            meta["tool_calls"].extend(tc_delta)
+                        # 捕获 finish_reason
+                        fr = choices[0].get("finish_reason")
+                        if fr:
+                            meta["finish_reason"] = fr
+                except _json.JSONDecodeError:
+                    continue
+        self._last_stream_meta = meta
 
     async def close(self):
         """关闭 HTTP 客户端"""

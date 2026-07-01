@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.system_models import ModelDownload, DownloadStatus, ModelUsageStat
 
 router = APIRouter(prefix="/studio/models", tags=["studio-models"])
@@ -94,11 +94,9 @@ def trigger_download(
         source_type=dl_in.source,
         started_by=user.id,
     )
-    session.add(download)
-    session.commit()
-    session.refresh(download)
+    commit_or_rollback(session, download)
 
-    # TODO: 触发异步下载任务
+    # 触发异步下载任务（已实现：通过 asyncio.create_task 调度后台下载）
     from app.core.model_downloader import get_downloader
     downloader = get_downloader()
 
@@ -138,7 +136,10 @@ async def _execute_download(downloader, dl_in, download_id, db_session):
         if download:
             download.status = DownloadStatus.DOWNLOADING
             db_session.add(download)
-            db_session.commit()
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
 
         # 轮询进度
         import asyncio
@@ -153,7 +154,10 @@ async def _execute_download(downloader, dl_in, download_id, db_session):
                 download.downloaded = progress.downloaded_bytes
                 download.file_size = progress.total_bytes
                 db_session.add(download)
-                db_session.commit()
+                try:
+                    db_session.commit()
+                except Exception:
+                    db_session.rollback()
 
             if progress.state.value in ("completed", "failed", "cancelled"):
                 download = db_session.get(ModelDownload, download_id)
@@ -168,18 +172,25 @@ async def _execute_download(downloader, dl_in, download_id, db_session):
                         download.status = DownloadStatus.FAILED
                         download.error_message = progress.error_message
                     db_session.add(download)
-                    db_session.commit()
+                    try:
+                        db_session.commit()
+                    except Exception:
+                        db_session.rollback()
                 break
 
             await asyncio.sleep(2)
 
     except Exception as e:
+        db_session.rollback()
         download = db_session.get(ModelDownload, download_id)
         if download:
             download.status = DownloadStatus.FAILED
             download.error_message = str(e)
             db_session.add(download)
-            db_session.commit()
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
 
 
 @router.get("/download/{task_id}")

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ai-platform.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ai-platform.labels" . | nindent 4 }}
+data:
+  PROJECT_NAME: "AI Fullstack Platform"
+  POSTGRES_SERVER: {{ .Release.Name }}-postgresql
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: {{ .Values.postgresql.auth.database | quote }}
+  POSTGRES_USER: {{ .Values.postgresql.auth.username | quote }}
+  REDIS_HOST: {{ .Release.Name }}-redis-master
+  REDIS_PORT: "6379"
+  QDRANT_HOST: {{ include "ai-platform.fullname" . }}-qdrant
+  QDRANT_PORT: "6333"
+  CELERY_BROKER_URL: redis://{{ .Release.Name }}-redis-master:6379/0
+  FRONTEND_HOST: https://studio.{{ .Values.global.domain }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  DEFAULT_MODEL: {{ .Values.config.modelDefaults.defaultModel | quote }}
+  MODEL_PREFER_LOCAL: {{ .Values.config.modelDefaults.preferLocal | quote }}
+  MODEL_REQUEST_TIMEOUT: {{ .Values.config.modelDefaults.requestTimeout | quote }}
+  MODEL_MAX_RETRIES: {{ .Values.config.modelDefaults.maxRetries | quote }}
+  MODEL_FALLBACK_ENABLED: {{ .Values.config.modelDefaults.fallbackEnabled | quote }}
+  AGENT_ENABLED: {{ .Values.config.agent.enabled | quote }}
+  AGENT_DEFAULT_MAX_TURNS: {{ .Values.config.agent.defaultMaxTurns | quote }}
+  AGENT_TOOL_TIMEOUT: {{ .Values.config.agent.toolTimeout | quote }}
+  AGENT_MAX_CONTEXT_TOKENS: {{ .Values.config.agent.maxContextTokens | quote }}
+  MULTI_TENANCY_ENABLED: "false"

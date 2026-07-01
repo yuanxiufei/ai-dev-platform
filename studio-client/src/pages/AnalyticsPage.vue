@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
+import { BarChart3, Clock, DollarSign, TrendingUp, Zap } from "lucide-vue-next"
 import {
   type AnalyticsOverview,
   analyticsApi,
@@ -29,7 +30,7 @@ async function fetchAll() {
   }
 }
 
-function _barWidth(calls: number) {
+function barWidth(calls: number) {
   const max = Math.max(...trends.value.map((t) => t.calls), 1)
   return (calls / max) * 100
 }

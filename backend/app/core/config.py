@@ -344,9 +344,12 @@ class Settings(BaseSettings):
     STANDALONE_PRESET_API_KEYS: str = ""        # 预置 API 密钥（逗号分隔）
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
-        if value == "changethis":
+        if value is not None and (
+            value == "changethis"
+            or value.startswith("changethis_")
+        ):
             message = (
-                f'The value of {var_name} is "changethis", '
+                f'The value of {var_name} is "{value}", '
                 "for security, please change it, at least for deployments."
             )
             if self.ENVIRONMENT == "local":

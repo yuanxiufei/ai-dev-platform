@@ -259,7 +259,7 @@ class PluginManager {
         active: false,
         status: "loaded",
       })
-    console.log(`[Plugin] ${builtInPlugins.length} built-in plugins loaded`)
+    // Built-in plugins initialized
   }
 
   async load(manifest: PluginManifest): Promise<boolean> {

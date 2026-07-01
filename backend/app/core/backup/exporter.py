@@ -114,7 +114,9 @@ class DataExporter:
                 records = []
                 async with store.get_db() as db:
                     from sqlmodel import select
-                    result = await db.exec(select(model_cls))
+                    result = await db.exec(
+                        select(model_cls).limit(100_000)  # 导出安全上限 10 万条
+                    )
                     rows = result.all()
                     for row in rows:
                         records.append(self._model_to_dict(row))

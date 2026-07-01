@@ -30,6 +30,7 @@ export const useIDEStore = defineStore('ide', () => {
     menuBarOpen: layoutStore.menuBarOpen,
     activityItems: layoutStore.activityItems,
     activeActivityItem: layoutStore.activeActivityItem,
+    resetLayout: layoutStore.resetLayout,
 
     // File Tree
     workspaceRoot: fileTreeStore.workspaceRoot,

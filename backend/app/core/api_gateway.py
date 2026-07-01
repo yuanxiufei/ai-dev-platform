@@ -98,7 +98,9 @@ class ApiGateway:
         gateway = cls.auto_init()
 
         credentials = session.exec(
-            session.query(ApiCredential).where(ApiCredential.is_active == True)
+            session.query(ApiCredential)
+            .where(ApiCredential.is_active == True)
+            .limit(50)  # 活跃凭证安全上限
         ).all()
 
         for cred in credentials:

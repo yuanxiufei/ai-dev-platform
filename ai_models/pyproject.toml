@@ -10,14 +10,18 @@ requires-python = ">=3.10"
 #
 # 使用场景：
 #   - 仅 GGUF 模型 → pip install llama-cpp-python 即可
-#   - safetensors 模型 → 取消注释 torch/transformers/diffusers/accelerate 后安装
+#   - safetensors 模型 → 取消注释下方依赖后安装
 dependencies = [
     # ── safetensors 格式（GPU 模型）─ Qwen-VL / Qwen-Coder / CogVideoX ──
     # 需要 NVIDIA GPU + CUDA，约 ~5GB 磁盘空间
-    # "torch>=2.4.0",
-    # "transformers>=4.45.0",
-    # "diffusers>=0.30.0",
-    # "accelerate>=0.33.0",
+    # 取消注释并按需安装：
+    #   uv sync                        # 自动安装所有
+    #   或 pip install torch transformers diffusers accelerate
+    "torch>=2.4.0",
+    "transformers>=4.45.0",
+    "diffusers>=0.30.0",
+    "accelerate>=0.33.0",
+    "Pillow>=10.0.0",                 # 图像处理（screenshot → layout）
 
     # ── GGUF 格式（本地量化模型）─ Gemma 31B 等 ──
     # 支持纯 CPU 推理，约 ~50MB 磁盘空间

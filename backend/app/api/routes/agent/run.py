@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from app.api.deps import CurrentUser
 from app.core.agent.agent_config import AgentConfig
 from app.core.agent.agent_runner import AgentRunner, AgentRunResult, StreamingAgentRunner
 from app.core.diff.diff_engine import DiffEngine
@@ -75,7 +76,10 @@ class AgentRunResponse(BaseModel):
 # ── 路由 ──────────────────────────────────────────────────
 
 @router.post("/run", response_model=AgentRunResponse)
-async def agent_run(payload: AgentRunRequest) -> AgentRunResponse:
+async def agent_run(
+    payload: AgentRunRequest,
+    user: CurrentUser,
+) -> AgentRunResponse:
     """
     One-shot Agent 完整执行 — 一步到位返回 plan + steps + diffs + result
 
@@ -171,7 +175,10 @@ async def agent_run(payload: AgentRunRequest) -> AgentRunResponse:
 
 
 @router.post("/run/stream")
-async def agent_run_stream(payload: AgentRunRequest):
+async def agent_run_stream(
+    payload: AgentRunRequest,
+    user: CurrentUser,
+):
     """
     SSE 流式 Agent 一次性执行 — 实时推送 plan → steps → diffs → result
 

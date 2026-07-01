@@ -1,16 +1,28 @@
 <script setup lang="ts">
 import {
   Bot,
+  CheckCircle,
   Database,
+  Download,
+  Eye,
+  EyeOff,
   FileCode,
   Globe,
+  Github,
+  Link2,
+  Loader2,
   Package,
+  Plus,
   Search,
   Server,
   Sparkles,
+  Store,
+  Tag,
   Terminal,
+  Unlink2,
   Webhook,
   Wrench,
+  X
 } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
 import {
@@ -48,12 +60,18 @@ const search = ref("")
 const selectedCategory = ref("")
 const selectedType = ref("")
 const selectedSource = ref("")
-const _showPluginDetail = ref<PluginRegistryItem | null>(null)
+const showPluginDetail = ref<PluginRegistryItem | null>(null)
 const showAddSource = ref(false)
 const sourceType = ref<"github" | "zip" | "local">("github")
 const sourceUrl = ref("")
 const sourceName = ref("")
 const sourceDesc = ref("")
+
+const presetSources = [
+  { n: 'CodeBuddy 社区', u: 'https://github.com/codebuddy-community/plugins', t: 'github' as const },
+  { n: 'MCP 官方', u: 'https://github.com/modelcontextprotocol/servers', t: 'github' as const },
+  { n: 'AI Studio 插件', u: (import.meta.env.VITE_PLUGIN_REGISTRY_URL as string) || 'https://plugins.ai-fullstack.dev/registry.json', t: 'zip' as const },
+]
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -68,17 +86,17 @@ function showToast(msg: string) {
   }, 3000)
 }
 
-const _ratingStars = (r: number) =>
+const ratingStars = (r: number) =>
   "★".repeat(Math.round(r)) + "☆".repeat(5 - Math.round(r))
 
-const _formatCount = (n: number): string => {
+const formatCount = (n: number): string => {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return `${n}`
 }
 
 // ── 类型标签配置 ────────────────────────────────────────
 
-const _typeMeta: Record<string, { label: string; icon: any; cls: string }> = {
+const typeMeta: Record<string, { label: string; icon: any; cls: string }> = {
   mcp: {
     label: "MCP",
     icon: Server,
@@ -106,7 +124,7 @@ const _typeMeta: Record<string, { label: string; icon: any; cls: string }> = {
   },
 }
 
-const _categoryMeta: Record<string, { label: string; icon: any }> = {
+const categoryMeta: Record<string, { label: string; icon: any }> = {
   filesystem: { label: "文件系统", icon: FileCode },
   devops: { label: "DevOps", icon: Wrench },
   database: { label: "数据库", icon: Database },
@@ -122,7 +140,7 @@ const _categoryMeta: Record<string, { label: string; icon: any }> = {
   agent: { label: "Agent", icon: Bot },
 }
 
-const _typeFilterOptions = [
+const typeFilterOptions = [
   { value: "", label: "全部类型", icon: Package },
   { value: "mcp", label: "MCP 服务器", icon: Server },
   { value: "awp", label: "AWP 插件", icon: Package },
@@ -133,13 +151,13 @@ const _typeFilterOptions = [
 
 // ── 计算属性 ────────────────────────────────────────────
 
-const _enabledSources = computed(() => sources.value.filter((s) => s.enabled))
+const enabledSources = computed(() => sources.value.filter((s) => s.enabled))
 
-const _filteredSources = computed(() => sources.value)
+const filteredSources = computed(() => sources.value)
 
-const _installedCount = computed(() => installedPlugins.value.length)
+const installedCount = computed(() => installedPlugins.value.length)
 
-const _totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
 
 // ── 数据获取 ────────────────────────────────────────────
 
@@ -203,7 +221,7 @@ async function fetchStats() {
 
 // ── 操作函数 ────────────────────────────────────────────
 
-async function _handleInstall(plugin: PluginRegistryItem) {
+async function handleInstall(plugin: PluginRegistryItem) {
   if (installing.value) return
   installing.value = plugin.name
   try {
@@ -220,7 +238,7 @@ async function _handleInstall(plugin: PluginRegistryItem) {
   }
 }
 
-async function _handleUninstall(plugin: PluginRegistryItem) {
+async function handleUninstall(plugin: PluginRegistryItem) {
   if (!confirm(`确定卸载 ${plugin.display_name}？`)) return
   installing.value = plugin.name
   try {
@@ -236,7 +254,7 @@ async function _handleUninstall(plugin: PluginRegistryItem) {
   }
 }
 
-async function _handleToggle(plugin: PluginRegistryItem) {
+async function handleToggle(plugin: PluginRegistryItem) {
   try {
     const res = await togglePlugin(plugin.name)
     plugin.installed_enabled = res.enabled
@@ -258,13 +276,13 @@ function handleSearch() {
   }, 300)
 }
 
-function _handleSourceSelect(sourceId: string) {
+function handleSourceSelect(sourceId: string) {
   selectedSource.value = sourceId
   page.value = 1
   fetchData()
 }
 
-async function _handleAddSource() {
+async function handleAddSource() {
   if (!sourceName.value.trim()) {
     showToast("请输入市场源名称")
     return
@@ -292,7 +310,7 @@ async function _handleAddSource() {
   }
 }
 
-async function _handleRemoveSource(source: MarketplaceSource) {
+async function handleRemoveSource(source: MarketplaceSource) {
   if (!confirm(`确定删除市场源「${source.name}」？`)) return
   try {
     await removeMarketplaceSource(source.id)
@@ -307,7 +325,7 @@ async function _handleRemoveSource(source: MarketplaceSource) {
   }
 }
 
-async function _handleToggleSource(source: MarketplaceSource) {
+async function handleToggleSource(source: MarketplaceSource) {
   try {
     const res = await toggleMarketplaceSource(source.id)
     source.enabled = res.enabled
@@ -320,7 +338,7 @@ async function _handleToggleSource(source: MarketplaceSource) {
   }
 }
 
-function _onSearchKeydown(e: KeyboardEvent) {
+function onSearchKeydown(e: KeyboardEvent) {
   if (e.key === "Enter") {
     if (searchTimer) clearTimeout(searchTimer)
     page.value = 1
@@ -342,7 +360,7 @@ onMounted(() => {
 
 // ── 样式辅助 ────────────────────────────────────────────
 
-function _tabClass(tab: string) {
+function tabClass(tab: string) {
   return [
     "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
     activeTab === tab
@@ -792,11 +810,7 @@ function _tabClass(tab: string) {
               <label class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 block">快速添加</label>
               <div class="flex flex-wrap gap-1.5">
                 <button
-                  v-for="preset in [
-                    { n: 'CodeBuddy 社区', u: 'https://github.com/codebuddy-community/plugins', t: 'github' as const },
-                    { n: 'MCP 官方', u: 'https://github.com/modelcontextprotocol/servers', t: 'github' as const },
-                    { n: 'AI Studio 插件', u: 'https://plugins.ai-fullstack.dev/registry.json', t: 'zip' as const },
-                  ]"
+                  v-for="preset in presetSources"
                   :key="preset.n"
                   @click="sourceName = preset.n; sourceUrl = preset.u; sourceType = preset.t"
                   class="px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/8 text-xs text-gray-500 hover:text-gray-300 hover:border-white/15 transition-all"

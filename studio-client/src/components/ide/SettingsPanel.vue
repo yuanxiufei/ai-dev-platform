@@ -6,7 +6,7 @@
         <div ref="panelRef" class="relative w-full max-w-4xl h-[85vh] my-auto mx-auto bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-xl shadow-2xl shadow-black/50 overflow-hidden flex flex-col" @click.stop>
           <!-- Header -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--color-ide-border)] bg-[var(--color-ide-bg-secondary)]">
-            <h2 class="text-lg font-semibold text-[var(--color-ide-text)] flex items-center gap-2"><Settings :size="20"/> 设置</h2>
+            <h2 class="text-lg font-semibold text-[var(--color-ide-text)] flex items-center gap-2"><LSettings :size="20"/> 设置</h2>
             <button @click="close" class="p-1.5 rounded-lg hover:bg-[var(--color-ide-hover)] text-[var(--color-ide-text-dim)]"><X :size="18"/></button>
           </div>
           <div class="flex flex-1 overflow-hidden">
@@ -19,7 +19,7 @@
               <!-- General -->
               <section v-if="at==='general'">
                 <h3 class="text-base font-medium mb-6">通用</h3>
-                <SG title="外观"><SI label="颜色主题"><select v-model="ls.appearance.theme" class="ss"><option value="codebuddy-dark">CodeBuddy Dark</option><option value="vs-dark">VS Code Dark+</option><option value="dracula">Dracula</option></select></SI>
+                <SG title="外观"><SI label="颜色主题"><select v-model="themeStore.active" class="ss"><option v-for="t in themeStore.themes" :key="t.id" :value="t.id">{{ t.label }}</option></select></SI>
                   <SI label="缩放级别"><div class="flex items-center gap-2"><button @click="ls.appearance.zoomLevel=Math.max(0.5,ls.appearance.zoomLevel-0.1)" class="bi"><Minus :size="14"/></button><span class="w-16 text-center text-xs font-mono">{{Math.round(ls.appearance.zoomLevel*100)}}%</span><button @click="ls.appearance.zoomLevel=Math.min(2,ls.appearance.zoomLevel+0.1)" class="bi"><Plus :size="14"/></button></div></SI>
                   <SI label="字体家族"><select v-model="ls.editor.fontFamily" class="ss min-w-[220px]"><option value="'JetBrains Mono',monospace">JetBrains Mono</option><option value="'Fira Code',monospace">Fira Code</option></select></SI>
                   <SI :label="`字号: ${ls.editor.fontSize}px`"><input v-model.number="ls.editor.fontSize" type="range" min="10" max="28" step="1" class="sl"/></SI>
@@ -82,31 +82,34 @@
 </template>
 
 <script setup lang="ts">
-import { Bot, Puzzle, TerminalSquare, Type } from "lucide-vue-next"
-import { reactive, ref } from "vue"
+import { Bot, Check, Minus, Moon, Plus, Puzzle, RotateCcw, Settings as LSettings, Sun, TerminalSquare, Type, X } from "lucide-vue-next"
+import { computed, reactive, ref } from "vue"
 import { usePlugins } from "@/composables/usePlugins"
+import { useThemeStore, type ThemeId } from "@/stores/useThemeStore"
+import ToggleSwitch from "./ui/Toggle.vue"
 
-const _SG = {
+const SG = {
   props: ["title"],
   template: `<div class="mb-8 last:mb-0"><h4 class="text-sm font-medium text-[var(--color-ide-text-secondary)] mb-4">{{ title }}</h4><slot/></div>`,
 }
-const _SI = {
+const SI = {
   props: ["label"],
   template: `<div class="flex items-center justify-between py-3 border-b border-[var(--color-ide-border)]/50 last:border-0"><span class="text-sm text-[var(--color-ide-text-secondary)]">{{ label }}</span><slot/></div>`,
 }
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<(e: "update:visible", val: boolean) => void>()
 const { installedPlugins, enable, disable } = usePlugins()
-const _at = ref("general")
-const _tabs = [
+const themeStore = useThemeStore()
+const at = ref("general")
+const tabs = [
   { id: "general", label: "通用", icon: Type },
   { id: "editor", label: "编辑器", icon: Type },
   { id: "terminal", label: "终端", icon: TerminalSquare },
   { id: "ai", label: "AI 助手", icon: Bot },
   { id: "extensions", label: "扩展", icon: Puzzle },
 ]
-const _ls = reactive({
+const ls = reactive({
   editor: {
     fontSize: 14,
     fontFamily: "'JetBrains Mono',monospace",
@@ -144,11 +147,11 @@ const _ls = reactive({
 function close() {
   emit("update:visible", false)
 }
-function _apply() {
+function apply() {
   close()
 }
-function _resetS() {
-  console.log("[IDE] Reset settings")
+function resetS() {
+  // Reset settings to defaults
 }
 </script>
 

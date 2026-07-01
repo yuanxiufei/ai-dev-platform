@@ -7,6 +7,7 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - AgentConfig: Agent 定义（名称、指令、工具集、钩子）
 - Handoff: 子 Agent 委派机制
 - ContextCompressor: 对话上下文压缩（LLM 摘要 + 轮次截断）
+- MentionParser: @mention 解析器（@file:/@dir:/@symbol: 上下文注入，借鉴 Continue）
 - AgentHooks: Agent 生命周期钩子（EventBus 桥接 + 组合模式）
 - TrajectoryRecorder: Agent 轨迹记录（增量持久化）
 - MiddlewarePipeline: Agent 中间件管道（Guardrail/LoopDetection/Summarization/ErrorHandling）
@@ -15,6 +16,8 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - LakeviewSummarizer: LLM 步骤摘要（人类可读 + 上下文压缩）
 - WorktreeManager: Git Worktree 并行开发环境（多分支并行任务）
 - DiffEngine: 文件变更差异生成器（unified diff → 前端 diff-viewer）
+- Pipeline: 步骤编排器（@step 装饰器 + run_pipeline 延迟调用模式，借鉴 cognee）
+- SessionTree: 会话树 + 检查点（分支/快照/恢复，借鉴 hermes-agent）
 """
 
 from app.core.agent.tool_executor import ToolExecutor, get_tool_executor  # noqa: F401
@@ -63,3 +66,19 @@ from app.core.agent.reflection import (  # noqa: F401
     get_reflection_manager, init_reflection_manager,
 )
 from app.core.diff import DiffEngine, FileDiff  # noqa: F401
+from app.core.agent.mention_parser import (  # noqa: F401
+    parse_mentions, inject_context_into_message,
+    ParsedMention, MentionResult,
+)
+
+# ── Pipeline 正式化（借鉴 cognee） ──
+from app.core.agent.pipeline import (  # noqa: F401
+    step, StepSpec, BoundStep, Pipeline, PipelineResult,
+    PipelineContext, run_pipeline, create_pipeline, define_pipeline,
+)
+
+# ── Session 树 + 检查点（借鉴 hermes-agent） ──
+from app.core.agent.session_tree import (  # noqa: F401
+    SessionTree, SessionNode, Checkpoint, CheckpointManager,
+    init_session_tree, get_session_tree, get_checkpoint_manager,
+)

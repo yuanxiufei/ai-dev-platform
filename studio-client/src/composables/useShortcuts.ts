@@ -124,6 +124,13 @@ const defaultCommands: Omit<ShortcutDefinition, "handler">[] = [
     icon: "Settings",
   },
   {
+    id: "view.resetLayout",
+    title: "重置布局",
+    category: "视图",
+    key: "",
+    icon: "PanelLeftClose",
+  },
+  {
     id: "dev.openDevTools",
     title: "打开开发工具",
     category: "开发者",
@@ -137,16 +144,56 @@ class ShortcutManager {
   public isCommandPaletteVisible = ref(false)
   public commandPaletteQuery = ref("")
   public activeCategory = ref<string | null>(null)
+  /** 🆕 最近使用命令 (Zed 风格) — 记录最近 10 条命令 ID */
+  private recentCommandIds: string[] = []
+  private readonly MAX_RECENT = 10
+  private readonly RECENT_STORAGE_KEY = "ide_recent_commands"
 
   constructor() {
     this.registerDefaults()
     this.setupGlobalKeybindings()
+    this.loadRecentCommands()
   }
 
   private registerDefaults() {
     for (const cmd of defaultCommands) {
       this.commands.set(cmd.id, { ...cmd, handler: () => {} })
     }
+  }
+
+  /** 🆕 记录命令使用 (Zed 最近使用) */
+  private recordRecent(id: string) {
+    this.recentCommandIds = [
+      id,
+      ...this.recentCommandIds.filter((r) => r !== id),
+    ].slice(0, this.MAX_RECENT)
+    try {
+      localStorage.setItem(
+        this.RECENT_STORAGE_KEY,
+        JSON.stringify(this.recentCommandIds),
+      )
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** 🆕 加载最近命令 */
+  private loadRecentCommands() {
+    try {
+      const raw = localStorage.getItem(this.RECENT_STORAGE_KEY)
+      if (raw) {
+        this.recentCommandIds = JSON.parse(raw).slice(0, this.MAX_RECENT)
+      }
+    } catch {
+      this.recentCommandIds = []
+    }
+  }
+
+  /** 🆕 获取最近使用命令 */
+  getRecent(): ShortcutDefinition[] {
+    return this.recentCommandIds
+      .map((id) => this.commands.get(id))
+      .filter(Boolean) as ShortcutDefinition[]
   }
 
   register(definition: ShortcutDefinition): void {
@@ -162,9 +209,9 @@ class ShortcutManager {
   async execute(id: string): Promise<void> {
     const cmd = this.commands.get(id)
     if (cmd) {
+      this.recordRecent(id) // 🆕 Zed 风格: 记录最近使用
       try {
         await cmd.handler()
-        console.log(`[Shortcut] Executed: ${cmd.title}`)
       } catch (e) {
         console.error(`[Shortcut] Error ${id}:`, e)
       }
@@ -176,31 +223,66 @@ class ShortcutManager {
   }
 
   getFiltered(query: string, category?: string | null): CommandPaletteItem[] {
+    const ql = query.toLowerCase().trim()
     return this.getAll()
       .filter((item) => !category || item.category === category)
       .map((item) => ({
         ...item,
         keywords: [item.title, item.category, item.id].join(" ").toLowerCase(),
+        /** 🆕 Zed 风格: 记录是否为最近使用 */
+        _recent: this.recentCommandIds.includes(item.id),
       }))
       .map((item) => ({
         ...item,
-        score: this.calculateScore(item.keywords, query.toLowerCase()),
+        score: this.calculateFuzzyScore(item, ql),
       }))
-      .filter((item) => item.score! > 0)
-      .sort((a, b) => b.score! - a.score!)
+      .filter((item) => ql === "" || item.score > 0)
+      .sort((a, b) => {
+        // 🆕 最近使用命令优先
+        const recentDiff = (b._recent ? 1 : 0) - (a._recent ? 1 : 0)
+        if (recentDiff !== 0) return recentDiff
+        return b.score - a.score
+      })
   }
 
-  private calculateScore(keywords: string, query: string): number {
-    if (!query) return 1
-    if (keywords.includes(query)) return 100
-    if (keywords.startsWith(query)) return 80
+  /**
+   * 🆕 Zed 风格模糊匹配评分
+   * 子串连续匹配 → 高分; 首字母匹配 → 加分; 最近使用 → 额外加分
+   */
+  private calculateFuzzyScore(
+    item: CommandPaletteItem & { _recent?: boolean },
+    query: string,
+  ): number {
+    if (!query) return item._recent ? 50 : 1 // 空查询时最近命令优先
     let score = 0
-    for (const word of query.split(/\s+/)) {
-      if (keywords.includes(word)) score += 50
-      else if (keywords.split(/\s+/).some((kw) => kw.includes(word)))
-        score += 20
+    // 1. 精确子串匹配 (最高优先级)
+    if (item.title.toLowerCase().includes(query)) score += 100
+    else if (item.keywords.includes(query)) score += 80
+    // 2. 单词前缀匹配 (Zed 风格)
+    else {
+      for (const word of query.split(/\s+/)) {
+        if (!word) continue
+        const titleLower = item.title.toLowerCase()
+        if (titleLower.startsWith(word)) score += 60
+        else if (item.keywords.includes(word)) score += 40
+        // 3. 首字母缩写匹配 (Zed 的 "JFP" → "Just File Picker")
+        else if (this.matchAbbreviation(word, titleLower)) score += 35
+        else if (titleLower.includes(word)) score += 20
+      }
     }
+    // 4. 最近使用加成
+    if (item._recent) score += 15
     return score
+  }
+
+  /** 🆕 首字母缩写匹配: "jfp" → "Just File Picker" */
+  private matchAbbreviation(abbr: string, title: string): boolean {
+    if (abbr.length < 2) return false
+    const initials = title
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join("")
+    return initials === abbr || initials.startsWith(abbr)
   }
 
   toggleCommandPalette(show?: boolean) {
@@ -290,6 +372,6 @@ export function useShortcuts() {
     getFiltered: (q: string, c?: string | null) =>
       shortcutManager.getFiltered(q, c),
     getCategories: () => shortcutManager.getCategories(),
-    getByKeybinding: (k: string) => shortcutManager.getByKeybinding(k),
+    getRecent: () => shortcutManager.getRecent(),
   }
 }

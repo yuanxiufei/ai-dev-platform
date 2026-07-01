@@ -724,11 +724,11 @@ def _terminal_exec(
         pass
     env = {**os.environ, **extra_env}
 
-    # 解析 shell 命令（需要处理管道/重定向）
+    # 用 shlex.split 解析后的参数列表执行 — 避免 shell=True 注入风险
     try:
         proc = subprocess.run(
-            command,
-            shell=True,
+            args,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=timeout,

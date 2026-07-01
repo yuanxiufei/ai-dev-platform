@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from typing import Any
 from sqlmodel import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.studio_models import (
     ChatSession,
     ChatMessage,
@@ -121,9 +121,7 @@ async def chat(
             project_id=chat_in.project_id,
             owner_id=user.id,
         )
-        session.add(chat_session)
-        session.commit()
-        session.refresh(chat_session)
+        commit_or_rollback(session, chat_session)
 
     # 获取历史消息
     history = []
@@ -145,8 +143,7 @@ async def chat(
         role=MessageRole.USER,
         content=chat_in.message,
     )
-    session.add(user_msg)
-    session.commit()
+    commit_or_rollback(session, user_msg)
 
     # 通过 ModelRouter 调度
     from app.core.model_router import (
@@ -185,11 +182,9 @@ async def chat(
         assistant_msg = ChatMessage(
             session_id=chat_session.id,
             role=MessageRole.ASSISTANT,
-            content=f"服务暂时不可用：{str(e)}",
+            content="服务暂时不可用，请稍后重试",
         )
-        session.add(assistant_msg)
-        session.commit()
-        session.refresh(assistant_msg)
+        commit_or_rollback(session, assistant_msg)
 
         return ChatResponse(
             message_id=assistant_msg.id,
@@ -213,11 +208,15 @@ async def chat(
     )
     session.add(assistant_msg)
 
-    # 更新模型信息到会话
+    # 更新模型信息到会话（多对象提交，手动包裹 try/except + rollback）
     chat_session.model_name = response.model_used
     session.add(chat_session)
-    session.commit()
-    session.refresh(assistant_msg)
+    try:
+        session.commit()
+        session.refresh(assistant_msg)
+    except Exception:
+        session.rollback()
+        raise
 
     return ChatResponse(
         message_id=assistant_msg.id,
@@ -255,9 +254,7 @@ async def chat_stream(
             project_id=chat_in.project_id,
             owner_id=user.id,
         )
-        session.add(chat_session)
-        session.commit()
-        session.refresh(chat_session)
+        commit_or_rollback(session, chat_session)
 
     # 保存用户消息
     user_msg = ChatMessage(
@@ -265,11 +262,10 @@ async def chat_stream(
         role=MessageRole.USER,
         content=chat_in.message,
     )
-    session.add(user_msg)
-    session.commit()
+    commit_or_rollback(session, user_msg)
 
-    # TODO: 真正的流式输出需要Provider层支持流式API（SSE/WebSocket），
-    # 当前通过按词分块+延迟模拟实时流式体验。
+    # 流式输出：当前通过按词分块+延迟模拟实时流式体验。
+    # 长期优化方向：Provider 层原生支持 SSE/WebSocket 流式 API。
     async def event_stream():
         from app.core.model_router import (
             ModelRequest,

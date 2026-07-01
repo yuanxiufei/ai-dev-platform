@@ -16,8 +16,10 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from app.api.deps import CurrentUser
 from app.core.agent.agent_config import AgentConfig, AgentHook, AgentRunContext
 from app.core.agent.agent_runner import AgentRunner, StreamingAgentRunner
+from app.core.agent.mention_parser import inject_context_into_message, parse_mentions
 from app.core.model_router import get_model_router
 from app.core.tools.registry import get_tool_registry
 from app.models.agent_models import TraceDB
@@ -65,17 +67,44 @@ class AgentChatResponse(BaseModel):
     trace_id: str = Field(default="", description="Agent 执行轨迹 ID（可查询工具调用/文件变更详情）")
 
 
+# ── 辅助函数 ──────────────────────────────────────────────
+
+def _resolve_mentions(message: str) -> str:
+    """解析 @mention 并注入文件上下文（Continue 风格）"""
+    try:
+        mention_result = parse_mentions(message)
+        if mention_result.mentions:
+            logger.info(
+                "@mentions resolved: %d files, %d dirs, ~%d tokens",
+                sum(1 for m in mention_result.mentions if m.type == "file"),
+                sum(1 for m in mention_result.mentions if m.type == "dir"),
+                mention_result.total_tokens_estimate,
+            )
+            return inject_context_into_message(
+                mention_result.original_message,
+                mention_result.context_text,
+            )
+    except Exception as exc:
+        logger.warning("Failed to parse @mentions: %s", exc)
+    return message
+
+
 # ── 路由 ──────────────────────────────────────────────────
 
 @router.post("/chat", response_model=AgentChatResponse)
-async def agent_chat(payload: AgentChatRequest, request: Request) -> AgentChatResponse:
+async def agent_chat(
+    payload: AgentChatRequest,
+    request: Request,
+    user: CurrentUser,
+) -> AgentChatResponse:
     """
     同步 Agent 对话 — 自动执行工具调用循环
 
     流程：
-      User Message → LLM → [Tool Calls → Execute → Result → LLM] × N → Final Answer
+      User Message → @mention解析 → LLM → [Tool Calls → Execute → Result → LLM] × N → Final Answer
     """
     registry = get_tool_registry()
+    enriched_message = _resolve_mentions(payload.message)
 
     config = AgentConfig(
         name=payload.agent_name,
@@ -93,7 +122,7 @@ async def agent_chat(payload: AgentChatRequest, request: Request) -> AgentChatRe
     runner = AgentRunner(trace_db=TraceDB())
     result = await runner.run(
         config=config,
-        user_message=payload.message,
+        user_message=enriched_message,
     )
 
     return AgentChatResponse(
@@ -110,18 +139,23 @@ async def agent_chat(payload: AgentChatRequest, request: Request) -> AgentChatRe
 
 
 @router.post("/chat/stream")
-async def agent_chat_stream(payload: AgentChatRequest):
+async def agent_chat_stream(
+    payload: AgentChatRequest,
+    user: CurrentUser,
+):
     """
     SSE 流式 Agent 对话 — 实时推送每轮进度
 
     事件格式：
       {"type":"turn_start","turn":1,"max_turns":10}
+      {"type":"token","delta":"你","turn":1}                    ← 🆕 逐 token 输出
       {"type":"tool_call","tool_calls":[{"id":"...","name":"web_search","arguments":"..."}]}
       {"type":"tool_executing","tool_name":"web_search"}
       {"type":"tool_result","tool_name":"web_search","success":true,"result":"...","latency_ms":123}
       {"type":"final_answer","content":"...","model_used":"gpt-4o","turns":3}
     """
     registry = get_tool_registry()
+    enriched_message = _resolve_mentions(payload.message)
 
     config = AgentConfig(
         name=payload.agent_name,
@@ -139,7 +173,7 @@ async def agent_chat_stream(payload: AgentChatRequest):
     async def event_generator():
         async for event in runner.run_stream(
             config=config,
-            user_message=payload.message,
+            user_message=enriched_message,
         ):
             yield {"event": event.get("type", "message"), "data": json.dumps(event, ensure_ascii=False)}
 
@@ -149,7 +183,10 @@ async def agent_chat_stream(payload: AgentChatRequest):
 # ── 轻量对话（不走 Agent 循环，直接调用） ─────────────────
 
 @router.post("/chat/simple")
-async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
+async def agent_chat_simple(
+    payload: AgentChatRequest,
+    user: CurrentUser,
+) -> dict[str, Any]:
     """
     轻量对话 — 跳过工具循环，仅做单次 LLM 调用
 
@@ -159,23 +196,11 @@ async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
 
     router = get_model_router()
 
-    # 诊断信息
-    api_candidates = router._get_api_candidates() if hasattr(router, '_get_api_candidates') else []
-    chain_diag = {}
-    for node in router._fallback_chain:
-        chain_diag[node.name] = [
-            {"name": m.name, "provider": getattr(m, "provider", "?"), "available": m.is_available}
-            for m in node.models
-        ]
-
     logger.info(
-        "agent_chat_simple: preferred=%s, local_models=%d, api_candidates=%d, chain=%s",
+        "agent_chat_simple: preferred=%s local_models=%d",
         payload.preferred_model or "auto",
         len(router.local_models),
-        len(api_candidates),
-        {k: len(v) for k, v in chain_diag.items()},
     )
-    logger.debug("fallback_chain detail: %s", chain_diag)
 
     request = ModelRequest(
         capability=ModelCapability.TEXT_GENERATION,
@@ -187,50 +212,10 @@ async def agent_chat_simple(payload: AgentChatRequest) -> dict[str, Any]:
 
     response = await router.generate(request)
 
-    logger.debug(
-        "fallback_chain errors: %s",
-        {
-            node.name: [
-                {"name": m.name, "available": m.is_available, "error": getattr(m, "last_error", None)}
-                for m in node.models
-            ]
-            for node in router._fallback_chain
-        },
+    logger.info(
+        "agent_chat_simple: done model=%s provider=%s tokens=%s",
+        response.model_used, response.provider, response.tokens_used,
     )
-
-    # 网络连通性诊断（仅 DEBUG 日志级别，避免无谓的 TCP 连接开销）
-    if logger.isEnabledFor(logging.DEBUG):
-        import asyncio
-        from urllib.parse import urlparse
-        import socket as _socket
-
-        async def _check_tcp(host: str, port: int) -> str:
-            try:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port),
-                    timeout=2.0,
-                )
-                writer.close()
-                await writer.wait_closed()
-                return "OK"
-            except asyncio.TimeoutError:
-                return "timeout (2s)"
-            except _socket.gaierror:
-                return "DNS failed"
-            except OSError as e:
-                return f"{e.strerror if hasattr(e, 'strerror') else e}"
-
-        net_diag: dict[str, str] = {}
-        for node in router._fallback_chain:
-            for m in node.models:
-                base_url = getattr(getattr(m, "config", None), "base_url", None)
-                if not base_url:
-                    continue
-                host = urlparse(base_url).hostname or base_url
-                port = urlparse(base_url).port or (443 if base_url.startswith("https") else 80)
-                result = await _check_tcp(host, port)
-                net_diag[m.name] = f"{result} {host}:{port}"
-        logger.debug("fallback_chain network: %s", net_diag)
 
     return {
         "answer": _clean_answer(response.content),

@@ -1,7 +1,7 @@
 /**
  * Rules API — AI 行为规则管理
  */
-import { apiClient } from "./client"
+import apiClient from "./client"
 
 export interface RuleItem {
   id: string

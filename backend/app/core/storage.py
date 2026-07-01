@@ -93,7 +93,7 @@ class StorageManager:
         self._ensure_directories()
 
     def get_path(self, category: str, subpath: str = "") -> str:
-        """根据类别获取完整路径"""
+        """根据类别获取完整路径 — 防止路径穿越"""
         category_map: dict[str, str] = {
             "models":      self._config.models_dir,
             "kb":          self._config.kb_dir,
@@ -106,7 +106,15 @@ class StorageManager:
             "root":        self._config.storage_root,
         }
         base = category_map.get(category, str(Path(self._config.storage_root) / category))
-        result = os.path.join(base, subpath) if subpath else base
+        # 安全：规范化路径并确保不穿越出 base
+        if subpath:
+            base_real = os.path.realpath(base)
+            resolved = os.path.realpath(os.path.join(base, subpath))
+            if os.path.commonpath([resolved, base_real]) != base_real:
+                raise ValueError(f"Path traversal detected: {subpath}")
+            result = resolved
+        else:
+            result = base
         Path(result).parent.mkdir(parents=True, exist_ok=True)
         return result
 

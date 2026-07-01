@@ -104,7 +104,7 @@ const voted = ref(false)
 const currentId = ref("")
 const rankings = ref<EloRankingEntry[]>([])
 
-async function _runCompare() {
+async function runCompare() {
   comparing.value = true
   result.value = null
   voted.value = false
@@ -117,7 +117,7 @@ async function _runCompare() {
   }
 }
 
-async function _vote(winner: "A" | "B" | "tie") {
+async function vote(winner: "A" | "B" | "tie") {
   await arenaApi.vote(currentId.value, winner)
   voted.value = true
   await fetchRankings()

@@ -13,7 +13,7 @@ AutoCLI — AI 自动命令行执行
 - Shell 注入检测
 - 输出截断 (防止 token 爆炸)
 - 可选超时控制
-- Sandbox 文件系统隔离
+- Sandbox 文件系统隔离 (Session 09: 打通 AutoCLI ↔ Sandbox)
 """
 
 from __future__ import annotations
@@ -27,7 +27,10 @@ import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.core.sandbox.base import Sandbox
 
 logger = logging.getLogger("autocli")
 
@@ -176,6 +179,11 @@ class AutoCLI:
         cli = AutoCLI(workspace="/path/to/workspace")
         result = await cli.execute("git status")
         print(result.stdout)
+
+    Session 09 增强:
+        - 注入 Sandbox 实例，将路径验证和命令执行委托给 Sandbox
+        - 当 sandbox 可用时，_sandbox_paths() 通过 sandbox.validate_path() 验证
+        - 可选 delegation: 将执行委托给 Sandbox.execute_command()
     """
 
     def __init__(
@@ -184,11 +192,15 @@ class AutoCLI:
         max_output_chars: int = 8000,
         default_timeout: float = 30.0,
         allowed_level: SecurityLevel = SecurityLevel.SYSTEM,
+        sandbox: "Sandbox | None" = None,
+        delegate_to_sandbox: bool = False,
     ):
         self._workspace = str(Path(workspace).resolve()) if workspace else ""
         self._max_output = max_output_chars
         self._timeout = default_timeout
         self._allowed_level = allowed_level
+        self._sandbox = sandbox
+        self._delegate = delegate_to_sandbox
 
     async def execute(
         self,
@@ -212,7 +224,7 @@ class AutoCLI:
         # 安全检查
         security = self._check_security(command, allow_unsafe)
         if not security["allowed"]:
-            return CommandResult(
+            result = CommandResult(
                 command=command,
                 stdout="",
                 stderr=security["reason"],
@@ -220,15 +232,26 @@ class AutoCLI:
                 latency_ms=(time.perf_counter() - start) * 1000,
                 security_level=security["level"],
             )
+            self._log_to_tracedb(result)
+            return result
 
-        # 沙箱化路径（如果设置了 workspace）
+        # 沙箱化路径（如果设置了 workspace 且有 sandbox）
         safe_command = command
         if self._workspace:
             safe_command = self._sandbox_paths(command)
 
+        # Session 09: 当 delegate_to_sandbox=True 时委托给 Sandbox 执行
+        timeout_val = timeout or self._timeout
+        if self._delegate and self._sandbox is not None:
+            return await self._execute_via_sandbox(
+                command=safe_command,
+                original_command=command,
+                security=security,
+                timeout=timeout_val,
+                start=start,
+            )
+
         try:
-            # 执行命令
-            timeout_val = timeout or self._timeout
             process = await asyncio.create_subprocess_shell(
                 safe_command,
                 stdout=asyncio.subprocess.PIPE,
@@ -251,7 +274,7 @@ class AutoCLI:
             if len(stderr) > self._max_output:
                 stderr = stderr[:self._max_output] + "\n... [truncated]"
 
-            return CommandResult(
+            result = CommandResult(
                 command=command,
                 stdout=stdout,
                 stderr=stderr,
@@ -260,9 +283,11 @@ class AutoCLI:
                 security_level=security["level"],
                 truncated=stdout_truncated,
             )
+            self._log_to_tracedb(result)
+            return result
 
         except asyncio.TimeoutError:
-            return CommandResult(
+            result = CommandResult(
                 command=command,
                 stdout="",
                 stderr=f"Command timed out after {timeout_val}s",
@@ -270,8 +295,10 @@ class AutoCLI:
                 latency_ms=(time.perf_counter() - start) * 1000,
                 security_level=security["level"],
             )
+            self._log_to_tracedb(result)
+            return result
         except Exception as e:
-            return CommandResult(
+            result = CommandResult(
                 command=command,
                 stdout="",
                 stderr=f"Execution error: {e}",
@@ -279,6 +306,98 @@ class AutoCLI:
                 latency_ms=(time.perf_counter() - start) * 1000,
                 security_level=security["level"],
             )
+            self._log_to_tracedb(result)
+            return result
+
+    async def _execute_via_sandbox(
+        self,
+        command: str,
+        original_command: str,
+        security: dict[str, Any],
+        timeout: float,
+        start: float,
+    ) -> CommandResult:
+        """Session 09: 通过 Sandbox 执行命令（统一安全层）"""
+        try:
+            sandbox_result = await asyncio.wait_for(
+                self._sandbox.execute_command(command),  # type: ignore[union-attr]
+                timeout=timeout,
+            )
+            stdout_truncated = False
+            stdout = sandbox_result.stdout
+            if len(stdout) > self._max_output:
+                stdout = stdout[:self._max_output] + "\n... [truncated]"
+                stdout_truncated = True
+
+            result = CommandResult(
+                command=original_command,
+                stdout=stdout,
+                stderr=sandbox_result.stderr,
+                exit_code=sandbox_result.exit_code,
+                latency_ms=(time.perf_counter() - start) * 1000,
+                security_level=security["level"],
+                truncated=stdout_truncated or sandbox_result.truncated,
+            )
+            self._log_to_tracedb(result)
+            return result
+        except asyncio.TimeoutError:
+            return self._timeout_result(original_command, timeout, security, start)
+        except PermissionError as e:
+            result = CommandResult(
+                command=original_command,
+                stdout="",
+                stderr=f"Sandbox blocked: {e}",
+                exit_code=-1,
+                latency_ms=(time.perf_counter() - start) * 1000,
+                security_level=security["level"],
+            )
+            self._log_to_tracedb(result)
+            return result
+        except Exception as e:
+            result = CommandResult(
+                command=original_command,
+                stdout="",
+                stderr=f"Sandbox execution error: {e}",
+                exit_code=-1,
+                latency_ms=(time.perf_counter() - start) * 1000,
+                security_level=security["level"],
+            )
+            self._log_to_tracedb(result)
+            return result
+
+    def _timeout_result(
+        self, command: str, timeout: float, security: dict, start: float
+    ) -> CommandResult:
+        return CommandResult(
+            command=command, stdout="",
+            stderr=f"Command timed out after {timeout}s",
+            exit_code=-1,
+            latency_ms=(time.perf_counter() - start) * 1000,
+            security_level=security["level"],
+        )
+
+    def _log_to_tracedb(self, result: CommandResult) -> None:
+        """P2.9: 将 CLI 执行记录持久化到 JSONL 日志文件"""
+        try:
+            import json as _json
+            log_entry = _json.dumps({
+                "command": result.command,
+                "exit_code": result.exit_code,
+                "stdout_preview": result.stdout[:500] if result.stdout else "",
+                "stderr_preview": result.stderr[:500] if result.stderr else "",
+                "latency_ms": round(result.latency_ms),
+                "security_level": result.security_level.value,
+                "truncated": result.truncated,
+                "workspace": self._workspace,
+                "timestamp": time.time(),
+            }, ensure_ascii=False) + "\n"
+
+            log_dir = Path("data")
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with open(log_dir / "cli_history.jsonl", "a", encoding="utf-8") as f:
+                f.write(log_entry)
+        except Exception:
+            pass  # 日志写入失败时静默跳过
 
     def _check_security(
         self, command: str, allow_unsafe: bool
@@ -331,12 +450,91 @@ class AutoCLI:
         return {"allowed": True, "level": level, "reason": ""}
 
     def _sandbox_paths(self, command: str) -> str:
-        """将命令中的路径限制在 workspace 内"""
+        """将命令中的路径限制在 workspace 内。
+
+        Session 09: 当沙箱可用时，通过 sandbox.validate_path() 验证每个路径参数；
+        不可用时回退到基本路径拼接。
+        """
         if not self._workspace:
             return command
-        # 基本路径限定的简化实现
-        # 实际产品中应使用 chroot/container/fuse
-        return command
+
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            # 解析失败则原样返回（安全检查层会拦截）
+            return command
+
+        if not parts:
+            return command
+
+        modified = False
+        for i, arg in enumerate(parts):
+            if not self._looks_like_path(arg):
+                continue
+
+            # 跳过显式选项（如 -o output、--output=file 的值）
+            if i > 0 and parts[i - 1].startswith("-"):
+                continue
+
+            try:
+                if self._sandbox is not None:
+                    # Session 09: 委托给沙箱验证路径
+                    translated = self._sandbox.validate_path(arg)
+                    if translated != arg:
+                        parts[i] = translated
+                        modified = True
+                else:
+                    # 无沙箱时：工作区内路径限制
+                    from pathlib import Path as _Path
+                    p = _Path(arg)
+                    if not p.is_absolute():
+                        p = _Path(self._workspace) / p
+                    resolved = str(p.resolve())
+                    # 只允许 workspace 内的路径
+                    workspace_abs = _Path(self._workspace).resolve()
+                    if resolved.startswith(str(workspace_abs)):
+                        if resolved != arg:
+                            parts[i] = resolved
+                            modified = True
+                    else:
+                        logger.warning(
+                            "Path '%s' outside workspace '%s' — blocked",
+                            arg, self._workspace,
+                        )
+                        parts[i] = str(workspace_abs)
+                        modified = True
+            except PermissionError:
+                logger.warning("Path '%s' denied by sandbox — keeping original", arg)
+            except Exception:
+                pass
+
+        if not modified:
+            return command
+
+        # 用 shlex.join 重建命令（Python 3.8+）
+        try:
+            return shlex.join(parts)  # type: ignore[attr-defined]
+        except AttributeError:
+            # Python < 3.8 回退
+            return " ".join(
+                shlex.quote(p) for p in parts
+            )
+
+    @staticmethod
+    def _looks_like_path(arg: str) -> bool:
+        """判断参数是否看起来像文件系统路径。"""
+        if not arg or len(arg) < 1:
+            return False
+        # 绝对路径
+        if arg.startswith("/") or (len(arg) > 2 and arg[1] == ":" and arg[2] in "/\\"):
+            return True
+        # 相对路径
+        if arg.startswith("./") or arg.startswith("../") or arg.startswith(".\\"):
+            return True
+        # 包含路径分隔符但不含协议前缀
+        if "/" in arg and "://" not in arg:
+            return True
+        return False
 
     def set_security_level(self, level: SecurityLevel) -> None:
         """动态调整安全级别"""
@@ -376,11 +574,37 @@ class AutoCLI:
 _global_autocli: AutoCLI | None = None
 
 
-def init_autocli(workspace: str = "") -> AutoCLI:
-    """初始化全局 AutoCLI"""
+def init_autocli(
+    workspace: str = "",
+    sandbox: "Sandbox | None" = None,
+    delegate_to_sandbox: bool = False,
+) -> AutoCLI:
+    """初始化全局 AutoCLI。
+
+    Session 09: 可选注入 Sandbox 实例实现统一安全层。
+    若未提供 sandbox，尝试从全局单例获取。
+    """
     global _global_autocli
-    _global_autocli = AutoCLI(workspace=workspace)
-    logger.info("AutoCLI initialized (workspace=%s)", workspace or "cwd")
+
+    # 自动连接全局 Sandbox 单例（若可用）
+    if sandbox is None:
+        try:
+            from app.core.sandbox import get_sandbox as _get_sandbox
+            sandbox = _get_sandbox()
+        except Exception:
+            pass
+
+    _global_autocli = AutoCLI(
+        workspace=workspace,
+        sandbox=sandbox,
+        delegate_to_sandbox=delegate_to_sandbox,
+    )
+    logger.info(
+        "AutoCLI initialized (workspace=%s, sandbox=%s, delegate=%s)",
+        workspace or "cwd",
+        type(sandbox).__name__ if sandbox else "none",
+        delegate_to_sandbox,
+    )
     return _global_autocli
 
 

@@ -6,6 +6,8 @@ import {
   type WebhookTestResult,
   webhookApi,
 } from "@/api/model-features"
+import { Plus, Trash2, Webhook } from "lucide-vue-next"
+import apiClient from "@/api/client"
 
 const webhooks = ref<WebhookConfig[]>([])
 const loading = ref(true)
@@ -48,7 +50,7 @@ async function loadTypes() {
     ).data.event_types
   } catch {}
 }
-async function _save() {
+async function save() {
   try {
     if (editingId.value) await webhookApi.update(editingId.value, form.value)
     else await webhookApi.create(form.value)
@@ -57,7 +59,7 @@ async function _save() {
   } catch {}
 }
 
-function _openCreate() {
+function openCreate() {
   editingId.value = ""
   form.value = {
     url: "",
@@ -70,7 +72,7 @@ function _openCreate() {
   }
   showModal.value = true
 }
-function _openEdit(w: WebhookConfig) {
+function openEdit(w: WebhookConfig) {
   editingId.value = w.id
   form.value = {
     url: w.url,
@@ -83,22 +85,22 @@ function _openEdit(w: WebhookConfig) {
   }
   showModal.value = true
 }
-function _toggleEvent(evt: string) {
+function toggleEvent(evt: string) {
   const i = form.value.events.indexOf(evt)
   i >= 0 ? form.value.events.splice(i, 1) : form.value.events.push(evt)
 }
 
-async function _remove(id: string) {
+async function remove(id: string) {
   if (!confirm("确认删除？")) return
   await webhookApi.delete(id)
   await load()
 }
-async function _testWebhook(id: string) {
+async function testWebhook(id: string) {
   try {
     testResult.value = (await webhookApi.test(id)).data
   } catch {}
 }
-async function _viewLogs(id: string) {
+async function viewLogs(id: string) {
   showLogs.value = true
   logsWebhookId.value = id
   try {
@@ -106,8 +108,6 @@ async function _viewLogs(id: string) {
     logs.value = data.logs
   } catch {}
 }
-
-import apiClient from "@/api/client"
 
 onMounted(async () => {
   await Promise.all([load(), loadTypes()])

@@ -354,3 +354,62 @@ export const kgApi = {
       domains: Record<string, number>
     }>("/knowledge-graph/stats"),
 }
+
+// ── Trajectory 轨迹回放 ────────────────────────────────
+
+export interface TrajectoryFile {
+  filename: string
+  size_bytes: number
+  modified_at: number
+}
+
+export interface TrajectorySummary {
+  agent_id: string
+  session_id: string
+  total_steps: number
+  total_time_ms: number
+  success: boolean
+  error: string
+  started_at: string
+  final_answer: string
+}
+
+export interface TrajectoryStep {
+  step: number
+  type: string
+  action: string
+  input: string
+  output: string
+  elapsed_ms: number
+  error: string
+  timestamp: string
+}
+
+export interface TrajectoryReplay {
+  status: string
+  summary: TrajectorySummary
+  steps: TrajectoryStep[]
+  _filename: string
+}
+
+export const trajectoryApi = {
+  list: (agentId?: string) =>
+    apiClient.get<{ status: string; trajectories: TrajectoryFile[] }>(
+      "/agent/trajectory/",
+      { params: agentId ? { agent_id: agentId } : {} },
+    ),
+  getAgent: (agentId: string, sessionId?: string, limit?: number) =>
+    apiClient.get<{ status: string; trajectories: any[]; total: number }>(
+      `/agent/trajectory/${agentId}`,
+      { params: { session_id: sessionId, limit } },
+    ),
+  replay: (agentId: string, sessionId?: string) =>
+    apiClient.get<TrajectoryReplay>(
+      `/agent/trajectory/${agentId}/replay`,
+      { params: { session_id: sessionId } },
+    ),
+  delete: (agentId: string, sessionId?: string) =>
+    apiClient.delete(`/agent/trajectory/${agentId}`, {
+      params: { session_id: sessionId },
+    }),
+}

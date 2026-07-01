@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { getProject } from "@/api/studio"
 import type { Project } from "@/types/studio"
+import { ArrowLeft, LayoutGrid } from "lucide-vue-next"
 
 const route = useRoute()
 const router = useRouter()
@@ -11,7 +12,7 @@ const loading = ref(true)
 
 const id = route.params.id as string
 
-const _statusLabel: Record<string, string> = {
+const statusLabel: Record<string, string> = {
   draft: "草稿",
   building: "构建中",
   deploying: "部署中",
@@ -19,7 +20,7 @@ const _statusLabel: Record<string, string> = {
   failed: "失败",
 }
 
-const _statusColor: Record<string, string> = {
+const statusColor: Record<string, string> = {
   draft: "bg-gray-500/20 text-gray-400",
   building: "bg-yellow-500/20 text-yellow-400",
   deploying: "bg-blue-500/20 text-blue-400",
@@ -38,7 +39,7 @@ onMounted(async () => {
   }
 })
 
-const _goBack = () => {
+const goBack = () => {
   router.push("/projects")
 }
 </script>

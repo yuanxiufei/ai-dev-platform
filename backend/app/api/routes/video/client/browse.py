@@ -15,6 +15,9 @@ from app.models.video_models import VideoAsset
 
 router = APIRouter(prefix="/videos", tags=["video-browse"])
 
+# 分页安全上限
+_MAX_PAGE_SIZE = 100
+
 
 @router.get("/browse")
 def browse_videos(
@@ -31,6 +34,10 @@ def browse_videos(
     - newest: 最新发布
     - popular: 最多观看
     """
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(VideoAsset).where(
         VideoAsset.is_public == True,
         VideoAsset.is_approved == True,
@@ -48,7 +55,10 @@ def browse_videos(
     else:
         stmt = stmt.order_by(VideoAsset.created_at.desc())
 
-    total = len(session.exec(stmt).all())
+    # 用 COUNT 子查询替代 .all() 全量拉取
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     videos = session.exec(
         stmt.offset((page - 1) * size).limit(size)
     ).all()
@@ -82,6 +92,10 @@ def search_videos(
     size: int = 20,
 ):
     """搜索视频（标题+描述模糊匹配）"""
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(VideoAsset).where(
         VideoAsset.is_public == True,
         VideoAsset.is_approved == True,
@@ -89,7 +103,9 @@ def search_videos(
          | func.coalesce(VideoAsset.description, "").ilike(f"%{q}%")),
     )
 
-    total = len(session.exec(stmt).all())
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     videos = session.exec(
         stmt.order_by(VideoAsset.created_at.desc())
         .offset((page - 1) * size)

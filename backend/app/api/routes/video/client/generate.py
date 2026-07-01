@@ -20,7 +20,8 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback, get_current_user_ws
+from app.core.ws_limiter import get_ws_limiter
 from app.models.video_models import VideoTask, TaskStatus
 
 router = APIRouter(prefix="/videos/generate", tags=["video-generate"])
@@ -82,9 +83,7 @@ async def generate_video(
         status=TaskStatus.PENDING,
         owner_id=user.id,
     )
-    session.add(task)
-    session.commit()
-    session.refresh(task)
+    commit_or_rollback(session, task)
 
     # 异步执行生成
     import asyncio
@@ -117,7 +116,11 @@ async def _execute_generation(
         task.status = TaskStatus.GENERATING
         task.progress = 10
         db_session.add(task)
-        db_session.commit()
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+            raise
 
         # 通过 ModelRouter 调度
         from app.core.model_router import get_model_router, ModelRequest, ModelCapability
@@ -140,7 +143,11 @@ async def _execute_generation(
         # 更新进度
         task.progress = 80
         db_session.add(task)
-        db_session.commit()
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+            raise
 
         # 模拟输出路径（实际应由模型返回）
         task.status = TaskStatus.COMPLETED
@@ -149,15 +156,23 @@ async def _execute_generation(
         task.thumbnail_path = f"/thumbnails/{task_id}.jpg"
         task.duration = (gen_in.num_frames / gen_in.fps)
         db_session.add(task)
-        db_session.commit()
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+            raise
 
     except Exception as e:
+        db_session.rollback()
         task = db_session.get(VideoTask, task_id)
         if task:
             task.status = TaskStatus.FAILED
             task.error_message = str(e)
             db_session.add(task)
-            db_session.commit()
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
 
 
 @router.get("/{task_id}")
@@ -194,48 +209,73 @@ async def task_progress_ws(
     websocket: WebSocket,
     task_id: uuid.UUID,
 ):
-    """WebSocket 实时推送生成进度"""
-    await websocket.accept()
-
+    """WebSocket 实时推送生成进度 — 通过 ?token=... 传递 JWT"""
+    # 与 REST GET 保持一致的权限校验：验证 JWT + owner_id
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
     try:
-        import asyncio
+        user = await get_current_user_ws(token)
+    except Exception:
+        await websocket.close(code=4001, reason="Invalid or expired token")
+        return
 
-        last_progress = -1
-        while True:
-            # 从数据库读取最新状态
-            from app.core.db import engine
-            from sqlmodel import Session
+    # 连接数限制
+    limiter = get_ws_limiter()
+    try:
+        guard = await limiter.enforce(websocket, str(user.id))
+    except ConnectionRefusedError:
+        return
+    async with guard:
+        await websocket.accept()
 
-            with Session(engine) as session:
-                task = session.get(VideoTask, task_id)
-                if not task:
-                    await websocket.send_json({"error": "Task not found"})
-                    break
+        try:
+            import asyncio
 
-                current_progress = task.progress
+            last_progress = -1
+            while True:
+                # 从数据库读取最新状态
+                from app.core.db import engine
+                from sqlmodel import Session
 
-                if current_progress != last_progress:
-                    await websocket.send_json({
-                        "task_id": str(task.id),
-                        "status": task.status.value,
-                        "progress": task.progress,
-                        "output_path": task.output_path,
-                        "error_message": task.error_message,
-                    })
-                    last_progress = current_progress
+                with Session(engine) as session:
+                    task = session.get(VideoTask, task_id)
+                    if not task:
+                        await websocket.send_json({"error": "Task not found"})
+                        break
+                    if task.owner_id != user.id:
+                        await websocket.send_json({"error": "Access denied"})
+                        break
 
-                if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
-                    await websocket.send_json({
-                        "task_id": str(task.id),
-                        "status": task.status.value,
-                        "done": True,
-                        "output_path": task.output_path,
-                    })
-                    break
+                    current_progress = task.progress
 
-            await asyncio.sleep(1)
+                    if current_progress != last_progress:
+                        await websocket.send_json({
+                            "task_id": str(task.id),
+                            "status": task.status.value,
+                            "progress": task.progress,
+                            "output_path": task.output_path,
+                            "error_message": task.error_message,
+                        })
+                        last_progress = current_progress
 
-    except WebSocketDisconnect:
-        pass
-    except Exception as e:
-        await websocket.send_json({"error": str(e)})
+                    if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+                        await websocket.send_json({
+                            "task_id": str(task.id),
+                            "status": task.status.value,
+                            "done": True,
+                            "output_path": task.output_path,
+                        })
+                        break
+
+                await asyncio.sleep(1)
+
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            logger.exception("Video generation WebSocket error for task %s", task_id)
+            try:
+                await websocket.send_json({"error": "Internal server error"})
+            except Exception:
+                pass

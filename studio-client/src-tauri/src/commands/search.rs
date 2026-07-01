@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::fs;
 use regex::Regex;
 use anyhow::{Result, Context};
@@ -143,7 +142,7 @@ pub async fn global_search(request: GlobalSearchRequest) -> Result<GlobalSearchR
 
 /// Find in files (simplified version)
 #[tauri::command]
-pub async fn find_in_files(request: GlobalSearchResult) -> Result<GlobalSearchResult, String> {
+pub async fn find_in_files(_request: GlobalSearchResult) -> Result<GlobalSearchResult, String> {
     // This delegates to global_search with a different request structure
     Err("Use global_search instead".to_string())
 }
@@ -151,7 +150,7 @@ pub async fn find_in_files(request: GlobalSearchResult) -> Result<GlobalSearchRe
 /// Replace in files
 #[tauri::command]
 pub async fn global_replace(request: GlobalSearchRequest) -> Result<ReplaceResult, String> {
-    let replacement = request.replace_with.unwrap_or_default();
+    let replacement = request.replace_with.clone().unwrap_or_default();
     let mut modified_files = Vec::new();
     let mut total_replacements = 0;
 

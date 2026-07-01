@@ -5,6 +5,7 @@ LocalSandbox — 宿主机本地沙箱
 - 路径白名单/黑名单校验
 - 命令执行超时 + 输出截断
 - 危险命令拦截（rm -rf /, mkfs, dd 等）
+- Session 09: 进程资源限制 (ulimit 包装)
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import fnmatch
 import logging
 import os
 import re
+import sys
 import time
 from typing import Any
 
@@ -21,20 +23,53 @@ from app.core.sandbox.base import CommandResult, FileInfo, Sandbox, SandboxConfi
 
 logger = logging.getLogger("sandbox.local")
 
-# 危险命令黑名单
+# Session 09: 平台检测 — resource 模块仅在 Unix 可用
+_is_unix = sys.platform != "win32"
+
+# 危险命令黑名单 — 借鉴 Google Colab / Kaggle 沙箱安全策略
+# 注：沙箱不采用命令白名单（对开发类命令不可行），
+# 而是通过正则黑名单 + 路径白名单 + 超时 + 输出截断多层防御
 _DANGEROUS_PATTERNS: list[re.Pattern] = [
+    # 文件系统破坏
     re.compile(r"\brm\s+-rf\s+/"),
+    re.compile(r"\brm\s+-rf\s+~"),
+    re.compile(r"\brm\s+-rf\s+\*"),
     re.compile(r"\bmkfs\b"),
     re.compile(r"\bdd\s+if="),
     re.compile(r"\b>:?\s*/dev/"),
     re.compile(r"\bchmod\s+777\s+/"),
+    re.compile(r"\bchmod\s+-R\s+777"),
+    re.compile(r"\bchown\s+-R\s+/"),
+    # 系统关机
     re.compile(r"\bshutdown\b"),
     re.compile(r"\breboot\b"),
+    re.compile(r"\bhalt\b"),
+    re.compile(r"\bpoweroff\b"),
+    re.compile(r"\binit\s+[06]"),
+    # 远程代码执行
     re.compile(r"\bcurl\b.*\|.*\bsh\b"),
+    re.compile(r"\bcurl\b.*\|.*\bbash\b"),
     re.compile(r"\bwget\b.*\|.*\bsh\b"),
+    re.compile(r"\bwget\b.*\|.*\bbash\b"),
+    re.compile(r"\bcurl\b.*-o.*&&.*\b(sh|bash|python)\b"),
+    # Fork bomb
     re.compile(r"\bfork\s+bomb\b"),
     re.compile(r"\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\};?\s*:"),
+    re.compile(r":\(\)\s*\{\s*:\|:&\s*\};:"),
+    # 危险挂载/内核
+    re.compile(r"\bmount\s+-"),
+    re.compile(r"\bumount\s+/"),
+    re.compile(r"\binsmod\b"),
+    re.compile(r"\brmmod\b"),
+    re.compile(r"\bfdisk\b"),
+    # 信息泄露
+    re.compile(r"\bcat\s+/etc/(passwd|shadow)\b"),
+    re.compile(r"\bcat\s+.*\.pem\b"),
+    re.compile(r"\bfind\s+/etc\b"),
 ]
+
+# Shell 元字符注入 — 在无白名单校验的上下文中检测
+_SHELL_INJECTION_RE = re.compile(r'[;&|`$(){}\[\]!#~*?<>]')
 
 
 class LocalSandbox(Sandbox):
@@ -56,17 +91,55 @@ class LocalSandbox(Sandbox):
         # 确保工作区目录存在
         os.makedirs(self.config.workspace_dir, exist_ok=True)
 
+    # ── 资源限制 ────────────────────────────────────
+
+    def _wrap_resource_limits(self, command: str) -> str:
+        """Session 09: 用 ulimit 包裹命令以施加进程资源限制。
+
+        仅在 Unix 平台生效（Windows 跳过）。
+        """
+        if not _is_unix:
+            return command
+
+        cfg = self.config
+        limits: list[str] = []
+
+        # 虚拟内存限制 (KB)
+        if cfg.resource_memory_limit_mb > 0:
+            limits.append(f"ulimit -v {cfg.resource_memory_limit_mb * 1024}")
+
+        # CPU 时间限制 (秒)
+        if cfg.resource_cpu_limit_seconds > 0:
+            limits.append(f"ulimit -t {cfg.resource_cpu_limit_seconds}")
+
+        # 最大进程数
+        if cfg.resource_max_processes > 0:
+            limits.append(f"ulimit -u {cfg.resource_max_processes}")
+
+        # 最大文件写入大小 (KB)
+        if cfg.resource_max_file_size_mb > 0:
+            limits.append(f"ulimit -f {cfg.resource_max_file_size_mb * 1024}")
+
+        if not limits:
+            return command
+
+        return "; ".join(limits) + "; " + command
+
     # ── 命令执行 ────────────────────────────────────
 
     async def execute_command(self, command: str, cwd: str | None = None) -> CommandResult:
         cwd = cwd or self.config.workspace_dir
         self._check_dangerous_command(command)
+        self._check_injection(command)
+
+        # Session 09: 施加资源限制
+        limited_command = self._wrap_resource_limits(command)
 
         start = time.perf_counter()
         try:
             proc = await asyncio.wait_for(
                 asyncio.create_subprocess_shell(
-                    command,
+                    limited_command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -119,12 +192,19 @@ class LocalSandbox(Sandbox):
             )
 
     def _check_dangerous_command(self, command: str) -> None:
-        """检测危险命令"""
+        """检测危险命令模式"""
         for pattern in _DANGEROUS_PATTERNS:
             if pattern.search(command):
                 raise PermissionError(
                     f"Dangerous command detected: '{command[:100]}' matches pattern '{pattern.pattern}'"
                 )
+
+    def _check_injection(self, command: str) -> None:
+        """检测 Shell 元字符注入 — 仅允许简单命令"""
+        if _SHELL_INJECTION_RE.search(command):
+            raise PermissionError(
+                f"Shell metacharacters detected in command: '{command[:100]}'"
+            )
 
     # ── 文件操作 ────────────────────────────────────
 

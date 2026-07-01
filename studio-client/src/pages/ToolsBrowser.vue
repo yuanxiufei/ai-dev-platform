@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
 import { type AgentToolSummary, listAgentTools } from "@/api/agent"
+import { Loader2, Search, Wrench, Zap } from "lucide-vue-next"
 
 const tools = ref<AgentToolSummary[]>([])
 const loading = ref(true)
@@ -18,12 +19,12 @@ onMounted(async () => {
   }
 })
 
-const _categories = computed(() => {
+const categories = computed(() => {
   const cats = new Set(tools.value.map((t) => t.category))
   return Array.from(cats)
 })
 
-const _filteredTools = computed(() => {
+const filteredTools = computed(() => {
   let list = tools.value
   if (searchText.value) {
     const q = searchText.value.toLowerCase()
@@ -40,7 +41,7 @@ const _filteredTools = computed(() => {
   return list
 })
 
-const _categoryLabel: Record<string, string> = {
+const categoryLabel: Record<string, string> = {
   builtin: "内置工具",
   mcp: "MCP 工具",
   knowledge_base: "知识库",

@@ -15,24 +15,61 @@
  */
 
 import {
+  AlertTriangle,
+  AlertCircle,
+  Bot,
   Brain,
+  Check,
+  Clock,
+  Copy,
+  Cpu,
+  ChevronRight,
   FileCode,
+  GitBranch,
+  GitFork,
   Globe,
+  History,
+  Loader2,
+  MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  RotateCcw,
   Search,
+  Send,
+  Square,
   Terminal,
+  Trash2,
+  User,
   Wrench,
+  Zap,
 } from "lucide-vue-next"
 import { computed, nextTick, onMounted, ref } from "vue"
 import { useRoute } from "vue-router"
+import DiffViewer from "@/components/DiffViewer.vue"
 import { agentChatStreamUrl } from "@/api/agent"
 import type {
   ChatMessage,
   DiffData,
   ModelOption,
+  PipelineStage,
+  ReasoningStep,
+  ReferencedFile,
   SSEEvent,
   SSEEventType,
   ToolCallRecord,
 } from "@/types/studio"
+import { PRESET_AGENT_MODES } from "@/types/studio"
+import AgentPipeline from "@/components/agent/AgentPipeline.vue"
+import AgentReasoningSteps from "@/components/agent/AgentReasoningSteps.vue"
+import AgentRunDashboard from "@/components/agent/AgentRunDashboard.vue"
+import AgentTabBar from "@/components/agent/AgentTabBar.vue" // Session 10
+import AtMentionPopup from "@/components/agent/AtMentionPopup.vue"
+import ContextPanel from "@/components/agent/ContextPanel.vue"
+import MultiFileDiffPanel from "@/components/agent/MultiFileDiffPanel.vue"
+import SecurityApprovalPanel from "@/components/agent/SecurityApprovalPanel.vue"
+import WorkflowGraph from "@/components/agent/WorkflowGraph.vue"
+import { useAgentTabsStore } from "@/stores/useAgentTabsStore" // Session 10
 
 // ════════════════════════════════════════════════
 // 路由 & 项目上下文
@@ -58,19 +95,36 @@ const lastModelUsed = ref("")
 const lastProvider = ref("")
 const totalLatencyMs = ref(0)
 
-// 模式选择
-const chatMode = ref<"craft" | "ask" | "plan" | "agent">("craft")
+// 模式选择 — 使用 PRESET_AGENT_MODES
+const chatMode = ref("craft")
 const preferredModel = ref("")
 const availableModels = ref<ModelOption[]>([])
 const showModelPicker = ref(false)
 
-// 面板开关 — 默认为 true，独立 /chat 页面直接显示对话界面
+// 🆕 推理步骤 & 管线 (Cline/LangGraph 参考)
+const reasoningSteps = ref<ReasoningStep[]>([])
+const pipelineStages = ref<PipelineStage[]>([])
+
+// 🆕 上下文文件 (Continue @-mention 参考)
+const contextFiles = ref<ReferencedFile[]>([])
+const showMentionPopup = ref(false)
+const mentionFilter = ref("")
+
+// 🆕 工具审批队列 (Open Interpreter 参考)
+const pendingApprovals = ref<ToolCallRecord[]>([])
+
+// 面板开关
 const hasStarted = ref(true)
 const showRightPanel = ref(false)
 const showHistoryPanel = ref(false)
+const showContextPanel = ref(false)
+const showPipelinePanel = ref(false)
 
 // 工具调用展开 ID 集合
 const expandedToolIds = ref<Set<string>>(new Set())
+
+// 右侧面板 Tab
+const rightPanelTab = ref<"tools" | "dashboard">("tools")
 
 // 🆕 Diff 数据收集
 const collectedDiffs = ref<DiffData[]>([])
@@ -80,9 +134,17 @@ const showDiffPanel = ref(false)
 const inputText = ref("")
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
 
+// 🆕 激活技能列表
+const activeSkills = ref<string[]>([])
+
 // Toast 提示
 const toastMsg = ref("")
 let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+// ════════════════════════════════════════════════
+// Session 10: Agent Tab Store
+// ════════════════════════════════════════════════
+const tabStore = useAgentTabsStore()
 
 // ════════════════════════════════════════════════
 // 会话历史数据结构 & 持久化
@@ -132,6 +194,13 @@ function saveCurrentSession() {
     if (sessions.value.length > 30) sessions.value.pop()
   }
   persistSessions()
+
+  // Session 10: sync to tab store
+  tabStore.saveMessages(sessionId.value, messages.value)
+  tabStore.updateTabMode(sessionId.value, chatMode.value)
+  if (title !== "新对话") {
+    tabStore.renameTab(sessionId.value, title)
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -213,7 +282,9 @@ function copyText(t: string) {
   navigator.clipboard
     .writeText(t)
     .then(() => showToast("已复制"))
-    .catch(() => {})
+    .catch((err: unknown) => {
+      console.warn('[AgentChat] Clipboard write failed', err)
+    })
 }
 
 /** 判断消息是否为当前最后一条助手消息（用于流式动画定位） */
@@ -235,22 +306,42 @@ function isLastAssistant(msg: ChatMessage): boolean {
 function newChat() {
   saveCurrentSession()
   messages.value = []
-  sessionId.value = crypto.randomUUID()
+  const newId = tabStore.createTab(undefined, chatMode.value)
+  sessionId.value = newId
   agentState.value = "idle"
   currentToolCalls.value = []
   collectedDiffs.value = []
+  reasoningSteps.value = []
+  pipelineStages.value = []
+  pendingApprovals.value = []
   showDiffPanel.value = false
   totalLatencyMs.value = 0
   showHistoryPanel.value = false
   inputText.value = ""
 }
 
+/** 切换 Agent 模式，自动绑定技能 */
+function switchMode(modeId: string) {
+  chatMode.value = modeId
+  const mode = PRESET_AGENT_MODES.find(m => m.id === modeId)
+  if (mode) {
+    activeSkills.value = [...mode.skills]
+    showToast(`已切换为 ${mode.label} 模式 · ${mode.skills.length} 项技能`)
+  }
+}
+
+/** 获取当前模式的技能绑定 */
+const currentModeSkills = computed(() =>
+  PRESET_AGENT_MODES.find(m => m.id === chatMode.value)?.skills || []
+)
+
 function switchToSession(s: ChatSession) {
   saveCurrentSession()
   sessionId.value = s.id
-  messages.value = []
+  messages.value = tabStore.loadMessages(s.id)
   hasStarted.value = true
   chatMode.value = (s.agentMode as any) || "craft"
+  tabStore.switchToTab(s.id)
   showHistoryPanel.value = false
   showToast(`已切换到「${s.title}」`)
 }
@@ -267,10 +358,102 @@ function resetChat() {
   agentState.value = "idle"
   currentToolCalls.value = []
   collectedDiffs.value = []
+  reasoningSteps.value = []
+  pipelineStages.value = []
+  pendingApprovals.value = []
   showDiffPanel.value = false
   totalLatencyMs.value = 0
   showToast("已清空对话")
   scrollToBottom()
+}
+
+// 🆕 @-mention 处理
+function onInput(e: Event) {
+  const target = e.target as HTMLTextAreaElement
+  inputText.value = target.value
+  // 检测 @ 符号触发文件提及
+  const cursorPos = target.selectionStart || 0
+  const textBeforeCursor = inputText.value.slice(0, cursorPos)
+  const atMatch = textBeforeCursor.match(/@(\S*)$/)
+  if (atMatch) {
+    showMentionPopup.value = true
+    mentionFilter.value = atMatch[1]
+  } else {
+    showMentionPopup.value = false
+    mentionFilter.value = ""
+  }
+}
+
+function addFileContext(path: string, name: string) {
+  if (!contextFiles.value.find(f => f.path === path)) {
+    contextFiles.value.push({ path, name, type: "full" })
+  }
+  // 替换 @mention 文本 — 使用 @file:path 格式
+  const cursorPos = textareaEl.value?.selectionStart || 0
+  const textBeforeCursor = inputText.value.slice(0, cursorPos)
+  const atIdx = textBeforeCursor.lastIndexOf("@")
+  if (atIdx >= 0) {
+    inputText.value = inputText.value.slice(0, atIdx) + `@file:${path} ` + inputText.value.slice(cursorPos)
+  }
+  showMentionPopup.value = false
+  textareaEl.value?.focus()
+  showToast(`已引用: ${name}`)
+}
+
+function removeContextFile(path: string) {
+  contextFiles.value = contextFiles.value.filter(f => f.path !== path)
+}
+
+function toggleSkill(name: string) {
+  const idx = activeSkills.value.indexOf(name)
+  if (idx >= 0) {
+    activeSkills.value.splice(idx, 1)
+  } else {
+    activeSkills.value.push(name)
+  }
+}
+
+/** 🆕 @-mention 选择回调 (Continue 风格) */
+function onMentionSelect(file: ReferencedFile) {
+  addFileContext(file.path, file.name)
+  showMentionPopup.value = false
+}
+
+/** 🆕 @-mention 关闭回调 */
+function onMentionClose() {
+  showMentionPopup.value = false
+  textareaEl.value?.focus()
+}
+
+/** 工具审批操作 */
+function approveTool(toolId: string) {
+  const tool = pendingApprovals.value.find(t => t.id === toolId)
+  if (tool) {
+    tool.approval_status = "approved"
+    pendingApprovals.value = pendingApprovals.value.filter(t => t.id !== toolId)
+    showToast("已批准工具执行")
+  }
+}
+
+function rejectTool(toolId: string) {
+  const tool = pendingApprovals.value.find(t => t.id === toolId)
+  if (tool) {
+    tool.approval_status = "rejected"
+    pendingApprovals.value = pendingApprovals.value.filter(t => t.id !== toolId)
+    showToast("已拒绝工具调用")
+  }
+}
+
+function approveAllTools() {
+  for (const t of pendingApprovals.value) t.approval_status = "approved"
+  pendingApprovals.value = []
+  showToast("已批准所有工具")
+}
+
+function rejectAllTools() {
+  for (const t of pendingApprovals.value) t.approval_status = "rejected"
+  pendingApprovals.value = []
+  showToast("已拒绝所有工具")
 }
 
 // ════════════════════════════════════════════════
@@ -329,9 +512,18 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
   isStreaming.value = true
   agentState.value = "thinking"
   currentToolCalls.value = []
+  reasoningSteps.value = []
+  pipelineStages.value = []
+  pendingApprovals.value = []
+  collectedDiffs.value = []
 
   const ctrl = new AbortController()
   abortController.value = ctrl
+
+  // 🆕 注入上下文到消息 (Continue 风格)
+  if (contextFiles.value.length > 0) {
+    assistantMsg.referenced_files = [...contextFiles.value]
+  }
 
   try {
     const token = localStorage.getItem("token")
@@ -340,18 +532,30 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
     }
     if (token) headers.Authorization = `Bearer ${token}`
 
+    // 🆕 构建请求体：包含技能和上下文文件
+    const requestBody: Record<string, unknown> = {
+      message: content,
+      agent_name: chatMode.value === "agent" ? "agent" : chatMode.value,
+      instructions: "",
+      tools: ["get_weather", "web_search", "calculate", "datetime_now", "file_read"],
+      tool_categories: ["LOW", "MEDIUM", "HIGH"],
+      max_turns: 3,
+      preferred_model: preferredModel.value || "llama3.1:8b",
+      session_id: sessionId.value,
+    }
+    // 附加技能
+    if (activeSkills.value.length > 0) {
+      requestBody.skills = activeSkills.value
+    }
+    // 附加上下文文件
+    if (contextFiles.value.length > 0) {
+      requestBody.context_files = contextFiles.value.map(f => f.path)
+    }
+
     const res = await fetch(agentChatStreamUrl(), {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        message: content,
-        agent_name: chatMode.value === "agent" ? "agent" : "default",
-        instructions: "",
-        tools: ["get_weather", "web_search", "calculate", "datetime_now", "file_read"],
-        max_turns: 3,
-        preferred_model: preferredModel.value || "llama3.1:8b",
-        session_id: sessionId.value,
-      }),
+      body: JSON.stringify(requestBody),
       signal: ctrl.signal,
     })
 
@@ -409,9 +613,107 @@ async function runSSEStream(assistantMsg: ChatMessage, content: string) {
   }
 }
 
-/** SSE 事件分发器 —— 状态机驱动 UI 更新 */
+/** SSE 事件分发器 —— 状态机驱动 UI 更新 (增强版) */
 function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
   switch (ev.type as SSEEventType) {
+    // ═══════ 编排管线 (LangGraph/AutoGen 参考) ═══════
+    case "orchestration_start":
+      pipelineStages.value = ev.pipeline_stages || []
+      showPipelinePanel.value = true
+      break
+
+    case "stage_start":
+      agentState.value = "thinking"
+      // 更新对应阶段状态为 in_progress
+      pipelineStages.value = pipelineStages.value.map(s =>
+        s.agent_name === ev.agent_name ? { ...s, status: "in_progress" as const } : s
+      )
+      break
+
+    case "stage_complete":
+      pipelineStages.value = pipelineStages.value.map(s =>
+        s.agent_name === ev.agent_name
+          ? { ...s, status: "completed" as const, summary: ev.stage_summary || s.summary, tool_calls: [...currentToolCalls.value] }
+          : s
+      )
+      break
+
+    case "stage_error":
+      pipelineStages.value = pipelineStages.value.map(s =>
+        s.agent_name === ev.agent_name ? { ...s, status: "error" as const } : s
+      )
+      break
+
+    // ═══════ 推理步骤 (Cline/RooCode 参考) ═══════
+    case "reasoning":
+    case "thinking": {
+      agentState.value = "thinking"
+      const step: ReasoningStep = ev.reasoning_step || {
+        id: crypto.randomUUID(),
+        type: "thinking",
+        content: ev.reasoning_content || ev.content || "",
+        status: "in_progress",
+      }
+      // 更新已有步骤或追加
+      const existingIdx = reasoningSteps.value.findIndex(s => s.id === step.id)
+      if (existingIdx >= 0) {
+        reasoningSteps.value[existingIdx] = {
+          ...reasoningSteps.value[existingIdx],
+          ...step,
+          status: "completed",
+        }
+      } else {
+        reasoningSteps.value.push({ ...step, status: "completed" })
+      }
+      // 同步到消息
+      msg.reasoning_steps = [...reasoningSteps.value]
+      break
+    }
+
+    // ═══════ 上下文加载 (Continue 参考) ═══════
+    case "context_loaded":
+      if (ev.context_files) {
+        contextFiles.value = [...contextFiles.value, ...ev.context_files]
+      }
+      break
+
+    // ═══════ 工具审批 (Open Interpreter 参考) ═══════
+    case "tool_approval_required": {
+      const calls = ev.tool_calls || []
+      for (const tc of calls) {
+        const record: ToolCallRecord = {
+          id: tc.id || crypto.randomUUID(),
+          name: tc.name,
+          arguments:
+            typeof tc.arguments === "string"
+              ? (() => { try { return JSON.parse(tc.arguments) } catch { return {} } })()
+              : tc.arguments || {},
+          requires_approval: true,
+          approval_status: "pending",
+          security_level: (ev.security_level || tc.security_level || "SYSTEM") as ToolCallRecord["security_level"],
+          category: ev.tool_category || tc.category || "MEDIUM",
+        }
+        pendingApprovals.value.push(record)
+      }
+      break
+    }
+
+    case "tool_approved":
+      // 标记审批通过的工具
+      if (ev.tool_id) {
+        pendingApprovals.value = pendingApprovals.value.filter(t => t.id !== ev.tool_id)
+      }
+      break
+
+    case "tool_rejected":
+      if (ev.tool_id) {
+        const tool = pendingApprovals.value.find(t => t.id === ev.tool_id)
+        if (tool) tool.approval_status = "rejected"
+        pendingApprovals.value = pendingApprovals.value.filter(t => t.id !== ev.tool_id)
+      }
+      break
+
+    // ═══════ 原有事件 (增强) ═══════
     case "turn_start":
       currentTurn.value = ev.turn ?? currentTurn.value + 1
       maxTurns.value = ev.max_turns ?? maxTurns.value
@@ -427,14 +729,11 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
           name: tc.name,
           arguments:
             typeof tc.arguments === "string"
-              ? (() => {
-                  try {
-                    return JSON.parse(tc.arguments)
-                  } catch {
-                    return {}
-                  }
-                })()
+              ? (() => { try { return JSON.parse(tc.arguments) } catch { return {} } })()
               : tc.arguments || {},
+          category: tc.category || "MEDIUM",
+          security_level: (tc.security_level || "READ_ONLY") as ToolCallRecord["security_level"],
+          requires_approval: tc.requires_approval || false,
         }
         currentToolCalls.value.push(record)
         msg.tool_calls = msg.tool_calls || []
@@ -445,17 +744,22 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
 
     case "tool_executing":
       agentState.value = "calling_tools"
+      if (ev.tool_id) {
+        const tc = currentToolCalls.value.find(t => t.id === ev.tool_id)
+        if (tc && ev.latency_ms) tc.latency_ms = ev.latency_ms
+      }
       break
 
     case "tool_result": {
       const name = ev.tool_name || ""
-      const match = [...currentToolCalls.value]
-        .reverse()
-        .find((tc) => tc.name === name && !tc.result)
+      const tid = ev.tool_id
+      const match = (tid
+        ? currentToolCalls.value.find(tc => tc.id === tid)
+        : [...currentToolCalls.value].reverse().find(tc => tc.name === name && !tc.result))
       if (match) {
         match.result = ev.result || ""
         match.success = ev.success ?? false
-        const mTc = msg.tool_calls?.find((t) => t.id === match.id)
+        const mTc = msg.tool_calls?.find(t => t.id === match.id)
         if (mTc) {
           mTc.result = match.result
           mTc.success = match.success
@@ -463,6 +767,29 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
       }
       break
     }
+
+    case "tool_error": {
+      const name = ev.tool_name || ""
+      const match = [...currentToolCalls.value].reverse().find(tc => tc.name === name)
+      if (match) {
+        match.result = ev.error || "工具执行出错"
+        match.success = false
+      }
+      break
+    }
+
+    case "turn_end":
+      // 轮次结束，保存当前管线状态到消息
+      msg.pipeline_stages = pipelineStages.value.map(s => ({ ...s }))
+      break
+
+    // 🆕 分块流式输出
+    case "chunk":
+      if (ev.chunk_content) {
+        msg.content += ev.chunk_content
+        agentState.value = "generating"
+      }
+      break
 
     // 🆕 diff 事件 — 收集 diff 数据用于 DiffViewer 展示
     case "diff": {
@@ -503,6 +830,9 @@ function dispatchEvent(msg: ChatMessage, ev: SSEEvent) {
 
     case "done":
       agentState.value = "idle"
+      // 最终保存管线状态到消息
+      msg.pipeline_stages = pipelineStages.value.map(s => ({ ...s }))
+      msg.reasoning_steps = [...reasoningSteps.value]
       break
   }
 }
@@ -589,22 +919,26 @@ function onInputKeydown(e: KeyboardEvent) {
           </span>
         </div>
 
-        <!-- 模式标签组 -->
+        <!-- 模式标签组 (6 modes × skills) -->
         <div class="hidden sm:flex items-center gap-0.5 ml-1">
           <button
-            v-for="m in ([
-              {v:'craft', l:'Craft'},
-              {v:'ask', l:'Ask'},
-              {v:'plan', l:'Plan'},
-              {v:'agent', l:'Agent'},
-            ] as const)"
-            :key="m.v"
-            @click="chatMode = m.v"
+            v-for="m in PRESET_AGENT_MODES.slice(0, 6)"
+            :key="m.id"
+            @click="switchMode(m.id)"
             :class="[
-              'px-2 py-0.5 rounded-md text-[11px] font-medium cursor-pointer transition-all duration-150',
-              chatMode === m.v ? 'bg-brand-500/12 text-brand-400' : 'text-gray-600 hover:text-gray-400'
+              'px-2 py-0.5 rounded-md text-[11px] font-medium cursor-pointer transition-all duration-150 flex items-center gap-1',
+              chatMode === m.id ? 'text-white' : 'text-gray-600 hover:text-gray-400'
             ]"
-          >{{ m.l }}</button>
+            :style="chatMode === m.id ? { background: m.color + '20', border: `1px solid ${m.color}40` } : {}"
+            :title="m.description + ' · 技能: ' + m.skills.join(', ')"
+          >
+            {{ m.label }}
+            <span
+              v-if="chatMode === m.id"
+              class="w-1 h-1 rounded-full"
+              :style="{ background: m.color }"
+            />
+          </button>
         </div>
       </div>
 
@@ -723,6 +1057,28 @@ function onInputKeydown(e: KeyboardEvent) {
           <Clock class="w-3 h-3" />{{ totalLatencyMs }}ms
         </span>
 
+        <!-- 🆕 上下文面板开关 (Continue 风格) -->
+        <button
+          :class="['p-2 rounded-xl transition-all duration-200 relative', showContextPanel ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5']"
+          @click="showContextPanel = !showContextPanel"
+          title="上下文管理"
+        >
+          <Brain class="w-[18px] h-[18px]" />
+          <span
+            v-if="contextFiles.length > 0 && !showContextPanel"
+            class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-cyan-500 text-[9px] font-bold text-white flex items-center justify-center"
+          >{{ contextFiles.length }}</span>
+        </button>
+
+        <!-- 🆕 管线面板开关 (LangGraph 风格) -->
+        <button
+          :class="['p-2 rounded-xl transition-all duration-200', showPipelinePanel ? 'text-purple-400 bg-purple-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5']"
+          @click="showPipelinePanel = !showPipelinePanel"
+          title="Agent 编排管线"
+        >
+          <GitFork class="w-[18px] h-[18px]" />
+        </button>
+
         <!-- 工具面板开关 -->
         <button
           :class="['p-2 rounded-xl transition-all duration-200', showRightPanel ? 'text-brand-400 bg-brand-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5']"
@@ -756,10 +1112,28 @@ function onInputKeydown(e: KeyboardEvent) {
       </div>
     </header>
 
+    <!-- 🆕 Session 10: Agent 会话 Tab 栏 (RooCode 风格) -->
+    <AgentTabBar
+      @tab-switch="(tabId: string) => { sessionId = tabId; messages = tabStore.loadMessages(tabId); chatMode = (tabStore.activeTab?.mode ?? 'craft') as any; }"
+      @new-tab="newChat()"
+    />
+
+    <!-- 🆕 工具审批栏 (Open Interpreter + AutoCLI 风格) -->
+    <SecurityApprovalPanel
+      v-if="pendingApprovals.length > 0"
+      :pending="pendingApprovals"
+      :autoApprove="false"
+      autoApproveThreshold="READ_ONLY"
+      @approve="approveTool"
+      @reject="rejectTool"
+      @approveAll="approveAllTools"
+      @rejectAll="rejectAllTools"
+    />
+
     <!-- ═════ 主体三栏布局 ═════ -->
     <div class="flex flex-1 min-h-0 overflow-hidden">
 
-      <!-- ─── 左栏：会话历史 ─── -->
+      <!-- ─── 左栏：会话历史 / 上下文 ─── -->
       <Transition name="slide-left">
         <aside v-if="showHistoryPanel" class="w-64 shrink-0 flex flex-col border-r border-white/[0.06] bg-surface-900/40 overflow-hidden">
           <div class="p-3 border-b border-white/[0.06] flex items-center justify-between shrink-0">
@@ -808,6 +1182,22 @@ function onInputKeydown(e: KeyboardEvent) {
               <MessageSquare class="w-8 h-8 mb-2 opacity-20" />
               <p class="text-xs">暂无历史对话</p>
             </div>
+          </div>
+        </aside>
+      </Transition>
+
+      <!-- 🆕 上下文面板 (Continue 风格) -->
+      <Transition name="slide-left">
+        <aside v-if="showContextPanel" class="w-72 shrink-0 border-r border-white/[0.06] bg-surface-900/40 overflow-hidden">
+          <div class="h-full">
+            <ContextPanel
+              :files="contextFiles"
+              :activeSkills="activeSkills"
+              :memoryNodes="0"
+              @refresh="loadModels"
+              @removeFile="removeContextFile"
+              @toggleSkill="toggleSkill"
+            />
           </div>
         </aside>
       </Transition>
@@ -881,6 +1271,17 @@ function onInputKeydown(e: KeyboardEvent) {
               </div>
             </div>
 
+            <!-- 🆕 Agent 编排管线透视 (LangGraph 风格) -->
+            <div v-if="pipelineStages.length > 0 && messages.length > 0" class="flex justify-center">
+              <AgentPipeline
+                :stages="pipelineStages"
+                :isActive="isStreaming"
+                :activeStage="agentState === 'calling_tools' ? 'coder' : agentState === 'thinking' ? 'planner' : undefined"
+                @stageClick="(s: PipelineStage) => { expandedToolIds.add(s.id) }"
+                class="w-full max-w-2xl"
+              />
+            </div>
+
             <!-- User / Assistant 消息对 -->
             <div
               v-for="msg in messages.filter(m => m.role !== 'system')"
@@ -912,6 +1313,14 @@ function onInputKeydown(e: KeyboardEvent) {
                   <div v-if="isLastAssistant(msg) && isStreaming && agentState === 'thinking'" class="mb-3 flex items-center gap-2 text-xs text-brand-400/60">
                     <Brain class="w-3.5 h-3.5 animate-pulse" />正在思考...
                   </div>
+
+                  <!-- 🆕 推理步骤 (Cline 风格 step-by-step) -->
+                  <AgentReasoningSteps
+                    v-if="msg.reasoning_steps?.length"
+                    :steps="msg.reasoning_steps"
+                    :isStreaming="isStreaming && isLastAssistant(msg)"
+                    class="mb-3"
+                  />
 
                   <!-- ═══ 工具调用卡片组 ═══ -->
                   <div v-if="msg.tool_calls?.length" class="mb-3 space-y-2">
@@ -1015,15 +1424,39 @@ function onInputKeydown(e: KeyboardEvent) {
           <!-- 底部输入区 -->
           <footer class="shrink-0 border-t border-white/[0.06] bg-surface-900/50 backdrop-blur p-4">
             <div class="w-full mx-auto">
+              <!-- 🆕 上下文文件标签 (Continue @-mention 风格) -->
+              <div v-if="contextFiles.length > 0" class="flex flex-wrap gap-1.5 mb-2">
+                <div
+                  v-for="f in contextFiles"
+                  :key="f.path"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-500/8 border border-brand-500/15 text-brand-400"
+                >
+                  <FileCode class="w-3 h-3" />
+                  {{ f.name }}
+                  <button @click="removeContextFile(f.path)" class="hover:text-red-400 transition-colors">×</button>
+                </div>
+              </div>
+
               <div class="relative">
+                <!-- 🆕 @-mention 弹窗 (Continue 风格) -->
+                <AtMentionPopup
+                  :show="showMentionPopup"
+                  :files="contextFiles"
+                  :filter="mentionFilter"
+                  :loading="false"
+                  @select="onMentionSelect"
+                  @close="onMentionClose"
+                />
+
                 <textarea
                   ref="textareaEl"
                   v-model="inputText"
                   rows="1"
-                  :placeholder="isStreaming ? 'AI 正在回复...' : '输入消息... Shift+Enter 换行'"
+                  :placeholder="isStreaming ? 'AI 正在回复...' : '@ 引用文件  ·  输入消息... Shift+Enter 换行'"
                   :disabled="isStreaming"
                   class="chat-textarea w-full"
                   @keydown="onInputKeydown"
+                  @input="onInput"
                 ></textarea>
                 <div class="absolute right-2 bottom-2 flex items-center gap-1.5">
                   <button
@@ -1059,15 +1492,31 @@ function onInputKeydown(e: KeyboardEvent) {
         </template>
       </main>
 
-      <!-- ─── 右栏：工具调用详情面板 ─── -->
+      <!-- ─── 右栏：工具调用 / 执行仪表盘 ─── -->
       <Transition name="slide-right">
         <aside v-if="showRightPanel" class="w-80 shrink-0 flex flex-col border-l border-white/[0.06] bg-surface-900/40 overflow-hidden">
-          <div class="p-3 border-b border-white/[0.06] flex items-center justify-between shrink-0">
-            <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">工具调用</h3>
-            <span class="text-[10px] text-gray-600 tabular-nums">{{ currentToolCalls.length }} 次</span>
+          <!-- 面板 Tab 切换 -->
+          <div class="flex border-b border-white/[0.04] shrink-0">
+            <button
+              @click="rightPanelTab = 'tools'"
+              class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors"
+              :class="rightPanelTab === 'tools' ? 'text-brand-400 bg-brand-500/5 border-b border-brand-500/30' : 'text-gray-500 hover:text-gray-300'"
+            >
+              <Wrench class="w-3.5 h-3.5" />工具调用
+              <span v-if="currentToolCalls.length" class="text-[10px] px-1 rounded-full bg-brand-500/10">{{ currentToolCalls.length }}</span>
+            </button>
+            <button
+              @click="rightPanelTab = 'dashboard'"
+              class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors"
+              :class="rightPanelTab === 'dashboard' ? 'text-purple-400 bg-purple-500/5 border-b border-purple-500/30' : 'text-gray-500 hover:text-gray-300'"
+            >
+              <Zap class="w-3.5 h-3.5" />仪表盘
+              <span v-if="isStreaming" class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-3 space-y-2 custom-scroll">
+          <!-- 工具调用视图 -->
+          <div v-if="rightPanelTab === 'tools'" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scroll">
             <div v-if="currentToolCalls.length === 0" class="empty-panel">
               <Wrench class="w-8 h-8 opacity-20" />
               <p class="text-xs">暂无工具调用</p>
@@ -1094,6 +1543,18 @@ function onInputKeydown(e: KeyboardEvent) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- 🆕 执行仪表盘视图 -->
+          <div v-else class="flex-1 overflow-y-auto custom-scroll">
+            <AgentRunDashboard
+              :messages="messages"
+              :isStreaming="isStreaming"
+              :currentTurn="currentTurn"
+              :maxTurns="maxTurns"
+              :totalLatencyMs="totalLatencyMs"
+              :modelUsed="lastModelUsed"
+            />
           </div>
         </aside>
       </Transition>
@@ -1123,6 +1584,30 @@ function onInputKeydown(e: KeyboardEvent) {
               </div>
               <pre class="px-2.5 py-1.5 text-[11px] leading-relaxed overflow-x-auto text-gray-400 max-h-32 overflow-y-auto custom-scroll">{{ d.diff_text.slice(0, 500) }}{{ d.diff_text.length > 500 ? '\n...' : '' }}</pre>
             </div>
+          </div>
+        </aside>
+      </Transition>
+
+      <!-- 🆕 右栏：Agent 工作流图 (LangGraph 风格) -->
+      <Transition name="slide-right">
+        <aside v-if="showPipelinePanel" class="w-80 shrink-0 flex flex-col border-l border-white/[0.06] bg-surface-900/40 overflow-hidden">
+          <div class="p-3 border-b border-white/[0.06] flex items-center justify-between shrink-0">
+            <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+              <GitFork class="w-3.5 h-3.5 text-purple-400" />
+              工作流图
+            </h3>
+            <span class="text-[10px] text-gray-600 tabular-nums">{{ pipelineStages.length }} 节点</span>
+          </div>
+
+          <div class="flex-1 overflow-hidden">
+            <WorkflowGraph
+              :stages="pipelineStages"
+              :isRunning="isStreaming"
+              :currentTurn="currentTurn"
+              :totalTurns="maxTurns"
+              :totalLatencyMs="totalLatencyMs"
+              @stageClick="(s: PipelineStage) => { expandedToolIds.add(s.id) }"
+            />
           </div>
         </aside>
       </Transition>

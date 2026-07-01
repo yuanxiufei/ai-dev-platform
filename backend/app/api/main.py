@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes.auth.login import router as login_router
 from app.api.routes.auth.users import router as users_router
+from app.api.routes.auth.tenants import router as tenants_router
 from app.api.routes.common.utils import router as utils_router
 from app.api.routes.video import (
     admin_videos_router,
@@ -17,6 +18,7 @@ from app.api.routes.studio import (
     projects_router,
     sessions_router,
     templates_router,
+    static_deploy_router,
 )
 from app.api.routes.system import (
     models_router as system_models_router,
@@ -31,6 +33,11 @@ from app.api.routes.system import (
     storage_router as system_storage_router,
     checkpoints_router as system_checkpoints_router,
     guardrails_router as system_guardrails_router,
+    memory_graph_router,
+    cli_history_router,
+    model_health_router,
+    session_tree_router,
+    cli_pipeline_router,
 )
 from app.api.routes.system.task_queue import router as task_queue_router
 from app.api.routes.agent import (
@@ -88,6 +95,10 @@ api_router.include_router(login_router)       # POST /login/access-token
 api_router.include_router(users_router)       # CRUD /users
 api_router.include_router(utils_router)       # GET /health-check/
 
+# ===== 多租户管理 =====
+if settings.MULTI_TENANCY_ENABLED:
+    api_router.include_router(tenants_router)  # /tenants CRUD
+
 # ===== 系统管理 API =====
 api_router.include_router(system_models_router)      # /system/models — 全局模型管理
 api_router.include_router(system_health_router)      # /system/health — 系统健康检查
@@ -102,6 +113,11 @@ api_router.include_router(system_config_router)       # /system/config — 配�
 api_router.include_router(system_storage_router)      # /system/storage — 存储管理
 api_router.include_router(system_checkpoints_router)  # /system/checkpoints — Git 检查点
 api_router.include_router(system_guardrails_router)   # /system/guardrails — 护栏系统
+api_router.include_router(memory_graph_router)          # /system/memory/graph-data — Memory 可视化 (P2.8)
+api_router.include_router(cli_history_router)           # /system/cli-history — CLI 执行历史 (P2.9)
+api_router.include_router(model_health_router)          # /system/model-health — 模型健康检查 (Session 05)
+api_router.include_router(session_tree_router)          # /system/session-tree — Session 树+检查点 (Session 06)
+api_router.include_router(cli_pipeline_router)          # /system/cli-pipeline — CLI 流水线组合 (Session 06)
 
 # ===== video-admin 后台 =====
 api_router.include_router(items.router)        # 模板占位，后续替换
@@ -117,6 +133,7 @@ api_router.include_router(generate_router)     # /videos/generate
 # ===== studio-admin 管理端 (Vue) =====
 api_router.include_router(projects_router)     # /studio/projects CRUD
 api_router.include_router(templates_router)    # /studio/templates
+api_router.include_router(static_deploy_router)  # /static/deploy — 部署静态文件服务
 
 # ===== studio-client C端 =====
 api_router.include_router(chat_router)         # /studio/chat

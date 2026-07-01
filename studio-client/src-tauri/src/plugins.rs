@@ -1,7 +1,7 @@
 use tauri::AppHandle;
 
 /// Plugin system initialization
-pub fn init(app: &AppHandle) -> anyhow::Result<()> {
+pub fn init(_app: &AppHandle) -> anyhow::Result<()> {
     log::info!("Plugin system initialized");
     
     // Load built-in plugins

@@ -13,8 +13,10 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import math
+import operator
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -28,6 +30,66 @@ from app.core.tools.schema import ToolParam, ParamType
 # ══════════════════════════════════════════════════════════════
 
 
+# ── AST 安全数学求值器 ──────────────────────────────
+
+_MATH_CONSTANTS: dict[str, float] = {
+    "pi": math.pi,
+    "e": math.e,
+}
+
+_MATH_FUNCTIONS: dict[str, Any] = {
+    "abs": abs, "round": round,
+    "sqrt": math.sqrt, "pow": pow,
+    "sin": math.sin, "cos": math.cos, "tan": math.tan,
+    "log": math.log, "log10": math.log10,
+    "ceil": math.ceil, "floor": math.floor,
+}
+
+_UNARY_OPS = {ast.USub: operator.neg, ast.UAdd: operator.pos}
+
+_BINARY_OPS = {
+    ast.Add: operator.add, ast.Sub: operator.sub,
+    ast.Mult: operator.mul, ast.Div: operator.truediv,
+    ast.Pow: operator.pow, ast.Mod: operator.mod,
+    ast.FloorDiv: operator.floordiv,
+}
+
+_MAX_EXPR_LENGTH = 500
+
+
+def _safe_eval_ast(node: ast.AST) -> Any:
+    """递归安全求值 AST 节点 — 只允许常量、一元/二元运算、数学函数调用"""
+    if isinstance(node, ast.Expression):
+        return _safe_eval_ast(node.body)
+
+    if isinstance(node, ast.Constant):
+        return node.value
+
+    if isinstance(node, ast.Name):
+        # 只允许数学常量名 (pi, e)，函数名仅能在 Call 节点中使用
+        if node.id not in _MATH_CONSTANTS:
+            raise ValueError(f"Name '{node.id}' not allowed")
+        return _MATH_CONSTANTS[node.id]
+
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        return _UNARY_OPS[type(node.op)](_safe_eval_ast(node.operand))
+
+    if isinstance(node, ast.BinOp) and type(node.op) in _BINARY_OPS:
+        return _BINARY_OPS[type(node.op)](
+            _safe_eval_ast(node.left),
+            _safe_eval_ast(node.right),
+        )
+
+    if isinstance(node, ast.Call):
+        fn_name = node.func.id if isinstance(node.func, ast.Name) else None
+        if fn_name not in _MATH_FUNCTIONS:
+            raise ValueError(f"Function '{fn_name}' not allowed")
+        args = [_safe_eval_ast(a) for a in node.args]
+        return _MATH_FUNCTIONS[fn_name](*args)
+
+    raise ValueError(f"Unsupported AST node: {type(node).__name__}")
+
+
 @register_tool(
     "calculate",
     "Evaluate a mathematical expression safely. Supports: + - * / ** sqrt() sin() cos() log() abs() round()",
@@ -37,21 +99,24 @@ from app.core.tools.schema import ToolParam, ParamType
     category="general",
 )
 def _calculate(expression: str) -> str:
-    """安全计算数学表达式"""
-    allowed = {
-        "abs": abs, "round": round,
-        "sqrt": math.sqrt, "pow": pow,
-        "sin": math.sin, "cos": math.cos, "tan": math.tan,
-        "log": math.log, "log10": math.log10,
-        "pi": math.pi, "e": math.e,
-        "ceil": math.ceil, "floor": math.floor,
-    }
+    """安全计算数学表达式 — 基于 AST 白名单，不使用 eval()"""
+    if len(expression) > _MAX_EXPR_LENGTH:
+        return json.dumps({"expression": expression[:100] + "...", "error": "Expression too long (max 500 chars)"})
 
     try:
-        result = eval(expression, {"__builtins__": {}}, allowed)
+        tree = ast.parse(expression.strip(), mode="eval")
+        result = _safe_eval_ast(tree)
+        # 限制结果为有限数值
+        if isinstance(result, (int, float)):
+            if math.isinf(result) or math.isnan(result):
+                return json.dumps({"expression": expression, "error": "Result is infinite or NaN"})
         return json.dumps({"expression": expression, "result": result})
-    except Exception as e:
+    except (SyntaxError, ValueError, TypeError) as e:
         return json.dumps({"expression": expression, "error": str(e)})
+    except ZeroDivisionError:
+        return json.dumps({"expression": expression, "error": "Division by zero"})
+    except OverflowError:
+        return json.dumps({"expression": expression, "error": "Numeric overflow"})
 
 
 @register_tool(
@@ -95,10 +160,16 @@ def _echo(message: str = "Hello") -> str:
     category="file",
 )
 def _file_read(path: str, max_lines: int = 200) -> str:
-    """读取文件内容"""
+    """读取文件内容 — 限制在工作区内"""
     try:
-        # 安全检查
-        abs_path = os.path.abspath(path)
+        # 安全检查：解析真实路径并限制在工作区范围内
+        from app.core.config import settings
+
+        workspace = os.path.realpath(settings.SANDBOX_WORKSPACE or os.getcwd())
+        abs_path = os.path.realpath(os.path.abspath(path))
+        if os.path.commonpath([abs_path, workspace]) != workspace:
+            return json.dumps({"error": f"Access denied: path outside workspace"})
+
         if not os.path.exists(abs_path):
             return json.dumps({"error": f"File not found: {path}"})
 

@@ -8,6 +8,7 @@ Ollama 本地运行无需 API 密钥，base_url 指向本地服务即可。
 from __future__ import annotations
 
 import logging
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -72,6 +73,25 @@ class OllamaProvider(BaseProvider):
             raise RuntimeError(
                 f"Ollama 返回 HTTP {e.response.status_code}: {e.response.text[:200]}"
             ) from e
+
+    async def generate_stream(self, request: ModelRequest) -> AsyncIterator[str]:
+        """流式推理 — token-by-token 产出"""
+        model_name = self._get_model_name(request)
+        messages = self._build_messages(request)
+
+        payload: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if request.tools:
+            payload["tools"] = request.tools
+
+        async for token in self._parse_openai_sse_stream("/v1/chat/completions", payload):
+            yield token
 
     def _build_headers(self) -> dict[str, str]:
         # Ollama 本地运行无需认证

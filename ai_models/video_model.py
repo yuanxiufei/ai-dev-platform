@@ -45,24 +45,43 @@ class VideoGenerationModel(BaseModel):
         self._pipeline = None  # CogVideoXPipeline 实例
 
     def load(self) -> "VideoGenerationModel":
-        """Load CogVideoX pipeline."""
+        """Load CogVideoX pipeline with memory optimizations."""
         if self._loaded:
             return self
 
         logger.info(f"Loading {self.config.display_name}...")
 
-        # TODO: 实际加载（需要 diffusers + torch）
-        # from diffusers import CogVideoXPipeline
-        # self._pipeline = CogVideoXPipeline.from_pretrained(
-        #     self.config.model_path,
-        #     torch_dtype=torch.bfloat16,
-        # )
-        # self._pipeline.enable_model_cpu_offload()
-        # self._pipeline.vae.enable_slicing()
-        # self._pipeline.vae.enable_tiling()
+        try:
+            import torch
+            from diffusers import CogVideoXPipeline
 
-        self._loaded = True
-        logger.info(f"{self.config.display_name} loaded")
+            self._pipeline = CogVideoXPipeline.from_pretrained(
+                self.config.model_path,
+                torch_dtype=torch.bfloat16,
+            )
+
+            # 显存优化
+            if torch.cuda.is_available():
+                self._pipeline.enable_model_cpu_offload()
+                self._pipeline.vae.enable_slicing()
+                self._pipeline.vae.enable_tiling()
+                logger.info(f"{self.config.display_name}: GPU optimizations enabled")
+            else:
+                logger.warning(f"{self.config.display_name}: loading on CPU (slow)")
+
+            self._loaded = True
+            device = "GPU (CUDA)" if torch.cuda.is_available() else "CPU"
+            logger.info(f"{self.config.display_name} loaded ({device})")
+
+        except ImportError as e:
+            logger.error(
+                "diffusers/torch not installed for video model. "
+                "Run: pip install torch diffusers transformers accelerate. "
+                "Error: %s", e
+            )
+        except Exception as e:
+            logger.error(f"Failed to load {self.config.display_name}: {e}")
+
         return self
 
     def generate(self, **kwargs) -> dict:
@@ -103,32 +122,65 @@ class VideoGenerationModel(BaseModel):
         if not self._loaded:
             self.load()
 
-        logger.info(f"Generating video: '{prompt[:60]}...'")
-
         task_id = f"vid_{abs(hash(prompt)) % 10**8}"
         output_path = VIDEO_OUTPUT_DIR / f"{task_id}.mp4"
 
-        # TODO: 实际生成
-        # video = self._pipeline(
-        #     prompt=prompt,
-        #     num_videos_per_prompt=1,
-        #     num_inference_steps=num_inference_steps,
-        #     num_frames=num_frames,
-        #     generator=torch.Generator(device="cuda").manual_seed(seed),
-        # ).frames[0]
-        #
-        # export_to_video(video, str(output_path), fps=fps)
+        if not self._loaded:
+            return {
+                "task_id": task_id,
+                "status": "error",
+                "video_path": "",
+                "prompt": prompt,
+                "error": f"{self.config.display_name} not loaded",
+            }
 
-        return {
-            "task_id": task_id,
-            "status": "completed",
-            "video_path": str(output_path),
-            "prompt": prompt,
-            "num_frames": num_frames,
-            "fps": fps,
-            "duration": num_frames / fps,
-            "seed": seed,
-        }
+        logger.info(f"Generating video: '{prompt[:60]}...'")
+
+        try:
+            import torch
+            from diffusers.utils import export_to_video
+
+            video_frames = self._pipeline(
+                prompt=prompt,
+                num_videos_per_prompt=1,
+                num_inference_steps=num_inference_steps,
+                num_frames=num_frames,
+                generator=torch.Generator(device="cuda").manual_seed(seed)
+                if torch.cuda.is_available()
+                else torch.Generator(device="cpu").manual_seed(seed),
+            ).frames[0]
+
+            export_to_video(video_frames, str(output_path), fps=fps)
+
+            return {
+                "task_id": task_id,
+                "status": "completed",
+                "video_path": str(output_path),
+                "prompt": prompt,
+                "num_frames": num_frames,
+                "fps": fps,
+                "duration": num_frames / fps,
+                "seed": seed,
+            }
+
+        except ImportError as e:
+            logger.error(f"Video generation failed — missing dependency: {e}")
+            return {
+                "task_id": task_id,
+                "status": "error",
+                "video_path": "",
+                "prompt": prompt,
+                "error": f"Missing dependency: {e}",
+            }
+        except Exception as e:
+            logger.error(f"Video generation error: {e}")
+            return {
+                "task_id": task_id,
+                "status": "error",
+                "video_path": "",
+                "prompt": prompt,
+                "error": str(e),
+            }
 
     def generate_ui_demo(
         self,

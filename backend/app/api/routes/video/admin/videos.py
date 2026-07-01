@@ -11,9 +11,9 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import func, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.video_models import VideoAsset, VideoTask
 
 router = APIRouter(prefix="/videos", tags=["video-admin"])
@@ -62,6 +62,9 @@ def _video_to_dict(v: VideoAsset) -> dict:
 
 # ── CRUD ─────────────────────────────────────────────────
 
+_MAX_PAGE_SIZE = 200
+
+
 @router.get("")
 def list_videos(
     session: SessionDep,
@@ -72,6 +75,10 @@ def list_videos(
     is_public: bool | None = None,
 ):
     """获取视频列表（管理端所有视频）"""
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(VideoAsset)
 
     if not user.is_superuser:
@@ -82,7 +89,9 @@ def list_videos(
     if is_public is not None:
         stmt = stmt.where(VideoAsset.is_public == is_public)
 
-    total = len(session.exec(stmt).all())
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     videos = session.exec(
         stmt.order_by(VideoAsset.created_at.desc())
         .offset((page - 1) * size)
@@ -116,9 +125,7 @@ def create_video(
         task_id=video_in.task_id,
         owner_id=user.id,
     )
-    session.add(video)
-    session.commit()
-    session.refresh(video)
+    commit_or_rollback(session, video)
     return _video_to_dict(video)
 
 
@@ -156,9 +163,7 @@ def update_video(
     for key, value in update_data.items():
         setattr(video, key, value)
 
-    session.add(video)
-    session.commit()
-    session.refresh(video)
+    commit_or_rollback(session, video)
     return _video_to_dict(video)
 
 
@@ -176,4 +181,4 @@ def delete_video(
         raise HTTPException(status_code=403, detail="Access denied")
 
     session.delete(video)
-    session.commit()
+    commit_or_rollback(session)

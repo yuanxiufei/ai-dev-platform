@@ -131,9 +131,15 @@ async def upload_document(
         import tempfile
         import os
 
+        # 文件大小限制：10MB
+        _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+        file_content = await file.read()
+        if len(file_content) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"File too large, max {_MAX_UPLOAD_BYTES // (1024*1024)}MB")
+
         suffix = os.path.splitext(file.filename or "upload.txt")[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(await file.read())
+            tmp.write(file_content)
             tmp_path = tmp.name
 
         try:

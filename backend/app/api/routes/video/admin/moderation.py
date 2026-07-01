@@ -11,9 +11,9 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlmodel import select
+from sqlmodel import func, select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.models.video_models import VideoAsset
 
 router = APIRouter(prefix="/videos/moderation", tags=["video-moderation"])
@@ -27,6 +27,9 @@ class ModerationAction(BaseModel):
 
 # ── 审核队列 ─────────────────────────────────────────────
 
+_MAX_PAGE_SIZE = 200
+
+
 @router.get("/queue")
 def get_moderation_queue(
     session: SessionDep,
@@ -38,11 +41,17 @@ def get_moderation_queue(
     if not user.is_superuser:
         raise HTTPException(status_code=403, detail="Superuser only")
 
+    size = min(size, _MAX_PAGE_SIZE)
+    if page < 1:
+        page = 1
+
     stmt = select(VideoAsset).where(
         VideoAsset.is_approved == False
     )
 
-    total = len(session.exec(stmt).all())
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
     videos = session.exec(
         stmt.order_by(VideoAsset.created_at.asc())
         .offset((page - 1) * size)
@@ -88,7 +97,7 @@ def approve_video(
     video.is_approved = True
     video.is_public = True
     session.add(video)
-    session.commit()
+    commit_or_rollback(session)
 
     return {
         "video_id": str(video.id),
@@ -115,7 +124,7 @@ def reject_video(
     video.is_approved = False
     video.is_public = False
     session.add(video)
-    session.commit()
+    commit_or_rollback(session)
 
     return {
         "video_id": str(video.id),

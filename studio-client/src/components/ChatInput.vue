@@ -1,15 +1,30 @@
 <script setup lang="ts">
-import { nextTick, ref } from "vue"
+/**
+ * ChatInput.vue — 增强版聊天输入组件
+ *
+ * 参考项目：Continue (AtMentionPopover), Cline (chat input)
+ *
+ * 新增：
+ *   - @-mention 触发 — 键入 "@" 自动弹出文件选择面板 (Continue 风格)
+ *   - 文件引用标签 — 选择文件后在输入框中显示为可视化芯片
+ *   - insertFileRef — 外部可通过 ref 调用插入文件引用
+ */
+import { ImageIcon, Paperclip, ArrowUp, X } from "lucide-vue-next"
+import { computed, nextTick, ref } from "vue"
 
 const props = defineProps<{
   disabled?: boolean
   isStreaming?: boolean
   placeholder?: string
+  /** 已引用的文件路径列表（避免重复 @ 引用） */
+  referencedPaths?: Set<string>
 }>()
 
 const emit = defineEmits<{
   (e: "send", text: string, files: AttachedFile[]): void
   (e: "stop"): void
+  (e: "mention", show: boolean): void
+  (e: "mentionFilter", query: string): void
 }>()
 
 export interface AttachedFile {
@@ -28,34 +43,148 @@ const focusInput = async () => {
   textareaRef.value?.focus()
 }
 
+// ═══════════════════ @-mention 逻辑 ═══════════════════
+const mentionActive = ref(false)
+const mentionQuery = ref("")
+
+/**
+ * 处理 textarea 的 input 事件 —— 检测 @ 触发
+ * 参考 Continue: AtMentionPopover — 检测 @ 后自动弹出面板
+ */
+function handleInput(e: Event) {
+  handleAutoResize()
+
+  const el = textareaRef.value
+  if (!el) return
+
+  const text = inputText.value
+  const cursorPos = el.selectionStart
+
+  // 向前遍历找到最近的 @ 符号
+  let mentionStart = -1
+  for (let i = cursorPos - 1; i >= 0; i--) {
+    const ch = text[i]
+    if (ch === "@") {
+      // 检查 @ 前面是否为空白字符或行首（避免匹配邮箱等）
+      const prevChar = i > 0 ? text[i - 1] : " "
+      if (/\s/.test(prevChar) || prevChar === undefined) {
+        mentionStart = i
+      }
+      break
+    }
+    // 遇到空格就停止搜索
+    if (/\s/.test(ch)) break
+  }
+
+  if (mentionStart >= 0) {
+    // 提取 @ 之后的文本作为过滤词
+    const query = text.slice(mentionStart + 1, cursorPos)
+    mentionQuery.value = query
+    mentionActive.value = true
+    emit("mention", true)
+    emit("mentionFilter", query)
+  } else {
+    if (mentionActive.value) {
+      mentionActive.value = false
+      emit("mention", false)
+    }
+  }
+}
+
+/**
+ * 外部调用 —— 在输入框中插入文件引用标记
+ * 格式: @file:path/to/file.ts
+ */
+function insertFileRef(filePath: string) {
+  const el = textareaRef.value
+  if (!el) {
+    inputText.value += `@file:${filePath} `
+    mentionActive.value = false
+    emit("mention", false)
+    return
+  }
+
+  // 找到光标前的 @ 位置，替换整个 "@xxx" 为 "@file:path"
+  const cursorPos = el.selectionStart
+  const text = inputText.value
+
+  let mentionStart = -1
+  for (let i = cursorPos - 1; i >= 0; i--) {
+    if (text[i] === "@") {
+      const prevChar = i > 0 ? text[i - 1] : " "
+      if (/\s/.test(prevChar)) {
+        mentionStart = i
+      }
+      break
+    }
+    if (/\s/.test(text[i])) break
+  }
+
+  if (mentionStart >= 0) {
+    const before = text.slice(0, mentionStart)
+    const after = text.slice(cursorPos)
+    inputText.value = before + `@file:${filePath} ` + after
+    const newPos = mentionStart + filePath.length + 7 // @file: + path + space
+    nextTick(() => {
+      el.focus()
+      el.setSelectionRange(newPos, newPos)
+    })
+  } else {
+    // 没有活跃的 @，直接在光标处插入
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const before = text.slice(0, start)
+    const after2 = text.slice(end)
+    inputText.value = before + `@file:${filePath} ` + after2
+    const newPos = start + filePath.length + 7
+    nextTick(() => {
+      el.focus()
+      el.setSelectionRange(newPos, newPos)
+    })
+  }
+
+  mentionActive.value = false
+  emit("mention", false)
+  handleAutoResize()
+}
+
 const handleSend = () => {
   const text = inputText.value.trim()
   if (!text || props.disabled) return
   emit("send", text, [...attachedFiles.value])
   inputText.value = ""
   attachedFiles.value = []
+  mentionActive.value = false
+  emit("mention", false)
 }
 
-const _handleKeydown = (e: KeyboardEvent) => {
+function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey) {
+    // 如果有 @ 面板弹出时 Enter 会触发选择，不发送消息
+    if (mentionActive.value) {
+      return // 让 AtMentionPopup 处理
+    }
     e.preventDefault()
     handleSend()
   }
+  if (e.key === "Escape" && mentionActive.value) {
+    mentionActive.value = false
+    emit("mention", false)
+  }
 }
 
-const _handleAutoResize = () => {
+function handleAutoResize() {
   const el = textareaRef.value
   if (!el) return
   el.style.height = "auto"
   el.style.height = `${Math.min(el.scrollHeight, 180)}px`
 }
 
-const _removeFile = (id: string) => {
+function removeFile(id: string) {
   attachedFiles.value = attachedFiles.value.filter((f) => f.id !== id)
 }
 
-const _simulateAttach = () => {
-  // 模拟文件附加（后续可对接真实文件上传）
+function simulateAttach() {
   const id = crypto.randomUUID()
   attachedFiles.value.push({
     id,
@@ -66,7 +195,7 @@ const _simulateAttach = () => {
   focusInput()
 }
 
-const _simulateImage = () => {
+function simulateImage() {
   const id = crypto.randomUUID()
   attachedFiles.value.push({
     id,
@@ -77,7 +206,7 @@ const _simulateImage = () => {
   focusInput()
 }
 
-defineExpose({ focusInput })
+defineExpose({ focusInput, insertFileRef, inputText, textareaRef })
 </script>
 
 <template>
@@ -128,11 +257,11 @@ defineExpose({ focusInput })
         ref="textareaRef"
         v-model="inputText"
         :disabled="disabled"
-        :placeholder="placeholder || 'Ask anything...'"
+        :placeholder="placeholder || '输入消息...（键入 @ 引用文件）'"
         rows="1"
         class="flex-1 resize-none bg-transparent text-sm text-gray-200 placeholder-gray-500 focus:outline-none py-1.5 max-h-[180px]"
         @keydown="handleKeydown"
-        @input="handleAutoResize"
+        @input="handleInput"
       />
 
       <!-- 发送按钮 -->

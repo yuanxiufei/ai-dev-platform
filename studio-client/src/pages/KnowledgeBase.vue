@@ -6,6 +6,7 @@ import {
   type RAGSearchResult,
   ragSearch,
 } from "@/api/rag"
+import { BookOpen, Database, FileText, Loader2, Search } from "lucide-vue-next"
 
 const kbs = ref<KnowledgeBase[]>([])
 const loading = ref(true)
@@ -25,7 +26,7 @@ onMounted(async () => {
   }
 })
 
-const _handleSearch = async () => {
+const handleSearch = async () => {
   if (!searchQuery.value.trim() || searching.value) return
   searching.value = true
   try {
@@ -39,7 +40,7 @@ const _handleSearch = async () => {
   }
 }
 
-const _formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
+const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 </script>
 
 <template>

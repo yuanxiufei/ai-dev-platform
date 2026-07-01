@@ -1,16 +1,58 @@
 """
-核心认证/用户模型 — User, Item, Token 等基础模型
+核心认证/用户模型 — User, Item, Tenant, Token 等基础模型
 """
 import uuid
 from datetime import datetime, timezone
 
 from pydantic import EmailStr
-from sqlalchemy import DateTime
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import DateTime, Text, Boolean
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 
 def get_datetime_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# ── Tenant (多租户) ──────────────────────────────────
+
+class TenantBase(SQLModel):
+    name: str = Field(max_length=100)
+    slug: str = Field(max_length=50, index=True, unique=True)
+    is_active: bool = True
+    plan: str = Field(default="free", max_length=20)  # free | pro | enterprise
+    quota_limit: int = Field(default=1000)              # 资源配额上限
+
+
+class Tenant(TenantBase, table=True):
+    __tablename__ = "tenant"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    config_json: dict | None = Field(default=None, sa_column=Column("config_json", Text))
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),
+    )
+    updated_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+
+    users: list["User"] = Relationship(back_populates="tenant")
+
+
+class TenantPublic(TenantBase):
+    id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class TenantCreate(SQLModel):
+    name: str
+    slug: str
+    plan: str = "free"
+
+
+class TenantUpdate(SQLModel):
+    name: str | None = None
+    is_active: bool | None = None
+    plan: str | None = None
+    quota_limit: int | None = None
 
 
 # ── User ─────────────────────────────────────────────
@@ -24,12 +66,14 @@ class UserBase(SQLModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
+    tenant_id: uuid.UUID | None = None
 
 
 class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=128)
     full_name: str | None = Field(default=None, max_length=255)
+    tenant_slug: str | None = Field(default=None, max_length=50)
 
 
 class UserUpdate(UserBase):
@@ -50,15 +94,23 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    tenant_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="tenant.id",
+        nullable=True,
+        index=True,
+    )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
     )
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
+    tenant: Tenant | None = Relationship(back_populates="users")
 
 
 class UserPublic(UserBase):
     id: uuid.UUID
+    tenant_id: uuid.UUID | None = None
     created_at: datetime | None = None
 
 

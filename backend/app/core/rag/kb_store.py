@@ -108,9 +108,13 @@ class KBSQLiteStore:
             )
             return result.first()
 
-    async def list_kbs(self) -> list[KnowledgeBase]:
+    async def list_kbs(
+        self, limit: int = 10_000, offset: int = 0
+    ) -> list[KnowledgeBase]:
         async with self.get_db() as db:
-            result = await db.exec(select(KnowledgeBase))
+            result = await db.exec(
+                select(KnowledgeBase).offset(offset).limit(limit)
+            )
             return list(result.all())
 
     async def count_kbs(self) -> int:
@@ -156,10 +160,14 @@ class KBSQLiteStore:
             )
             return result.first()
 
-    async def list_documents_by_kb(self, kb_id: str) -> list[KBDocument]:
+    async def list_documents_by_kb(
+        self, kb_id: str, limit: int = 10_000, offset: int = 0
+    ) -> list[KBDocument]:
         async with self.get_db() as db:
             result = await db.exec(
-                select(KBDocument).where(KBDocument.kb_id == kb_id)
+                select(KBDocument)
+                .where(KBDocument.kb_id == kb_id)
+                .offset(offset).limit(limit)
             )
             return list(result.all())
 
@@ -191,17 +199,25 @@ class KBSQLiteStore:
             await db.refresh(media)
             return media
 
-    async def list_media_by_doc(self, doc_id: str) -> list[KBMedia]:
+    async def list_media_by_doc(
+        self, doc_id: str, limit: int = 10_000, offset: int = 0
+    ) -> list[KBMedia]:
         async with self.get_db() as db:
             result = await db.exec(
-                select(KBMedia).where(KBMedia.doc_id == doc_id)
+                select(KBMedia)
+                .where(KBMedia.doc_id == doc_id)
+                .offset(offset).limit(limit)
             )
             return list(result.all())
 
-    async def list_media_by_kb(self, kb_id: str) -> list[KBMedia]:
+    async def list_media_by_kb(
+        self, kb_id: str, limit: int = 10_000, offset: int = 0
+    ) -> list[KBMedia]:
         async with self.get_db() as db:
             result = await db.exec(
-                select(KBMedia).where(KBMedia.kb_id == kb_id)
+                select(KBMedia)
+                .where(KBMedia.kb_id == kb_id)
+                .offset(offset).limit(limit)
             )
             return list(result.all())
 

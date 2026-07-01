@@ -84,12 +84,22 @@
   --color-surface-950: #0a0e18;
 
   /* AI Chat specific */
-  --color-chat-user-bg: rgba(192, 193, 255, 0.1);
-  --color-chat-user-border: rgba(192, 193, 255, 0.2);
-  --color-chat-ai-bg: rgba(28, 31, 42, 0.7);
+  --color-chat-user-bg: rgba(192, 193, 255, 0.08);
+  --color-chat-user-border: rgba(192, 193, 255, 0.18);
+  --color-chat-ai-bg: rgba(28, 31, 42, 0.6);
   --color-chat-ai-border: #c0c1ff;
   --color-chat-btn-primary: #c0c1ff;
   --color-chat-btn-primary-text: #1000a9;
+  --color-chat-input-bg: #141822;
+
+  /* Component tokens — unified UI primitives */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
 }
 
 /* ============================================
@@ -225,6 +235,61 @@ body,
   color: #c0c1ff;
 }
 
+/* ── AI 内联装饰 (Monaco deltaDecorations, 借鉴 08-MonacoEditor.md) ── */
+/* AI 插入行 — 绿色标注 */
+.ai-inserted-line {
+  background: rgba(46, 160, 67, 0.12) !important;
+  border-left: 3px solid #2ea043 !important;
+}
+/* AI 修改行 — 黄色标注 */
+.ai-modified-line {
+  background: rgba(210, 153, 34, 0.12) !important;
+  border-left: 3px solid #d29922 !important;
+}
+/* AI 删除行 — 红色标注 */
+.ai-deleted-line {
+  background: rgba(248, 81, 73, 0.1) !important;
+  border-left: 3px solid #f85149 !important;
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-color: #f8514960;
+}
+/* AI 信息行 — 蓝色标注 */
+.ai-info-line {
+  background: rgba(97, 175, 239, 0.08) !important;
+  border-left: 3px solid #61AFEF !important;
+}
+/* AI 建议 ghost text */
+.ai-suggestion-ghost {
+  opacity: 0.5;
+  font-style: italic;
+}
+/* AI glyph margin 标记 */
+.monaco-editor .ai-glyph-insert {
+  background: #2ea043;
+  width: 4px !important;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+.monaco-editor .ai-glyph-modify {
+  background: #d29922;
+  width: 4px !important;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+.monaco-editor .ai-glyph-delete {
+  background: #f85149;
+  width: 4px !important;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+.monaco-editor .ai-glyph-info {
+  background: #61AFEF;
+  width: 4px !important;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+
 /* Studio-specific utility classes */
 .text-gradient-brand {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -255,6 +320,296 @@ select {
     background-color 0.15s,
     color 0.15s,
     border-color 0.15s;
+}
+
+/* Theme transition — smooth class swap */
+html {
+  /* Allow CSS variable transitions for theme switching */
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* ============================================
+   Session 10: Light Theme Overrides
+   ============================================ */
+html.theme-light {
+  --color-ide-bg: #f5f5f5;
+  --color-ide-surface: #ffffff;
+  --color-ide-surface-hover: #e8e8e8;
+  --color-ide-surface-active: rgba(0, 120, 212, 0.08);
+  --color-ide-border: #d4d4d4;
+  --color-ide-border-focus: #0078d4;
+
+  --color-ide-bg-secondary: #ececec;
+  --color-ide-bg-tertiary: #e0e0e0;
+  --color-ide-hover: #e8e8e8;
+  --color-ide-selection: rgba(0, 120, 212, 0.15);
+
+  --color-ide-text: #1e1e1e;
+  --color-ide-text-dim: #616161;
+  --color-ide-text-bright: #000000;
+  --color-ide-text-secondary: #616161;
+
+  --color-ide-accent: #0078d4;
+  --color-ide-accent-hover: #106ebe;
+  --color-ide-success: #388a34;
+  --color-ide-warning: #ca7100;
+  --color-ide-error: #d1242f;
+  --color-ide-info: #0078d4;
+
+  --color-activity-bg: #f3f3f3;
+  --color-activity-hover: #e8e8e8;
+  --color-activity-active: #ffffff;
+
+  --color-statusbar-bg: #007acc;
+  --color-statusbar-text: #ffffff;
+
+  --color-editor-bg: #ffffff;
+  --color-tab-active: #ffffff;
+  --color-tab-inactive: #ececec;
+  --color-tab-hover: #e8e8e8;
+  --color-tab-border: #d4d4d4;
+
+  --color-terminal-bg: #ffffff;
+  --color-terminal-fg: #1e1e1e;
+  --color-terminal-green: #388a34;
+  --color-terminal-red: #d1242f;
+  --color-terminal-yellow: #ca7100;
+  --color-terminal-blue: #0078d4;
+
+  --color-code-tag: #d1242f;
+  --color-code-string: #388a34;
+  --color-code-keyword: #8250df;
+  --color-code-function: #0550ae;
+  --color-code-attr: #1e1e1e;
+  --color-code-comment: #6e7781;
+  --color-code-number: #953800;
+
+  --color-chat-user-bg: rgba(0, 120, 212, 0.06);
+  --color-chat-user-border: rgba(0, 120, 212, 0.15);
+  --color-chat-ai-bg: rgba(243, 243, 243, 0.8);
+  --color-chat-ai-border: #007acc;
+  --color-chat-btn-primary: #0078d4;
+  --color-chat-btn-primary-text: #ffffff;
+  --color-chat-input-bg: #ffffff;
+
+  --color-brand-400: #0078d4;
+  --color-brand-500: #106ebe;
+  --color-brand-600: #005a9e;
+  --color-purple-400: #0078d4;
+  --color-purple-500: #005a9e;
+  --color-surface-800: #ffffff;
+  --color-surface-900: #f3f3f3;
+  --color-surface-950: #e0e0e0;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+html.theme-light .monaco-editor,
+html.theme-light .monaco-editor-background,
+html.theme-light .monaco-editor .inputarea.ime-input {
+  background-color: var(--color-editor-bg);
+}
+
+/* ============================================
+   Session 10: High-Contrast Theme Overrides
+   ============================================ */
+html.theme-high-contrast {
+  --color-ide-bg: #000000;
+  --color-ide-surface: #0a0a0a;
+  --color-ide-surface-hover: #1a1a1a;
+  --color-ide-surface-active: rgba(30, 220, 110, 0.15);
+  --color-ide-border: #666666;
+  --color-ide-border-focus: #1edc6e;
+
+  --color-ide-bg-secondary: #080808;
+  --color-ide-bg-tertiary: #111111;
+  --color-ide-hover: #1a1a1a;
+  --color-ide-selection: rgba(30, 220, 110, 0.25);
+
+  --color-ide-text: #ffffff;
+  --color-ide-text-dim: #bbbbbb;
+  --color-ide-text-bright: #ffffff;
+  --color-ide-text-secondary: #bbbbbb;
+
+  --color-ide-accent: #1edc6e;
+  --color-ide-accent-hover: #3df08a;
+  --color-ide-success: #1edc6e;
+  --color-ide-warning: #ffd700;
+  --color-ide-error: #ff4444;
+  --color-ide-info: #1edc6e;
+
+  --color-activity-bg: #000000;
+  --color-activity-hover: #1a1a1a;
+  --color-activity-active: #0a0a0a;
+
+  --color-statusbar-bg: #0a0a0a;
+  --color-statusbar-text: #ffffff;
+
+  --color-editor-bg: #000000;
+  --color-tab-active: #000000;
+  --color-tab-inactive: #0a0a0a;
+  --color-tab-hover: #1a1a1a;
+  --color-tab-border: #666666;
+
+  --color-terminal-bg: #000000;
+  --color-terminal-fg: #ffffff;
+  --color-terminal-green: #1edc6e;
+  --color-terminal-red: #ff4444;
+  --color-terminal-yellow: #ffd700;
+  --color-terminal-blue: #1edc6e;
+
+  --color-code-tag: #ff4444;
+  --color-code-string: #1edc6e;
+  --color-code-keyword: #ff8cff;
+  --color-code-function: #00bfff;
+  --color-code-attr: #ffffff;
+  --color-code-comment: #888888;
+  --color-code-number: #ffd700;
+
+  --color-chat-user-bg: rgba(30, 220, 110, 0.06);
+  --color-chat-user-border: rgba(30, 220, 110, 0.2);
+  --color-chat-ai-bg: rgba(0, 0, 0, 0.6);
+  --color-chat-ai-border: #1edc6e;
+  --color-chat-btn-primary: #1edc6e;
+  --color-chat-btn-primary-text: #000000;
+  --color-chat-input-bg: #0a0a0a;
+
+  --color-brand-400: #1edc6e;
+  --color-brand-500: #00cc55;
+  --color-brand-600: #00aa44;
+  --color-purple-400: #1edc6e;
+  --color-purple-500: #00aa44;
+  --color-surface-800: #0a0a0a;
+  --color-surface-900: #080808;
+  --color-surface-950: #000000;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.8);
+}
+
+html.theme-high-contrast .monaco-editor,
+html.theme-high-contrast .monaco-editor-background,
+html.theme-high-contrast .monaco-editor .inputarea.ime-input {
+  background-color: var(--color-editor-bg);
+}
+
+/* ============================================
+   Base Form Elements — Unified UI Primitives
+   ============================================ */
+
+/* Input / Textarea — shared base */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+textarea,
+select {
+  background: var(--color-chat-input-bg, #141822);
+  border: 1px solid var(--color-ide-border);
+  border-radius: var(--radius-md, 10px);
+  color: var(--color-ide-text);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+}
+input::placeholder,
+textarea::placeholder {
+  color: rgba(144, 143, 160, 0.5);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-ide-border-focus);
+  box-shadow: 0 0 0 2px rgba(192, 193, 255, 0.08);
+}
+
+/* Buttons */
+button:not([class*=" "]) {
+  cursor: pointer;
+  color: inherit;
+  background: transparent;
+  border: none;
+  font: inherit;
+}
+
+.btn-primary {
+  background: var(--color-ide-accent);
+  color: var(--color-chat-btn-primary-text);
+  font-weight: 600;
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 16px;
+  font-size: 12px;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ide-text-dim);
+  border-radius: var(--radius-sm, 6px);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-ide-text);
+}
+
+/* Select Dropdown base */
+.dropdown-menu {
+  background: var(--color-ide-bg-secondary, #171b26);
+  border: 1px solid var(--color-ide-border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.35));
+  padding: 4px;
+  min-width: 140px;
+  z-index: 50;
+}
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm, 6px);
+  transition: background 0.12s;
+  cursor: pointer;
+  color: var(--color-ide-text-dim);
+}
+.dropdown-item:hover {
+  background: var(--color-ide-surface-hover, #252836);
+  color: var(--color-ide-text);
+}
+.dropdown-item.active {
+  background: var(--color-ide-surface-active, rgba(192,193,255,0.1));
+  color: var(--color-ide-text);
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  background: var(--color-ide-surface);
+  border: 1px solid var(--color-ide-border);
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Liberation Mono', monospace;
+  font-size: 9px;
+  line-height: 16px;
+  height: 18px;
+  color: var(--color-ide-text-dim);
 }
 
 @keyframes thinking-dot {

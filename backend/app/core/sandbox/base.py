@@ -28,10 +28,28 @@ class SandboxConfig:
     """命令执行超时（秒）"""
     max_output_bytes: int = 1024 * 1024
     """命令输出最大字节数（1MB）"""
+    # Session 09: 进程资源限制 (0 = 不限制)
+    resource_memory_limit_mb: int = 512
+    """内存限制 (MB)，0 为不限制。Unix: ulimit -v, Windows: 忽略"""
+    resource_cpu_limit_seconds: int = 60
+    """CPU 时间限制 (秒)，0 为不限制。Unix: ulimit -t"""
+    resource_max_processes: int = 50
+    """最大进程数限制，0 为不限制。Unix: ulimit -u"""
+    resource_max_file_size_mb: int = 500
+    """最大写入文件大小 (MB)，0 为不限制。Unix: ulimit -f"""
     # Docker 专用
     docker_image: str = "python:3.11-slim"
     docker_container_id: str = ""
     docker_network_disabled: bool = True
+    # K8s 专用 (Session 09)
+    k8s_namespace: str = "ai-sandbox"
+    k8s_image: str = "python:3.12-slim"
+    k8s_cpu_limit: str = "2"
+    k8s_memory_limit: str = "4Gi"
+    k8s_cpu_request: str = "500m"
+    k8s_memory_request: str = "1Gi"
+    k8s_ttl_seconds: int = 3600
+    k8s_network_policy: str = "deny-all"
 
 
 @dataclass
