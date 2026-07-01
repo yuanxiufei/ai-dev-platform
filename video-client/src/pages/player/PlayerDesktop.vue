@@ -1,25 +1,46 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Download, Share2, Heart, Clock, Sparkles } from 'lucide-vue-next'
-import { useVideoStore } from '../../stores/videoStore'
+import { ArrowLeft, Download, Share2, Heart, Clock, Sparkles, AlertTriangle } from 'lucide-vue-next'
+import { useVideoStore, type VideoItem } from '../../stores/videoStore'
 
 const route = useRoute()
 const router = useRouter()
 const store = useVideoStore()
-const video = computed(() => store.videos.find(v => v.id === route.params.id))
+
+const taskId = route.params.id as string
 const isLiked = ref(false)
+
+// 尝试从 store 查找 + 自动加载
+const video = computed<VideoItem | undefined>(() => store.getVideo(taskId))
+const notFound = ref(false)
+
+onMounted(async () => {
+  if (!store.getVideo(taskId)) {
+    await store.fetchMyTasks()
+  }
+  if (!store.getVideo(taskId)) {
+    notFound.value = true
+  }
+})
+
 function goBack() { router.push('/gallery') }
+
+const statusLabels: Record<string, string> = {
+  pending: '待生成', generating: '生成中', completed: '已完成', failed: '失败',
+}
 </script>
 
 <template>
   <div class="py-12 animate-fade-in-up">
-    <div v-if="!video" class="flex flex-col items-center justify-center py-20 text-center">
-      <Sparkles class="w-12 h-12 text-gray-600 mb-4" /><h2 class="text-xl font-semibold text-gray-300 mb-2">视频未找到</h2>
-      <p class="text-gray-500 mb-6">该视频可能已被删除</p>
+    <!-- 未找到 -->
+    <div v-if="notFound" class="flex flex-col items-center justify-center py-20 text-center">
+      <AlertTriangle class="w-12 h-12 text-gray-600 mb-4" />
+      <h2 class="text-xl font-semibold text-gray-300 mb-2">视频未找到</h2>
+      <p class="text-gray-500 mb-6">该视频可能已被删除或不属于你的账户</p>
       <button @click="goBack" class="px-6 py-2.5 rounded-xl bg-violet-600 text-white font-medium hover:bg-violet-500 transition-colors">返回画廊</button>
     </div>
-    <template v-else>
+    <template v-else-if="video">
       <div class="flex items-center justify-between mb-8">
         <button @click="goBack" class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"><ArrowLeft class="w-5 h-5" /><span class="text-sm font-medium">返回</span></button>
         <div class="flex items-center gap-2">
@@ -28,7 +49,7 @@ function goBack() { router.push('/gallery') }
           <button class="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-gray-400 hover:border-white/15 transition-all"><Download class="w-5 h-5" /></button>
         </div>
       </div>
-      <!-- PC 双列布局 -->
+      <!-- 双列布局 -->
       <div class="grid grid-cols-2 gap-8">
         <div class="relative bg-black rounded-2xl overflow-hidden aspect-[9/16]" style="max-height: 80vh">
           <img v-if="video.thumbnailUrl" :src="video.thumbnailUrl" :alt="video.title" class="w-full h-full object-cover" />
@@ -39,10 +60,13 @@ function goBack() { router.push('/gallery') }
           </div>
         </div>
         <div class="space-y-6">
-          <div><h1 class="text-2xl font-bold text-white mb-2">{{ video.title }}</h1><p class="text-gray-400 text-sm leading-relaxed">{{ video.prompt }}</p></div>
+          <div>
+            <h1 class="text-2xl font-bold text-white mb-2">{{ video.title }}</h1>
+            <p class="text-gray-400 text-sm leading-relaxed">{{ video.prompt }}</p>
+          </div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"><div class="flex items-center gap-2 text-gray-500 text-xs mb-1"><Clock class="w-3.5 h-3.5" /><span>时长</span></div><p class="text-white font-semibold">{{ video.duration }}s</p></div>
-            <div class="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"><div class="flex items-center gap-2 text-gray-500 text-xs mb-1"><Sparkles class="w-3.5 h-3.5" /><span>风格</span></div><p class="text-white font-semibold capitalize">{{ video.style }}</p></div>
+            <div class="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"><div class="flex items-center gap-2 text-gray-500 text-xs mb-1"><Clock class="w-3.5 h-3.5" /><span>时长</span></div><p class="text-white font-semibold">{{ video.duration ?? '--' }}s</p></div>
+            <div class="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"><div class="flex items-center gap-2 text-gray-500 text-xs mb-1"><Sparkles class="w-3.5 h-3.5" /><span>风格 / 模型</span></div><p class="text-white font-semibold">{{ video.style || video.modelName }}</p></div>
           </div>
           <div class="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"><p class="text-xs text-gray-500 mb-1">状态</p>
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium"
@@ -51,7 +75,8 @@ function goBack() { router.push('/gallery') }
                 'bg-amber-500/10 text-amber-400 border border-amber-500/20': video.status === 'generating',
                 'bg-red-500/10 text-red-400 border border-red-500/20': video.status === 'failed',
                 'bg-gray-500/10 text-gray-400 border border-gray-500/20': video.status === 'pending',
-              }">{{ { pending: '待生成', generating: '生成中', completed: '已完成', failed: '失败' }[video.status] }}</span>
+              }">{{ statusLabels[video.status] }}</span>
+            <p v-if="video.errorMessage" class="text-red-400 text-xs mt-2">{{ video.errorMessage }}</p>
           </div>
           <p class="text-xs text-gray-600">创建于 {{ new Date(video.createdAt).toLocaleString('zh-CN') }}</p>
         </div>

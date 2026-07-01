@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Monitor, Moon, Package, Sun, Users } from "lucide-vue-next"
+import { BarChart3, Film, Home, Monitor, Moon, Package, ShieldCheck, Sun, Users } from "lucide-vue-next"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import { useIsMobile } from "@/composables/useMobile"
@@ -17,6 +17,9 @@ const _route = useRoute()
 
 const _navItems = [
   { title: "Dashboard", to: "/", icon: Home },
+  { title: "视频管理", to: "/videos", icon: Film },
+  { title: "数据分析", to: "/analytics", icon: BarChart3 },
+  { title: "内容审核", to: "/moderation", icon: ShieldCheck },
   { title: "Items", to: "/items", icon: Package },
 ]
 

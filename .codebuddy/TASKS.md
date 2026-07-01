@@ -212,6 +212,42 @@
 
 ---
 
+## Session 11 — 视频系统前后端打通 ✅
+
+### 23. 视频前后端 API 打通 ✅
+- **现状**: video-client 和 video-admin 只用 mock 数据，不调用后端
+- **目标**: 前后端完整打通，所有数据走真实 API
+- **涉及**: video-client 3 页面 + video-admin 4 页面 + backend 2 端点
+
+**后端改动 (1 文件)**
+| 文件 | 改动 |
+|------|------|
+| `video/client/generate.py` | 修复缺少 `logger` 导入 Bug；新增 `GET /videos/generate/my` 用户任务分页列表（支持 status 过滤） |
+
+**video-client 改动 (7 文件)**
+| 文件 | 改动 |
+|------|------|
+| `api/videoApi.ts` (**新增**) | API 服务层：`generateVideo` / `getTaskStatus` / `listMyTasks` / `browseVideos` / `searchVideos` / `getPlayInfo` / `connectProgressWs` |
+| `types/video.ts` (**新增**) | TS 类型：`GenerateRequest/Response`、`TaskStatusResponse`、`VideoItem`、`WsProgressMessage` 等 10+ 接口 |
+| `stores/videoStore.ts` (**重写**) | Pinia Store：真实 API 调用 + WebSocket 实时进度 + 1.5s 轮询回退 + 本地视频列表管理 |
+| `pages/home/HomeDesktop.vue` | 生成入口页：提示词输入 + 6 种风格/时长选择 → `store.startGeneration()` + 实时进度条 + 最近作品网格 |
+| `pages/gallery/GalleryDesktop.vue` | 画廊页：`store.fetchMyTasks()` 加载 + 状态过滤 + 4列网格 + 进度/删除 |
+| `pages/player/PlayerDesktop.vue` | 播放页：路由 id 查找视频 + 双列布局（预览/详情）+ 点赞/分享/下载 |
+| `vite.config.ts` | 新增 `/api`、`/videos`、`/thumbnails` 代理到 `localhost:8000` |
+
+**video-admin 改动 (6 文件)**
+| 文件 | 改动 |
+|------|------|
+| `pages/Videos.vue` (**新增**) | 管理列表：分页表格 + 审核/公开状态筛选 + 编辑/删除操作 |
+| `pages/Analytics.vue` (**新增**) | 数据分析：8 张统计卡片 + 任务成功率/公开率/平均时长摘要 |
+| `pages/Moderation.vue` (**新增**) | 审核队列：待审核卡片列表 + 批准/驳回操作 + 15s 自动刷新 |
+| `pages/Dashboard.vue` | 概览仪表板：4 张概览卡片 + 3 个快捷入口（视频管理/数据分析/内容审核） |
+| `router/index.ts` | 新增 3 条路由：`/videos`、`/analytics`（superuser）、`/moderation`（superuser） |
+| `components/Sidebar/AppSidebar.vue` | 新增 3 个导航项：视频管理(Film)、数据分析(BarChart3)、内容审核(ShieldCheck) |
+| `vite.config.ts` | 新增 `/api` 代理到 `localhost:8000` |
+
+---
+
 ## 参考仓库待深入
 
 | 仓库 | 学习重点 | 对应任务 |

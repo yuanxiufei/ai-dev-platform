@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Sparkles, Loader2, Wand2, Clock, Image, Play } from 'lucide-vue-next'
 import { RouterLink, useRouter } from 'vue-router'
-import { useVideoStore } from '../../stores/videoStore'
+import { useVideoStore, type VideoItem } from '../../stores/videoStore'
 
 const store = useVideoStore()
 const router = useRouter()
@@ -21,30 +21,34 @@ const styles = [
 ]
 
 const isSubmitting = ref(false)
+const generateError = ref<string | null>(null)
 
 async function handleGenerate() {
   if (!prompt.value.trim() || isSubmitting.value) return
   isSubmitting.value = true
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-  store.addVideo({
-    id, title: prompt.value.slice(0, 40), prompt: prompt.value,
-    status: 'generating', progress: 0, duration: duration.value,
-    style: selectedStyle.value, createdAt: new Date().toISOString(),
-  })
-  const timer = setInterval(() => {
-    const v = store.videos.find(v => v.id === id)
-    if (!v) { clearInterval(timer); return }
-    if (v.progress >= 100) {
-      clearInterval(timer)
-      store.updateVideo(id, { status: 'completed', videoUrl: `https://example.com/video/${id}.mp4`, thumbnailUrl: `https://picsum.photos/seed/${id}/480/854` })
-      store.setGenerating(false); isSubmitting.value = false; return
+  generateError.value = null
+
+  try {
+    const taskId = await store.startGeneration(
+      prompt.value,
+      selectedStyle.value,
+      duration.value,
+    )
+    if (!taskId) {
+      generateError.value = store.error || '生成启动失败'
+      isSubmitting.value = false
     }
-    store.updateVideo(id, { progress: v.progress + Math.random() * 15 + 3 })
-  }, 500)
-  store.setGenerating(true)
+  } catch (e: any) {
+    generateError.value = e?.message || '生成失败'
+    isSubmitting.value = false
+  }
 }
 
-const hasResult = computed(() => store.videos.filter(v => v.status === 'completed').length > 0)
+const hasResult = computed(() => store.completedVideos.length > 0)
+
+function getThumbnailUrl(v: VideoItem): string | undefined {
+  return v.thumbnailUrl || `https://picsum.photos/seed/${v.taskId}/480/854`
+}
 </script>
 
 <template>
@@ -96,7 +100,7 @@ const hasResult = computed(() => store.videos.filter(v => v.status === 'complete
     <!-- 生成中任务 -->
     <section v-if="store.isGenerating" class="max-w-3xl mx-auto mb-16">
       <h2 class="text-lg font-semibold text-gray-300 mb-4">当前任务</h2>
-      <div v-for="v in store.videos.filter(v => v.status === 'generating')" :key="v.id" class="bg-white/[0.03] border border-white/10 rounded-2xl p-6 backdrop-blur-xl animate-fade-in-up">
+      <div v-for="v in store.generatingVideos" :key="v.taskId" class="bg-white/[0.03] border border-white/10 rounded-2xl p-6 backdrop-blur-xl animate-fade-in-up">
         <div class="flex items-center gap-4 mb-4">
           <div class="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center"><Loader2 class="w-6 h-6 text-violet-400 animate-spin" /></div>
           <div class="flex-1 min-w-0"><p class="font-medium text-white truncate">{{ v.title }}</p><p class="text-sm text-gray-500">{{ v.style }} · {{ v.duration }}s</p></div>
@@ -110,7 +114,7 @@ const hasResult = computed(() => store.videos.filter(v => v.status === 'complete
     <section v-if="hasResult" class="max-w-3xl mx-auto mb-16">
       <h2 class="text-lg font-semibold text-gray-300 mb-4">最近作品 <RouterLink to="/gallery" class="text-sm text-violet-400 hover:text-violet-300 ml-2 font-normal">查看全部 →</RouterLink></h2>
       <div class="grid grid-cols-2 gap-4">
-        <div v-for="v in store.videos.filter(v => v.status === 'completed').slice(0, 4)" :key="v.id" @click="router.push(`/play/${v.id}`)" class="group relative bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-violet-500/30 transition-all">
+        <div v-for="v in store.completedVideos.slice(0, 4)" :key="v.taskId" @click="router.push(`/play/${v.taskId}`)" class="group relative bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-violet-500/30 transition-all">
           <div class="aspect-[9/16] bg-gray-800 flex items-center justify-center relative">
             <Image v-if="!v.thumbnailUrl" class="w-12 h-12 text-gray-600" />
             <img v-else :src="v.thumbnailUrl" :alt="v.title" class="w-full h-full object-cover" loading="lazy" />

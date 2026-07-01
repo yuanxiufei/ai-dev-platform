@@ -13,16 +13,19 @@ Video — 生成 API
   4. 异步执行 + 实时进度反馈
 """
 
+import logging
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import select, func
 
 from app.api.deps import CurrentUser, SessionDep, commit_or_rollback, get_current_user_ws
 from app.core.ws_limiter import get_ws_limiter
 from app.models.video_models import VideoTask, TaskStatus
+
+logger = logging.getLogger("api.video.generate")
 
 router = APIRouter(prefix="/videos/generate", tags=["video-generate"])
 
@@ -173,6 +176,57 @@ async def _execute_generation(
                 db_session.commit()
             except Exception:
                 db_session.rollback()
+
+
+# ── 我的任务列表 (必须在 /{task_id} 之前) ──────────────
+
+@router.get("/my")
+def list_my_tasks(
+    session: SessionDep,
+    user: CurrentUser,
+    page: int = 1,
+    size: int = 20,
+    status: str | None = None,
+):
+    """列出当前用户的视频生成任务（最近优先）"""
+    size = min(size, 100)
+    if page < 1:
+        page = 1
+
+    stmt = select(VideoTask).where(VideoTask.owner_id == user.id)
+
+    if status and status in ("pending", "generating", "completed", "failed"):
+        stmt = stmt.where(VideoTask.status == TaskStatus(status))
+
+    total = session.exec(
+        select(func.count()).select_from(stmt.subquery())
+    ).one()
+
+    offset = (page - 1) * size
+    tasks = session.exec(
+        stmt.order_by(VideoTask.created_at.desc()).offset(offset).limit(size)
+    ).all()
+
+    return {
+        "data": [
+            {
+                "task_id": str(t.id),
+                "prompt": t.prompt[:200],
+                "model_name": t.model_name,
+                "status": t.status.value,
+                "progress": t.progress,
+                "output_path": t.output_path,
+                "thumbnail_path": t.thumbnail_path,
+                "duration": t.duration,
+                "error_message": t.error_message,
+                "created_at": t.created_at.isoformat(),
+            }
+            for t in tasks
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
 
 
 @router.get("/{task_id}")

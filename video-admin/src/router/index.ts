@@ -51,9 +51,31 @@ const router = createRouter({
           component: () => import("@/pages/Dashboard.vue"),
         },
         {
-          path: "items",
-          name: "items",
-          component: () => import("@/pages/Items.vue"),
+          path: "videos",
+          name: "videos",
+          component: () => import("@/pages/Videos.vue"),
+        },
+        {
+          path: "analytics",
+          name: "analytics",
+          component: () => import("@/pages/Analytics.vue"),
+          beforeEnter: (_to, _from, next) => {
+            const auth = useAuthStore()
+            const user = auth.userQuery.data.value
+            if (user?.is_superuser) return next()
+            return next("/")
+          },
+        },
+        {
+          path: "moderation",
+          name: "moderation",
+          component: () => import("@/pages/Moderation.vue"),
+          beforeEnter: (_to, _from, next) => {
+            const auth = useAuthStore()
+            const user = auth.userQuery.data.value
+            if (user?.is_superuser) return next()
+            return next("/")
+          },
         },
         {
           path: "admin",
