@@ -363,6 +363,41 @@ export interface TrajectoryFile {
   modified_at: number
 }
 
+/** 分页列表项 (来自 /agent/trajectory/list) */
+export interface TrajectoryListItem {
+  agent_id: string
+  session_id: string
+  started_at: string
+  completed_at: string
+  total_steps: number
+  total_tool_calls: number
+  total_tokens: number
+  total_latency_ms: number
+  final_model: string
+  final_provider: string
+  has_error: boolean
+  cancelled: boolean
+  filename: string
+  file_size_bytes: number
+}
+
+/** 聚合统计 (来自 /agent/trajectory/stats) */
+export interface TrajectoryStats {
+  total_runs: number
+  success_runs: number
+  error_runs: number
+  cancelled_runs: number
+  success_rate: number
+  total_steps: number
+  total_tool_calls: number
+  total_tokens: number
+  total_latency_ms: number
+  avg_steps_per_run: number
+  avg_tool_calls_per_run: number
+  avg_tokens_per_run: number
+  top_models: { model: string; count: number }[]
+}
+
 export interface TrajectorySummary {
   agent_id: string
   session_id: string
@@ -397,6 +432,20 @@ export const trajectoryApi = {
     apiClient.get<{ status: string; trajectories: TrajectoryFile[] }>(
       "/agent/trajectory/",
       { params: agentId ? { agent_id: agentId } : {} },
+    ),
+  /** 分页列表 (带筛选) */
+  listPaginated: (params?: {
+    page?: number; size?: number; status?: string
+    model?: string; agent_id?: string; search?: string
+  }) =>
+    apiClient.get<{
+      status: string; data: TrajectoryListItem[]
+      total: number; page: number; size: number
+    }>("/agent/trajectory/list", { params }),
+  /** 聚合统计 */
+  stats: () =>
+    apiClient.get<{ status: string; stats: TrajectoryStats }>(
+      "/agent/trajectory/stats",
     ),
   getAgent: (agentId: string, sessionId?: string, limit?: number) =>
     apiClient.get<{ status: string; trajectories: any[]; total: number }>(
