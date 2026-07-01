@@ -154,6 +154,8 @@ class AgentOrchestrator:
         mode: str = "full",
         context: dict | None = None,
         engine: str = ENGINE_DIRECT,
+        human_input_mode: str = "terminate",
+        git_auto_commit: bool = True,
     ) -> OrchestrationResult:
         """
         执行完整的 Agent 协同流水线
@@ -163,6 +165,8 @@ class AgentOrchestrator:
             mode: full (完整流水线) | code_only (仅生成) | review_only (仅审查)
             context: 额外上下文（代码库信息、记忆等）
             engine: direct (传统流水线) | workflow (声明式状态图)
+            human_input_mode: never | terminate | always (借鉴 AutoGen)
+            git_auto_commit: 是否自动 git add + commit (借鉴 Aider)
         """
         if engine == self.ENGINE_WORKFLOW:
             return await self._orchestrate_workflow(task, mode, context or {})
@@ -249,6 +253,22 @@ class AgentOrchestrator:
 
             # Phase 4: Save to Memory
             await self._save_to_memory(task, result)
+
+            # 🆕 Git Auto-Commit (借鉴 Aider Git-Native 编辑)
+            if git_auto_commit and result.success:
+                try:
+                    commit_msg, changed_files = await self._git_auto_commit(task)
+                    if changed_files:
+                        logger.info(
+                            "Orchestrator: auto-committed %d files — %s",
+                            len(changed_files), commit_msg,
+                        )
+                        result.results["git_commit"] = {
+                            "message": commit_msg,
+                            "files": changed_files,
+                        }
+                except Exception as e:
+                    logger.warning("Orchestrator git auto-commit failed: %s", e)
 
             result.success = not result.error
             result.total_latency_ms = (time.perf_counter() - start_time) * 1000
@@ -483,6 +503,66 @@ Provide corrected code or instructions for fixing each issue.
         )
         response = await self._router.generate(request)
         return response.content or ""
+
+    @staticmethod
+    def _git_auto_commit(task: str) -> tuple[str, list[str]]:
+        """
+        Git 自动提交 (借鉴 Aider Git-Native 编辑)
+
+        Returns:
+            (commit_message, changed_files) — 如果没有变更返回 ("", [])
+        """
+        import subprocess
+
+        # 检查是否在 git 仓库中
+        try:
+            r = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if r.returncode != 0:
+                logger.debug("Not a git repo, skip orchestrator auto-commit")
+                return "", []
+        except Exception:
+            return "", []
+
+        # git add -A
+        try:
+            subprocess.run(["git", "add", "-A"], capture_output=True, text=True, timeout=10, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.warning("Orchestrator git add failed: %s", e.stderr.strip())
+            return "", []
+
+        # 获取变更文件
+        try:
+            dr = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                capture_output=True, text=True, timeout=10, check=True,
+            )
+            changed_files = [f.strip() for f in dr.stdout.strip().split("\n") if f.strip()]
+        except subprocess.CalledProcessError:
+            changed_files = []
+
+        if not changed_files:
+            subprocess.run(["git", "reset", "HEAD"], capture_output=True, text=True, timeout=5)
+            return "", []
+
+        # 生成 commit message
+        safe_task = task.replace("\n", " ").strip()[:120]
+        commit_msg = f"AI orchestrator: {safe_task}"
+
+        try:
+            subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                capture_output=True, text=True, timeout=10, check=True,
+            )
+            logger.info("Orchestrator git commit: %d files — %s", len(changed_files), commit_msg)
+        except subprocess.CalledProcessError as e:
+            logger.warning("Orchestrator git commit failed: %s", e.stderr.strip())
+            subprocess.run(["git", "reset", "HEAD"], capture_output=True, text=True, timeout=5)
+            return "", []
+
+        return commit_msg, changed_files
 
     async def _save_to_memory(self, task: str, result: OrchestrationResult) -> None:
         """将执行结果保存到长期记忆"""

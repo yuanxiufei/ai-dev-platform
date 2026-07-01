@@ -118,6 +118,51 @@ export const memoryApi = {
     }>("/memory/stats"),
 }
 
+// ── Memory 关系图 (借鉴 HermesStudio Memory UI) ──────────
+
+export interface MemoryGraphNode {
+  id: string
+  content: string
+  memory_type: string
+  importance: number
+  access_count: number
+  created_at: string
+  last_accessed: string
+  source: string
+  tags: string[]
+  metadata: Record<string, unknown>
+}
+
+export interface MemoryGraphEdge {
+  id: string
+  source_id: string
+  target_id: string
+  relation_type: string
+  weight: number
+  label: string
+}
+
+export interface MemoryGraphData {
+  nodes: MemoryGraphNode[]
+  edges: MemoryGraphEdge[]
+}
+
+export interface MemoryGraphStats {
+  total_nodes: number
+  total_edges: number
+  by_type: Record<string, number>
+  avg_importance: number
+  top_connected: { id: string; content: string; degree: number }[]
+}
+
+export const memoryGraphApi = {
+  graphData: (params?: { memory_type?: string; min_importance?: number }) =>
+    apiClient.get<MemoryGraphData>("/memory/graph-data", { params }),
+
+  graphStats: () =>
+    apiClient.get<MemoryGraphStats>("/memory/graph-stats"),
+}
+
 // ── Analytics 分析 (C端) ───────────────────────────────
 
 export interface AnalyticsOverview {

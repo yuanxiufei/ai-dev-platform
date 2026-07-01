@@ -24,6 +24,7 @@ Agent Custom Modes 系统 — 借鉴 Roo Code .roomodes 设计
 
 from __future__ import annotations
 
+import enum
 import logging
 import re
 from dataclasses import dataclass, field
@@ -31,6 +32,21 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("agent.modes")
+
+
+# ── Human Input Mode (借鉴 AutoGen NEVER/TERMINATE/ALWAYS) ─────
+
+class HumanInputMode(str, enum.Enum):
+    """
+    人工介入级别 (~AutoGen human_input_mode)
+
+    NEVER     — 全自动，不需要人类确认 (适合信任度高的任务)
+    TERMINATE — 仅在终止时需要确认 (默认，最实用)
+    ALWAYS    — 每一步都需要确认 (最安全，适合高风险操作)
+    """
+    NEVER = "never"
+    TERMINATE = "terminate"
+    ALWAYS = "always"
 
 
 # ── 模式定义 ──────────────────────────────────────────────────
@@ -50,6 +66,8 @@ class AgentMode:
     icon: str = "🤖"                   # 图标
     color: str = "#6366f1"             # UI 颜色
     skills: list[str] = field(default_factory=list)  # 🆕 绑定的 Skills
+    human_input_mode: HumanInputMode = HumanInputMode.TERMINATE  # 🆕 人工介入级别
+    git_auto_commit: bool = True  # 🆕 自动 git commit (借鉴 Aider)
     custom: dict[str, Any] = field(default_factory=dict)  # 自定义扩展
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +83,8 @@ class AgentMode:
             "icon": self.icon,
             "color": self.color,
             "skills": self.skills,
+            "human_input_mode": self.human_input_mode.value if isinstance(self.human_input_mode, HumanInputMode) else self.human_input_mode,
+            "git_auto_commit": self.git_auto_commit,
         }
 
     def to_agent_config(self) -> "AgentConfig":
@@ -78,6 +98,8 @@ class AgentMode:
             tool_categories=list(self.tool_categories),
             preferred_model=self.preferred_model,
             max_turns=self.max_turns,
+            human_input_mode=self.human_input_mode,
+            git_auto_commit=self.git_auto_commit,
         )
 
 
@@ -136,6 +158,7 @@ PRESET_MODES: list[AgentMode] = [
         icon="💻",
         color="#10b981",
         skills=["frontend-design", "refactor"],
+        git_auto_commit=True,
     ),
     AgentMode(
         slug="debug",
@@ -163,6 +186,7 @@ PRESET_MODES: list[AgentMode] = [
         icon="🪲",
         color="#ef4444",
         skills=["debug", "explain"],
+        human_input_mode=HumanInputMode.ALWAYS,  # 调试高风险，需确认
     ),
     AgentMode(
         slug="test",

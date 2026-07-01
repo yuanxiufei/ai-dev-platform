@@ -20,6 +20,8 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - DiffEngine: 文件变更差异生成器（unified diff → 前端 diff-viewer）
 - Pipeline: 步骤编排器（@step 装饰器 + run_pipeline 延迟调用模式，借鉴 cognee）
 - SessionTree: 会话树 + 检查点（分支/快照/恢复，借鉴 hermes-agent）
+- FuzzyDiffer: Aider 风格模糊 Diff 引擎（Search-Replace + Fuzzy Match + 冲突检测）
+- HumanInputMode: AutoGen 风格人工介入级别（NEVER/TERMINATE/ALWAYS）
 """
 
 from app.core.agent.tool_executor import ToolExecutor, get_tool_executor  # noqa: F401
@@ -50,7 +52,7 @@ from app.core.agent.middlewares import (  # noqa: F401
     create_default_pipeline,
 )
 from app.core.agent.agent_modes import (  # noqa: F401
-    AgentMode, ModeManager, PRESET_MODES,
+    AgentMode, ModeManager, PRESET_MODES, HumanInputMode,
     CKGMode, init_mode_manager, get_mode_manager,
 )
 from app.core.agent.lakeview import (  # noqa: F401
@@ -96,4 +98,9 @@ from app.core.agent.workflow_graph import (  # noqa: F401
 from app.core.agent.context_window import (  # noqa: F401
     ContextWindowManager, ContextBudget, TruncationTier,
     SmartReadResult, init_context_manager, get_context_manager,
+)
+
+# ── FuzzyDiffer 模糊 Diff 引擎（借鉴 Aider） ──
+from app.core.agent.differ import (  # noqa: F401
+    FuzzyDiffer, DiffResult, EditBlock, get_differ,
 )

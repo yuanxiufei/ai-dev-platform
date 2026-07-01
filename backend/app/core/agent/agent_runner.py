@@ -29,8 +29,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from app.core.agent.agent_config import AgentConfig, AgentHook, AgentRunContext
@@ -600,6 +602,24 @@ class AgentRunner:
             except Exception as e:
                 logger.warning("Memory extraction failed (non-blocking): %s", e)
 
+        # 🆕 Git Auto-Commit (借鉴 Aider Git-Native 编辑)
+        if config.git_auto_commit and result.success and not result.error:
+            try:
+                commit_msg, changed_files = await asyncio.to_thread(
+                    self._git_auto_commit, user_message, config.name,
+                )
+                if changed_files:
+                    logger.info(
+                        "Agent '%s': auto-committed %d files — %s",
+                        config.name, len(changed_files), commit_msg,
+                    )
+                    result.metadata["git_commit"] = {
+                        "message": commit_msg,
+                        "files": changed_files,
+                    }
+            except Exception as e:
+                logger.warning("Git auto-commit failed (non-blocking): %s", e)
+
         # 🆕 TraceDB: 完成轨迹
         try:
             if trace_id and self._trace_db:
@@ -815,6 +835,90 @@ class AgentRunner:
             )
         except Exception as e:
             logger.debug("File change persist skipped: %s", e)
+
+    @staticmethod
+    def _git_auto_commit(user_message: str, agent_name: str) -> tuple[str, list[str]]:
+        """
+        Git 自动提交 (借鉴 Aider Git-Native 编辑)
+
+        每次 Agent 代码修改后自动:
+        1. git add -A (暂存所有变更)
+        2. git diff --cached --stat (查看变更概要)
+        3. git commit -m "AI agent: {user_message} [{agent_name}]"
+
+        Returns:
+            (commit_message, changed_files) — 如果没有变更返回 ("", [])
+        """
+        # 检查是否在 git 仓库中
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                logger.debug("Not a git repository, skipping auto-commit")
+                return "", []
+        except Exception:
+            return "", []
+
+        # git add -A
+        try:
+            subprocess.run(
+                ["git", "add", "-A"],
+                capture_output=True, text=True, timeout=10,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.warning("git add -A failed: %s", e.stderr.strip())
+            return "", []
+
+        # git diff --cached --name-only 获取变更文件列表
+        try:
+            diff_result = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                capture_output=True, text=True, timeout=10,
+                check=True,
+            )
+            changed_files = [
+                f.strip() for f in diff_result.stdout.strip().split("\n")
+                if f.strip()
+            ]
+        except subprocess.CalledProcessError:
+            changed_files = []
+
+        if not changed_files:
+            # 没有变更，回退 git add
+            subprocess.run(
+                ["git", "reset", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return "", []
+
+        # 生成 commit message
+        safe_message = user_message.replace("\n", " ").strip()[:120]
+        commit_msg = f"AI agent: {safe_message} [{agent_name}]"
+
+        # git commit
+        try:
+            subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                capture_output=True, text=True, timeout=10,
+                check=True,
+            )
+            logger.info(
+                "Git auto-commit: %d files — %s",
+                len(changed_files), commit_msg,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.warning("git commit failed: %s", e.stderr.strip())
+            # 回退暂存区
+            subprocess.run(
+                ["git", "reset", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return "", []
+
+        return commit_msg, changed_files
 
 
 # ── 流式 AgentRunner（WebSocket 友好） ──────────────────────

@@ -105,6 +105,14 @@ class AgentConfig:
     # ── 钩子 ──
     hooks: list[AgentHook] = field(default_factory=list)
 
+    # ── Human-in-the-Loop (借鉴 AutoGen NEVER/TERMINATE/ALWAYS) ──
+    human_input_mode: str = "terminate"
+    """人工介入级别: never | terminate | always"""
+
+    # ── Git 集成 (借鉴 Aider Git-Native 编辑) ──
+    git_auto_commit: bool = False
+    """是否在 Agent 执行完成后自动 git add + commit"""
+
     # ── 高级配置 ──
     allow_parallel_tools: bool = True
     """是否允许 LLM 并行调用多个工具"""
