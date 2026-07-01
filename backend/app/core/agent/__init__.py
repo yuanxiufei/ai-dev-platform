@@ -7,6 +7,8 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - AgentConfig: Agent 定义（名称、指令、工具集、钩子）
 - Handoff: 子 Agent 委派机制
 - ContextCompressor: 对话上下文压缩（LLM 摘要 + 轮次截断）
+- ContextWindowManager: 智能上下文窗口管理（SWE-agent 三层截断策略）
+- WorkflowGraph: 声明式 Agent 状态图（LangGraph StateGraph 模式）
 - MentionParser: @mention 解析器（@file:/@dir:/@symbol: 上下文注入，借鉴 Continue）
 - AgentHooks: Agent 生命周期钩子（EventBus 桥接 + 组合模式）
 - TrajectoryRecorder: Agent 轨迹记录（增量持久化）
@@ -81,4 +83,17 @@ from app.core.agent.pipeline import (  # noqa: F401
 from app.core.agent.session_tree import (  # noqa: F401
     SessionTree, SessionNode, Checkpoint, CheckpointManager,
     init_session_tree, get_session_tree, get_checkpoint_manager,
+)
+
+# ── WorkflowGraph 声明式状态图（借鉴 LangGraph） ──
+from app.core.agent.workflow_graph import (  # noqa: F401
+    WorkflowGraph, WorkflowState, CompiledWorkflow,
+    Edge, ConditionalEdge, EdgeType,
+    create_default_workflow,
+)
+
+# ── ContextWindow 智能上下文管理（借鉴 SWE-agent） ──
+from app.core.agent.context_window import (  # noqa: F401
+    ContextWindowManager, ContextBudget, TruncationTier,
+    SmartReadResult, init_context_manager, get_context_manager,
 )

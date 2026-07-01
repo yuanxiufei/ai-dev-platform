@@ -1,12 +1,12 @@
 """
-多 Agent 协同调度器 — Planner → Coder → Reviewer → Tester 闭环
+多 Agent 协同调度器 — Planner -> Coder -> Reviewer -> Tester 闭环
 
 自主设计，借鉴 Agent-Reach 的 Planner/Coder/Reviewer/Tester 流水线模式
-和 hermes-agent 的 think→act→observe→reflect 循环。
+和 hermes-agent 的 think->act->observe->reflect 循环。
 
 核心流程:
-  Planner 分解任务 → Coder 生成代码 → Reviewer 审查
-  → Coder 修复 → Tester 验证 → Memory 保存
+  Planner 分解任务 -> Coder 生成代码 -> Reviewer 审查
+  -> Coder 修复 -> Tester 验证 -> Memory 保存
 """
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ class AgentOrchestrator:
     """
     多 Agent 协同调度器
 
-    借鉴 Agent-Reach 的 Planner→Coder→Reviewer→Tester 流水线。
+    借鉴 Agent-Reach 的 Planner->Coder->Reviewer->Tester 流水线。
     通过 AgentRunner 运行每个子任务，复用 Middleware/Sandbox/TrajectoryRecorder。
 
     用法:
@@ -124,7 +124,17 @@ class AgentOrchestrator:
             task="Build a REST API for user management",
             mode="full",  # full | code_only | review_only
         )
+
+        # WorkflowGraph 引擎 (声明式状态图)
+        await orchestrator.orchestrate(
+            task="...",
+            engine="workflow",  # 使用 LangGraph 风格声明式图
+        )
     """
+
+    # ── 支持的引擎 ──
+    ENGINE_DIRECT = "direct"      # 直接执行 (传统流水线)
+    ENGINE_WORKFLOW = "workflow"   # WorkflowGraph 声明式图
 
     def __init__(self, model_router=None):
         from app.core.model_router import get_model_router
@@ -143,6 +153,7 @@ class AgentOrchestrator:
         task: str,
         mode: str = "full",
         context: dict | None = None,
+        engine: str = ENGINE_DIRECT,
     ) -> OrchestrationResult:
         """
         执行完整的 Agent 协同流水线
@@ -151,7 +162,10 @@ class AgentOrchestrator:
             task: 用户任务描述
             mode: full (完整流水线) | code_only (仅生成) | review_only (仅审查)
             context: 额外上下文（代码库信息、记忆等）
+            engine: direct (传统流水线) | workflow (声明式状态图)
         """
+        if engine == self.ENGINE_WORKFLOW:
+            return await self._orchestrate_workflow(task, mode, context or {})
         start_time = time.perf_counter()
         result = OrchestrationResult(success=False)
 
@@ -167,17 +181,47 @@ class AgentOrchestrator:
             logger.info("Orchestrator planned %d subtasks for: %s",
                         len(plan.subtasks), task[:80])
 
-            # Phase 2: Execute subtasks
+            # Phase 2: Execute subtasks (with context chain propagation)
+            # 借鉴 CrewAI: 每个子任务执行时注入前置任务的输出作为上下文
+            task_context_map: dict[str, str] = {}  # subtask_id -> result
+
             for subtask in plan.ordered_tasks:
                 if mode == "review_only" and subtask.task_type != TaskType.TEST:
                     continue
 
+                # 构建依赖上下文 (CrewAI context=[prev_task] 风格)
+                stage_context = dict(context or {})
+                stage_context["completed_tasks"] = {
+                    dep_id: task_context_map[dep_id]
+                    for dep_id in subtask.depends_on
+                    if dep_id in task_context_map
+                }
+                # 注入上一阶段摘要 (如果有)
+                if result.results:
+                    prev_results = {
+                        tid: (output[:200] + "..." if len(output) > 200 else output)
+                        for tid, output in result.results.items()
+                    }
+                    stage_context["previous_stages"] = prev_results
+
+                # 变量插值 (CrewAI {task_id.output} 风格)
+                description = subtask.description
+                for dep_id, dep_output in stage_context.get("completed_tasks", {}).items():
+                    placeholder = f"{{{dep_id}}}"
+                    if placeholder in description:
+                        description = description.replace(
+                            placeholder, dep_output[:500]
+                        )
+
                 subtask.status = "running"
                 try:
-                    output = await self._execute_subtask(subtask, context or {})
+                    output = await self._execute_subtask(
+                        subtask, stage_context, description
+                    )
                     subtask.result = output
                     subtask.status = "done"
                     result.results[subtask.id] = output
+                    task_context_map[subtask.id] = output
                     logger.info("Subtask %s completed: %s",
                                subtask.id, subtask.description[:60])
                 except Exception as e:
@@ -292,8 +336,19 @@ Example response:
                 priority=TaskPriority.HIGH,
             )]
 
-    async def _execute_subtask(self, subtask: SubTask, context: dict) -> str:
-        """Coder: 通过 AgentRunner 执行子任务（复用 Middleware/Sandbox/TrajectoryRecorder）"""
+    async def _execute_subtask(
+        self,
+        subtask: SubTask,
+        context: dict,
+        description: str | None = None,
+    ) -> str:
+        """Coder: 通过 AgentRunner 执行子任务（复用 Middleware/Sandbox/TrajectoryRecorder）
+
+        Args:
+            subtask: 要执行的子任务
+            context: 当前阶段的上下文（含 completed_tasks / previous_stages）
+            description: 已插值后的任务描述 (CrewAI context chain 风格)
+        """
         from app.core.agent.agent_config import AgentConfig
 
         # 根据任务类型确定 Agent 配置
@@ -325,16 +380,33 @@ Example response:
                 enable_memory=False,
             )
 
-        task_message = f"""Complete the following subtask:
+        # CrewAI 风格: 构建含依赖任务结果的上下文
+        desc = description or subtask.description
+        context_parts = [f"Type: {subtask.task_type}",
+                         f"Description: {desc}",
+                         f"Priority: {subtask.priority}"]
 
-Type: {subtask.task_type}
-Description: {subtask.description}
-Priority: {subtask.priority}
+        # 注入已完成的前置任务结果 (CrewAI context chain)
+        if context.get("completed_tasks"):
+            context_parts.append("\nResults from dependent tasks:")
+            for dep_id, dep_result in context["completed_tasks"].items():
+                context_parts.append(
+                    f"  [{dep_id}]: {dep_result[:300]}"
+                    + ("..." if len(dep_result) > 300 else "")
+                )
 
-Context: {context.get('summary', '')}
+        # 注入上一阶段摘要
+        if context.get("previous_stages"):
+            context_parts.append("\nPrevious stage summaries:")
+            for stage_id, stage_result in context["previous_stages"].items():
+                context_parts.append(f"  [{stage_id}]: {stage_result}")
 
-Provide a thorough and complete response.
-"""
+        # 全局上下文
+        if context.get("summary"):
+            context_parts.append(f"\nContext: {context['summary']}")
+
+        task_message = "\n".join(context_parts)
+        task_message += "\n\nProvide a thorough and complete response."
 
         runner = self._get_runner()
         result = await runner.run(
@@ -446,6 +518,144 @@ Provide corrected code or instructions for fixing each issue.
 
         except Exception as e:
             logger.warning("Failed to save orchestration to memory: %s", e)
+
+    # ── WorkflowGraph 引擎 (借鉴 LangGraph) ─────────
+
+    async def _orchestrate_workflow(
+        self,
+        task: str,
+        mode: str,
+        context: dict,
+    ) -> OrchestrationResult:
+        """
+        使用 WorkflowGraph 声明式图执行流水线
+
+        借鉴 LangGraph 的 StateGraph 模式:
+        - 节点 = 处理阶段 (Planner/Coder/Reviewer/Fixer)
+        - 边 = 固定流转 (Planner -> Coder -> Reviewer)
+        - 条件边 = 动态路由 (Reviewer 通过 -> 结束, 不通过 -> Fix -> Coder)
+        """
+        from app.core.agent.workflow_graph import (
+            CompiledWorkflow,
+            WorkflowGraph,
+            WorkflowState,
+            create_default_workflow,
+        )
+
+        start_time = time.perf_counter()
+        result = OrchestrationResult(success=False)
+
+        # 定义各节点函数 (每个节点返回 partial state)
+        async def planner_node(state: WorkflowState) -> dict:
+            plan = await self._plan(state.task, state.context)
+            return {"plan": [self._subtask_to_dict(s) for s in plan.subtasks]}
+
+        async def coder_node(state: WorkflowState) -> dict:
+            # 从 plan 中构建 subtask 并逐个执行
+            outputs: list[str] = []
+            for task_dict in state.plan:
+                subtask = self._dict_to_subtask(task_dict)
+                stage_ctx = dict(state.context)
+                if state.review_issues:
+                    stage_ctx["review_issues"] = state.review_issues
+                try:
+                    output = await self._execute_subtask(subtask, stage_ctx)
+                    outputs.append(output)
+                except Exception as e:
+                    return {"coder_error": str(e)}
+
+            return {"code_outputs": outputs}
+
+        async def reviewer_node(state: WorkflowState) -> dict:
+            if not state.code_outputs:
+                return {"review_passed": True, "review_issues": []}
+
+            issues = await self._review(state.code_outputs, state.context)
+            passed = len(issues) == 0
+            return {"review_issues": issues, "review_passed": passed}
+
+        async def fixer_node(state: WorkflowState) -> dict:
+            if not state.review_issues:
+                return {"fix_output": "No issues to fix"}
+
+            fix_content = await self._fix(state.review_issues, state.context)
+            return {"fix_output": fix_content}
+
+        # 构建 WorkflowGraph
+        graph = create_default_workflow(
+            planner_fn=planner_node,
+            coder_fn=coder_node,
+            reviewer_fn=reviewer_node,
+            fixer_fn=fixer_node,
+        )
+
+        # 编译并执行
+        workflow = graph.compile()
+        logger.info(
+            "Orchestrator executing workflow graph:\n%s", workflow.mermaid
+        )
+
+        state = WorkflowState(task=task, context=context)
+
+        try:
+            async for event in workflow.stream(state):
+                event_type = event.get("event", "")
+                if event_type == "node_start":
+                    logger.info("Workflow node started: %s", event["node"])
+                elif event_type == "node_end":
+                    logger.info("Workflow node done: %s (output keys: %s)",
+                               event["node"],
+                               list(event.get("output", {}).keys()))
+                elif event_type == "error":
+                    logger.error("Workflow error: %s", event.get("error"))
+                elif event_type == "workflow_end":
+                    logger.info("Workflow completed")
+
+            # 构建结果
+            final_state = state
+            plan = Plan(
+                original_task=task,
+                subtasks=[
+                    self._dict_to_subtask(d)
+                    for d in final_state.plan
+                ] if final_state.plan else [],
+                context=context,
+            )
+            result.plan = plan
+            result.results = {
+                f"code_{i}": output
+                for i, output in enumerate(final_state.code_outputs)
+            } if final_state.code_outputs else {}
+            result.review_issues = final_state.review_issues
+            result.success = not final_state.error
+
+        except Exception as e:
+            result.error = f"Workflow error: {e}"
+            logger.exception("Workflow orchestration failed")
+
+        result.total_latency_ms = (time.perf_counter() - start_time) * 1000
+        await self._save_to_memory(task, result)
+        return result
+
+    @staticmethod
+    def _subtask_to_dict(subtask: SubTask) -> dict[str, Any]:
+        return {
+            "id": subtask.id,
+            "type": subtask.task_type.value,
+            "description": subtask.description,
+            "priority": subtask.priority.value,
+            "depends_on": subtask.depends_on,
+        }
+
+    @staticmethod
+    def _dict_to_subtask(data: dict[str, Any]) -> SubTask:
+        return SubTask(
+            id=data.get("id", ""),
+            task_type=TaskType(data.get("type", "code")),
+            description=data.get("description", ""),
+            priority=TaskPriority(data.get("priority", "medium")),
+            depends_on=data.get("depends_on", []),
+        )
 
 
 # ── 全局单例 ──────────────────────────────────────

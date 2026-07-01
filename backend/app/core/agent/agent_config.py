@@ -191,16 +191,29 @@ class AgentRunContext:
         self.is_cancelled = True
         self.cancel_reason = reason
 
-    def trim_context(self, max_tokens: int) -> int:
+    def trim_context(self, max_tokens: int, smart: bool = True) -> int:
         """
         按 token 限制截断历史消息（保留越新越好）
 
         返回被移除的消息数。
+
+        Args:
+            max_tokens: 最大 token 限制
+            smart: 是否使用三层智能截断 (ContextWindowManager), 否则用简单截断
         """
         if len(self.messages) <= 2:
             return 0
 
-        # 简单估算：1 token ≈ 4 字符
+        if smart:
+            try:
+                return self._trim_context_smart(max_tokens)
+            except Exception as e:
+                logger.warning("Smart context trimming failed, falling back to simple: %s", e)
+
+        return self._trim_context_simple(max_tokens)
+
+    def _trim_context_simple(self, max_tokens: int) -> int:
+        """简单截断: 从最早消息开始移除 (兜底策略)"""
         total_chars = sum(len(str(m.get("content", ""))) for m in self.messages)
         max_chars = max_tokens * 4
 
@@ -208,7 +221,6 @@ class AgentRunContext:
             return 0
 
         removed = 0
-        # 从最早的消息开始移除（保留 system 消息）
         i = 1 if (self.messages and self.messages[0].get("role") == "system") else 0
         while i < len(self.messages) - 1:
             total_chars -= len(str(self.messages[i].get("content", "")))
@@ -218,7 +230,39 @@ class AgentRunContext:
                 break
 
         logger.info(
-            "Context trimmed: %d messages removed, %d remaining",
+            "Context trimmed (simple): %d messages removed, %d remaining",
             removed, len(self.messages),
         )
+        return removed
+
+    def _trim_context_smart(self, max_tokens: int) -> int:
+        """
+        三层智能截断 (借鉴 SWE-agent ContextWindowManager):
+          1. 裁剪过长工具输出
+          2. 移除早期文件内容
+          3. 压缩历史对话
+        """
+        from app.core.agent.context_window import (
+            ContextWindowManager,
+        )
+
+        manager = ContextWindowManager(
+            max_tokens=max_tokens,
+            reserve_tokens=int(max_tokens * 0.15),
+        )
+
+        original_count = len(self.messages)
+        trimmed, budget = manager.trim_messages(self.messages)
+        self.messages = trimmed
+
+        removed = original_count - len(trimmed)
+        if removed > 0 or budget.tiers_applied:
+            logger.info(
+                "Context trimmed (smart): %d messages removed, %d remaining, "
+                "tiers: %s, tokens: %d/%d (%.1f%%)",
+                removed, len(trimmed),
+                [t.name for t in budget.tiers_applied],
+                budget.used_tokens, max_tokens, budget.usage_pct,
+            )
+
         return removed
