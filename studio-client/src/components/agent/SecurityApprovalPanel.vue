@@ -180,7 +180,7 @@ const hasSystemCommands = computed(() =>
 </script>
 
 <template>
-  <div v-if="pending.length > 0 || (history && history.length > 0)" class="security-panel rounded-xl border border-white/[0.06] bg-white/[0.01] overflow-hidden">
+  <div v-if="pending.length > 0 || (history && history.length > 0)" class="security-panel rounded-xl border border-[var(--color-ide-border)] bg-white/[0.01] overflow-hidden">
     <!-- 头部警告 -->
     <div
       :class="[
@@ -195,7 +195,7 @@ const hasSystemCommands = computed(() =>
           :is="hasUnsafe ? ShieldOff : hasSystemCommands ? AlertTriangle : Shield"
           :class="['w-4 h-4', hasUnsafe ? 'text-red-400' : hasSystemCommands ? 'text-orange-400' : 'text-brand-400']"
         />
-        <span class="text-sm font-semibold text-gray-300">
+        <span class="text-sm font-semibold text-[var(--color-ide-text)]">
           工具审批 ({{ stats.total }})
         </span>
 
@@ -224,12 +224,12 @@ const hasSystemCommands = computed(() =>
 
         <!-- 自动批准开关 -->
         <label class="flex items-center gap-1.5 cursor-pointer">
-          <span class="text-[10px] text-gray-500">自动批准</span>
+          <span class="text-[10px] text-[var(--color-ide-text-dim)]">自动批准</span>
           <button
             @click="emit('toggleAutoApprove', !autoApprove)"
             :class="[
               'relative w-8 h-4 rounded-full transition-colors duration-200',
-              autoApprove ? 'bg-emerald-500/30' : 'bg-white/[0.06]'
+              autoApprove ? 'bg-emerald-500/30' : 'bg-[var(--color-ide-surface-hover)]'
             ]"
           >
             <span
@@ -242,7 +242,7 @@ const hasSystemCommands = computed(() =>
         </label>
 
         <!-- 批量审批 -->
-        <div class="flex items-center gap-1 pl-2 border-l border-white/[0.06]">
+        <div class="flex items-center gap-1 pl-2 border-l border-[var(--color-ide-border)]">
           <button
             @click="emit('approveAll')"
             class="flex items-center gap-1 px-2 py-1 text-[11px] text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition-colors"
@@ -271,7 +271,7 @@ const hasSystemCommands = computed(() =>
           @click="toggleExpand(tool.id)"
           class="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer group"
         >
-          <button class="p-0.5 rounded text-gray-600 group-hover:text-gray-400 transition-colors shrink-0">
+          <button class="p-0.5 rounded text-[var(--color-ide-text-dim)] group-hover:text-[var(--color-ide-text-dim)] transition-colors shrink-0">
             <ChevronRight v-if="!expandedIds.has(tool.id)" class="w-3.5 h-3.5" />
             <ChevronRight v-else class="w-3.5 h-3.5 rotate-90" />
           </button>
@@ -294,14 +294,14 @@ const hasSystemCommands = computed(() =>
           <!-- 工具信息 -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-mono font-medium text-gray-200">{{ tool.name }}</span>
+              <span class="text-sm font-mono font-medium text-[var(--color-ide-text)]">{{ tool.name }}</span>
               <span
                 :class="['text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full', securityLevel(tool.security_level).bg, securityLevel(tool.security_level).color]"
               >
                 {{ securityLevel(tool.security_level).label }}
               </span>
             </div>
-            <p class="text-[11px] text-gray-500 truncate font-mono">{{ truncateArgs(tool.arguments) }}</p>
+            <p class="text-[11px] text-[var(--color-ide-text-dim)] truncate font-mono">{{ truncateArgs(tool.arguments) }}</p>
           </div>
 
           <!-- 审批按钮 -->
@@ -334,7 +334,7 @@ const hasSystemCommands = computed(() =>
 
             <!-- 完整参数 -->
             <div class="bg-surface-900/80 rounded-lg border border-white/[0.04] p-2.5">
-              <pre class="text-[11px] text-gray-300 font-mono whitespace-pre-wrap">{{ formatArgs(tool.arguments) }}</pre>
+              <pre class="text-[11px] text-[var(--color-ide-text)] font-mono whitespace-pre-wrap">{{ formatArgs(tool.arguments) }}</pre>
             </div>
 
             <!-- 操作 -->
@@ -355,7 +355,7 @@ const hasSystemCommands = computed(() =>
               <!-- 🆕 Cline 风格: Always Allow 记忆 -->
               <div class="flex-1" />
               <label
-                class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded-md hover:bg-white/[0.04] transition-colors"
+                class="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] transition-colors"
                 :title="alwaysAllowTools.has(tool.name) ? '取消自动批准' : '以后自动批准此工具'"
               >
                 <span
@@ -363,13 +363,13 @@ const hasSystemCommands = computed(() =>
                     'w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors',
                     alwaysAllowTools.has(tool.name)
                       ? 'bg-emerald-500/30 border-emerald-500/50'
-                      : 'border-white/10'
+                      : 'border-[var(--color-ide-border)]'
                   ]"
                   @click.stop="handleAlwaysAllow(tool.id, tool.name)"
                 >
                   <Check v-if="alwaysAllowTools.has(tool.name)" class="w-2.5 h-2.5 text-emerald-300" />
                 </span>
-                <span class="text-[10px] text-gray-500 whitespace-nowrap">始终允许</span>
+                <span class="text-[10px] text-[var(--color-ide-text-dim)] whitespace-nowrap">始终允许</span>
               </label>
             </div>
           </div>
@@ -381,7 +381,7 @@ const hasSystemCommands = computed(() =>
     <div v-if="history && history.length > 0" class="border-t border-white/[0.04]">
       <button
         @click="showHistory = !showHistory"
-        class="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-500 hover:text-gray-300 hover:bg-white/[0.01] transition-colors"
+        class="w-full flex items-center gap-2 px-4 py-2 text-xs text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-white/[0.01] transition-colors"
       >
         <History class="w-3.5 h-3.5" />
         审批历史 ({{ history.length }})
@@ -400,13 +400,13 @@ const hasSystemCommands = computed(() =>
               h.approval_status === 'approved' ? 'bg-emerald-400' : 'bg-red-400'
             ]"
           />
-          <span class="text-gray-300 font-mono">{{ h.name }}</span>
+          <span class="text-[var(--color-ide-text)] font-mono">{{ h.name }}</span>
           <span
             :class="h.approval_status === 'approved' ? 'text-emerald-400' : 'text-red-400'"
           >
             {{ h.approval_status === 'approved' ? '已批准' : '已拒绝' }}
           </span>
-          <span class="text-gray-600 ml-auto">{{ h.security_level }}</span>
+          <span class="text-[var(--color-ide-text-dim)] ml-auto">{{ h.security_level }}</span>
         </div>
       </div>
     </div>

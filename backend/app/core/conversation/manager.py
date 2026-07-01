@@ -84,6 +84,122 @@ class ConversationStore:
         raise NotImplementedError
 
 
+class SqliteConversationStore(ConversationStore):
+    """SQLite 持久化对话存储"""
+
+    def __init__(self, db_path: str = "data/conversations.db") -> None:
+        import sqlite3
+        import os
+        os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
+        self._db = sqlite3.connect(db_path, check_same_thread=False)
+        self._db.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                conversation_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                platform_id TEXT NOT NULL DEFAULT 'unknown',
+                title TEXT,
+                history TEXT NOT NULL DEFAULT '[]',
+                persona_id TEXT,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                token_usage INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(session_id)")
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_conv_updated ON conversations(updated_at)")
+        self._db.commit()
+
+    async def create(self, conv: Conversation) -> Conversation:
+        import json
+        self._db.execute(
+            """INSERT OR REPLACE INTO conversations
+               (conversation_id, session_id, platform_id, title, history,
+                persona_id, created_at, updated_at, token_usage)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (conv.conversation_id, conv.session_id, conv.platform_id,
+             conv.title, json.dumps(conv.history, ensure_ascii=False),
+             conv.persona_id, conv.created_at, conv.updated_at, conv.token_usage),
+        )
+        self._db.commit()
+        return conv
+
+    async def get(self, conversation_id: str) -> Conversation | None:
+        import json
+        row = self._db.execute(
+            "SELECT * FROM conversations WHERE conversation_id = ?",
+            (conversation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return Conversation(
+            conversation_id=row[0], session_id=row[1], platform_id=row[2],
+            title=row[3], history=json.loads(row[4]) if row[4] else [],
+            persona_id=row[5], created_at=row[6], updated_at=row[7],
+            token_usage=row[8],
+        )
+
+    async def update(
+        self,
+        conversation_id: str,
+        history: list[dict[str, Any]] | None = None,
+        title: str | None = None,
+        persona_id: str | None = None,
+        token_usage: int | None = None,
+    ) -> None:
+        import json
+        conv = await self.get(conversation_id)
+        if conv is None:
+            return
+        if history is not None:
+            conv.history = history
+        if title is not None:
+            conv.title = title
+        if persona_id is not None:
+            conv.persona_id = persona_id
+        if token_usage is not None:
+            conv.token_usage = token_usage
+        conv.updated_at = time.time()
+        self._db.execute(
+            """UPDATE conversations SET
+               history=?, title=?, persona_id=?, token_usage=?, updated_at=?
+               WHERE conversation_id=?""",
+            (json.dumps(conv.history, ensure_ascii=False), conv.title,
+             conv.persona_id, conv.token_usage, conv.updated_at, conversation_id),
+        )
+        self._db.commit()
+
+    async def delete(self, conversation_id: str) -> None:
+        self._db.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
+        self._db.commit()
+
+    async def delete_by_session(self, session_id: str) -> None:
+        self._db.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
+        self._db.commit()
+
+    async def list_by_session(
+        self, session_id: str, page: int = 1, page_size: int = 20
+    ) -> tuple[list[Conversation], int]:
+        import json
+        total = self._db.execute(
+            "SELECT COUNT(*) FROM conversations WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()[0]
+        rows = self._db.execute(
+            """SELECT * FROM conversations WHERE session_id = ?
+               ORDER BY updated_at DESC LIMIT ? OFFSET ?""",
+            (session_id, page_size, (page - 1) * page_size),
+        ).fetchall()
+        convs = []
+        for row in rows:
+            convs.append(Conversation(
+                conversation_id=row[0], session_id=row[1], platform_id=row[2],
+                title=row[3], history=json.loads(row[4]) if row[4] else [],
+                persona_id=row[5], created_at=row[6], updated_at=row[7],
+                token_usage=row[8],
+            ))
+        return convs, int(total)
+
+
 class MemoryConversationStore(ConversationStore):
     """内存对话存储（用于开发/测试）"""
 
@@ -371,3 +487,31 @@ class ConversationManager:
         total_pages = max(1, (len(flat) + page_size - 1) // page_size)
         start = (page - 1) * page_size
         return flat[start : start + page_size], total_pages
+
+
+# ── 全局单例 ────────────────────────────────────────
+
+_conversation_manager: ConversationManager | None = None
+
+
+def init_conversation_manager(
+    use_sqlite: bool = True,
+    db_path: str = "data/conversations.db",
+) -> ConversationManager:
+    """初始化全局对话管理器（默认 SQLite 持久化）"""
+    global _conversation_manager
+    store = SqliteConversationStore(db_path) if use_sqlite else MemoryConversationStore()
+    _conversation_manager = ConversationManager(store=store)
+    logger.info(
+        "ConversationManager initialized (backend=%s)",
+        "SQLite" if use_sqlite else "Memory",
+    )
+    return _conversation_manager
+
+
+def get_conversation_manager() -> ConversationManager:
+    """获取全局对话管理器"""
+    global _conversation_manager
+    if _conversation_manager is None:
+        _conversation_manager = init_conversation_manager()
+    return _conversation_manager

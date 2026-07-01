@@ -100,12 +100,12 @@ function diffSummary(d: DiffData): string {
 </script>
 
 <template>
-  <div v-if="diffs.length > 0" class="multi-diff-panel rounded-xl border border-white/[0.06] bg-white/[0.01] overflow-hidden">
+  <div v-if="diffs.length > 0" class="multi-diff-panel rounded-xl border border-[var(--color-ide-border)] bg-white/[0.01] overflow-hidden">
     <!-- 头部：全局统计 + 批量操作 -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] bg-white/[0.02]">
       <div class="flex items-center gap-3">
         <FileEdit class="w-4 h-4 text-brand-400" />
-        <span class="text-sm font-semibold text-gray-300">{{ stats.total }} 文件变更</span>
+        <span class="text-sm font-semibold text-[var(--color-ide-text)]">{{ stats.total }} 文件变更</span>
         <div class="flex items-center gap-2 text-xs font-mono">
           <span class="text-emerald-400 flex items-center gap-0.5"><Plus class="w-3 h-3" />{{ stats.added }}</span>
           <span class="text-red-400 flex items-center gap-0.5"><Minus class="w-3 h-3" />{{ stats.removed }}</span>
@@ -120,7 +120,7 @@ function diffSummary(d: DiffData): string {
           @click="filterType = t.k as any"
           :class="[
             'px-2 py-1 text-[10px] rounded-md font-medium transition-colors',
-            filterType === t.k ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300'
+            filterType === t.k ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'
           ]"
         >
           {{ t.l }}
@@ -131,7 +131,7 @@ function diffSummary(d: DiffData): string {
         </button>
 
         <!-- 批量操作 (Aider 风格 Accept All / Reject All) -->
-        <div v-if="actions" class="flex items-center gap-1 ml-2 pl-2 border-l border-white/[0.06]">
+        <div v-if="actions" class="flex items-center gap-1 ml-2 pl-2 border-l border-[var(--color-ide-border)]">
           <button
             @click="emit('acceptAll')"
             class="flex items-center gap-1 px-2 py-1 text-[11px] text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition-colors"
@@ -164,7 +164,7 @@ function diffSummary(d: DiffData): string {
           class="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer group"
         >
           <!-- 展开/折叠 -->
-          <button class="p-0.5 rounded text-gray-600 group-hover:text-gray-400 transition-colors">
+          <button class="p-0.5 rounded text-[var(--color-ide-text-dim)] group-hover:text-[var(--color-ide-text-dim)] transition-colors">
             <ChevronRight v-if="!expandedFiles.has(diff.file_path)" class="w-3.5 h-3.5" />
             <ChevronDown v-else class="w-3.5 h-3.5" />
           </button>
@@ -174,12 +174,12 @@ function diffSummary(d: DiffData): string {
 
           <!-- 文件信息 -->
           <div class="flex-1 min-w-0" @click.stop="selectFile(diff.file_path, diff)">
-            <p class="text-sm font-mono text-gray-200 truncate">{{ diff.file_name }}</p>
-            <p class="text-[11px] text-gray-600 truncate">{{ diff.file_path }}</p>
+            <p class="text-sm font-mono text-[var(--color-ide-text)] truncate">{{ diff.file_name }}</p>
+            <p class="text-[11px] text-[var(--color-ide-text-dim)] truncate">{{ diff.file_path }}</p>
           </div>
 
           <!-- 变更统计 -->
-          <span class="text-xs font-mono text-gray-400 shrink-0">{{ diffSummary(diff) }}</span>
+          <span class="text-xs font-mono text-[var(--color-ide-text-dim)] shrink-0">{{ diffSummary(diff) }}</span>
 
           <!-- 单文件操作 (Aider 风格) -->
           <div v-if="actions" class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -202,7 +202,7 @@ function diffSummary(d: DiffData): string {
           <!-- 语言标签 -->
           <span
             v-if="diff.language"
-            class="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-white/[0.03] text-gray-600 shrink-0"
+            class="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-white/[0.03] text-[var(--color-ide-text-dim)] shrink-0"
           >
             {{ diff.language }}
           </span>
@@ -212,7 +212,7 @@ function diffSummary(d: DiffData): string {
         <div v-if="expandedFiles.has(diff.file_path)" class="border-t border-white/[0.04] bg-surface-900/50">
           <!-- Hunk 跳转导航 (Monaco Editor 风格) -->
           <div class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.01] border-b border-white/[0.03]">
-            <span class="text-[10px] text-gray-600 mr-1">
+            <span class="text-[10px] text-[var(--color-ide-text-dim)] mr-1">
               {{ diff.hunks?.length || 0 }} 变更块
             </span>
             <template v-if="diff.hunks && diff.hunks.length > 0">
@@ -220,7 +220,7 @@ function diffSummary(d: DiffData): string {
                 v-for="(hunk, hi) in diff.hunks"
                 :key="hi"
                 @click="emit('jumpToHunk', diff.file_path, hi)"
-                class="px-1.5 py-0.5 rounded text-[9px] bg-white/[0.03] text-gray-500 hover:bg-white/[0.06] hover:text-gray-300 transition-colors font-mono"
+                class="px-1.5 py-0.5 rounded text-[9px] bg-white/[0.03] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] hover:text-[var(--color-ide-text)] transition-colors font-mono"
                 :title="hunk.header"
               >
                 H{{ hi + 1 }}
@@ -244,7 +244,7 @@ function diffSummary(d: DiffData): string {
                       line.startsWith('@@') ? 'bg-blue-500/5 text-blue-400/70 text-[11px] font-semibold' :
                       line.startsWith('+') ? 'bg-emerald-500/[0.08] text-emerald-200/80' :
                       line.startsWith('-') ? 'bg-red-500/[0.08] text-red-200/80' :
-                      'text-gray-400'
+                      'text-[var(--color-ide-text-dim)]'
                     ]"
                     v-if="li === 0 && hunk.lines.length > 0"
                   >
@@ -275,7 +275,7 @@ function diffSummary(d: DiffData): string {
     </div>
 
     <!-- 空状态 -->
-    <div v-if="filteredDiffs.length === 0 && diffs.length > 0" class="py-8 text-center text-xs text-gray-600">
+    <div v-if="filteredDiffs.length === 0 && diffs.length > 0" class="py-8 text-center text-xs text-[var(--color-ide-text-dim)]">
       当前筛选条件下没有变更文件
     </div>
   </div>

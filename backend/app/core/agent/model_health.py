@@ -296,8 +296,14 @@ class ModelHealthChecker:
         try:
             import urllib.request
             import json
+            import os
 
-            url = f"{model.endpoint}/api/tags" if model.endpoint else "http://localhost:11434/api/tags"
+            # 优先使用端点配置 → 环境变量 OLLAMA_HOST → 默认 localhost:11434
+            if model.endpoint:
+                base_url = model.endpoint
+            else:
+                base_url = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            url = f"{base_url}/api/tags"
             req = urllib.request.Request(url)
             start = _time.perf_counter()
             with urllib.request.urlopen(req, timeout=self._ping_timeout) as resp:

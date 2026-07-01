@@ -129,9 +129,12 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     def _get_client(self):
         if self._client is None:
             from openai import AsyncOpenAI
+            import os
+            # 优先使用注入的 api_key，其次环境变量，最后使用占位符（仅开发/测试）
+            api_key = self._api_key or os.getenv("OPENAI_API_KEY", "")
             self._client = AsyncOpenAI(
                 base_url=self._api_base,
-                api_key=self._api_key or "sk-placeholder",
+                api_key=api_key,
             )
         return self._client
 

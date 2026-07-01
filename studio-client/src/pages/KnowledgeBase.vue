@@ -46,10 +46,10 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 <template>
   <div class="h-full w-full flex flex-col overflow-hidden bg-[var(--color-ide-bg)] text-[var(--color-ide-text)]">
     <!-- Header -->
-    <header class="shrink-0 h-14 border-b border-white/8 bg-surface-900/50 backdrop-blur flex items-center px-6">
+    <header class="shrink-0 page-header backdrop-blur flex items-center px-6">
       <div class="flex items-center gap-3">
         <BookOpen class="w-5 h-5 text-brand-400" />
-        <h2 class="text-sm font-semibold text-gray-200">知识库</h2>
+        <h2 class="text-sm font-semibold text-[var(--color-ide-text)]">知识库</h2>
       </div>
     </header>
 
@@ -57,17 +57,17 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
       <!-- 搜索栏 -->
       <div class="flex gap-3">
         <div class="flex-1 relative">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]" />
           <input
             v-model="searchQuery"
             placeholder="搜索知识库内容..."
-            class="w-full rounded-xl bg-surface-800 border border-white/10 pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors"
+            class="w-full rounded-xl bg-surface-800 border border-[var(--color-ide-border)] pl-10 pr-4 py-2.5 text-sm text-[var(--color-ide-text)] placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-brand-500/50 transition-colors"
             @keydown.enter="handleSearch"
           />
         </div>
         <select
           v-model="selectedKb"
-          class="rounded-xl bg-surface-800 border border-white/10 px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-brand-500/50"
+          class="rounded-xl bg-surface-800 border border-[var(--color-ide-border)] px-3 py-2.5 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500/50"
         >
           <option :value="null">全部知识库</option>
           <option v-for="kb in kbs" :key="kb.kb_id" :value="kb.kb_id">{{ kb.name }}</option>
@@ -84,15 +84,15 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 
       <!-- 知识库列表 -->
       <section>
-        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">知识库列表</h3>
-        <div v-if="loading" class="py-10 text-center text-gray-500">
+        <h3 class="text-xs font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-3">知识库列表</h3>
+        <div v-if="loading" class="py-10 text-center text-[var(--color-ide-text-dim)]">
           <Loader2 class="w-6 h-6 animate-spin mx-auto mb-2 text-brand-400" />
           加载中...
         </div>
         <div v-else-if="!kbs.length" class="py-10 text-center">
-          <Database class="w-10 h-10 text-gray-600 mx-auto mb-3" />
-          <p class="text-gray-400 text-sm">暂无知识库</p>
-          <p class="text-gray-600 text-xs mt-1">联系管理员创建知识库</p>
+          <Database class="w-10 h-10 text-[var(--color-ide-text-dim)] mx-auto mb-3" />
+          <p class="text-[var(--color-ide-text-dim)] text-sm">暂无知识库</p>
+          <p class="text-[var(--color-ide-text-dim)] text-xs mt-1">联系管理员创建知识库</p>
         </div>
         <div v-else class="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           <div
@@ -102,7 +102,7 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
               'rounded-xl border p-4 transition-all duration-200 cursor-pointer',
               selectedKb === kb.kb_id
                 ? 'border-brand-500/40 bg-brand-500/10'
-                : 'border-white/8 bg-surface-800 hover:border-white/15',
+                : 'border-[var(--color-ide-border)] bg-surface-800 hover:border-[var(--color-ide-border)]',
             ]"
             @click="selectedKb = kb.kb_id"
           >
@@ -111,9 +111,9 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
                 <BookOpen class="w-4 h-4 text-brand-400" />
               </div>
               <div class="min-w-0">
-                <h4 class="text-sm font-medium text-gray-200 truncate">{{ kb.name }}</h4>
-                <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{{ kb.description || '暂无描述' }}</p>
-                <div class="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                <h4 class="text-sm font-medium text-[var(--color-ide-text)] truncate">{{ kb.name }}</h4>
+                <p class="text-xs text-[var(--color-ide-text-dim)] mt-0.5 line-clamp-2">{{ kb.description || '暂无描述' }}</p>
+                <div class="flex items-center gap-3 mt-2 text-xs text-[var(--color-ide-text-dim)]">
                   <span>{{ kb.stats?.documents || 0 }} 文档</span>
                   <span>{{ kb.stats?.chunks || 0 }} 片段</span>
                 </div>
@@ -125,24 +125,24 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 
       <!-- 搜索结果 -->
       <section v-if="searchResults.length">
-        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+        <h3 class="text-xs font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-3">
           搜索结果 ({{ searchResults.length }})
         </h3>
         <div class="space-y-3">
           <div
             v-for="(result, idx) in searchResults"
             :key="idx"
-            class="rounded-xl border border-white/8 bg-surface-800 p-4 transition-colors hover:border-white/15"
+            class="rounded-xl border border-[var(--color-ide-border)] bg-surface-800 p-4 transition-colors hover:border-[var(--color-ide-border)]"
           >
             <div class="flex items-start gap-3">
               <FileText class="w-4 h-4 text-brand-400 mt-0.5 shrink-0" />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="text-xs text-brand-400 font-medium">{{ result.kb_name }}</span>
-                  <span class="text-xs text-gray-500">{{ formatScore(result.score) }} 相关</span>
+                  <span class="text-xs text-[var(--color-ide-text-dim)]">{{ formatScore(result.score) }} 相关</span>
                 </div>
-                <p class="text-sm text-gray-300 whitespace-pre-wrap line-clamp-4">{{ result.content }}</p>
-                <p v-if="result.source" class="text-xs text-gray-600 mt-1 truncate">{{ result.source }}</p>
+                <p class="text-sm text-[var(--color-ide-text)] whitespace-pre-wrap line-clamp-4">{{ result.content }}</p>
+                <p v-if="result.source" class="text-xs text-[var(--color-ide-text-dim)] mt-1 truncate">{{ result.source }}</p>
               </div>
             </div>
           </div>
@@ -154,9 +154,9 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
         v-if="!searchResults.length && searchQuery && !searching && !loading"
         class="py-12 text-center"
       >
-        <Search class="w-10 h-10 text-gray-600 mx-auto mb-3" />
-        <p class="text-gray-400 text-sm">未找到相关内容</p>
-        <p class="text-gray-600 text-xs mt-1">尝试更换关键词或知识库</p>
+        <Search class="w-10 h-10 text-[var(--color-ide-text-dim)] mx-auto mb-3" />
+        <p class="text-[var(--color-ide-text-dim)] text-sm">未找到相关内容</p>
+        <p class="text-[var(--color-ide-text-dim)] text-xs mt-1">尝试更换关键词或知识库</p>
       </section>
     </div>
   </div>

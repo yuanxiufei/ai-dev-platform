@@ -213,6 +213,25 @@ export const useFileTreeStore = defineStore('fileTree', () => {
     }
   }
 
+  /** VSCode: Expand tree to reveal a file path */
+  function expandToPath(targetPath: string): void {
+    const parts = targetPath.split(/[/\\]/).filter(Boolean)
+    let current = fileTree.value
+    let accumulated = ''
+    for (const part of parts) {
+      accumulated = accumulated ? `${accumulated}/${part}` : part
+      const entry = current.find(e => e.name === part || e.path === accumulated)
+      if (entry?.isDir && entry.children) {
+        entry.expanded = true
+        current = entry.children
+      } else if (!entry?.isDir) {
+        break // reached file, stop
+      } else {
+        break
+      }
+    }
+  }
+
   return {
     workspaceRoot,
     fileTree,
@@ -226,5 +245,6 @@ export const useFileTreeStore = defineStore('fileTree', () => {
     createFolderEntry,
     deleteFileEntry,
     renameFileEntry,
+    expandToPath,
   }
 })

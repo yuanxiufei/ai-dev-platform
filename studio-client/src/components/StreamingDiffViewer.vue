@@ -320,17 +320,17 @@ const streamStats = computed(() => {
 <template>
   <div :class="['rounded-xl border overflow-hidden transition-all duration-200', changeBg]">
     <!-- ── 头部 ── -->
-    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/5">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-[var(--color-ide-border)]">
       <div class="flex items-center gap-2.5 min-w-0">
         <button
           @click="collapsed = !collapsed"
-          class="p-1 rounded-md hover:bg-white/5 text-gray-500 hover:text-gray-300 shrink-0"
+          class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] shrink-0"
         >
           <ChevronDown v-if="!collapsed" class="w-3.5 h-3.5" />
           <ChevronRight v-else class="w-3.5 h-3.5" />
         </button>
         <component :is="changeIcon" :class="['w-4 h-4 shrink-0', changeColor]" />
-        <span class="text-sm font-mono font-medium text-gray-200 truncate">
+        <span class="text-sm font-mono font-medium text-[var(--color-ide-text)] truncate">
           {{ fileName }}
         </span>
         <span :class="['text-[11px] font-semibold px-1.5 py-0.5 rounded', changeColor, changeBg]">
@@ -348,7 +348,7 @@ const streamStats = computed(() => {
           <span class="text-amber-400/80 font-medium">
             {{ isTyping ? '打字中...' : '接收中...' }}
           </span>
-          <span v-if="streamStats" class="text-gray-500 ml-1">
+          <span v-if="streamStats" class="text-[var(--color-ide-text-dim)] ml-1">
             {{ streamStats.pct }}%
           </span>
         </span>
@@ -366,65 +366,65 @@ const streamStats = computed(() => {
     </div>
 
     <!-- ── 工具栏 ── -->
-    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-white/5">
+    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-[var(--color-ide-border)]">
       <button
         @click="viewMode = 'unified'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
       >
         <AlignLeft class="w-3.5 h-3.5" />
       </button>
       <button
         @click="viewMode = 'split'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
       >
         <Columns class="w-3.5 h-3.5" />
       </button>
 
       <!-- 🆕 打字机控制 -->
-      <div v-if="isLiveStream && typewriterSpeed !== 0" class="w-px h-4 bg-white/5 mx-1" />
+      <div v-if="isLiveStream && typewriterSpeed !== 0" class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
       <button
         v-if="isLiveStream && typewriterSpeed !== 0"
         @click="toggleTypewriter"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
         :title="isTyping ? '暂停动画' : '恢复动画'"
       >
         <Pause v-if="isTyping" class="w-3.5 h-3.5 text-amber-400" />
         <Play v-else class="w-3.5 h-3.5" />
       </button>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <!-- Hunk 导航 -->
       <button
         @click="jumpToPrevHunk"
         :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <ArrowUp class="w-3.5 h-3.5" />
       </button>
-      <span class="text-[10px] text-gray-500 font-mono min-w-[36px] text-center select-none">
+      <span class="text-[10px] text-[var(--color-ide-text-dim)] font-mono min-w-[36px] text-center select-none">
         {{ activeHunk >= 0 ? `${activeHunk + 1}/${totalHunks}` : `${totalHunks}` }}
       </span>
       <button
         @click="jumpToNextHunk"
         :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <ArrowDown class="w-3.5 h-3.5" />
       </button>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <button
         @click="copyDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
         title="复制 diff"
       >
         <Copy class="w-3.5 h-3.5" />
       </button>
       <button
         @click="downloadDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
         title="下载 .diff"
       >
         <Download class="w-3.5 h-3.5" />
@@ -454,10 +454,10 @@ const streamStats = computed(() => {
               </td>
             </template>
             <template v-else>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">
                 {{ line.oldLineNum || '' }}
               </td>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">
                 {{ line.newLineNum || '' }}
               </td>
               <td
@@ -468,7 +468,7 @@ const streamStats = computed(() => {
               </td>
               <td
                 class="px-3 py-0 whitespace-pre-wrap relative"
-                :class="line.type === 'add' ? 'text-emerald-200/80' : line.type === 'remove' ? 'text-red-200/80' : 'text-gray-300'"
+                :class="line.type === 'add' ? 'text-emerald-200/80' : line.type === 'remove' ? 'text-red-200/80' : 'text-[var(--color-ide-text)]'"
               >
                 <span
                   :class="[
@@ -503,11 +503,11 @@ const streamStats = computed(() => {
               <td colspan="4" class="py-0.5 px-4 text-blue-400/70 text-xs font-semibold">{{ line.content }}</td>
             </template>
             <template v-else-if="line.type === 'remove'">
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.oldLineNum }}</td>
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.oldLineNum }}</td>
               <td class="px-3 py-0 bg-red-500/[0.08] whitespace-pre-wrap text-red-200/80" colspan="3">{{ line.content.slice(1) }}</td>
             </template>
             <template v-else-if="line.type === 'add'">
-              <td class="w-10 px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs" />
+              <td class="w-10 px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs" />
               <td
                 class="px-3 py-0 bg-emerald-500/[0.08] whitespace-pre-wrap text-emerald-200/80 relative"
                 colspan="3"
@@ -520,11 +520,11 @@ const streamStats = computed(() => {
               </td>
             </template>
             <template v-else>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.oldLineNum }}</td>
-              <td class="px-3 py-0 whitespace-pre-wrap text-gray-300">{{ line.content }}</td>
-              <td class="w-px bg-white/5" />
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.newLineNum }}</td>
-              <td class="px-3 py-0 whitespace-pre-wrap text-gray-300">{{ line.content }}</td>
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.oldLineNum }}</td>
+              <td class="px-3 py-0 whitespace-pre-wrap text-[var(--color-ide-text)]">{{ line.content }}</td>
+              <td class="w-px bg-[var(--color-ide-surface-hover)]" />
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.newLineNum }}</td>
+              <td class="px-3 py-0 whitespace-pre-wrap text-[var(--color-ide-text)]">{{ line.content }}</td>
             </template>
           </tr>
         </tbody>
@@ -532,7 +532,7 @@ const streamStats = computed(() => {
     </div>
 
     <!-- 折叠摘要 -->
-    <div v-if="collapsed" class="px-4 py-2 text-xs text-gray-500">
+    <div v-if="collapsed" class="px-4 py-2 text-xs text-[var(--color-ide-text-dim)]">
       +{{ linesAdded ?? 0 }} −{{ linesRemoved ?? 0 }} {{ (linesAdded ?? 0) + (linesRemoved ?? 0) }} 行变更
     </div>
   </div>

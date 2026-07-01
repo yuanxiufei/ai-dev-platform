@@ -299,18 +299,172 @@ pub async fn git_push(path: String, remote: Option<String>, branch: Option<Strin
 }
 
 fn parse_diff_output(output: &str) -> Vec<GitDiff> {
-    // Simplified diff parsing - real implementation would use libgit2
-    let mut diffs = Vec::new();
-    // This is a placeholder - full implementation would parse unified diff format
-    if !output.is_empty() {
-        diffs.push(GitDiff {
-            path: "unknown".to_string(),
-            old_path: None,
-            status: "M".to_string(),
-            additions: 0,
-            deletions: 0,
-            hunks: Vec::new(),
-        });
+    /// 解析 unified diff 输出为结构化的 GitDiff 列表
+    ///
+    /// 解析以下格式:
+    ///   diff --git a/path b/path
+    ///   --- a/path
+    ///   +++ b/path
+    ///   @@ -a,b +c,d @@ context line
+    ///   -removed line
+    ///   +added line
+    ///    context line
+    let mut diffs: Vec<GitDiff> = Vec::new();
+    let mut current_diff: Option<GitDiff> = None;
+    let mut current_hunk: Option<GitDiffHunk> = None;
+    let mut old_line: u32 = 0;
+    let mut new_line: u32 = 0;
+
+    for line in output.lines() {
+        if line.starts_with("diff --git ") {
+            // 保存上一个 diff
+            if let Some(diff) = current_diff.take() {
+                diffs.push(diff);
+            }
+
+            // 解析 diff --git a/path b/path
+            let parts: Vec<&str> = line[11..].split_whitespace().collect();
+            let path = parts.last().map(|p| p.trim_start_matches("b/")).unwrap_or("unknown");
+
+            current_diff = Some(GitDiff {
+                path: path.to_string(),
+                old_path: parts.first().map(|p| p.trim_start_matches("a/").to_string()),
+                status: "M".to_string(),
+                additions: 0,
+                deletions: 0,
+                hunks: Vec::new(),
+            });
+            current_hunk = None;
+        } else if line.starts_with("--- ") || line.starts_with("+++ ") {
+            // 文件头行，可能更新 old_path
+            if line.starts_with("--- ") && current_diff.is_some() {
+                let path = line[4..].trim().trim_start_matches("a/");
+                if path != "/dev/null" {
+                    if let Some(ref mut diff) = current_diff {
+                        diff.old_path = Some(path.to_string());
+                    }
+                }
+            }
+            if line.starts_with("--- /dev/null") {
+                if let Some(ref mut diff) = current_diff {
+                    diff.status = "A".to_string(); // 新文件
+                }
+            }
+            if line.starts_with("+++ /dev/null") {
+                if let Some(ref mut diff) = current_diff {
+                    diff.status = "D".to_string(); // 删除文件
+                }
+            }
+        } else if line.starts_with("@@") {
+            // 保存上一个 hunk
+            if let Some(hunk) = current_hunk.take() {
+                if let Some(ref mut diff) = current_diff {
+                    diff.hunks.push(hunk);
+                }
+            }
+
+            // 解析 @@ -a,b +c,d @@
+            if let Some(hunk_info) = parse_hunk_header(line) {
+                old_line = hunk_info.0;
+                new_line = hunk_info.1;
+            }
+
+            current_hunk = Some(GitDiffHunk {
+                header: line.to_string(),
+                lines: Vec::new(),
+            });
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            // 删除的行
+            if let Some(ref mut diff) = current_diff {
+                diff.deletions += 1;
+            }
+            if let Some(ref mut hunk) = current_hunk {
+                hunk.lines.push(GitDiffLine {
+                    line_type: '-',
+                    content: line[1..].to_string(),
+                    line_number: Some(old_line),
+                });
+            }
+            old_line += 1;
+        } else if line.starts_with('+') && !line.starts_with("+++") {
+            // 添加的行
+            if let Some(ref mut diff) = current_diff {
+                diff.additions += 1;
+            }
+            if let Some(ref mut hunk) = current_hunk {
+                hunk.lines.push(GitDiffLine {
+                    line_type: '+',
+                    content: line[1..].to_string(),
+                    line_number: Some(new_line),
+                });
+            }
+            new_line += 1;
+        } else if line.starts_with(' ') || line.is_empty() {
+            // 上下文行
+            if let Some(ref mut hunk) = current_hunk {
+                let content = if line.starts_with(' ') {
+                    line[1..].to_string()
+                } else {
+                    String::new()
+                };
+                hunk.lines.push(GitDiffLine {
+                    line_type: ' ',
+                    content,
+                    line_number: Some(new_line),
+                });
+            }
+            old_line += 1;
+            new_line += 1;
+        } else if line == "\\ No newline at end of file" {
+            // 忽略 "\ No newline at end of file" 标记
+            continue;
+        }
     }
+
+    // 保存最后一个 hunk
+    if let Some(hunk) = current_hunk.take() {
+        if let Some(ref mut diff) = current_diff {
+            if !hunk.lines.is_empty() {
+                diff.hunks.push(hunk);
+            }
+        }
+    }
+
+    // 保存最后一个 diff
+    if let Some(diff) = current_diff.take() {
+        if !diff.hunks.is_empty() || diff.status == "A" || diff.status == "D" {
+            diffs.push(diff);
+        }
+    }
+
     diffs
+}
+
+/// 解析 hunk 头部 @@ -old_start,old_count +new_start,new_count @@
+/// 返回 (old_start, new_start)
+fn parse_hunk_header(line: &str) -> Option<(u32, u32)> {
+    // 查找 @@ ... @@ 模式
+    let inner = line.trim_start_matches('@').trim_end_matches('@').trim();
+
+    // 分割 "-a,b +c,d" 或 "-a +c"
+    let parts: Vec<&str> = inner.split_whitespace().collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let old_start = parts[0]
+        .trim_start_matches('-')
+        .split(',')
+        .next()?
+        .parse::<u32>()
+        .ok()?;
+
+    let new_start = parts[1]
+        .trim_start_matches('+')
+        .split(',')
+        .next()?
+        .parse::<u32>()
+        .ok()?;
+
+    Some((old_start, new_start))
 }

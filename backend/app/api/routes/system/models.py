@@ -291,7 +291,7 @@ def get_download_status(
     return {
         "task_id": str(record.id),
         "model_name": record.model_name,
-        "status": record.status.value,
+        "status": record.status if record.status else str(record.status),
         "progress": record.progress,
         "downloaded_bytes": record.downloaded,
         "total_bytes": record.file_size,
@@ -570,11 +570,11 @@ def get_usage_stats(
         stmt = stmt.where(ModelUsageStat.model_name == model_name)
 
     stats = session.exec(
-        stmt.order_by(ModelUsageStat.created_at.desc()).limit(days * 200)
+        stmt.order_by(ModelUsageStat.created_at.desc()).limit(days * 200)  # type: ignore[arg-type]
     ).all()
 
     # 汇总
-    aggregated: dict[str, dict] = {}
+    aggregated: dict[str, dict[str, int]] = {}
     for stat in stats:
         if stat.model_name not in aggregated:
             aggregated[stat.model_name] = {

@@ -248,16 +248,372 @@
 
 ---
 
+## Session 12 — Agent封闭环增强 (参考 LangGraph/SWE-agent/CrewAI/OpenHands)
+
+### 24. WorkflowGraph 声明式状态图 ✅
+- **来源**: LangGraph StateGraph 声明式节点+边+条件路由
+- **目标**: 将 hardcoded if/else 替换为声明式图引擎
+- [x] `workflow_graph.py`: WorkflowState / WorkflowGraph / CompiledWorkflow
+- [x] 条件路由 (add_conditional) + stream() 事件流
+- [x] create_default_workflow(): Planner -> Coder -> Reviewer <-> Fixer
+- [x] to_mermaid() Mermaid 图可视化导出
+
+### 25. ContextWindow 智能上下文管理 ✅
+- **来源**: SWE-agent ACP SmartContext 三级截断策略
+- **目标**: 超长上下文时智能截断而非硬截断
+- [x] `context_window.py`: ContextWindowManager + ContextBudget + SmartReadResult
+- [x] TRIM_TOOL_OUTPUT -> TRIM_OLD_FILES -> SUMMARIZE_HISTORY 三级策略
+- [x] AgentConfig.trim_context() 新增 smart 参数
+
+### 26. CrewAI 风格上下文链 ✅
+- **来源**: CrewAI Task Context Chain ({dep_id} 变量插值)
+- **目标**: 依赖任务结果自动注入后续子任务上下文
+- [x] orchestrator: task_context_map 依赖任务结果自动注入
+- [x] _execute_subtask() description 参数支持插值后的描述
+
+### 27. WorkflowGraph 引擎集成 ✅
+- **目标**: orchestrator 支持双引擎 (直接/图引擎)
+- [x] ENGINE_DIRECT / ENGINE_WORKFLOW 常量 + engine 参数
+- [x] _orchestrate_workflow() 使用 CompiledWorkflow 编排
+
+**文件变更** (5 文件, +1152/-23):
+| 文件 | 改动 |
+|------|------|
+| `workflow_graph.py` (**新增**) | WorkflowGraph + CompiledWorkflow + stream + Mermaid |
+| `context_window.py` (**新增**) | ContextWindowManager + 三级截断 + Budget |
+| `orchestrator.py` | 双引擎 + CrewAI 上下文链 + 工作流图编排 |
+| `agent_config.py` | trim_context() smart 参数 + 三级策略 |
+| `__init__.py` | 新模块导出 |
+
+---
+
+## Session 13 — 客户端增强 (参考 Cline/RooCode/Continue/OpenInterpreter)
+
+### 28. ToolCallCard — Cline 风格工具调用卡片 ✅
+- **来源**: Cline ChatRow.tsx (工具调用内嵌消息流渲染)
+- **目标**: 工具调用→执行→结果在聊天消息中行内展示
+- [x] `ToolCallCard.vue`: 低风险紧凑折叠 + 高风险独立卡片
+- [x] 状态机: pending→executing→success/error，带加载动画
+- [x] 参数 JSON 展开 + 结果预览(15行截断) + 复制按钮
+- [x] 安全级别标签 (FILE_MODIFY/SYSTEM/UNSAFE)
+
+### 29. ChatMetricsBar — RooCode 风格实时指标 ✅
+- **来源**: RooCode TaskHeader.tsx (stats table + ContextWindowProgress)
+- **目标**: 对话页实时展示 Token/成本/耗时/成功率
+- [x] `ChatMetricsBar.vue`: ContextWindow 进度条 + Token ↑↓ + $成本 + 耗时/轮次/工具成功率
+
+### 30. useChatScroll — Continue 风格智能滚动 ✅
+- **来源**: Cline useScrollBehavior (disableAutoScroll + 双重保险)
+- **目标**: 用户上滚时不自动滚动，滚回底部时恢复
+- [x] `useChatScroll.ts`: 向上滚→暂停；到底部→恢复；3s 超时自动恢复
+- [x] 双重保险: smooth + 延迟 40ms/70ms instant snap
+
+### 31. ChatSessionManager — 会话持久化 ✅
+- **来源**: RooCode Task Persistence (localStorage + 后端 API)
+- **目标**: 页面刷新不丢失聊天记录
+- [x] `chatSessionManager.ts`: localStorage 即时恢复 + 30s 自动保存 + 导出/导入
+- [x] 最大 200 条消息 / 50 个会话的限制 + 全局单例
+
+### 32. 轨迹 API 增强 ✅
+- **来源**: OpenHands 事件系统 + 审计追踪
+- **目标**: 分页列表 + 聚合统计 + 多维筛选
+- [x] `trajectory.py`: GET /list (分页+状态/模型/搜索筛选) + GET /stats (成功率/Top模型/均值)
+- [x] `model-features.ts`: TrajectoryListItem / TrajectoryStats 类型 + API 方法
+
+**文件变更** (6 文件, +1107/-2):
+| 文件 | 改动 |
+|------|------|
+| `ToolCallCard.vue` (**新增**) | Cline 风格工具调用卡片 (308行) |
+| `ChatMetricsBar.vue` (**新增**) | RooCode 风格实时指标栏 (146行) |
+| `useChatScroll.ts` (**新增**) | Continue 风格智能滚动 (141行) |
+| `chatSessionManager.ts` (**新增**) | RooCode 风格会话持久化 (297行) |
+| `trajectory.py` | 新增 /list(分页+筛选) + /stats(聚合) (168行) |
+| `model-features.ts` | 新增 TrajectoryListItem/Stats 类型 + API (49行) |
+
+---
+
+## Session 14 — Git-Native Agent + Human Input + Memory 图 (参考 Aider/AutoGen/HermesStudio/MCP)
+
+### 33. FuzzyDiffer — Aider 风格模糊 Diff 引擎 ✅
+- **来源**: Aider diffs.py (Search-Replace 编辑 + Fuzzy Match + 冲突检测)
+- **目标**: AI 生成的代码 diff 容错匹配 + 自动冲突检测
+- [x] `differ.py` (377行): FuzzyDiffer + EditBlock + DiffResult
+- [x] 三层匹配: 精确→行级模糊→块级模糊 (阈值 0.8)
+- [x] 冲突检测 (多编辑重叠区间) + 逆操作撤销
+- [x] parse_edit_blocks() + multi_file_apply() + 全局单例
+
+### 34. Git Auto-Commit — Aider 风格 Git-Native 编辑 ✅
+- **来源**: Aider main_loop.py (每次修改 = 一个 git commit)
+- **目标**: Agent 代码修改后自动 git add + commit
+- [x] `agent_runner`: _git_auto_commit() 在 Memory 提取后自动提交
+- [x] `orchestrator`: _git_auto_commit() 在 Pipeline 完成后自动提交
+
+### 35. Human Input Mode — AutoGen 风格审批控制 ✅
+- **来源**: AutoGen HumanInputMode (NEVER/TERMINATE/ALWAYS)
+- **目标**: 高/中/低风险操作分级审批
+- [x] `agent_modes`: HumanInputMode 枚举 + 字段
+- [x] `agent_config`: human_input_mode + git_auto_commit
+- [x] debug 模式默认 ALWAYS
+
+### 36. MemoryGraphPanel — HermesStudio 风格记忆图可视化 ✅
+- **来源**: HermesStudio Memory.vue + 图可视化
+- [x] `MemoryGraphPanel.vue` (678行): SVG 力导向图 + 拖拽/缩放 + 筛选 + 详情
+
+### 37. 前端 Memory Graph API ✅
+- [x] memoryGraphApi.graphData/stats + 类型定义
+
+**文件变更** (8 文件, +1324/-1):
+| 文件 | 改动 |
+|------|------|
+| `differ.py` (**新增**) | FuzzyDiffer + 三层模糊匹配 + 冲突检测 (377行) |
+| `MemoryGraphPanel.vue` (**新增**) | SVG 记忆图 (678行) |
+| `agent_runner.py` | _git_auto_commit() (104行) |
+| `orchestrator.py` | _git_auto_commit() + 新参数 (80行) |
+| `agent_modes.py` | HumanInputMode 枚举 (24行) |
+| `agent_config.py` | human_input_mode + git_auto_commit (8行) |
+| `model-features.ts` | MemoryGraph API 类型 (45行) |
+| `__init__.py` | FuzzyDiffer/HumanInputMode 导出 (9行) |
+
+---
+
 ## 参考仓库待深入
 
 | 仓库 | 学习重点 | 对应任务 |
 |------|---------|---------|
-| cognee | Pipeline 架构 + 自动本体生成 | 任务 2 (Memory 闭环) + Session 06 |
-| Agent-Reach | Channel 抽象 + 多后端回退 | 任务 1 (Agent 流水线) + Session 05 |
-| hermes-agent | 预算感知循环 + Session 树 | 任务 1/7 (Agent 循环) + Session 05/06 |
-| AutoCLI | YAML 适配器 + 流水线组合 | 任务 9 (CLI 日志) + Session 06 |
-| anthropics/skills | SKILL.md 规范 | 任务 6 (Skills 热加载) + Session 05 |
-| openai/skills | Plugins 分层 | 任务 6 + Session 05 |
+| LangGraph | StateGraph + 条件路由 + Checkpoint | Session 12 (WorkflowGraph) |
+| SWE-agent | SmartContext + ACP 协议 + 环境管理 | Session 12 (ContextWindow) |
+| CrewAI | Task Context Chain + Process 编排 | Session 12 (上下文链) |
+| OpenHands | AgentSkills + Sandbox Timeout + 审计追踪 | Session 12/15 |
+| Continue | IDE 嵌入式 Agent + 上下文策略 | Session 16 |
+| Tabby | 本地代码补全 + FIM + ghost text | Session 16 |
+| Zed | GPUI Layout + Multi-buffer editing | Session 16 |
+| Cline | 结构化 Prompt + Always Allow + ToolCallCard | Session 08/13/15 |
+| RooCode | 检查点回滚 + TaskHeader 指标 + 会话持久化 | Session 13/15 |
+| OpenInterpreter | Smart Auto-Approval + Sandbox 安全 | Session 15 |
+| cognee | Pipeline 架构 + 自动本体生成 | Session 06 |
+| Agent-Reach | Channel 抽象 + 多后端回退 | Session 05 |
+| hermes-agent | 预算感知循环 + Session 树 | Session 05/06 |
+| AutoCLI | YAML 适配器 + 流水线组合 | Session 06 |
+| anthropics/skills | SKILL.md 规范 | Session 05 |
+| openai/skills | Plugins 分层 | Session 05 |
+| Aider | Fuzzy Diff + Git Auto-Commit | Session 14 |
+| AutoGen | HumanInputMode 审批控制 | Session 14 |
+
+---
+
+## Session 15 — 智能审批+文件检查点+提示词模板 (RooCode/Cline/OpenHands借鉴)
+
+### 38. FileCheckpoint/Rollback ✅
+- **来源**: RooCode checkpoints/ 文件内容快照 + 多轮回滚
+- **目标**: Agent 每轮修改后自动保存检查点，支持回滚到任意检查点
+- **涉及文件**: `backend/app/core/agent/checkpoint.py`, `backend/app/api/routes/agent/checkpoint.py`
+- [x] `FileCheckpoint` dataclass: id/agent_name/turn_number/files_modified/metadata
+- [x] `FileSnapshot`: path/content_hash/prev_hash/size/encoding/file_mode/modified_at
+- [x] `FileCheckpointManager`: save/rollback/list/get/cleanup
+- [x] 内联存储 (<50KB) + 磁盘备份 (data/file_checkpoints/)
+- [x] AgentRunner 每轮后自动保存 (enable_checkpoint 开关)
+- [x] API: GET/POST checkpoints + rollback + cleanup
+
+### 39. Smart Auto-Approval Engine ✅
+- **来源**: RooCode auto-approval + OpenInterpreter confirm_mode
+- **目标**: RiskLevel 分级审批 + Always Allow 记忆规则
+- **涉及文件**: `backend/app/core/agent/auto_approval.py`, `backend/app/api/routes/agent/auto_approval.py`
+- [x] `RiskLevel` 枚举: SAFE/MODERATE/DANGEROUS
+- [x] `TOOL_RISK_MAP`: 30+ 工具风险映射
+- [x] `ApprovalRule`: tool_name + allowed + path_pattern(glob) + param_conditions
+- [x] `AutoApprovalEngine`: check/matches + 四种模式 (safe-tools/custom/never/always)
+- [x] rules 持久化到 data/approval_rules.json
+- [x] API: rules CRUD + check + risk-levels + set-mode
+
+### 40. Structured Prompt Templates ✅
+- **来源**: Cline system-prompt 结构化提示体系
+- **目标**: 四角色专用提示词模板 + PromptBuilder 动态构建
+- **涉及文件**: `backend/app/core/agent/prompt_templates.py`
+- [x] `PLANNER_PROMPT`: Architect Agent 分析→设计→分解
+- [x] `CODER_PROMPT`: Senior Software Engineer 实现→diff→检查
+- [x] `REVIEWER_PROMPT`: Code Review Expert 8点检查表
+- [x] `DEBUG_PROMPT`: Debugging Expert 复现→追踪→诊断→修复→验证
+- [x] `PromptBuilder`: build() 动态注入 {context_block} (task/plan/code_changes)
+
+### 41. AutoCLI Timeout ✅ (已有)
+- **来源**: OpenHands Action Security + OpenInterpreter Sandbox
+- **状态**: 已有 `asyncio.wait_for` + `default_timeout=30.0` + per-command 覆盖
+
+**文件变更** (11 文件, +1630/-6):
+| 文件 | 改动 |
+|------|------|
+| `checkpoint.py` (**新增**) | FileCheckpoint + FileCheckpointManager (407行) |
+| `auto_approval.py` (**新增**) | AutoApprovalEngine + RiskLevel (437行) |
+| `prompt_templates.py` (**新增**) | PromptBuilder + 四角色模板 (283行) |
+| `routes/agent/checkpoint.py` (**新增**) | 检查点 CRUD + rollback API (147行) |
+| `routes/agent/auto_approval.py` (**新增**) | 审批规则 CRUD + check API (182行) |
+| `agent_runner.py` | 每轮后自动保存检查点 (+23行) |
+| `agent_config.py` | enable_checkpoint 字段 (+4行) |
+| `orchestrator.py` | 集成 PromptBuilder 结构化提示 (+28/-6行) |
+| `agent/__init__.py` | 新模块导出 (+19行) |
+| `routes/agent/__init__.py` | 新路由注册 (+2行) |
+| `model-features.ts` | FileCheckpoint/ApprovalRule 前端类型 (+104行) |
+
+---
+
+## Session 16 — ContextProvider插件+FIM集成 (Continue/Tabby/Zed借鉴)
+
+### 42. ContextProvider 插件系统 ✅
+- **来源**: Continue core/context/ ContextProvider 分层管理设计
+- **目标**: 替代 AgentRunner 硬编码上下文组装，实现插件化分层注入
+- **涉及文件**: `backend/app/core/agent/context_provider.py`
+- [x] `ContextProvider` ABC: name + priority + async provide()
+- [x] `ContextProviderRegistry`: register/unregister/set_enabled/get_all (按 priority 排序)
+- [x] 7 个内置 Provider: SystemInstruction(0)/Skill(10)/ToolDesc(20)/FileContext(30)/RelatedFiles(35)/Memory(40)/Project(50)/MCP(60)
+- [x] AgentRunner._assemble_system_prompt() 替代硬编码，回退到 _build_system_prompt()
+- [x] 全局单例: init/get_context_provider_registry()
+
+### 43. Skills 接入 Agent 管道 ✅
+- **来源**: Continue slash commands + 现有 SkillsManager
+- **目标**: SkillContextProvider 自动匹配用户输入并注入技能指令
+- [x] SkillContextProvider 桥接 SkillsManager.match() + build_skill_instructions()
+- [x] 优先级 10（仅次于系统指令），运行时条件启用
+
+### 44. FIM 代码补全前端集成 ✅
+- **来源**: Tabby autocomplete + Continue ghost text
+- **目标**: 打通已有 FIMCompletionEngine 后端到前端内联补全
+- **涉及文件**: `studio-client/src/api/fim.ts`, `useFIMCompletion.ts`, `CodeEditor.vue`
+- [x] `api/fim.ts` (109行): CompletionRequest/Response 类型 + API 方法
+- [x] `useFIMCompletion.ts` (278行): 300ms 防抖 + 即时触发 + 幽灵文本 + Tab/Esc
+- [x] `CodeEditor.vue`: onKeyDown 按键触发 + Tab/Esc 拦截 + .fim-ghost-text 样式
+- [x] 频率限制 500ms + 反馈上报 (sendFeedback)
+
+### 45. Multi-File Context (Zed multi-buffer) ✅
+- **来源**: Zed multi-buffer editing + file dependency graph
+- **目标**: 为 Agent 提供当前编辑文件的关系文件上下文
+- **涉及文件**: `backend/app/core/agent/related_files.py`
+- [x] `FileRelationshipTracker`: 最近访问 + import 关系图
+- [x] 5 种语言 import 解析 (Python/TS/Vue/Go/Rust)
+- [x] 4 级关系: imported-by-current → imports-current → same-dir → recent
+- [x] `RelatedFilesProvider` 自动注入关联文件上下文
+
+**文件变更** (7 文件, +1475/-42):
+| 文件 | 改动 |
+|------|------|
+| `context_provider.py` (**新增**) | ContextProvider 插件系统 + 7 内置 Provider (480行) |
+| `related_files.py` (**新增**) | 文件关系追踪器 + import 图 + Provider (320行) |
+| `api/fim.ts` (**新增**) | FIM 补全 API 服务层 (109行) |
+| `useFIMCompletion.ts` (**新增**) | FIM Vue Composable (278行) |
+| `agent_runner.py` | _assemble_system_prompt() + ContextProvider 集成 (+53/-27) |
+| `agent/__init__.py` | ContextProvider/RelatedFiles 导出 (+16) |
+| `CodeEditor.vue` | FIM 集成 + monacoRaw 重构 (+23/-8) |
+
+---
+
+## Session 17 — 前端缺陷修复 + Tauri 功能补全
+
+### 46. 修复 ProjectList 死链接 /projects/new ✅
+- **问题**: `ProjectList.vue` 中 `router.push("/projects/new")` 指向不存在的路由，导致被 catch-all 重定向到 `/chat`
+- **涉及文件**: `studio-client/src/router/index.ts`, `studio-client/src/pages/ProjectNew.vue`, `studio-client/src/api/studio.ts`
+- [x] `router/index.ts`: 新增 `/projects/new` → `ProjectNew.vue` 路由（在 `/projects/:id` 之前）
+- [x] `ProjectNew.vue` (**新增**): AI 全栈项目创建页面（手动/AI 双模式 + 模板选择 + 技术栈配置）
+- [x] `studio.ts`: 新增 `createProject()` API + `CreateProjectParams` 接口
+
+### 47. AtMentionPopup 假数据替换为真实 API ✅
+- **问题**: `recentFiles` 硬编码假数据；`fakeFiles` 命名误导；选中文件后未保存到最近列表
+- **涉及文件**: `studio-client/src/components/agent/AtMentionPopup.vue`
+- [x] `fakeFiles` → `projectFiles` 重命名，语义清晰
+- [x] `recentFiles` 改为从 `localStorage("at_mention_recent_files")` 加载/持久化
+- [x] `selectFile()` 调用 `saveRecentFile()` 自动记录最近文件
+- [x] 最多保留 10 条最近文件，去重 + LRU
+
+### 48. GlobalSearch Web 回退实现真实搜索 ✅
+- **问题**: 非 Tauri 环境下 `doSearch()` 返回空数组（仅 `setTimeout 300ms`），搜索功能完全不可用
+- **涉及文件**: `studio-client/src/components/ide/GlobalSearch.vue`
+- [x] Web 回退调用 `/api/v1/system/codebase/files?q=...` 真实 API 搜索
+- [x] 搜索文件名匹配 → 转换为 SearchResult 格式
+- [x] 静默错误处理（API 不可用时显示空结果）
+
+### 49. Tauri 插件安装功能实现 ✅
+- **问题**: `install_plugin()` 仅为 `Err("Plugin installation not yet implemented")`
+- **涉及文件**: `studio-client/src-tauri/src/commands/plugins.rs` (+~180行)
+- [x] `install_from_local()`: 本地路径 → 读取 plugin.json → 复制到 plugins 目录 → 注册
+- [x] `install_from_url()`: URL 下载 (curl/PowerShell) → 解压 → 查找 manifest → 安装
+- [x] `get_plugins_dir()`: 跨平台数据目录 (Windows: %APPDATA%, macOS: ~/Library, Linux: ~/.local/share)
+- [x] `save_registry()` / `load_registry()`: registry.json 持久化
+- [x] `find_manifest()`: 递归查找 plugin.json
+- [x] `copy_dir_all()`: 递归目录复制
+- [x] `uninstall_plugin()` 增强: 同步删除磁盘文件
+
+### 50. Tauri Git Diff 解析完整实现 ✅
+- **问题**: `parse_diff_output()` 返回硬编码的占位 `GitDiff`（path="unknown", hunks=[]）
+- **涉及文件**: `studio-client/src-tauri/src/commands/git.rs` (+~120行)
+- [x] 完整 unified diff 格式解析器
+- [x] 解析 `diff --git a/path b/path` → 文件路径 + old_path
+- [x] 解析 `--- /dev/null` → 新文件 (status="A")
+- [x] 解析 `+++ /dev/null` → 删除文件 (status="D")
+- [x] 解析 `@@ -a,b +c,d @@` → hunk 头部 + 行号追踪
+- [x] 逐行解析 `+`/`-`/` `  → GitDiffLine + additions/deletions 统计
+- [x] `parse_hunk_header()` 辅助函数
+
+**文件变更** (8 文件, +784/-97):
+| 文件 | 改动 |
+|------|------|
+| `router/index.ts` | 新增 `/projects/new` 路由 (+5行) |
+| `ProjectNew.vue` (**新增**) | AI 项目创建页 — 双模式 + 模板 (198行) |
+| `api/studio.ts` | 新增 createProject + CreateProjectParams (+18行) |
+| `AtMentionPopup.vue` | 假数据→localStorage持久化 (+12/-18行) |
+| `GlobalSearch.vue` | Web回退→真实API搜索 (+25/-4行) |
+| `plugins.rs` | install_plugin完整实现 + 持久化 (+~250/-10行) |
+| `git.rs` | parse_diff_output完整unified diff解析 (+~130/-12行) |
+| `TASKS.md` | Session 17 记录 (+x行) |
+
+---
+
+## Session 18 — 代码质量与基础设施加固
+
+### 51. Vite 配置修正 ✅
+- **问题**: 端口 5177 与 PROGRESS.md 记录的 5173 不一致，代理目标 18000 与开发端口 8000 不一致
+- **涉及文件**: `studio-client/vite.config.ts`
+- [x] 开发端口: 5177 → 5173
+- [x] 代理目标: `http://localhost:18000` → `http://localhost:8000`
+
+### 52. 硬编码占位符密钥 + package.json 清理 ✅
+- **问题**: `embedder.py` 硬编码 `"sk-placeholder"`；`@tailwindcss/vite` 和 `vite` 在 dependencies 中应为 devDependencies；根 package.json 重复引入 `@tauri-apps/api`
+- **涉及文件**: `backend/app/core/rag/embedder.py`, `studio-client/package.json`, `package.json`
+- [x] `embedder.py`: `api_key or "sk-placeholder"` → `api_key or os.getenv("OPENAI_API_KEY", "")`
+- [x] `studio-client/package.json`: `@tailwindcss/vite` + `vite` 从 dependencies → devDependencies
+- [x] 根 `package.json`: 移除重复的 `@tauri-apps/api` + `@tauri-apps/plugin-dialog`
+
+### 53. models.py lint + MCP marketplace auth ✅
+- **问题**: models.py 3 处类型推断/泛型问题；mcp_marketplace 安装时 `user_id=None` 无鉴权上下文
+- **涉及文件**: `backend/app/api/routes/system/models.py`, `backend/app/api/routes/agent/mcp_marketplace.py`
+- [x] `models.py`: `record.status.value` → `record.status`；`dict[str, dict]` → `dict[str, dict[str, int]]`；添加 `# type: ignore[arg-type]` 标记
+- [x] `mcp_marketplace.py`: 新增 `user: CurrentUser` 参数；`user_id=None` → `user_id=user.id if user else None`
+
+### 54. MessageHistoryStore / ConversationStore DB 后端 ✅
+- **问题**: 仅有内存实现 (`Memory*Store`)，缺少持久化后端
+- **涉及文件**: `backend/app/core/message_history.py`, `backend/app/core/conversation/manager.py`
+- [x] `SqliteMessageHistoryStore`: SQLite 持久化（data/messages.db）
+  - 6 个 CRUD 操作完整实现
+  - message_id 为主键，session_id 索引，timestamp 索引
+- [x] `SqliteConversationStore`: SQLite 持久化（data/conversations.db）
+  - 5 个 CRUD 操作完整实现 + list_by_session 分页
+  - conversation_id 为主键，session_id 索引，updated_at 索引
+
+### 55. AgentChat.vue 死代码验证 ✅
+- **问题**: PROGRESS.md Session 01 报告 ~20 未使用变量
+- **状态**: 已验证 — 当前零 lint 错误，所有 27 个 icon 导入均在模板中使用
+- 未使用变量在前续 Session 中已被逐步清理
+
+**文件变更** (8 文件, +245/-25):
+| 文件 | 改动 |
+|------|------|
+| `vite.config.ts` | 端口 5177→5173 + 代理 18000→8000 |
+| `package.json` | 移除重复 Tauri 依赖 |
+| `studio-client/package.json` | @tailwindcss/vite+vite→devDependencies |
+| `embedder.py` | 移除硬编码 sk-placeholder |
+| `models.py` | lint 修复 (3 处) |
+| `mcp_marketplace.py` | user_id TODO→CurrentUser 注入 |
+| `message_history.py` | 新增 SqliteMessageHistoryStore (~80行) |
+| `manager.py` | 新增 SqliteConversationStore (~100行) |
+
+---
 
 ## 测试规范
 

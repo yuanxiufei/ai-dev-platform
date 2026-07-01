@@ -80,9 +80,9 @@ onMounted(loadData)
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white">存储设置</h1>
-        <p class="text-gray-400 mt-1">管理你的存储空间</p>
+        <p class="text-[var(--color-ide-text-dim)] mt-1">管理你的存储空间</p>
       </div>
-      <button class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300" @click="loadData" :disabled="loading">
+      <button class="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-ide-surface-hover)] hover:bg-white/10 text-[var(--color-ide-text)]" @click="loadData" :disabled="loading">
         <RefreshCw :class="['w-4 h-4', loading && 'animate-spin']" /> 刷新
       </button>
     </div>
@@ -96,33 +96,33 @@ onMounted(loadData)
 
     <!-- 总体概览 -->
     <div v-if="stats['storage_root']" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/10">
-        <div class="flex items-center gap-2 text-gray-400 text-sm mb-2"><HardDrive class="w-4 h-4" /> 已使用</div>
+      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-[var(--color-ide-border)]">
+        <div class="flex items-center gap-2 text-[var(--color-ide-text-dim)] text-sm mb-2"><HardDrive class="w-4 h-4" /> 已使用</div>
         <p class="text-2xl font-bold text-white">{{ formatGB(stats['storage_root'].used_gb) }}</p>
-        <p class="text-xs text-gray-500 mt-1">共 {{ formatGB(stats['storage_root'].total_gb) }}</p>
+        <p class="text-xs text-[var(--color-ide-text-dim)] mt-1">共 {{ formatGB(stats['storage_root'].total_gb) }}</p>
       </div>
-      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/10">
-        <div class="flex items-center gap-2 text-gray-400 text-sm mb-2"><Database class="w-4 h-4" /> 剩余</div>
+      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-[var(--color-ide-border)]">
+        <div class="flex items-center gap-2 text-[var(--color-ide-text-dim)] text-sm mb-2"><Database class="w-4 h-4" /> 剩余</div>
         <p class="text-2xl font-bold text-green-400">{{ formatGB(stats['storage_root'].free_gb) }}</p>
-        <p class="text-xs text-gray-500 mt-1">{{ stats['storage_root'].total_gb > 0 ? ((stats['storage_root'].free_gb / stats['storage_root'].total_gb) * 100).toFixed(1) : 0 }}% 可用</p>
+        <p class="text-xs text-[var(--color-ide-text-dim)] mt-1">{{ stats['storage_root'].total_gb > 0 ? ((stats['storage_root'].free_gb / stats['storage_root'].total_gb) * 100).toFixed(1) : 0 }}% 可用</p>
       </div>
-      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/10">
-        <div class="flex items-center gap-2 text-gray-400 text-sm mb-2"><Folder class="w-4 h-4" /> 文件数</div>
+      <div class="p-5 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-[var(--color-ide-border)]">
+        <div class="flex items-center gap-2 text-[var(--color-ide-text-dim)] text-sm mb-2"><Folder class="w-4 h-4" /> 文件数</div>
         <p class="text-2xl font-bold text-brand-400">{{ stats['storage_root'].file_count.toLocaleString() }}</p>
       </div>
     </div>
 
     <!-- 配额 -->
-    <div class="p-5 rounded-xl bg-surface-800 border border-white/10">
+    <div class="p-5 rounded-xl bg-surface-800 border border-[var(--color-ide-border)]">
       <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2"><Settings class="w-5 h-5" /> 存储配额</h2>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm text-gray-400 mb-1">全局最大存储 (GB)</label>
-          <input v-model.number="maxStorageGB" type="number" min="0" class="w-full px-3 py-2 bg-surface-900 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-500" />
+          <label class="block text-sm text-[var(--color-ide-text-dim)] mb-1">全局最大存储 (GB)</label>
+          <input v-model.number="maxStorageGB" type="number" min="0" class="w-full px-3 py-2 bg-surface-900 border border-[var(--color-ide-border)] rounded-xl text-white text-sm focus:outline-none focus:border-brand-500" />
         </div>
         <div>
-          <label class="block text-sm text-gray-400 mb-1">单工作区最大 (GB)</label>
-          <input v-model.number="maxWorkspaceGB" type="number" min="0" class="w-full px-3 py-2 bg-surface-900 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-500" />
+          <label class="block text-sm text-[var(--color-ide-text-dim)] mb-1">单工作区最大 (GB)</label>
+          <input v-model.number="maxWorkspaceGB" type="number" min="0" class="w-full px-3 py-2 bg-surface-900 border border-[var(--color-ide-border)] rounded-xl text-white text-sm focus:outline-none focus:border-brand-500" />
         </div>
       </div>
       <button class="mt-4 px-4 py-2 bg-brand-500 hover:bg-brand-600 rounded-xl text-white text-sm transition-colors disabled:opacity-50" @click="saveConfig" :disabled="saving">
@@ -131,7 +131,7 @@ onMounted(loadData)
     </div>
 
     <!-- 分类 -->
-    <div class="p-5 rounded-xl bg-surface-800 border border-white/10">
+    <div class="p-5 rounded-xl bg-surface-800 border border-[var(--color-ide-border)]">
       <h2 class="text-lg font-semibold text-white mb-4">存储分类</h2>
       <div class="space-y-3">
         <div v-for="(s, key) in stats" :key="key" class="flex items-center justify-between p-3 bg-surface-700/50 rounded-xl">
@@ -139,7 +139,7 @@ onMounted(loadData)
             <div class="w-2 h-2 rounded-full" :class="(s.used_gb / s.total_gb) > 0.8 ? 'bg-red-500' : 'bg-brand-500'" />
             <div>
               <p class="text-white text-sm capitalize">{{ key.replace(/_/g, ' ') }}</p>
-              <p class="text-xs text-gray-500">{{ formatGB(s.used_gb) }} / {{ formatGB(s.total_gb) }} · {{ s.file_count }} 文件</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)]">{{ formatGB(s.used_gb) }} / {{ formatGB(s.total_gb) }} · {{ s.file_count }} 文件</p>
             </div>
           </div>
           <button class="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs transition-colors" @click="clean(s.path)">

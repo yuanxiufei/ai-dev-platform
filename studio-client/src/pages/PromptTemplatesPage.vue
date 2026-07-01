@@ -151,7 +151,7 @@ onMounted(loadTemplates)
           <Wand2 class="w-6 h-6 text-brand-400" />
           Prompt 模板
         </h1>
-        <p class="text-sm text-gray-400 mt-1">
+        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1">
           斜杠命令模板 — 填入变量快速生成 Prompt，可复制到对话中使用
         </p>
       </div>
@@ -167,17 +167,17 @@ onMounted(loadTemplates)
     <div class="flex items-center gap-3 mb-6">
       <div class="relative flex-1 max-w-sm">
         <Search
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]"
         />
         <input
           v-model="searchQuery"
           placeholder="搜索命令或标题..."
-          class="w-full pl-9 pr-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
+          class="w-full pl-9 pr-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-brand-500"
         />
       </div>
       <select
         v-model="selectedCategory"
-        class="px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+        class="px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
       >
         <option value="">全部分类</option>
         <option
@@ -195,7 +195,7 @@ onMounted(loadTemplates)
       v-if="loading"
       class="flex items-center justify-center py-12"
     >
-      <RefreshCw class="w-6 h-6 animate-spin text-gray-500" />
+      <RefreshCw class="w-6 h-6 animate-spin text-[var(--color-ide-text-dim)]" />
     </div>
 
     <!-- 空状态 -->
@@ -206,20 +206,20 @@ onMounted(loadTemplates)
       <div
         class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-surface-800 flex items-center justify-center"
       >
-        <Wand2 class="w-8 h-8 text-gray-600" />
+        <Wand2 class="w-8 h-8 text-[var(--color-ide-text-dim)]" />
       </div>
-      <p class="text-gray-400 mb-1">暂无 Prompt 模板</p>
-      <p class="text-sm text-gray-500 mb-4">
+      <p class="text-[var(--color-ide-text-dim)] mb-1">暂无 Prompt 模板</p>
+      <p class="text-sm text-[var(--color-ide-text-dim)] mb-4">
         创建模板后可在对话中使用斜杠命令快速填充
       </p>
       <div class="grid grid-cols-2 gap-3 max-w-md mx-auto text-left">
-        <div class="p-3 rounded-xl bg-surface-800/50 border border-white/5">
+        <div class="p-3 rounded-xl bg-surface-800/50 border border-[var(--color-ide-border)]">
           <div class="text-xs font-mono text-brand-400 mb-1">/gen-api</div>
-          <div class="text-xs text-gray-500">生成 REST API 端点代码</div>
+          <div class="text-xs text-[var(--color-ide-text-dim)]">生成 REST API 端点代码</div>
         </div>
-        <div class="p-3 rounded-xl bg-surface-800/50 border border-white/5">
+        <div class="p-3 rounded-xl bg-surface-800/50 border border-[var(--color-ide-border)]">
           <div class="text-xs font-mono text-brand-400 mb-1">/code-review</div>
-          <div class="text-xs text-gray-500">全面代码审查分析</div>
+          <div class="text-xs text-[var(--color-ide-text-dim)]">全面代码审查分析</div>
         </div>
       </div>
     </div>
@@ -229,7 +229,7 @@ onMounted(loadTemplates)
       <div
         v-for="tpl in filtered"
         :key="tpl.id"
-        class="flex items-start gap-4 p-4 rounded-xl bg-surface-800/60 border border-white/5 hover:border-brand-500/30 transition group"
+        class="flex items-start gap-4 p-4 rounded-xl bg-surface-800/60 border border-[var(--color-ide-border)] hover:border-brand-500/30 transition group"
       >
         <div
           class="text-xl shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-brand-500/10"
@@ -241,12 +241,12 @@ onMounted(loadTemplates)
             <code class="text-sm font-mono text-brand-400">{{ tpl.command }}</code>
             <span class="text-sm font-medium text-white">{{ tpl.title }}</span>
             <span
-              class="text-xs px-1.5 py-0.5 rounded bg-surface-700 text-gray-400"
+              class="text-xs px-1.5 py-0.5 rounded bg-surface-700 text-[var(--color-ide-text-dim)]"
             >
               {{ tpl.category }}
             </span>
           </div>
-          <p class="text-sm text-gray-400 mb-1.5 line-clamp-2">
+          <p class="text-sm text-[var(--color-ide-text-dim)] mb-1.5 line-clamp-2">
             {{ tpl.description || tpl.prompt.substring(0, 100) }}
           </p>
           <div class="flex items-center gap-1.5 flex-wrap">
@@ -274,7 +274,7 @@ onMounted(loadTemplates)
             title="复制模板文本"
             class="p-1.5 rounded-lg hover:bg-surface-700 transition"
           >
-            <Copy class="w-4 h-4 text-gray-400" />
+            <Copy class="w-4 h-4 text-[var(--color-ide-text-dim)]" />
           </button>
           <button
             @click="deleteTemplate(tpl.id)"
@@ -294,15 +294,15 @@ onMounted(loadTemplates)
         @click.self="showModal = false"
       >
         <div
-          class="bg-surface-900 rounded-xl border border-white/10 w-[680px] max-h-[85vh] flex flex-col shadow-2xl"
+          class="bg-surface-900 rounded-xl border border-[var(--color-ide-border)] w-[680px] max-h-[85vh] flex flex-col shadow-2xl"
         >
           <div
-            class="flex items-center justify-between p-4 border-b border-white/10"
+            class="flex items-center justify-between p-4 border-b border-[var(--color-ide-border)]"
           >
             <h3 class="font-medium text-white">创建个人模板</h3>
             <button
               @click="showModal = false"
-              class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-400 transition"
+              class="p-1.5 rounded-lg hover:bg-surface-700 text-[var(--color-ide-text-dim)] transition"
             >
               <X class="w-4 h-4" />
             </button>
@@ -310,76 +310,76 @@ onMounted(loadTemplates)
           <div class="flex-1 overflow-auto p-4 space-y-3">
             <div class="grid grid-cols-3 gap-3">
               <div class="col-span-2">
-                <label class="block text-xs text-gray-400 mb-1">
+                <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">
                   命令 <span class="text-red-400">*</span>
                 </label>
                 <input
                   v-model="form.command"
                   placeholder="/gen-api"
-                  class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm font-mono text-brand-400 focus:outline-none focus:border-brand-500"
+                  class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm font-mono text-brand-400 focus:outline-none focus:border-brand-500"
                 />
               </div>
               <div>
-                <label class="block text-xs text-gray-400 mb-1">图标</label>
+                <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">图标</label>
                 <input
                   v-model="form.icon"
                   placeholder="⚡"
-                  class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                  class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
                 />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs text-gray-400 mb-1">
+                <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">
                   标题 <span class="text-red-400">*</span>
                 </label>
                 <input
                   v-model="form.title"
                   placeholder="生成 API 端点"
-                  class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                  class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
                 />
               </div>
               <div>
-                <label class="block text-xs text-gray-400 mb-1">分类</label>
+                <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">分类</label>
                 <input
                   v-model="form.category"
                   placeholder="studio"
-                  class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                  class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
                 />
               </div>
             </div>
             <div>
-              <label class="block text-xs text-gray-400 mb-1">描述</label>
+              <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">描述</label>
               <input
                 v-model="form.description"
                 placeholder="简要说明这个模板的用途"
-                class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
               />
             </div>
             <div>
-              <label class="block text-xs text-gray-400 mb-1">
+              <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">
                 Prompt 模板 <span class="text-red-400">*</span>
-                <span class="text-gray-600">（使用 {'{{'} variable {'}}'} 标记变量）</span>
+                <span class="text-[var(--color-ide-text-dim)]">（使用 {'{{'} variable {'}}'} 标记变量）</span>
               </label>
               <textarea
                 v-model="form.prompt"
                 rows="4"
                 placeholder="你是一个 {{ role }}，请为以下代码生成 {{ output_type }}..."
-                class="w-full px-3 py-2 bg-surface-800 border border-white/10 rounded-lg text-sm text-white font-mono focus:outline-none focus:border-brand-500 resize-none"
+                class="w-full px-3 py-2 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white font-mono focus:outline-none focus:border-brand-500 resize-none"
               />
             </div>
             <!-- 变量 -->
             <div>
-              <label class="block text-xs text-gray-400 mb-1.5">变量</label>
+              <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1.5">变量</label>
               <div class="flex gap-2 mb-2">
                 <input
                   v-model="newVarName"
                   placeholder="变量名"
-                  class="flex-1 px-3 py-1.5 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                  class="flex-1 px-3 py-1.5 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
                 />
                 <select
                   v-model="newVarType"
-                  class="px-3 py-1.5 bg-surface-800 border border-white/10 rounded-lg text-sm text-white"
+                  class="px-3 py-1.5 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white"
                 >
                   <option value="string">string</option>
                   <option value="number">number</option>
@@ -389,7 +389,7 @@ onMounted(loadTemplates)
                 <input
                   v-model="newVarDesc"
                   placeholder="说明"
-                  class="flex-1 px-3 py-1.5 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                  class="flex-1 px-3 py-1.5 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
                 />
                 <button
                   @click="addVariable"
@@ -402,7 +402,7 @@ onMounted(loadTemplates)
                 <span
                   v-for="(v, k) in form.variables"
                   :key="k"
-                  class="flex items-center gap-1 text-xs px-2 py-1 rounded bg-surface-700 text-gray-300"
+                  class="flex items-center gap-1 text-xs px-2 py-1 rounded bg-surface-700 text-[var(--color-ide-text)]"
                 >
                   {{ k }} ({{ v.type }})
                   <button
@@ -415,10 +415,10 @@ onMounted(loadTemplates)
               </div>
             </div>
           </div>
-          <div class="flex gap-2 justify-end p-4 border-t border-white/10">
+          <div class="flex gap-2 justify-end p-4 border-t border-[var(--color-ide-border)]">
             <button
               @click="showModal = false"
-              class="px-4 py-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-sm text-gray-300 transition"
+              class="px-4 py-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-sm text-[var(--color-ide-text)] transition"
             >
               取消
             </button>
@@ -442,15 +442,15 @@ onMounted(loadTemplates)
         @click.self="showResolve = false; resolvedResult = ''"
       >
         <div
-          class="bg-surface-900 rounded-xl border border-white/10 w-[560px] max-h-[80vh] flex flex-col shadow-2xl"
+          class="bg-surface-900 rounded-xl border border-[var(--color-ide-border)] w-[560px] max-h-[80vh] flex flex-col shadow-2xl"
         >
           <div
-            class="flex items-center justify-between p-4 border-b border-white/10"
+            class="flex items-center justify-between p-4 border-b border-[var(--color-ide-border)]"
           >
             <h3 class="font-medium text-white">填充变量</h3>
             <button
               @click="showResolve = false; resolvedResult = ''"
-              class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-400 transition"
+              class="p-1.5 rounded-lg hover:bg-surface-700 text-[var(--color-ide-text-dim)] transition"
             >
               <X class="w-4 h-4" />
             </button>
@@ -463,22 +463,22 @@ onMounted(loadTemplates)
               :key="k"
               class="mb-2"
             >
-              <label class="block text-xs text-gray-400 mb-1">
+              <label class="block text-xs text-[var(--color-ide-text-dim)] mb-1">
                 {{ k }}
-                <span class="text-gray-600">({{ v.type }})</span>
-                <span v-if="v.description" class="text-gray-500">
+                <span class="text-[var(--color-ide-text-dim)]">({{ v.type }})</span>
+                <span v-if="v.description" class="text-[var(--color-ide-text-dim)]">
                   — {{ v.description }}
                 </span>
               </label>
               <input
                 v-model="resolveValues[k]"
                 :placeholder="String(v.default || '')"
-                class="w-full px-3 py-1.5 bg-surface-800 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
+                class="w-full px-3 py-1.5 bg-surface-800 border border-[var(--color-ide-border)] rounded-lg text-sm text-white focus:outline-none focus:border-brand-500"
               />
             </div>
             <p
               v-if="!Object.keys(editingId ? templates.find(t => t.id === editingId)?.variables || {} : {}).length"
-              class="text-sm text-gray-500"
+              class="text-sm text-[var(--color-ide-text-dim)]"
             >
               此模板没有变量，将直接使用原始 Prompt。
             </p>
@@ -490,14 +490,14 @@ onMounted(loadTemplates)
             </button>
             <div v-if="resolvedResult" class="relative">
               <pre
-                class="p-3 bg-surface-800 rounded-lg text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed"
+                class="p-3 bg-surface-800 rounded-lg text-sm text-[var(--color-ide-text)] whitespace-pre-wrap font-mono leading-relaxed"
               >{{ resolvedResult }}</pre>
               <button
                 @click="navigator.clipboard.writeText(resolvedResult)"
                 class="absolute top-2 right-2 p-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 transition"
                 title="复制到对话中使用"
               >
-                <Copy class="w-4 h-4 text-gray-400" />
+                <Copy class="w-4 h-4 text-[var(--color-ide-text-dim)]" />
               </button>
             </div>
           </div>

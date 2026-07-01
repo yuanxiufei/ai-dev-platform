@@ -81,7 +81,7 @@ const toolSuccessRate = computed(() => {
 <template>
   <div
     v-if="tokensTotal || tokensIn || costUsd || durationMs || turns != null"
-    class="metrics-bar px-3 py-2 bg-white/[0.02] border-b border-white/5 flex items-center gap-4 text-xs overflow-x-auto"
+    class="metrics-bar px-3 py-2 bg-white/[0.02] border-b border-[var(--color-ide-border)] flex items-center gap-4 text-xs overflow-x-auto"
   >
     <!-- ── 上下文窗口进度条 (RooCode ContextWindowProgress) ── -->
     <div
@@ -97,7 +97,7 @@ const toolSuccessRate = computed(() => {
           :style="{ width: contextPercent + '%' }"
         />
       </div>
-      <span class="text-white/50 tabular-nums">{{ fmtNum(tokensTotal) }}</span>
+      <span class="text-[var(--color-ide-text)] tabular-nums">{{ fmtNum(tokensTotal) }}</span>
     </div>
 
     <!-- ── Token 用量 (↑ 输入 / ↓ 输出) ── -->
@@ -116,13 +116,13 @@ const toolSuccessRate = computed(() => {
     <!-- ── 耗时 ── -->
     <div v-if="fmtDuration" class="flex items-center gap-1 shrink-0">
       <span class="text-white/30">耗时</span>
-      <span class="text-white/50 tabular-nums">{{ fmtDuration }}</span>
+      <span class="text-[var(--color-ide-text)] tabular-nums">{{ fmtDuration }}</span>
     </div>
 
     <!-- ── 轮次 ── -->
     <div v-if="turns != null" class="flex items-center gap-1 shrink-0">
       <span class="text-white/30">轮次</span>
-      <span class="text-white/50 tabular-nums">{{ turns }}{{ maxTurns ? ` / ${maxTurns}` : "" }}</span>
+      <span class="text-[var(--color-ide-text)] tabular-nums">{{ turns }}{{ maxTurns ? ` / ${maxTurns}` : "" }}</span>
     </div>
 
     <!-- ── 工具成功率 ── -->

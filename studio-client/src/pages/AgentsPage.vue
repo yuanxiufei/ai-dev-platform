@@ -294,7 +294,7 @@ function editIsToolEnabled(toolId: string): boolean {
     </Transition>
 
     <!-- Header -->
-    <div class="flex items-center justify-between px-8 pt-8 pb-6 border-b border-white/5">
+    <div class="flex items-center justify-between px-8 pt-8 pb-6 border-b border-[var(--color-ide-border)]">
       <div>
         <h1 class="text-2xl font-bold text-white flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center">
@@ -302,22 +302,22 @@ function editIsToolEnabled(toolId: string): boolean {
           </div>
           Agent 管理
         </h1>
-        <p class="text-sm text-gray-500 mt-1.5 ml-[3.25rem]">创建和管理 AI Agent，配置模型、工具和系统提示词</p>
+        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1.5 ml-[3.25rem]">创建和管理 AI Agent，配置模型、工具和系统提示词</p>
       </div>
       <div class="flex items-center gap-3">
         <!-- 搜索 -->
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-ide-text-dim)]" />
           <input
             v-model="searchQuery"
             placeholder="搜索 Agent..."
-            class="w-52 pl-9 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/30 transition-all"
+            class="w-52 pl-9 pr-4 py-2 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-violet-500/30 transition-all"
           />
         </div>
         <!-- 模式筛选 -->
         <select
           v-model="filterMode"
-          class="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-gray-400 focus:outline-none focus:border-violet-500/30 transition-all"
+          class="px-3 py-2 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] focus:outline-none focus:border-violet-500/30 transition-all"
         >
           <option value="">全部模式</option>
           <option value="craft">Craft</option>
@@ -335,7 +335,7 @@ function editIsToolEnabled(toolId: string): boolean {
     </div>
 
     <!-- 标签栏: 用户Agent / 项目Agent -->
-    <div class="px-8 pt-4 pb-3 flex items-center gap-1 border-b border-white/5">
+    <div class="px-8 pt-4 pb-3 flex items-center gap-1 border-b border-[var(--color-ide-border)]">
       <button
         v-for="tab in [
           { id: 'user' as TabScope, label: '用户 Agent', icon: Users, desc: '个人空间中生效' },
@@ -347,13 +347,13 @@ function editIsToolEnabled(toolId: string): boolean {
           'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
           activeTab === tab.id
             ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
-            : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] border border-transparent',
+            : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] border border-transparent',
         ]"
       >
         <component :is="tab.icon" class="w-4 h-4" />
         {{ tab.label }}
       </button>
-      <div class="ml-auto text-xs text-gray-600 flex items-center gap-2">
+      <div class="ml-auto text-xs text-[var(--color-ide-text-dim)] flex items-center gap-2">
         <div class="flex items-center gap-1.5">
           <div class="w-1.5 h-1.5 rounded-full bg-green-400" />
           <span>{{ filteredAgents.filter(a => a.enabled).length }} 已启用</span>
@@ -371,7 +371,7 @@ function editIsToolEnabled(toolId: string): boolean {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="!filteredAgents.length" class="flex flex-col items-center justify-center py-24 text-gray-600">
+      <div v-else-if="!filteredAgents.length" class="flex flex-col items-center justify-center py-24 text-[var(--color-ide-text-dim)]">
         <Bot class="w-12 h-12 mb-4 opacity-30" />
         <p class="text-sm mb-1">{{ activeTab === 'user' ? '还没有用户 Agent' : '还没有项目 Agent' }}</p>
         <p class="text-xs text-gray-700 mb-4">点击右上角"创建 Agent"开始使用</p>
@@ -391,10 +391,10 @@ function editIsToolEnabled(toolId: string): boolean {
           :class="[
             'rounded-2xl border transition-all duration-200',
             expandedAgent === agent.id
-              ? 'border-violet-500/20 bg-white/[0.03]'
+              ? 'border-violet-500/20 bg-[var(--color-ide-surface-hover)]'
               : agent.enabled
-                ? 'border-white/8 bg-white/[0.02] hover:border-white/15'
-                : 'border-white/5 bg-white/[0.01] opacity-60',
+                ? 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] hover:border-[var(--color-ide-border)]'
+                : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] opacity-60',
           ]"
         >
           <!-- Card Header -->
@@ -424,7 +424,7 @@ function editIsToolEnabled(toolId: string): boolean {
                   'text-[10px] px-2 py-0.5 rounded-full font-medium border',
                   agent.agentic_mode === 'agentic'
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+                    : 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20',
                 ]">
                   <Zap class="w-2.5 h-2.5 inline mr-0.5" />
                   {{ agent.agentic_mode === 'agentic' ? 'Agentic' : 'Manual' }}
@@ -434,16 +434,16 @@ function editIsToolEnabled(toolId: string): boolean {
                   'text-[10px] px-2 py-0.5 rounded-full font-medium border',
                   agent.auto_run
                     ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                    : 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+                    : 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20',
                 ]">
                   {{ agent.auto_run ? 'Auto Run' : 'Manual Run' }}
                 </span>
                 <!-- Provider -->
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/5 text-gray-500">{{ getModelProvider(agent.model) }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)]">{{ getModelProvider(agent.model) }}</span>
                 <!-- Date -->
                 <span class="text-[10px] text-gray-700 ml-auto">{{ agent.created_at?.slice(0, 10) || '-' }}</span>
               </div>
-              <p class="text-xs text-gray-500 line-clamp-2">{{ agent.description || '无描述' }}</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] line-clamp-2">{{ agent.description || '无描述' }}</p>
             </div>
 
             <!-- Actions -->
@@ -451,7 +451,7 @@ function editIsToolEnabled(toolId: string): boolean {
               <ToggleSwitch :model-value="agent.enabled" size="md" @update:model-value="handleToggle(agent)" />
               <button
                 @click.stop="expandedAgent = expandedAgent === agent.id ? null : agent.id"
-                class="p-1.5 rounded-lg text-gray-600 hover:text-gray-400 hover:bg-white/5 transition-colors"
+                class="p-1.5 rounded-lg text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
               >
                 <ChevronDown :class="['w-4 h-4 transition-transform duration-200', expandedAgent === agent.id && 'rotate-180']" />
               </button>
@@ -460,35 +460,35 @@ function editIsToolEnabled(toolId: string): boolean {
 
           <!-- Expanded Detail -->
           <Transition name="expand">
-            <div v-if="expandedAgent === agent.id" class="border-t border-white/5 px-5 py-4 space-y-5">
+            <div v-if="expandedAgent === agent.id" class="border-t border-[var(--color-ide-border)] px-5 py-4 space-y-5">
               <!-- System Prompt -->
               <div>
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <Brain class="w-3.5 h-3.5" /> System Prompt
                 </p>
-                <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <pre class="text-xs text-gray-400 whitespace-pre-wrap font-mono leading-relaxed">{{ agent.system_prompt }}</pre>
+                <div class="p-3 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
+                  <pre class="text-xs text-[var(--color-ide-text-dim)] whitespace-pre-wrap font-mono leading-relaxed">{{ agent.system_prompt }}</pre>
                 </div>
               </div>
 
               <!-- Model -->
               <div class="flex items-center gap-2">
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider">模型:</p>
-                <span class="text-xs text-white bg-white/[0.04] border border-white/5 px-2.5 py-1 rounded-lg">
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider">模型:</p>
+                <span class="text-xs text-white bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] px-2.5 py-1 rounded-lg">
                   <Cpu class="w-3 h-3 inline mr-1 text-violet-400" />
                   {{ getModelLabel(agent.model) }}
-                  <span class="text-gray-600 ml-1 text-[10px]">({{ getModelProvider(agent.model) }})</span>
+                  <span class="text-[var(--color-ide-text-dim)] ml-1 text-[10px]">({{ getModelProvider(agent.model) }})</span>
                 </span>
               </div>
 
               <!-- Agentic Mode -->
               <div class="flex items-center gap-2">
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Agent 模式:</p>
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider">Agent 模式:</p>
                 <span :class="[
                   'text-xs px-2.5 py-1 rounded-lg border',
                   agent.agentic_mode === 'agentic'
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+                    : 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20',
                 ]">
                   <Zap class="w-3 h-3 inline mr-1" />
                   {{ agent.agentic_mode === 'agentic' ? 'Agentic (自主运行)' : 'Manual (手动触发)' }}
@@ -497,12 +497,12 @@ function editIsToolEnabled(toolId: string): boolean {
 
               <!-- Auto Run -->
               <div class="flex items-center gap-2">
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Auto Run:</p>
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider">Auto Run:</p>
                 <span :class="[
                   'text-xs px-2.5 py-1 rounded-lg border',
                   agent.auto_run
                     ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                    : 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+                    : 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20',
                 ]">
                   <component :is="agent.auto_run ? Play : Pause" class="w-3 h-3 inline mr-1" />
                   {{ agent.auto_run ? 'Enabled' : 'Disabled' }}
@@ -511,14 +511,14 @@ function editIsToolEnabled(toolId: string): boolean {
 
               <!-- Tools Built-In -->
               <div>
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Wrench class="w-3.5 h-3.5" /> Tools Built-In {{ (agent.tools || []).length }}
                 </p>
                 <div class="space-y-2">
                   <div
                     v-for="cat in toolCategories"
                     :key="cat.id"
-                    class="rounded-xl border border-white/5 bg-white/[0.01] overflow-hidden"
+                    class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] overflow-hidden"
                   >
                     <button
                       @click="editToggleCategory(cat.id)"
@@ -526,7 +526,7 @@ function editIsToolEnabled(toolId: string): boolean {
                         'w-full flex items-center gap-3 px-3 py-2.5 text-xs transition-colors',
                         (agent.tool_categories || []).includes(cat.id)
                           ? 'bg-violet-500/8 text-violet-400'
-                          : 'text-gray-500 hover:bg-white/[0.02]',
+                          : 'text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]',
                       ]"
                     >
                       <component :is="catIconMap[cat.icon] || Wrench" class="w-3.5 h-3.5 shrink-0" />
@@ -539,11 +539,11 @@ function editIsToolEnabled(toolId: string): boolean {
 
               <!-- MCP 工具 -->
               <div>
-                <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <Unplug class="w-3.5 h-3.5" /> Tools MCP
                 </p>
-                <div v-if="!mcpStatus.connected || !mcpStatus.tools.length" class="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-center">
-                  <p class="text-xs text-gray-600">未找到 MCP 服务器</p>
+                <div v-if="!mcpStatus.connected || !mcpStatus.tools.length" class="p-4 rounded-xl bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] text-center">
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">未找到 MCP 服务器</p>
                   <p class="text-[10px] text-gray-700 mt-1">前往 MCP 管理添加服务器后可用</p>
                 </div>
                 <div v-else class="space-y-1">
@@ -555,7 +555,7 @@ function editIsToolEnabled(toolId: string): boolean {
                       'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs border transition-all',
                       editIsToolEnabled(mcpToolId(tool.server, tool.name))
                         ? 'bg-violet-500/10 border-violet-500/20 text-violet-400'
-                        : 'bg-white/[0.02] border-white/5 text-gray-500 hover:border-white/10',
+                        : 'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-border)]',
                     ]"
                   >
                     <span class="w-2 h-2 rounded-full bg-green-400/60" />
@@ -566,22 +566,22 @@ function editIsToolEnabled(toolId: string): boolean {
               </div>
 
               <!-- Footer actions -->
-              <div class="flex items-center gap-2 pt-2 border-t border-white/5">
+              <div class="flex items-center gap-2 pt-2 border-t border-[var(--color-ide-border)]">
                 <button
                   @click="startEdit(agent)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-ide-text-dim)] hover:text-white hover:bg-[var(--color-ide-surface-hover)] transition-colors"
                 >
                   <Edit3 class="w-3.5 h-3.5" /> 编辑
                 </button>
                 <button
                   @click="handleClone(agent)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-ide-text-dim)] hover:text-white hover:bg-[var(--color-ide-surface-hover)] transition-colors"
                 >
                   <Copy class="w-3.5 h-3.5" /> 克隆
                 </button>
                 <button
                   @click="handleDelete(agent.id)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-auto"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-ide-text-dim)] hover:text-red-400 hover:bg-red-500/10 transition-colors ml-auto"
                 >
                   <Trash2 class="w-3.5 h-3.5" /> 删除
                 </button>
@@ -595,13 +595,13 @@ function editIsToolEnabled(toolId: string): boolean {
     <!-- ═══ Create Modal ═══ -->
     <Teleport to="body">
       <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showCreate = false">
-        <div class="bg-surface-900 rounded-2xl border border-white/10 w-[760px] max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="bg-surface-900 rounded-2xl border border-[var(--color-ide-border)] w-[760px] max-h-[90vh] flex flex-col shadow-2xl">
           <!-- Modal Header -->
-          <div class="flex items-center justify-between p-5 border-b border-white/8">
+          <div class="flex items-center justify-between p-5 border-b border-[var(--color-ide-border)]">
             <h3 class="text-lg font-semibold text-white flex items-center gap-2">
               <Bot class="w-4 h-4 text-violet-400" />创建 Agent — {{ activeTab === 'user' ? '用户' : '项目' }}
             </h3>
-            <button @click="showCreate = false" class="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 transition-colors"><X class="w-4 h-4" /></button>
+            <button @click="showCreate = false" class="p-1.5 rounded-lg hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] transition-colors"><X class="w-4 h-4" /></button>
           </div>
 
           <!-- Modal Body -->
@@ -609,15 +609,15 @@ function editIsToolEnabled(toolId: string): boolean {
             <!-- Row 1: 名称 + Agent 模式 -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">名称 <span class="text-red-400">*</span></label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">名称 <span class="text-red-400">*</span></label>
                 <input
                   v-model="form.name"
                   placeholder="例如：Code Reviewer"
-                  class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/40 transition-all"
+                  class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-violet-500/40 transition-all"
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Agent 模式 <span class="text-red-400">*</span></label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">Agent 模式 <span class="text-red-400">*</span></label>
                 <div class="flex gap-2">
                   <button
                     v-for="opt in [{ id: 'agentic', label: 'Agentic', desc: '自主决策与执行', icon: Zap }, { id: 'manual', label: 'Manual', desc: '手动触发确认', icon: ArrowRightLeft }]"
@@ -627,7 +627,7 @@ function editIsToolEnabled(toolId: string): boolean {
                       'flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border text-sm transition-all duration-200',
                       form.agentic_mode === opt.id
                         ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                        : 'border-white/8 bg-white/[0.02] text-gray-500 hover:border-white/15',
+                        : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-border)]',
                     ]"
                   >
                     <component :is="opt.icon" class="w-4 h-4" />
@@ -641,18 +641,18 @@ function editIsToolEnabled(toolId: string): boolean {
             <!-- Row 2: 描述 + 模型 -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">描述 <span class="text-red-400">*</span></label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">描述 <span class="text-red-400">*</span></label>
                 <input
                   v-model="form.description"
                   placeholder="简要说明 Agent 的用途..."
-                  class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/40 transition-all"
+                  class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-violet-500/40 transition-all"
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Model</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">Model</label>
                 <select
                   v-model="form.model"
-                  class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
+                  class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
                 >
                   <option v-for="m in availableModels" :key="m.value" :value="m.value">{{ m.label }} ({{ m.provider }})</option>
                 </select>
@@ -662,7 +662,7 @@ function editIsToolEnabled(toolId: string): boolean {
             <!-- Row 3: 模式 + Auto Run -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">对话模式</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">对话模式</label>
                 <div class="flex gap-2">
                   <button
                     v-for="opt in [{ id: 'craft', label: 'Craft', desc: '编辑模式' }, { id: 'ask', label: 'Ask', desc: '问答模式' }, { id: 'plan', label: 'Plan', desc: '规划模式' }]"
@@ -672,7 +672,7 @@ function editIsToolEnabled(toolId: string): boolean {
                       'flex-1 flex flex-col items-center gap-1 p-2.5 rounded-xl border text-sm transition-all duration-200',
                       form.mode === opt.id
                         ? 'border-violet-500/30 bg-violet-500/10 text-violet-400'
-                        : 'border-white/8 bg-white/[0.02] text-gray-500 hover:border-white/15',
+                        : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-border)]',
                     ]"
                   >
                     <span class="font-medium text-xs">{{ opt.label }}</span>
@@ -681,7 +681,7 @@ function editIsToolEnabled(toolId: string): boolean {
                 </div>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Auto Run</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">Auto Run</label>
                 <div class="flex gap-2">
                   <button
                     @click="form.auto_run = true"
@@ -689,7 +689,7 @@ function editIsToolEnabled(toolId: string): boolean {
                       'flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl border text-sm transition-all',
                       form.auto_run
                         ? 'border-teal-500/30 bg-teal-500/10 text-teal-400'
-                        : 'border-white/8 bg-white/[0.02] text-gray-500',
+                        : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]',
                     ]"
                   >
                     <Play class="w-3.5 h-3.5" />
@@ -700,8 +700,8 @@ function editIsToolEnabled(toolId: string): boolean {
                     :class="[
                       'flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl border text-sm transition-all',
                       !form.auto_run
-                        ? 'border-gray-500/30 bg-gray-500/10 text-gray-400'
-                        : 'border-white/8 bg-white/[0.02] text-gray-500',
+                        ? 'border-gray-500/30 bg-gray-500/10 text-[var(--color-ide-text-dim)]'
+                        : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]',
                     ]"
                   >
                     <Pause class="w-3.5 h-3.5" />
@@ -713,25 +713,25 @@ function editIsToolEnabled(toolId: string): boolean {
 
             <!-- System Prompt -->
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">System Prompt <span class="text-red-400">*</span></label>
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">System Prompt <span class="text-red-400">*</span></label>
               <textarea
                 v-model="form.system_prompt"
                 rows="5"
                 placeholder="定义 Agent 的角色、行为和能力..."
-                class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/40 transition-all resize-none"
+                class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white font-mono placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-violet-500/40 transition-all resize-none"
               ></textarea>
             </div>
 
             <!-- Tools Built-In -->
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-2 flex items-center gap-2">
                 <Wrench class="w-3.5 h-3.5" /> Tools Built-In
               </label>
               <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 <div
                   v-for="cat in toolCategories"
                   :key="cat.id"
-                  class="rounded-xl border border-white/5 bg-white/[0.01] overflow-hidden"
+                  class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] overflow-hidden"
                 >
                   <!-- Category header -->
                   <button
@@ -740,13 +740,13 @@ function editIsToolEnabled(toolId: string): boolean {
                       'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors text-left',
                       (form.tool_categories || []).includes(cat.id)
                         ? 'bg-violet-500/8 text-violet-400'
-                        : 'text-gray-400 hover:bg-white/[0.02]',
+                        : 'text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]',
                     ]"
                   >
                     <component :is="catIconMap[cat.icon] || Wrench" class="w-4 h-4 shrink-0" />
                     <div class="flex-1">
                       <span class="font-medium text-xs">{{ cat.label }}</span>
-                      <p class="text-[10px] text-gray-600">{{ cat.description }}</p>
+                      <p class="text-[10px] text-[var(--color-ide-text-dim)]">{{ cat.description }}</p>
                     </div>
                     <ChevronDown
                       :class="[
@@ -760,9 +760,9 @@ function editIsToolEnabled(toolId: string): boolean {
                   <Transition name="expand">
                     <div
                       v-if="isCatExpanded(cat.id) && (form.tool_categories || []).includes(cat.id)"
-                      class="border-t border-white/5"
+                      class="border-t border-[var(--color-ide-border)]"
                     >
-                      <div class="p-3 space-y-1.5 bg-white/[0.01]">
+                      <div class="p-3 space-y-1.5 bg-[var(--color-ide-surface)]">
                         <button
                           v-for="tool in cat.tools"
                           :key="tool.id"
@@ -771,7 +771,7 @@ function editIsToolEnabled(toolId: string): boolean {
                             'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs border transition-all duration-150 text-left',
                             isFormToolEnabled(tool.id)
                               ? 'bg-violet-500/10 border-violet-500/20 text-violet-400'
-                              : 'bg-white/[0.02] border-transparent text-gray-500 hover:border-white/8',
+                              : 'bg-[var(--color-ide-surface-hover)] border-transparent text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-border)]',
                           ]"
                         >
                           <div
@@ -779,7 +779,7 @@ function editIsToolEnabled(toolId: string): boolean {
                               'w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors',
                               isFormToolEnabled(tool.id)
                                 ? 'bg-violet-500 border-violet-500'
-                                : 'border-white/15',
+                                : 'border-[var(--color-ide-border)]',
                             ]"
                           >
                             <svg v-if="isFormToolEnabled(tool.id)" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
@@ -788,7 +788,7 @@ function editIsToolEnabled(toolId: string): boolean {
                           </div>
                           <div class="flex-1 min-w-0">
                             <span class="text-xs font-medium">{{ tool.name }}</span>
-                            <p class="text-[10px] text-gray-600 truncate">{{ tool.description }}</p>
+                            <p class="text-[10px] text-[var(--color-ide-text-dim)] truncate">{{ tool.description }}</p>
                           </div>
                         </button>
                       </div>
@@ -800,15 +800,15 @@ function editIsToolEnabled(toolId: string): boolean {
 
             <!-- Tools MCP -->
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-2 flex items-center gap-2">
                 <Unplug class="w-3.5 h-3.5" /> Tools MCP
               </label>
-              <div v-if="!toolsMetaLoaded" class="flex items-center gap-2 py-3 text-xs text-gray-600">
+              <div v-if="!toolsMetaLoaded" class="flex items-center gap-2 py-3 text-xs text-[var(--color-ide-text-dim)]">
                 <Loader2 class="w-3.5 h-3.5 animate-spin" /> 加载中...
               </div>
-              <div v-else-if="!mcpStatus.connected || !mcpStatus.tools.length" class="p-4 rounded-xl bg-white/[0.01] border border-dashed border-white/10 text-center">
-                <Unplug class="w-5 h-5 mx-auto mb-2 text-gray-600" />
-                <p class="text-xs text-gray-500 mb-3">
+              <div v-else-if="!mcpStatus.connected || !mcpStatus.tools.length" class="p-4 rounded-xl bg-[var(--color-ide-surface)] border border-dashed border-[var(--color-ide-border)] text-center">
+                <Unplug class="w-5 h-5 mx-auto mb-2 text-[var(--color-ide-text-dim)]" />
+                <p class="text-xs text-[var(--color-ide-text-dim)] mb-3">
                   {{ mcpStatus.servers.length ? `已连接 ${mcpStatus.servers.length} 个 MCP 服务器，但未发现工具` : '未找到 MCP 服务器' }}
                 </p>
                 <p class="text-[10px] text-gray-700">前往 MCP 管理添加服务器后，此处将自动列出可用工具</p>
@@ -817,12 +817,12 @@ function editIsToolEnabled(toolId: string): boolean {
                 <div
                   v-for="server in mcpStatus.servers"
                   :key="server.name"
-                  class="rounded-xl border border-white/5 bg-white/[0.01] overflow-hidden"
+                  class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] overflow-hidden"
                 >
-                  <div class="flex items-center gap-2 px-3 py-2 text-xs text-gray-400 border-b border-white/5">
+                  <div class="flex items-center gap-2 px-3 py-2 text-xs text-[var(--color-ide-text-dim)] border-b border-[var(--color-ide-border)]">
                     <div class="w-2 h-2 rounded-full bg-green-400" />
                     <span class="font-medium">{{ server.name }}</span>
-                    <span class="text-gray-600 text-[10px]">{{ server.transport }}</span>
+                    <span class="text-[var(--color-ide-text-dim)] text-[10px]">{{ server.transport }}</span>
                   </div>
                   <div class="p-2 space-y-1">
                     <button
@@ -833,7 +833,7 @@ function editIsToolEnabled(toolId: string): boolean {
                         'w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs border transition-all text-left',
                         isMcpToolEnabled(server.name, tool.name)
                           ? 'bg-violet-500/10 border-violet-500/20 text-violet-400'
-                          : 'bg-white/[0.02] border-transparent text-gray-500 hover:border-white/8',
+                          : 'bg-[var(--color-ide-surface-hover)] border-transparent text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-border)]',
                       ]"
                     >
                       <div
@@ -841,7 +841,7 @@ function editIsToolEnabled(toolId: string): boolean {
                           'w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0',
                           isMcpToolEnabled(server.name, tool.name)
                             ? 'bg-violet-500 border-violet-500'
-                            : 'border-white/15',
+                            : 'border-[var(--color-ide-border)]',
                         ]"
                       >
                         <svg v-if="isMcpToolEnabled(server.name, tool.name)" class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
@@ -857,10 +857,10 @@ function editIsToolEnabled(toolId: string): boolean {
           </div>
 
           <!-- Modal Footer -->
-          <div class="flex gap-3 justify-end p-5 border-t border-white/8">
+          <div class="flex gap-3 justify-end p-5 border-t border-[var(--color-ide-border)]">
             <button
               @click="showCreate = false"
-              class="px-5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-gray-400 hover:text-white transition-colors"
+              class="px-5 py-2.5 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors"
             >取消</button>
             <button
               @click="handleCreate()"
@@ -875,28 +875,28 @@ function editIsToolEnabled(toolId: string): boolean {
     <!-- ═══ Edit Modal ═══ -->
     <Teleport to="body">
       <div v-if="editAgent" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="editAgent = null">
-        <div class="bg-surface-900 rounded-2xl border border-white/10 w-[760px] max-h-[90vh] flex flex-col shadow-2xl">
-          <div class="flex items-center justify-between p-5 border-b border-white/8">
+        <div class="bg-surface-900 rounded-2xl border border-[var(--color-ide-border)] w-[760px] max-h-[90vh] flex flex-col shadow-2xl">
+          <div class="flex items-center justify-between p-5 border-b border-[var(--color-ide-border)]">
             <h3 class="text-lg font-semibold text-white flex items-center gap-2">
               <Edit3 class="w-4 h-4 text-violet-400" />编辑 Agent
             </h3>
-            <button @click="editAgent = null" class="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 transition-colors"><X class="w-4 h-4" /></button>
+            <button @click="editAgent = null" class="p-1.5 rounded-lg hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] transition-colors"><X class="w-4 h-4" /></button>
           </div>
           <div class="flex-1 overflow-y-auto p-5 space-y-4">
             <!-- 名称 + model -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">名称</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">名称</label>
                 <input
                   v-model="editAgent.name"
-                  class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
+                  class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">Model</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">Model</label>
                 <select
                   v-model="editAgent.model"
-                  class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
+                  class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
                 >
                   <option v-for="m in availableModels" :key="m.value" :value="m.value">{{ m.label }}</option>
                 </select>
@@ -904,23 +904,23 @@ function editIsToolEnabled(toolId: string): boolean {
             </div>
             <!-- 描述 -->
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">描述</label>
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">描述</label>
               <input
                 v-model="editAgent.description"
-                class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
+                class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-all"
               />
             </div>
             <!-- System Prompt -->
             <div>
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">System Prompt</label>
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">System Prompt</label>
               <textarea
                 v-model="editAgent.system_prompt"
                 rows="6"
-                class="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-violet-500/40 transition-all resize-none"
+                class="w-full rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-violet-500/40 transition-all resize-none"
               ></textarea>
             </div>
             <!-- Agentic mode + auto_run (readonly info) -->
-            <div class="flex items-center gap-6 text-xs text-gray-500">
+            <div class="flex items-center gap-6 text-xs text-[var(--color-ide-text-dim)]">
               <div class="flex items-center gap-1.5">
                 <Zap class="w-3 h-3 text-emerald-400" />
                 模式: {{ editAgent.agentic_mode === 'agentic' ? 'Agentic' : 'Manual' }}
@@ -931,10 +931,10 @@ function editIsToolEnabled(toolId: string): boolean {
               </div>
             </div>
           </div>
-          <div class="flex gap-3 justify-end p-5 border-t border-white/8">
+          <div class="flex gap-3 justify-end p-5 border-t border-[var(--color-ide-border)]">
             <button
               @click="editAgent = null"
-              class="px-5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-gray-400 hover:text-white transition-colors"
+              class="px-5 py-2.5 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors"
             >取消</button>
             <button
               @click="saveEdit()"

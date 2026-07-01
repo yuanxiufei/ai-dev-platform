@@ -19,7 +19,7 @@ const modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
 </script>
 
 <template>
-  <div class="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/8">
+  <div class="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
     <button
       v-for="mode in modes"
       :key="mode.value"
@@ -27,7 +27,7 @@ const modes: { value: ChatMode; label: string; icon: typeof PenLine }[] = [
         'flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200',
         modelValue === mode.value
           ? 'bg-brand-500/20 text-brand-400 shadow-sm'
-          : 'text-gray-500 hover:text-gray-300',
+          : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]',
       ]"
       @click="$emit('update:modelValue', mode.value)"
     >

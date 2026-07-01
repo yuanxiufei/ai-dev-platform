@@ -365,7 +365,7 @@ function tabClass(tab: string) {
     "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
     activeTab === tab
       ? "bg-brand-500/10 text-brand-400"
-      : "text-gray-500 hover:text-gray-300",
+      : "text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]",
   ]
 }
 </script>
@@ -380,7 +380,7 @@ function tabClass(tab: string) {
     </Transition>
 
     <!-- Header -->
-    <div class="flex items-center justify-between px-8 pt-8 pb-4 border-b border-white/5">
+    <div class="flex items-center justify-between px-8 pt-8 pb-4 border-b border-[var(--color-ide-border)]">
       <div>
         <h1 class="text-2xl font-bold text-white flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-brand-500/10 border border-purple-500/20 flex items-center justify-center">
@@ -388,16 +388,16 @@ function tabClass(tab: string) {
           </div>
           插件市场
         </h1>
-        <p class="text-sm text-gray-500 mt-1.5 ml-[3.25rem]">发现和安装技能指令、MCP服务器、命令钩子，扩展 AI 工作台能力</p>
+        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1.5 ml-[3.25rem]">发现和安装技能指令、MCP服务器、命令钩子，扩展 AI 工作台能力</p>
       </div>
       <div class="flex items-center gap-3">
         <!-- 统计概览 -->
-        <div v-if="stats" class="hidden xl:flex items-center gap-4 text-[10px] text-gray-600">
+        <div v-if="stats" class="hidden xl:flex items-center gap-4 text-[10px] text-[var(--color-ide-text-dim)]">
           <span class="flex items-center gap-1"><Package class="w-3 h-3" />{{ stats.total_plugins }} 个插件</span>
           <span class="flex items-center gap-1"><CheckCircle class="w-3 h-3 text-green-500/60" />{{ stats.total_installed }} 已安装</span>
         </div>
         <!-- Tabs -->
-        <div class="flex bg-white/[0.03] border border-white/5 rounded-xl p-1 gap-0.5">
+        <div class="flex bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] rounded-xl p-1 gap-0.5">
           <button @click="activeTab = 'market'" :class="tabClass('market')">
             <Store class="w-3.5 h-3.5 inline mr-1.5" />市场
           </button>
@@ -409,14 +409,14 @@ function tabClass(tab: string) {
     </div>
 
     <!-- Source Tabs (Market only) -->
-    <div v-if="activeTab === 'market'" class="flex items-center gap-1.5 px-8 py-3 border-b border-white/5 bg-white/[0.01] overflow-x-auto hide-scrollbar">
+    <div v-if="activeTab === 'market'" class="flex items-center gap-1.5 px-8 py-3 border-b border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] overflow-x-auto hide-scrollbar">
       <button
         @click="handleSourceSelect('')"
         :class="[
           'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200',
           selectedSource === ''
             ? 'bg-purple-500/15 border-purple-400/30 text-purple-400'
-            : 'bg-white/[0.02] border-white/5 text-gray-500 hover:text-gray-300 hover:border-white/10'
+            : 'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:border-[var(--color-ide-border)]'
         ]"
       >全部</button>
       <button
@@ -428,8 +428,8 @@ function tabClass(tab: string) {
           selectedSource === src.id
             ? 'bg-purple-500/15 border-purple-400/30 text-purple-400'
             : src.enabled
-              ? 'bg-white/[0.02] border-white/5 text-gray-500 hover:text-gray-300 hover:border-white/10'
-              : 'bg-white/[0.01] border-white/[0.03] text-gray-700 opacity-60'
+              ? 'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:border-[var(--color-ide-border)]'
+              : 'bg-[var(--color-ide-surface)] border-[var(--color-ide-border)] text-gray-700 opacity-60'
         ]">
         <div :class="['w-1.5 h-1.5 rounded-full', src.enabled ? 'bg-green-400' : 'bg-gray-600']" />
         {{ src.name }}
@@ -448,7 +448,7 @@ function tabClass(tab: string) {
         <button
           v-if="src.type !== 'builtin'"
           @click.stop="handleRemoveSource(src)"
-          class="ml-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all"
+          class="ml-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-[var(--color-ide-text-dim)] hover:text-red-400 transition-all"
           title="删除"
         >
           <X class="w-3 h-3" />
@@ -457,7 +457,7 @@ function tabClass(tab: string) {
       <!-- Add source button -->
       <button
         @click="showAddSource = true"
-        class="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.02] border border-dashed border-white/10 text-gray-500 hover:text-purple-400 hover:border-purple-400/30 transition-all"
+        class="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-[var(--color-ide-surface-hover)] border border-dashed border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:text-purple-400 hover:border-purple-400/30 transition-all"
       >
         <Plus class="w-3.5 h-3.5" />
       </button>
@@ -466,50 +466,50 @@ function tabClass(tab: string) {
     <!-- Body -->
     <div class="flex-1 flex overflow-hidden">
       <!-- Left sidebar -->
-      <div v-if="activeTab === 'market'" class="w-52 shrink-0 border-r border-white/5 p-4 space-y-1 overflow-y-auto">
+      <div v-if="activeTab === 'market'" class="w-52 shrink-0 border-r border-[var(--color-ide-border)] p-4 space-y-1 overflow-y-auto">
         <!-- Categories -->
-        <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider px-2 mb-3">分类</p>
-        <button @click="selectedCategory = ''; page = 1; fetchData()" :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedCategory === '' ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]']">
-          <Tag class="w-4 h-4 shrink-0" /> 全部 <span class="ml-auto text-xs text-gray-600">{{ total }}</span>
+        <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-3">分类</p>
+        <button @click="selectedCategory = ''; page = 1; fetchData()" :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedCategory === '' ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)]']">
+          <Tag class="w-4 h-4 shrink-0" /> 全部 <span class="ml-auto text-xs text-[var(--color-ide-text-dim)]">{{ total }}</span>
         </button>
         <button
           v-for="cat in categories"
           :key="cat"
           @click="selectedCategory = cat; page = 1; fetchData()"
-          :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedCategory === cat ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]']"
+          :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedCategory === cat ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)]']"
         >
           <component :is="categoryMeta[cat]?.icon || Package" class="w-4 h-4 shrink-0" />
           {{ categoryMeta[cat]?.label || cat }}
         </button>
 
         <!-- Type filter -->
-        <div class="mt-6 pt-4 border-t border-white/5">
-          <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider px-2 mb-3">类型</p>
+        <div class="mt-6 pt-4 border-t border-[var(--color-ide-border)]">
+          <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-3">类型</p>
           <button
             v-for="opt in typeFilterOptions"
             :key="opt.value"
             @click="selectedType = opt.value; page = 1; fetchData()"
-            :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedType === opt.value ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]']"
+            :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', selectedType === opt.value ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)]']"
           >
             <component :is="opt.icon" class="w-4 h-4 shrink-0" /> {{ opt.label }}
           </button>
         </div>
 
         <!-- Stats -->
-        <div v-if="stats" class="mt-6 pt-4 border-t border-white/5">
-          <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider px-2 mb-3">统计</p>
+        <div v-if="stats" class="mt-6 pt-4 border-t border-[var(--color-ide-border)]">
+          <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-3">统计</p>
           <div class="space-y-2">
             <div class="flex items-center justify-between px-3 py-1.5">
-              <span class="text-xs text-gray-500">总插件</span>
-              <span class="text-xs text-gray-300 font-medium">{{ stats.total_plugins }}</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">总插件</span>
+              <span class="text-xs text-[var(--color-ide-text)] font-medium">{{ stats.total_plugins }}</span>
             </div>
             <div class="flex items-center justify-between px-3 py-1.5">
-              <span class="text-xs text-gray-500">已安装</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">已安装</span>
               <span class="text-xs text-green-400 font-medium">{{ stats.total_installed }}</span>
             </div>
             <div class="flex items-center justify-between px-3 py-1.5">
-              <span class="text-xs text-gray-500">市场源</span>
-              <span class="text-xs text-gray-300 font-medium">{{ stats.enabled_sources_count }}/{{ stats.sources_count }}</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">市场源</span>
+              <span class="text-xs text-[var(--color-ide-text)] font-medium">{{ stats.enabled_sources_count }}/{{ stats.sources_count }}</span>
             </div>
           </div>
         </div>
@@ -519,12 +519,12 @@ function tabClass(tab: string) {
       <div class="flex-1 overflow-y-auto p-6">
         <!-- Search -->
         <div v-if="activeTab === 'market'" class="relative max-w-lg mb-6">
-          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]" />
           <input
             v-model="search"
             type="text"
             placeholder="搜索插件名称、描述、标签..."
-            class="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-400/40 focus:bg-white/[0.05] transition-all"
+            class="w-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-purple-400/40 focus:bg-[var(--color-ide-surface)] transition-all"
             @keydown="onSearchKeydown"
           />
         </div>
@@ -535,14 +535,14 @@ function tabClass(tab: string) {
         </div>
 
         <!-- Market empty -->
-        <div v-else-if="activeTab === 'market' && plugins.length === 0" class="flex flex-col items-center justify-center py-24 text-gray-600">
+        <div v-else-if="activeTab === 'market' && plugins.length === 0" class="flex flex-col items-center justify-center py-24 text-[var(--color-ide-text-dim)]">
           <Store class="w-12 h-12 mb-4 opacity-30" />
           <p class="text-sm">未找到匹配的插件</p>
           <p class="text-xs mt-1 opacity-70">尝试切换市场源或清除筛选条件</p>
         </div>
 
         <!-- Installed empty -->
-        <div v-else-if="activeTab === 'installed' && installedPlugins.length === 0" class="flex flex-col items-center justify-center py-24 text-gray-600">
+        <div v-else-if="activeTab === 'installed' && installedPlugins.length === 0" class="flex flex-col items-center justify-center py-24 text-[var(--color-ide-text-dim)]">
           <Package class="w-12 h-12 mb-4 opacity-30" />
           <p class="text-sm">还没有安装任何插件</p>
           <p class="text-xs mt-1 opacity-70 mb-4">去市场发现和安装插件</p>
@@ -554,28 +554,28 @@ function tabClass(tab: string) {
           <article
             v-for="plugin in plugins"
             :key="plugin.name"
-            class="plugin-card group rounded-2xl border border-white/8 bg-white/[0.02] hover:border-purple-400/20 hover:bg-white/[0.04] hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-200 flex flex-col cursor-pointer"
+            class="plugin-card group rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] hover:border-purple-400/20 hover:bg-[var(--color-ide-surface-hover)] hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-200 flex flex-col cursor-pointer"
             @click="showPluginDetail = plugin"
           >
             <!-- Header: name + type badge — 固定高度 -->
             <div class="flex items-start justify-between gap-3 plugin-card__header">
               <div class="min-w-0 flex-1">
                 <h3 class="text-sm font-semibold text-white truncate group-hover:text-purple-300 transition-colors leading-tight">{{ plugin.display_name }}</h3>
-                <p class="text-[10px] text-gray-600 mt-1 leading-none">
-                  <span class="text-gray-500">{{ plugin.author }}</span>
+                <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-1 leading-none">
+                  <span class="text-[var(--color-ide-text-dim)]">{{ plugin.author }}</span>
                   <span v-if="plugin.source_id" class="ml-2 text-gray-700">{{ plugin.source_id }}</span>
                 </p>
               </div>
               <span
                 :class="[
                   'shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium border leading-none self-start',
-                  typeMeta[plugin.type]?.cls || 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                  typeMeta[plugin.type]?.cls || 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20'
                 ]"
               >{{ typeMeta[plugin.type]?.label || plugin.type?.toUpperCase?.() || '插件' }}</span>
             </div>
 
             <!-- Description — 固定2行高度 -->
-            <p class="text-xs text-gray-500 plugin-card__desc line-clamp-2 leading-relaxed">{{ plugin.desc }}</p>
+            <p class="text-xs text-[var(--color-ide-text-dim)] plugin-card__desc line-clamp-2 leading-relaxed">{{ plugin.desc }}</p>
 
             <!-- Tags — 最小高度容器 -->
             <div class="flex flex-wrap gap-1 plugin-card__tags">
@@ -588,14 +588,14 @@ function tabClass(tab: string) {
                   tag === 'mcp' ? 'bg-blue-500/5 border-blue-500/15 text-blue-400/80' :
                   tag === 'commands' || tag === 'command' ? 'bg-amber-500/5 border-amber-500/15 text-amber-400/80' :
                   tag === 'hooks' || tag === 'hook' ? 'bg-rose-500/5 border-rose-500/15 text-rose-400/80' :
-                  'bg-white/[0.03] border-white/5 text-gray-500'
+                  'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)]'
                 ]"
               >{{ tag }}</span>
-              <span v-if="(plugin.tags || []).length > 4" class="text-[10px] text-gray-600 leading-none self-center">+{{ plugin.tags.length - 4 }}</span>
+              <span v-if="(plugin.tags || []).length > 4" class="text-[10px] text-[var(--color-ide-text-dim)] leading-none self-center">+{{ plugin.tags.length - 4 }}</span>
             </div>
 
             <!-- Rating/stats — 固定高度 -->
-            <div class="flex items-center gap-3 plugin-card__stats text-[10px] text-gray-600">
+            <div class="flex items-center gap-3 plugin-card__stats text-[10px] text-[var(--color-ide-text-dim)]">
               <span class="text-yellow-500/80 whitespace-nowrap">{{ ratingStars(plugin.rating) }}</span>
               <span class="tabular-nums whitespace-nowrap">{{ (plugin.rating || 0).toFixed(1) }}</span>
               <span class="tabular-nums whitespace-nowrap">{{ formatCount(plugin.installs || 0) }} 安装</span>
@@ -603,8 +603,8 @@ function tabClass(tab: string) {
             </div>
 
             <!-- Actions — 始终推底 -->
-            <div class="flex items-center gap-2 pt-3 border-t border-white/5 mt-auto plugin-card__actions">
-              <a v-if="plugin.repo" :href="plugin.repo" target="_blank" class="text-[10px] text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors shrink-0" @click.stop><ExternalLink class="w-3 h-3" /> 源码</a>
+            <div class="flex items-center gap-2 pt-3 border-t border-[var(--color-ide-border)] mt-auto plugin-card__actions">
+              <a v-if="plugin.repo" :href="plugin.repo" target="_blank" class="text-[10px] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] flex items-center gap-1 transition-colors shrink-0" @click.stop><ExternalLink class="w-3 h-3" /> 源码</a>
               <button
                 v-if="plugin.installed"
                 disabled
@@ -629,7 +629,7 @@ function tabClass(tab: string) {
           <div
             v-for="plugin in installedPlugins"
             :key="plugin.name"
-            class="rounded-2xl border border-white/8 bg-white/[0.02] p-5 hover:border-white/15 transition-all duration-200 group"
+            class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5 hover:border-[var(--color-ide-border)] transition-all duration-200 group"
           >
             <div class="flex items-start justify-between">
               <div class="flex items-start gap-4 flex-1 min-w-0">
@@ -643,13 +643,13 @@ function tabClass(tab: string) {
                     <span
                       :class="[
                         'text-[10px] px-1.5 py-0.5 rounded-full font-medium border',
-                        typeMeta[plugin.type]?.cls || 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                        typeMeta[plugin.type]?.cls || 'bg-gray-500/10 text-[var(--color-ide-text-dim)] border-gray-500/20'
                       ]"
                     >{{ typeMeta[plugin.type]?.label || plugin.type?.toUpperCase?.() || '插件' }}</span>
                   </div>
-                  <p class="text-xs text-gray-500 mb-2">{{ plugin.desc }}</p>
-                  <div class="flex items-center gap-2 text-[10px] text-gray-600">
-                    <span :class="['px-1.5 py-0.5 rounded-full font-medium', plugin.installed_enabled !== false ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-500']">{{ plugin.installed_enabled !== false ? '已启用' : '已禁用' }}</span>
+                  <p class="text-xs text-[var(--color-ide-text-dim)] mb-2">{{ plugin.desc }}</p>
+                  <div class="flex items-center gap-2 text-[10px] text-[var(--color-ide-text-dim)]">
+                    <span :class="['px-1.5 py-0.5 rounded-full font-medium', plugin.installed_enabled !== false ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-[var(--color-ide-text-dim)]']">{{ plugin.installed_enabled !== false ? '已启用' : '已禁用' }}</span>
                     <span>v{{ plugin.installed_version || plugin.version }}</span>
                     <span>{{ plugin.author }}</span>
                   </div>
@@ -671,10 +671,10 @@ function tabClass(tab: string) {
         </div>
 
         <!-- Pagination -->
-        <div v-if="activeTab === 'market' && total > size" class="flex items-center justify-center gap-3 pt-6 mt-6 border-t border-white/5">
-          <button :disabled="page <= 1" @click="page--; fetchData()" class="px-4 py-2 text-xs rounded-xl bg-white/[0.03] border border-white/10 text-gray-400 hover:bg-white/[0.06] disabled:opacity-30 transition-colors">上一页</button>
-          <span class="text-xs text-gray-600 px-3">{{ page }} / {{ totalPages }}</span>
-          <button :disabled="page >= totalPages" @click="page++; fetchData()" class="px-4 py-2 text-xs rounded-xl bg-white/[0.03] border border-white/10 text-gray-400 hover:bg-white/[0.06] disabled:opacity-30 transition-colors">下一页</button>
+        <div v-if="activeTab === 'market' && total > size" class="flex items-center justify-center gap-3 pt-6 mt-6 border-t border-[var(--color-ide-border)]">
+          <button :disabled="page <= 1" @click="page--; fetchData()" class="px-4 py-2 text-xs rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] disabled:opacity-30 transition-colors">上一页</button>
+          <span class="text-xs text-[var(--color-ide-text-dim)] px-3">{{ page }} / {{ totalPages }}</span>
+          <button :disabled="page >= totalPages" @click="page++; fetchData()" class="px-4 py-2 text-xs rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] disabled:opacity-30 transition-colors">下一页</button>
         </div>
       </div>
     </div>
@@ -682,27 +682,27 @@ function tabClass(tab: string) {
     <!-- Plugin Detail Modal -->
     <Teleport to="body">
       <div v-if="showPluginDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showPluginDetail = null">
-        <div class="bg-surface-900 rounded-2xl border border-white/10 w-[560px] max-h-[80vh] flex flex-col shadow-2xl">
-          <div class="flex items-center justify-between p-5 border-b border-white/8">
+        <div class="bg-surface-900 rounded-2xl border border-[var(--color-ide-border)] w-[560px] max-h-[80vh] flex flex-col shadow-2xl">
+          <div class="flex items-center justify-between p-5 border-b border-[var(--color-ide-border)]">
             <h3 class="font-semibold text-white flex items-center gap-2">
               <component :is="typeMeta[showPluginDetail.type]?.icon || Package" class="w-4 h-4 text-purple-400" />
               {{ showPluginDetail.display_name }}
             </h3>
-            <button @click="showPluginDetail = null" class="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 transition-colors"><X class="w-4 h-4" /></button>
+            <button @click="showPluginDetail = null" class="p-1.5 rounded-lg hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] transition-colors"><X class="w-4 h-4" /></button>
           </div>
           <div class="flex-1 overflow-y-auto p-5 space-y-4">
             <div class="flex items-center gap-3 flex-wrap">
               <span
                 :class="[
                   'text-[10px] px-2 py-0.5 rounded-full font-medium border',
-                  typeMeta[showPluginDetail.type]?.cls || 'bg-gray-500/10 text-gray-400'
+                  typeMeta[showPluginDetail.type]?.cls || 'bg-gray-500/10 text-[var(--color-ide-text-dim)]'
                 ]"
               >{{ typeMeta[showPluginDetail.type]?.label || showPluginDetail.type?.toUpperCase() }}</span>
-              <span class="text-xs text-gray-600">{{ showPluginDetail.author }} · v{{ showPluginDetail.version }}</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">{{ showPluginDetail.author }} · v{{ showPluginDetail.version }}</span>
               <span class="text-xs text-yellow-500/80">{{ ratingStars(showPluginDetail.rating) }} {{ showPluginDetail.rating?.toFixed(1) }}</span>
               <span v-if="showPluginDetail.source_id" class="text-[10px] text-gray-700">来源: {{ showPluginDetail.source_id }}</span>
             </div>
-            <p class="text-sm text-gray-400 leading-relaxed">{{ showPluginDetail.desc }}</p>
+            <p class="text-sm text-[var(--color-ide-text-dim)] leading-relaxed">{{ showPluginDetail.desc }}</p>
             <!-- Tags -->
             <div class="flex flex-wrap gap-1.5">
               <span
@@ -714,31 +714,31 @@ function tabClass(tab: string) {
                   tag === 'mcp' ? 'bg-blue-500/5 border-blue-500/15 text-blue-400/80' :
                   tag === 'commands' || tag === 'command' ? 'bg-amber-500/5 border-amber-500/15 text-amber-400/80' :
                   tag === 'hooks' || tag === 'hook' ? 'bg-rose-500/5 border-rose-500/15 text-rose-400/80' :
-                  'bg-white/[0.03] border-white/5 text-gray-500'
+                  'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)]'
                 ]"
               >{{ tag }}</span>
             </div>
             <!-- Stats grid -->
             <div class="grid grid-cols-3 gap-3 text-center">
-              <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+              <div class="p-3 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
                 <p class="text-lg font-semibold text-white">{{ formatCount(showPluginDetail.installs || 0) }}</p>
-                <p class="text-[10px] text-gray-600 mt-0.5">安装量</p>
+                <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5">安装量</p>
               </div>
-              <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+              <div class="p-3 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
                 <p class="text-lg font-semibold text-white">{{ showPluginDetail.rating?.toFixed(1) || '-' }}</p>
-                <p class="text-[10px] text-gray-600 mt-0.5">评分</p>
+                <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5">评分</p>
               </div>
-              <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+              <div class="p-3 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
                 <p class="text-lg font-semibold text-white">{{ showPluginDetail.category || '-' }}</p>
-                <p class="text-[10px] text-gray-600 mt-0.5">分类</p>
+                <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5">分类</p>
               </div>
             </div>
             <div v-if="showPluginDetail.repo" class="pt-2">
               <a :href="showPluginDetail.repo" target="_blank" class="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 transition-colors"><ExternalLink class="w-3.5 h-3.5" /> 查看源代码</a>
             </div>
           </div>
-          <div class="flex gap-3 justify-end p-5 border-t border-white/8">
-            <button @click="showPluginDetail = null" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-gray-400 hover:text-white transition-colors">关闭</button>
+          <div class="flex gap-3 justify-end p-5 border-t border-[var(--color-ide-border)]">
+            <button @click="showPluginDetail = null" class="px-4 py-2.5 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors">关闭</button>
             <button v-if="showPluginDetail.installed" disabled class="px-4 py-2.5 rounded-xl bg-green-500/10 text-green-400 text-sm font-medium flex items-center gap-1.5"><CheckCircle class="w-4 h-4" /> 已安装</button>
             <button v-else @click="handleInstall(showPluginDetail); showPluginDetail = null" class="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium transition-colors"><Download class="w-4 h-4 inline mr-1.5" />安装</button>
           </div>
@@ -749,15 +749,15 @@ function tabClass(tab: string) {
     <!-- Add Source Modal -->
     <Teleport to="body">
       <div v-if="showAddSource" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="showAddSource = false">
-        <div class="bg-surface-900 rounded-2xl border border-white/10 w-full max-w-[520px] shadow-2xl flex flex-col max-h-[90vh]">
-          <div class="flex items-center justify-between p-5 border-b border-white/8 shrink-0">
+        <div class="bg-surface-900 rounded-2xl border border-[var(--color-ide-border)] w-full max-w-[520px] shadow-2xl flex flex-col max-h-[90vh]">
+          <div class="flex items-center justify-between p-5 border-b border-[var(--color-ide-border)] shrink-0">
             <h3 class="font-semibold text-white flex items-center gap-2"><Plus class="w-4 h-4 text-purple-400" />添加市场</h3>
-            <button @click="showAddSource = false" class="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 transition-colors shrink-0"><X class="w-4 h-4" /></button>
+            <button @click="showAddSource = false" class="p-1.5 rounded-lg hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] transition-colors shrink-0"><X class="w-4 h-4" /></button>
           </div>
           <div class="p-5 space-y-4 overflow-y-auto">
             <!-- Source type tabs -->
             <div>
-              <label class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 block">来源类型 *</label>
+              <label class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 block">来源类型 *</label>
               <div class="flex gap-2">
                 <button
                   v-for="t in ([
@@ -771,7 +771,7 @@ function tabClass(tab: string) {
                     'flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium border transition-all',
                     sourceType === t.v
                       ? 'bg-purple-500/10 border-purple-400/30 text-purple-400'
-                      : 'bg-white/[0.02] border-white/8 text-gray-500 hover:text-gray-300'
+                      : 'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'
                   ]"
                 >
                   <component :is="t.icon" class="w-3.5 h-3.5 shrink-0" />
@@ -781,45 +781,45 @@ function tabClass(tab: string) {
             </div>
             <!-- Source name -->
             <div>
-              <label class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 block">名称 *</label>
+              <label class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 block">名称 *</label>
               <input
                 v-model="sourceName"
                 type="text"
                 placeholder="例如: cb_teams_marketplace"
-                class="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-400/40 focus:ring-1 focus:ring-purple-400/20 transition-all"
+                class="w-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-purple-400/40 focus:ring-1 focus:ring-purple-400/20 transition-all"
               />
             </div>
             <!-- Source URL / Path -->
             <div>
-              <label class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 block">
+              <label class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 block">
                 {{ sourceType === 'github' ? '地址 *' : sourceType === 'zip' ? '地址 *' : '路径' }}
               </label>
               <input
                 v-model="sourceUrl"
                 type="text"
                 :placeholder="sourceType === 'github' ? 'owner/repo, git@..., https://.../*.zip, or /path' : sourceType === 'zip' ? 'https://example.com/marketplace.zip (ZIP)' : '/path/to/marketplace (本地)'"
-                class="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-400/40 focus:ring-1 focus:ring-purple-400/20 transition-all"
+                class="w-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-purple-400/40 focus:ring-1 focus:ring-purple-400/20 transition-all"
               />
-              <p class="text-[11px] text-gray-600 mt-1.5 leading-relaxed">
+              <p class="text-[11px] text-[var(--color-ide-text-dim)] mt-1.5 leading-relaxed">
                 示例：owner/repo（GitHub）、git@github.com:owner/repo.git（SSH）、https://example.com/marketplace.zip（ZIP）、/path/to/marketplace（本地）
               </p>
             </div>
 
             <!-- Preset quick-add -->
             <div>
-              <label class="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2 block">快速添加</label>
+              <label class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2 block">快速添加</label>
               <div class="flex flex-wrap gap-1.5">
                 <button
                   v-for="preset in presetSources"
                   :key="preset.n"
                   @click="sourceName = preset.n; sourceUrl = preset.u; sourceType = preset.t"
-                  class="px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/8 text-xs text-gray-500 hover:text-gray-300 hover:border-white/15 transition-all"
+                  class="px-2.5 py-1.5 rounded-lg bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-xs text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:border-[var(--color-ide-border)] transition-all"
                 >{{ preset.n }}</button>
               </div>
             </div>
           </div>
-          <div class="flex gap-3 justify-end p-5 border-t border-white/8 shrink-0">
-            <button @click="showAddSource = false" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-gray-400 hover:text-white transition-colors">取消</button>
+          <div class="flex gap-3 justify-end p-5 border-t border-[var(--color-ide-border)] shrink-0">
+            <button @click="showAddSource = false" class="px-4 py-2.5 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors">取消</button>
             <button @click="handleAddSource" class="px-4 py-2.5 rounded-xl bg-emerald-500/80 hover:bg-emerald-500 text-white text-sm font-medium transition-colors flex items-center gap-1.5 shrink-0"><Plus class="w-4 h-4" />提交</button>
           </div>
         </div>

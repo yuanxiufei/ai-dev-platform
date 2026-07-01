@@ -87,18 +87,18 @@ const sections = computed<ContextSection[]>(() => [
 </script>
 
 <template>
-  <div class="context-panel rounded-lg border border-white/[0.06] bg-white/[0.01] overflow-hidden">
+  <div class="context-panel rounded-lg border border-[var(--color-ide-border)] bg-white/[0.01] overflow-hidden">
     <!-- 标题栏 -->
     <div class="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.04]">
       <div class="flex items-center gap-2">
         <div class="w-5 h-5 rounded bg-brand-500/10 flex items-center justify-center">
           <Brain class="w-3 h-3 text-brand-400" />
         </div>
-        <span class="text-xs font-semibold text-gray-300">上下文</span>
+        <span class="text-xs font-semibold text-[var(--color-ide-text)]">上下文</span>
       </div>
       <button
         @click="emit('refresh')"
-        class="p-1 rounded hover:bg-white/5 text-gray-600 hover:text-gray-400 transition-colors"
+        class="p-1 rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] transition-colors"
         title="刷新上下文"
       >
         <Loader2 class="w-3 h-3" />
@@ -114,7 +114,7 @@ const sections = computed<ContextSection[]>(() => [
         class="flex-1 flex items-center justify-center gap-1 py-2 text-[10px] transition-colors"
         :class="activeSection === sec.id
           ? 'text-brand-400 bg-brand-500/5 border-b border-brand-500/30'
-          : 'text-gray-500 hover:text-gray-300'"
+          : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'"
       >
         <component :is="sec.icon" class="w-3 h-3" />
         {{ sec.label }}
@@ -126,7 +126,7 @@ const sections = computed<ContextSection[]>(() => [
 
     <!-- ═══ 文件上下文 ═══ -->
     <div v-if="activeSection === 'files'" class="p-2 space-y-1 max-h-48 overflow-y-auto custom-scroll">
-      <div v-if="!files?.length" class="py-4 text-center text-xs text-gray-600">
+      <div v-if="!files?.length" class="py-4 text-center text-xs text-[var(--color-ide-text-dim)]">
         <FileCode class="w-5 h-5 mb-1 mx-auto opacity-20" />
         暂无引用文件
         <p class="text-[10px] mt-1">在输入框中使用 @ 引用文件</p>
@@ -138,12 +138,12 @@ const sections = computed<ContextSection[]>(() => [
       >
         <FileText class="w-3.5 h-3.5 text-brand-400/60 shrink-0" />
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] text-gray-300 truncate font-mono">{{ file.name }}</p>
-          <p class="text-[10px] text-gray-600 truncate">{{ file.path }}</p>
+          <p class="text-[11px] text-[var(--color-ide-text)] truncate font-mono">{{ file.name }}</p>
+          <p class="text-[10px] text-[var(--color-ide-text-dim)] truncate">{{ file.path }}</p>
         </div>
         <button
           @click="emit('removeFile', file.path)"
-          class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition-all"
+          class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/10 text-[var(--color-ide-text-dim)] hover:text-red-400 transition-all"
           title="移除"
         >
           ✕
@@ -168,8 +168,8 @@ const sections = computed<ContextSection[]>(() => [
             <Blocks class="w-3 h-3 text-emerald-400" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[11px] text-gray-300 truncate">{{ skill.name }}</p>
-            <p class="text-[10px] text-gray-600 truncate">{{ skill.description }}</p>
+            <p class="text-[11px] text-[var(--color-ide-text)] truncate">{{ skill.name }}</p>
+            <p class="text-[10px] text-[var(--color-ide-text-dim)] truncate">{{ skill.description }}</p>
           </div>
           <span class="w-2 h-2 rounded-full bg-emerald-400" />
         </div>
@@ -177,7 +177,7 @@ const sections = computed<ContextSection[]>(() => [
 
       <!-- 可用 -->
       <div v-if="inactiveSkillList.length > 0" class="p-2 space-y-1 border-t border-white/[0.04]">
-        <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-2">
+        <p class="text-[10px] font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2">
           可用 ({{ inactiveSkillList.length }})
         </p>
         <div
@@ -187,23 +187,23 @@ const sections = computed<ContextSection[]>(() => [
           @click="emit('toggleSkill', skill.name)"
         >
           <div class="w-5 h-5 rounded bg-white/[0.03] flex items-center justify-center shrink-0">
-            <Blocks class="w-3 h-3 text-gray-500" />
+            <Blocks class="w-3 h-3 text-[var(--color-ide-text-dim)]" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[11px] text-gray-500 truncate">{{ skill.name }}</p>
+            <p class="text-[11px] text-[var(--color-ide-text-dim)] truncate">{{ skill.name }}</p>
             <p class="text-[10px] text-gray-700 truncate">{{ skill.description }}</p>
           </div>
-          <span class="text-[10px] text-gray-600">{{ skill.category }}</span>
+          <span class="text-[10px] text-[var(--color-ide-text-dim)]">{{ skill.category }}</span>
         </div>
       </div>
 
       <!-- 加载中 -->
-      <div v-if="skillsLoading" class="flex items-center justify-center py-8 text-gray-600 text-xs gap-2">
+      <div v-if="skillsLoading" class="flex items-center justify-center py-8 text-[var(--color-ide-text-dim)] text-xs gap-2">
         <Loader2 class="w-3.5 h-3.5 animate-spin" /> 加载技能...
       </div>
 
       <!-- 无技能 -->
-      <div v-if="!skillsLoading && skills.length === 0" class="py-6 text-center text-xs text-gray-600">
+      <div v-if="!skillsLoading && skills.length === 0" class="py-6 text-center text-xs text-[var(--color-ide-text-dim)]">
         <Layers class="w-5 h-5 mb-1 mx-auto opacity-20" />
         暂无可用技能
       </div>
@@ -212,7 +212,7 @@ const sections = computed<ContextSection[]>(() => [
     <!-- ═══ 长期记忆 ═══ -->
     <div v-else-if="activeSection === 'memory'" class="p-3">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] text-gray-500">关联记忆节点</span>
+        <span class="text-[10px] text-[var(--color-ide-text-dim)]">关联记忆节点</span>
         <span class="text-[10px] font-mono text-brand-400">{{ memoryNodes || 0 }} nodes</span>
       </div>
 
@@ -229,12 +229,12 @@ const sections = computed<ContextSection[]>(() => [
         </div>
       </div>
 
-      <p class="text-[10px] text-gray-600 leading-relaxed">
+      <p class="text-[10px] text-[var(--color-ide-text-dim)] leading-relaxed">
         记忆衰减公式：importance × 1/(1 + hours × 0.01)
         <br />遗忘阈值：0.05
       </p>
 
-      <div v-if="!memoryNodes" class="py-4 text-center text-xs text-gray-600">
+      <div v-if="!memoryNodes" class="py-4 text-center text-xs text-[var(--color-ide-text-dim)]">
         <Database class="w-5 h-5 mb-1 mx-auto opacity-20" />
         暂无记忆节点
       </div>
@@ -242,7 +242,7 @@ const sections = computed<ContextSection[]>(() => [
 
     <!-- ═══ MCP 工具 ═══ -->
     <div v-else-if="activeSection === 'tools'" class="p-3">
-      <p class="text-[10px] text-gray-600 leading-relaxed">
+      <p class="text-[10px] text-[var(--color-ide-text-dim)] leading-relaxed">
         Agent 可通过 MCP 协议访问文件系统、Git、数据库、浏览器等外部工具。
         在 <span class="text-brand-400">MCP 设置</span> 页面管理服务器连接。
       </p>
@@ -252,9 +252,9 @@ const sections = computed<ContextSection[]>(() => [
         <div
           v-for="tool in ['get_weather', 'web_search', 'calculate', 'file_read', 'datetime_now']"
           :key="tool"
-          class="flex items-center gap-2 px-2 py-1 text-[10px] text-gray-500"
+          class="flex items-center gap-2 px-2 py-1 text-[10px] text-[var(--color-ide-text-dim)]"
         >
-          <Wrench class="w-3 h-3 text-gray-600" />
+          <Wrench class="w-3 h-3 text-[var(--color-ide-text-dim)]" />
           {{ tool }}
         </div>
       </div>

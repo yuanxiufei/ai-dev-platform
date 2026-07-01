@@ -27,21 +27,21 @@ const isCollapsed = (id: string) => collapsedSections.value.has(id)
 </script>
 
 <template>
-  <div class="flex flex-col h-full border-l border-white/8 bg-surface-900/50 backdrop-blur">
+  <div class="flex flex-col h-full border-l border-[var(--color-ide-border)] bg-surface-900/50 backdrop-blur">
     <!-- 面板头部 -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-white/8">
-      <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">{{ title }}</h3>
-      <span class="text-[10px] text-gray-600 font-mono">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-ide-border)]">
+      <h3 class="text-xs font-semibold text-[var(--color-ide-text)] uppercase tracking-wider">{{ title }}</h3>
+      <span class="text-[10px] text-[var(--color-ide-text-dim)] font-mono">
         {{ sections?.length ?? 0 }}
       </span>
     </div>
 
     <!-- 空状态 -->
     <div v-if="!sections || sections.length === 0" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
-      <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
+      <div class="w-12 h-12 rounded-xl bg-[var(--color-ide-surface-hover)] flex items-center justify-center mb-3">
         <div class="w-5 h-5 rounded border border-dashed border-gray-600" />
       </div>
-      <p class="text-xs text-gray-600 leading-relaxed">
+      <p class="text-xs text-[var(--color-ide-text-dim)] leading-relaxed">
         暂无内容。<br>开始对话后这里将显示任务和工具调用记录。
       </p>
     </div>
@@ -52,22 +52,22 @@ const isCollapsed = (id: string) => collapsedSections.value.has(id)
         <!-- 分组头 -->
         <button
           v-if="section.collapsible !== false"
-          class="flex items-center gap-1.5 w-full px-4 py-2 text-left hover:bg-white/5 transition-colors group"
+          class="flex items-center gap-1.5 w-full px-4 py-2 text-left hover:bg-[var(--color-ide-surface-hover)] transition-colors group"
           @click="toggleSection(section.id)"
         >
           <component
             :is="isCollapsed(section.id) ? ChevronRight : ChevronDown"
-            class="w-3 h-3 text-gray-600 group-hover:text-gray-400 transition-colors"
+            class="w-3 h-3 text-[var(--color-ide-text-dim)] group-hover:text-[var(--color-ide-text-dim)] transition-colors"
           />
-          <span class="text-[11px] font-medium text-gray-500 flex-1">{{ section.title }}</span>
-          <span v-if="section.count !== undefined" class="text-[10px] text-gray-600">{{ section.count }}</span>
+          <span class="text-[11px] font-medium text-[var(--color-ide-text-dim)] flex-1">{{ section.title }}</span>
+          <span v-if="section.count !== undefined" class="text-[10px] text-[var(--color-ide-text-dim)]">{{ section.count }}</span>
         </button>
         <!-- 占位内容 -->
         <div
           v-if="!isCollapsed(section.id)"
           class="px-4 py-2"
         >
-          <div class="text-[11px] text-gray-600 pl-5 italic">
+          <div class="text-[11px] text-[var(--color-ide-text-dim)] pl-5 italic">
             暂无项目
           </div>
         </div>

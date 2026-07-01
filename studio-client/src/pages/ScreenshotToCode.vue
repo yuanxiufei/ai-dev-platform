@@ -161,7 +161,7 @@ function downloadCode(language: string, code: string) {
         <Code2 class="w-6 h-6 text-brand-400" />
         截图转代码
       </h1>
-      <p class="text-sm text-gray-400 mt-1">
+      <p class="text-sm text-[var(--color-ide-text-dim)] mt-1">
         上传 UI 截图或设计稿，AI 自动生成前端代码 &mdash; 支持 Vue / React / 小程序 / Flutter
       </p>
     </header>
@@ -175,7 +175,7 @@ function downloadCode(language: string, code: string) {
           :class="[
             isDragging
               ? 'border-brand-500 bg-brand-500/5'
-              : 'border-white/10 hover:border-brand-500/40 bg-surface-800/40',
+              : 'border-[var(--color-ide-border)] hover:border-brand-500/40 bg-surface-800/40',
             screenshots.length > 0 ? 'p-2' : 'p-8',
           ]"
           @dragover.prevent="isDragging = true"
@@ -197,7 +197,7 @@ function downloadCode(language: string, code: string) {
             <div
               v-for="(img, i) in screenshots"
               :key="i"
-              class="relative group rounded-lg overflow-hidden bg-black/40 border border-white/5"
+              class="relative group rounded-lg overflow-hidden bg-black/40 border border-[var(--color-ide-border)]"
             >
               <img
                 :src="'data:image/png;base64,' + img"
@@ -212,10 +212,10 @@ function downloadCode(language: string, code: string) {
             </div>
             <!-- 继续添加 -->
             <div
-              class="aspect-video rounded-lg border border-dashed border-white/10 flex items-center justify-center bg-surface-800/40 hover:border-brand-500/40 cursor-pointer transition"
+              class="aspect-video rounded-lg border border-dashed border-[var(--color-ide-border)] flex items-center justify-center bg-surface-800/40 hover:border-brand-500/40 cursor-pointer transition"
               @click.stop="fileInputRef?.click()"
             >
-              <Plus class="w-5 h-5 text-gray-500" />
+              <Plus class="w-5 h-5 text-[var(--color-ide-text-dim)]" />
             </div>
           </div>
 
@@ -223,10 +223,10 @@ function downloadCode(language: string, code: string) {
           <template v-else>
             <div class="flex flex-col items-center text-center">
               <div class="w-14 h-14 rounded-2xl bg-surface-800 flex items-center justify-center mb-3">
-                <Upload class="w-7 h-7 text-gray-500" />
+                <Upload class="w-7 h-7 text-[var(--color-ide-text-dim)]" />
               </div>
-              <p class="text-sm text-gray-300 mb-1">拖拽截图到此处</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-sm text-[var(--color-ide-text)] mb-1">拖拽截图到此处</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)]">
                 或点击选择文件 · 支持 Ctrl+V 粘贴
               </p>
             </div>
@@ -235,23 +235,23 @@ function downloadCode(language: string, code: string) {
 
         <!-- Prompt 输入 -->
         <div class="space-y-1.5">
-          <label class="text-sm text-gray-300 font-medium">
+          <label class="text-sm text-[var(--color-ide-text)] font-medium">
             补充说明（可选）
           </label>
           <textarea
             v-model="prompt"
             rows="3"
-            class="w-full bg-surface-800/60 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-brand-500 resize-none placeholder:text-gray-600"
+            class="w-full bg-surface-800/60 border border-[var(--color-ide-border)] rounded-lg p-3 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500 resize-none placeholder:text-[var(--color-ide-text-dim)]"
             placeholder="如：将底部按钮改为蓝色、添加 loading 状态、响应式布局..."
           />
         </div>
 
         <!-- 目标框架选择 -->
         <div class="space-y-1.5">
-          <label class="text-sm text-gray-300 font-medium">目标框架</label>
+          <label class="text-sm text-[var(--color-ide-text)] font-medium">目标框架</label>
           <select
             v-model="framework"
-            class="w-full bg-surface-800/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-brand-500"
+            class="w-full bg-surface-800/60 border border-[var(--color-ide-border)] rounded-lg px-3 py-2.5 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500"
           >
             <option v-for="f in frameworks" :key="f.value" :value="f.value">
               {{ f.label }}
@@ -276,7 +276,7 @@ function downloadCode(language: string, code: string) {
         <button
           v-if="screenshots.length > 0 && !generating"
           @click="screenshots = []; result = null"
-          class="w-full py-2 rounded-lg bg-surface-800/60 hover:bg-surface-700 text-sm text-gray-400 hover:text-gray-200 transition flex items-center justify-center gap-1.5"
+          class="w-full py-2 rounded-lg bg-surface-800/60 hover:bg-surface-700 text-sm text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition flex items-center justify-center gap-1.5"
         >
           <Trash2 class="w-3.5 h-3.5" /> 清空重新开始
         </button>
@@ -287,13 +287,13 @@ function downloadCode(language: string, code: string) {
         <!-- 空状态 -->
         <div
           v-if="!result && !generating"
-          class="flex flex-col items-center justify-center h-full py-20 text-gray-500"
+          class="flex flex-col items-center justify-center h-full py-20 text-[var(--color-ide-text-dim)]"
         >
           <div class="w-20 h-20 rounded-2xl bg-surface-800 flex items-center justify-center mb-4">
-            <Code2 class="w-10 h-10 text-gray-600" />
+            <Code2 class="w-10 h-10 text-[var(--color-ide-text-dim)]" />
           </div>
           <p class="mb-1">上传截图后点击「生成代码」</p>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-[var(--color-ide-text-dim)]">
             支持 .png · .jpg · .webp 格式
           </p>
         </div>
@@ -304,7 +304,7 @@ function downloadCode(language: string, code: string) {
           class="flex flex-col items-center justify-center py-20"
         >
           <RefreshCw class="w-8 h-8 text-brand-400 animate-spin mb-4" />
-          <p class="text-sm text-gray-400">
+          <p class="text-sm text-[var(--color-ide-text-dim)]">
             AI 正在分析截图并生成代码...
           </p>
         </div>
@@ -312,7 +312,7 @@ function downloadCode(language: string, code: string) {
         <!-- 结果 -->
         <template v-if="result && hasCode">
           <!-- 元信息 -->
-          <div class="flex items-center gap-4 px-1 text-xs text-gray-500">
+          <div class="flex items-center gap-4 px-1 text-xs text-[var(--color-ide-text-dim)]">
             <span>模型: {{ result.model_used || '-' }}</span>
             <span>引擎: {{ result.provider || '-' }}</span>
             <span>耗时: {{ result.latency_ms }}ms</span>
@@ -325,29 +325,29 @@ function downloadCode(language: string, code: string) {
           <div
             v-for="(block, i) in codeBlocks"
             :key="i"
-            class="bg-surface-800/60 rounded-xl border border-white/10 overflow-hidden"
+            class="bg-surface-800/60 rounded-xl border border-[var(--color-ide-border)] overflow-hidden"
           >
-            <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-surface-800/80">
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-[var(--color-ide-border)] bg-surface-800/80">
               <span class="text-xs font-mono text-brand-400 uppercase">
                 {{ block.language }}
               </span>
               <div class="flex items-center gap-1">
                 <button
                   @click="copyCode(block.code)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-white/10 text-xs text-gray-400 hover:text-gray-200 transition"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-white/10 text-xs text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition"
                 >
                   <Copy class="w-3 h-3" /> 复制
                 </button>
                 <button
                   @click="downloadCode(block.language, block.code)"
-                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-white/10 text-xs text-gray-400 hover:text-gray-200 transition"
+                  class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-white/10 text-xs text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition"
                 >
                   <Download class="w-3 h-3" /> 下载
                 </button>
               </div>
             </div>
             <pre
-              class="p-4 text-sm text-gray-300 overflow-auto max-h-[600px] font-mono leading-relaxed"
+              class="p-4 text-sm text-[var(--color-ide-text)] overflow-auto max-h-[600px] font-mono leading-relaxed"
             ><code>{{ block.code }}</code></pre>
           </div>
         </template>

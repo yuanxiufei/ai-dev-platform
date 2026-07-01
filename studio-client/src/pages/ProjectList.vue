@@ -40,7 +40,7 @@ const statusLabel: Record<string, string> = {
 }
 
 const statusColor: Record<string, string> = {
-  draft: "bg-gray-500/15 text-gray-400",
+  draft: "bg-gray-500/15 text-[var(--color-ide-text-dim)]",
   building: "bg-yellow-500/15 text-yellow-400",
   deploying: "bg-blue-500/15 text-blue-400",
   running: "bg-green-500/15 text-green-400",
@@ -69,19 +69,19 @@ import { computed } from 'vue'
 <template>
   <div class="h-full w-full flex flex-col overflow-hidden bg-[var(--color-ide-bg)] text-[var(--color-ide-text)]">
     <!-- Header -->
-    <header class="shrink-0 h-14 border-b border-white/8 bg-surface-900/50 backdrop-blur flex items-center justify-between px-6">
+    <header class="shrink-0 page-header backdrop-blur flex items-center justify-between px-6">
       <div class="flex items-center gap-3">
         <LayoutGrid class="w-5 h-5 text-brand-400" />
-        <h2 class="text-sm font-semibold text-gray-200">我的项目</h2>
-        <span class="text-xs text-gray-600">{{ projects.length }} 个</span>
+        <h2 class="text-sm font-semibold text-[var(--color-ide-text)]">我的项目</h2>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">{{ projects.length }} 个</span>
       </div>
       <div class="flex items-center gap-3">
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-ide-text-dim)]" />
           <input
             v-model="searchText"
             placeholder="搜索项目..."
-            class="w-48 rounded-lg bg-white/5 border border-white/8 pl-8 pr-3 py-1.5 text-xs text-gray-300 placeholder-gray-500 focus:outline-none focus:border-brand-500/30 transition-colors"
+            class="w-48 rounded-lg bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] pl-8 pr-3 py-1.5 text-xs text-[var(--color-ide-text)] placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-brand-500/30 transition-colors"
           />
         </div>
         <button
@@ -96,7 +96,7 @@ import { computed } from 'vue'
 
     <main class="flex-1 overflow-y-auto p-6">
       <!-- 加载 -->
-      <div v-if="loading" class="py-20 text-center text-gray-500">
+      <div v-if="loading" class="py-20 text-center text-[var(--color-ide-text-dim)]">
         <div class="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto mb-4" />
         加载中...
       </div>
@@ -106,8 +106,8 @@ import { computed } from 'vue'
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-500/10 to-purple-500/10 flex items-center justify-center">
           <LayoutGrid class="w-8 h-8 text-brand-400/60" />
         </div>
-        <p class="text-gray-400 text-lg font-medium">还没有项目</p>
-        <p class="text-gray-600 text-sm mt-1">创建你的第一个 AI 项目开始吧</p>
+        <p class="text-[var(--color-ide-text-dim)] text-lg font-medium">还没有项目</p>
+        <p class="text-[var(--color-ide-text-dim)] text-sm mt-1">创建你的第一个 AI 项目开始吧</p>
         <button
           class="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-500 hover:shadow-lg hover:shadow-brand-500/20 px-5 py-2.5 text-sm font-medium text-white transition-all"
           @click="goCreate"
@@ -119,8 +119,8 @@ import { computed } from 'vue'
 
       <!-- 搜索无结果 -->
       <div v-else-if="!filteredProjects.length" class="py-20 text-center">
-        <Search class="w-10 h-10 text-gray-600 mx-auto mb-3" />
-        <p class="text-gray-400 text-sm">未找到匹配的项目</p>
+        <Search class="w-10 h-10 text-[var(--color-ide-text-dim)] mx-auto mb-3" />
+        <p class="text-[var(--color-ide-text-dim)] text-sm">未找到匹配的项目</p>
       </div>
 
       <!-- 项目卡片网格 -->
@@ -128,7 +128,7 @@ import { computed } from 'vue'
         <div
           v-for="project in filteredProjects"
           :key="project.id"
-          class="group rounded-xl border border-white/8 bg-surface-800 hover:border-brand-500/20 transition-all duration-300 cursor-pointer overflow-hidden"
+          class="group rounded-xl border border-[var(--color-ide-border)] bg-surface-800 hover:border-brand-500/20 transition-all duration-300 cursor-pointer overflow-hidden"
           @click="goDetail(project.id)"
         >
           <!-- 卡片头 -->
@@ -142,22 +142,22 @@ import { computed } from 'vue'
           </div>
 
           <!-- 描述 -->
-          <p class="px-5 text-sm text-gray-500 line-clamp-2 min-h-[2.5rem]">
+          <p class="px-5 text-sm text-[var(--color-ide-text-dim)] line-clamp-2 min-h-[2.5rem]">
             {{ project.description || '暂无描述' }}
           </p>
 
           <!-- 底部操作栏 -->
-          <div class="flex items-center justify-between p-5 pt-3 border-t border-white/5 mt-2">
-            <span class="text-xs text-gray-600">{{ project.created_at }}</span>
+          <div class="flex items-center justify-between p-5 pt-3 border-t border-[var(--color-ide-border)] mt-2">
+            <span class="text-xs text-[var(--color-ide-text-dim)]">{{ project.created_at }}</span>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                class="rounded-lg p-1.5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                class="rounded-lg p-1.5 hover:bg-white/10 text-[var(--color-ide-text-dim)] hover:text-white transition-colors"
                 @click.stop="goDetail(project.id)"
               >
                 <ExternalLink class="w-3.5 h-3.5" />
               </button>
               <button
-                class="rounded-lg p-1.5 hover:bg-red-500/15 text-gray-400 hover:text-red-400 transition-colors"
+                class="rounded-lg p-1.5 hover:bg-red-500/15 text-[var(--color-ide-text-dim)] hover:text-red-400 transition-colors"
                 @click.stop="handleDelete(project.id)"
               >
                 <Trash2 class="w-3.5 h-3.5" />

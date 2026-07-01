@@ -465,7 +465,7 @@ function sleepStateColor(state: string): string {
     active: "text-blue-400",
     pre_sleep: "text-yellow-400",
   }
-  return map[state] ?? "text-gray-400"
+  return map[state] ?? "text-[var(--color-ide-text-dim)]"
 }
 
 // ===== 生命周期 =====
@@ -516,7 +516,7 @@ function toggleAutoRefresh() {
     </Transition>
 
     <!-- ===== 页面头部 ===== -->
-    <div class="flex items-center justify-between px-8 pt-8 pb-6 border-b border-white/5 shrink-0">
+    <div class="flex items-center justify-between px-8 pt-8 pb-6 border-b border-[var(--color-ide-border)] shrink-0">
       <div>
         <h1 class="text-2xl font-bold text-white flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/10 border border-purple-500/20 flex items-center justify-center">
@@ -524,14 +524,14 @@ function toggleAutoRefresh() {
           </div>
           独立运行管理
         </h1>
-        <p class="text-sm text-gray-500 mt-1.5 ml-[3.25rem]">管理本机服务的守护进程、智能休眠、API 鉴权与系统开关</p>
+        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1.5 ml-[3.25rem]">管理本机服务的守护进程、智能休眠、API 鉴权与系统开关</p>
       </div>
       <div class="flex items-center gap-3">
         <button
           @click="toggleAutoRefresh"
           :class="[
             'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border',
-            autoRefresh ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-white/[0.04] border-white/10 text-gray-500 hover:text-gray-300'
+            autoRefresh ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-[var(--color-ide-surface-hover)] border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'
           ]"
           title="自动刷新"
         >
@@ -559,7 +559,7 @@ function toggleAutoRefresh() {
         <AlertTriangle class="w-5 h-5 text-red-400 shrink-0" />
         <div>
           <span class="text-red-400 font-medium">Standalone 服务未连接</span>
-          <span class="text-gray-500 ml-2">— 请确认后端已以 standalone 模式启动</span>
+          <span class="text-[var(--color-ide-text-dim)] ml-2">— 请确认后端已以 standalone 模式启动</span>
         </div>
       </div>
 
@@ -571,34 +571,34 @@ function toggleAutoRefresh() {
         <!-- ===== SECTION 1: 系统总览卡片行 ===== -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <!-- 版本 -->
-          <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5 flex items-center gap-4 hover:border-white/12 transition-colors">
+          <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5 flex items-center gap-4 hover:border-[var(--color-ide-accent)] transition-colors">
             <div class="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/15 flex items-center justify-center shrink-0">
               <Server class="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <p class="text-xs text-gray-500 mb-0.5">版本</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] mb-0.5">版本</p>
               <p class="text-lg font-semibold text-white font-mono">{{ status?.version ?? '—' }}</p>
             </div>
           </div>
 
           <!-- 运行时间 -->
-          <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5 flex items-center gap-4 hover:border-white/12 transition-colors">
+          <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5 flex items-center gap-4 hover:border-[var(--color-ide-accent)] transition-colors">
             <div class="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/15 flex items-center justify-center shrink-0">
               <Clock class="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <p class="text-xs text-gray-500 mb-0.5">运行时长</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] mb-0.5">运行时长</p>
               <p class="text-lg font-semibold text-white font-mono">{{ uptime }}</p>
             </div>
           </div>
 
           <!-- 连接状态 -->
-          <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5 flex items-center gap-4 hover:border-white/12 transition-colors">
+          <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5 flex items-center gap-4 hover:border-[var(--color-ide-accent)] transition-colors">
             <div class="w-11 h-11 rounded-xl bg-green-500/10 border border-green-500/15 flex items-center justify-center shrink-0">
               <Activity class="w-5 h-5 text-green-400" />
             </div>
             <div>
-              <p class="text-xs text-gray-500 mb-0.5">系统状态</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] mb-0.5">系统状态</p>
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span class="text-lg font-semibold text-green-400">{{ connected ? '运行中' : '离线' }}</span>
@@ -607,12 +607,12 @@ function toggleAutoRefresh() {
           </div>
 
           <!-- API Key 数量 -->
-          <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5 flex items-center gap-4 hover:border-white/12 transition-colors">
+          <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5 flex items-center gap-4 hover:border-[var(--color-ide-accent)] transition-colors">
             <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center shrink-0">
               <KeyRound class="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <p class="text-xs text-gray-500 mb-0.5">活跃密钥</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] mb-0.5">活跃密钥</p>
               <p class="text-lg font-semibold text-white font-mono">{{ activeKeyCount }}</p>
             </div>
           </div>
@@ -630,7 +630,7 @@ function toggleAutoRefresh() {
                 </div>
                 <div>
                   <h2 class="text-base font-semibold text-white">功能开关</h2>
-                  <p class="text-xs text-gray-500">控制各子系统的启停状态</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">控制各子系统的启停状态</p>
                 </div>
               </div>
 
@@ -640,7 +640,7 @@ function toggleAutoRefresh() {
                   :key="feat.key"
                   :class="[
                     'rounded-xl border p-4 transition-all duration-200 flex items-center justify-between group',
-                    feat.enabled ? 'border-white/10 bg-white/[0.03] hover:border-white/15' : 'border-white/[0.04] bg-white/[0.01] hover:border-white/8',
+                    feat.enabled ? 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] hover:border-[var(--color-ide-border)]' : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] hover:border-[var(--color-ide-border)]',
                     !feat.dynamic && 'opacity-60',
                   ]"
                 >
@@ -648,7 +648,7 @@ function toggleAutoRefresh() {
                     <span class="text-xl leading-none shrink-0">{{ featureIcon(feat.key) }}</span>
                     <div class="min-w-0">
                       <p class="text-sm font-medium text-white truncate">{{ feat.name }}</p>
-                      <p class="text-[11px] text-gray-500 truncate">{{ feat.description }}</p>
+                      <p class="text-[11px] text-[var(--color-ide-text-dim)] truncate">{{ feat.description }}</p>
                       <p v-if="!feat.dynamic" class="text-[10px] text-amber-500/70 mt-0.5">🔒 环境变量锁定</p>
                     </div>
                   </div>
@@ -684,7 +684,7 @@ function toggleAutoRefresh() {
                   </div>
                   <div>
                     <h2 class="text-base font-semibold text-white">远程访问密钥</h2>
-                    <p class="text-xs text-gray-500">管理外部调用本机服务的 API Key</p>
+                    <p class="text-xs text-[var(--color-ide-text-dim)]">管理外部调用本机服务的 API Key</p>
                   </div>
                 </div>
                 <button
@@ -698,32 +698,32 @@ function toggleAutoRefresh() {
 
               <!-- 创建表单 -->
               <Transition name="slide-fade">
-                <div v-if="showKeyForm" class="mb-4 p-4 rounded-xl border border-white/10 bg-white/[0.03]">
+                <div v-if="showKeyForm" class="mb-4 p-4 rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)]">
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                     <div>
-                      <label class="block text-[11px] font-medium text-gray-400 mb-1">租户标识</label>
+                      <label class="block text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1">租户标识</label>
                       <input
                         v-model="keyForm.tenant"
                         placeholder="default"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-all font-mono"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-3 py-2 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-amber-500/40 transition-all font-mono"
                       />
                     </div>
                     <div>
-                      <label class="block text-[11px] font-medium text-gray-400 mb-1">名称 <span class="text-red-400">*</span></label>
+                      <label class="block text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1">名称 <span class="text-red-400">*</span></label>
                       <input
                         v-model="keyForm.name"
                         placeholder="外部团队名称"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-all"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-3 py-2 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-amber-500/40 transition-all"
                       />
                     </div>
                     <div>
-                      <label class="block text-[11px] font-medium text-gray-400 mb-1">角色权限</label>
+                      <label class="block text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1">角色权限</label>
                       <input
                         v-model="keyForm.roles"
                         placeholder="* 或 studio.chat,video.generate"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-all font-mono"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-3 py-2 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-amber-500/40 transition-all font-mono"
                       />
-                      <p class="text-[10px] text-gray-600 mt-0.5"><code>*</code> = 全部权限</p>
+                      <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5"><code>*</code> = 全部权限</p>
                     </div>
                   </div>
                   <div class="flex gap-2">
@@ -736,7 +736,7 @@ function toggleAutoRefresh() {
                       <Plus v-else class="w-3.5 h-3.5" />
                       生成密钥
                     </button>
-                    <button @click="showKeyForm = false" class="px-4 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-gray-400 hover:text-white transition-colors">
+                    <button @click="showKeyForm = false" class="px-4 py-2 rounded-lg bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors">
                       取消
                     </button>
                   </div>
@@ -750,35 +750,35 @@ function toggleAutoRefresh() {
                     <p class="text-sm font-semibold text-amber-400 flex items-center gap-2">
                       <Check class="w-4 h-4" /> 密钥创建成功
                     </p>
-                    <button @click="dismissCreatedKey" class="text-gray-500 hover:text-gray-300"><X class="w-4 h-4" /></button>
+                    <button @click="dismissCreatedKey" class="text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]"><X class="w-4 h-4" /></button>
                   </div>
-                  <p class="text-xs text-gray-400 mb-2">此密钥仅显示一次，请立即复制并妥善保存：</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)] mb-2">此密钥仅显示一次，请立即复制并妥善保存：</p>
                   <div class="flex items-center gap-2 mb-2">
                     <code class="flex-1 text-sm font-mono text-green-400 bg-black/30 rounded-lg px-3 py-2 break-all select-all">{{ showCreatedKey.full_key }}</code>
-                    <button @click="copyKey(showCreatedKey.full_key)" class="p-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-gray-400 hover:text-white transition-colors shrink-0" title="复制">
+                    <button @click="copyKey(showCreatedKey.full_key)" class="p-2 rounded-lg bg-[var(--color-ide-surface-active)] hover:bg-[var(--color-ide-surface-active)] text-[var(--color-ide-text-dim)] hover:text-white transition-colors shrink-0" title="复制">
                       <Copy class="w-4 h-4" />
                     </button>
                   </div>
-                  <div class="flex gap-4 text-[11px] text-gray-500">
-                    <span>租户: <strong class="text-gray-300">{{ showCreatedKey.tenant }}</strong></span>
-                    <span>名称: <strong class="text-gray-300">{{ showCreatedKey.name }}</strong></span>
-                    <span>前缀: <code class="text-gray-400">{{ showCreatedKey.access_key_prefix }}</code></span>
+                  <div class="flex gap-4 text-[11px] text-[var(--color-ide-text-dim)]">
+                    <span>租户: <strong class="text-[var(--color-ide-text)]">{{ showCreatedKey.tenant }}</strong></span>
+                    <span>名称: <strong class="text-[var(--color-ide-text)]">{{ showCreatedKey.name }}</strong></span>
+                    <span>前缀: <code class="text-[var(--color-ide-text-dim)]">{{ showCreatedKey.access_key_prefix }}</code></span>
                   </div>
                 </div>
               </Transition>
 
               <!-- 密钥列表 -->
-              <div v-if="!apiKeys.length" class="rounded-xl border border-white/5 bg-white/[0.01] p-8 text-center">
-                <KeyRound class="w-10 h-10 text-gray-600 mx-auto mb-3 opacity-40" />
-                <p class="text-sm text-gray-500">还没有远程访问密钥</p>
-                <p class="text-xs text-gray-600 mt-1">创建密钥后，外部团队即可通过 <code class="text-gray-500">Authorization: Bearer &lt;key&gt;</code> 调用本机 API</p>
+              <div v-if="!apiKeys.length" class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] p-8 text-center">
+                <KeyRound class="w-10 h-10 text-[var(--color-ide-text-dim)] mx-auto mb-3 opacity-40" />
+                <p class="text-sm text-[var(--color-ide-text-dim)]">还没有远程访问密钥</p>
+                <p class="text-xs text-[var(--color-ide-text-dim)] mt-1">创建密钥后，外部团队即可通过 <code class="text-[var(--color-ide-text-dim)]">Authorization: Bearer &lt;key&gt;</code> 调用本机 API</p>
               </div>
 
               <div v-else class="space-y-2">
                 <div
                   v-for="key in apiKeys"
                   :key="key.hashed_key"
-                  class="flex items-center gap-3 p-3 rounded-xl border border-white/6 bg-white/[0.02] hover:border-white/10 transition-colors group"
+                  class="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] hover:border-[var(--color-ide-border)] transition-colors group"
                 >
                   <div class="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                     <KeyRound class="w-4 h-4 text-amber-400" />
@@ -788,7 +788,7 @@ function toggleAutoRefresh() {
                       <span class="text-sm font-medium text-white font-mono">{{ key.key_prefix }}</span>
                       <span v-if="key.roles.includes('*')" class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-medium">全部权限</span>
                     </div>
-                    <div class="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500">
+                    <div class="flex items-center gap-3 mt-0.5 text-[11px] text-[var(--color-ide-text-dim)]">
                       <span>租户: {{ key.tenant }}</span>
                       <span v-if="key.name">名称: {{ key.name }}</span>
                       <span v-if="key.created_at">创建于 {{ new Date(key.created_at * 1000).toLocaleDateString() }}</span>
@@ -799,7 +799,7 @@ function toggleAutoRefresh() {
                     <span class="text-[10px] px-1.5 py-1 rounded text-green-500/60 bg-green-500/5">active</span>
                     <button
                       @click="handleRevokeKey(key.hashed_key)"
-                      class="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                      class="p-1.5 rounded-lg text-[var(--color-ide-text-dim)] hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
                       title="撤销密钥"
                     >
                       <Trash2 class="w-3.5 h-3.5" />
@@ -809,12 +809,12 @@ function toggleAutoRefresh() {
               </div>
 
               <!-- 使用方式提示 -->
-              <div class="mt-3 p-3 rounded-xl border border-white/5 bg-white/[0.01]">
-                <p class="text-[11px] font-medium text-gray-500 mb-1.5">🔗 使用方式</p>
-                <div class="text-xs text-gray-600 space-y-1">
-                  <p>• Header: <code class="text-gray-500">Authorization: Bearer &lt;api_key&gt;</code></p>
-                  <p>• Header: <code class="text-gray-500">X-API-Key: &lt;api_key&gt;</code></p>
-                  <p>• Query: <code class="text-gray-500">?api_key=&lt;key&gt;</code></p>
+              <div class="mt-3 p-3 rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)]">
+                <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1.5">🔗 使用方式</p>
+                <div class="text-xs text-[var(--color-ide-text-dim)] space-y-1">
+                  <p>• Header: <code class="text-[var(--color-ide-text-dim)]">Authorization: Bearer &lt;api_key&gt;</code></p>
+                  <p>• Header: <code class="text-[var(--color-ide-text-dim)]">X-API-Key: &lt;api_key&gt;</code></p>
+                  <p>• Query: <code class="text-[var(--color-ide-text-dim)]">?api_key=&lt;key&gt;</code></p>
                 </div>
               </div>
             </section>
@@ -832,14 +832,14 @@ function toggleAutoRefresh() {
                 </div>
                 <div>
                   <h2 class="text-base font-semibold text-white">智能休眠</h2>
-                  <p class="text-xs text-gray-500">手动休眠 / 唤醒控制</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">手动休眠 / 唤醒控制</p>
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+              <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5">
                 <!-- 状态指示 -->
                 <div class="flex items-center justify-between mb-5">
-                  <span class="text-sm text-gray-400">当前状态</span>
+                  <span class="text-sm text-[var(--color-ide-text-dim)]">当前状态</span>
                   <span :class="['flex items-center gap-2 text-sm font-semibold', sleepStateColor(sleepState)]">
                     <span class="w-2 h-2 rounded-full animate-pulse" :class="{
                       'bg-amber-400': sleepState === 'sleeping',
@@ -855,20 +855,20 @@ function toggleAutoRefresh() {
                 <!-- 统计 -->
                 <div v-if="sleepStats" class="space-y-2 mb-5 text-xs">
                   <div class="flex justify-between">
-                    <span class="text-gray-500">距上次请求</span>
-                    <span class="text-gray-300 font-mono">{{ sleepStats.last_request_seconds_ago.toFixed(0) }}s</span>
+                    <span class="text-[var(--color-ide-text-dim)]">距上次请求</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ sleepStats.last_request_seconds_ago.toFixed(0) }}s</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-500">活跃请求数</span>
-                    <span class="text-gray-300 font-mono">{{ sleepStats.active_requests }}</span>
+                    <span class="text-[var(--color-ide-text-dim)]">活跃请求数</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ sleepStats.active_requests }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-500">休眠次数</span>
-                    <span class="text-gray-300 font-mono">{{ sleepStats.sleep_count }}</span>
+                    <span class="text-[var(--color-ide-text-dim)]">休眠次数</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ sleepStats.sleep_count }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-500">累计休眠时长</span>
-                    <span class="text-gray-300 font-mono">{{ sleepStats.total_sleep_duration.toFixed(0) }}s</span>
+                    <span class="text-[var(--color-ide-text-dim)]">累计休眠时长</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ sleepStats.total_sleep_duration.toFixed(0) }}s</span>
                   </div>
                 </div>
 
@@ -892,7 +892,7 @@ function toggleAutoRefresh() {
                   </button>
                 </div>
 
-                <p class="mt-3 text-[10px] text-gray-600 leading-relaxed">
+                <p class="mt-3 text-[10px] text-[var(--color-ide-text-dim)] leading-relaxed">
                   系统在 {{ sleepState === 'sleeping' ? '休眠中' : '活跃状态' }}。
                   休眠时自动卸载模型、降低 CPU 优先级以节省资源，收到请求时自动唤醒。
                 </p>
@@ -907,14 +907,14 @@ function toggleAutoRefresh() {
                 </div>
                 <div>
                   <h2 class="text-base font-semibold text-white">系统省电休眠</h2>
-                  <p class="text-xs text-gray-500">操作系统级睡眠/休眠控制</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">操作系统级睡眠/休眠控制</p>
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+              <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5">
                 <!-- 状态 -->
                 <div class="flex items-center justify-between mb-5">
-                  <span class="text-sm text-gray-400">模式</span>
+                  <span class="text-sm text-[var(--color-ide-text-dim)]">模式</span>
                   <span class="text-sm font-semibold text-violet-400">{{ osSleepModeLabel }}</span>
                 </div>
 
@@ -930,7 +930,7 @@ function toggleAutoRefresh() {
                   <div class="text-2xl font-bold text-violet-300 font-mono mb-1">
                     {{ osSleepCountdownDisplay || osSleepCountdown }}
                   </div>
-                  <p class="text-[10px] text-gray-500">
+                  <p class="text-[10px] text-[var(--color-ide-text-dim)]">
                     应用休眠超 {{ (osSleepState?.timeout_seconds ?? 1800) / 60 }}分钟后，将自动触发操作系统{{ osSleepModeLabel }}
                   </p>
                 </div>
@@ -938,11 +938,11 @@ function toggleAutoRefresh() {
                 <!-- 未安排时 -->
                 <div
                   v-else
-                  class="mb-5 p-4 rounded-xl border border-white/5 bg-white/[0.01]"
+                  class="mb-5 p-4 rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)]"
                 >
                   <div class="flex items-center gap-2">
-                    <TimerOff class="w-4 h-4 text-gray-500" />
-                    <span class="text-xs text-gray-500">暂无 OS 休眠计划（应用休眠未触发或已关闭）</span>
+                    <TimerOff class="w-4 h-4 text-[var(--color-ide-text-dim)]" />
+                    <span class="text-xs text-[var(--color-ide-text-dim)]">暂无 OS 休眠计划（应用休眠未触发或已关闭）</span>
                   </div>
                 </div>
 
@@ -970,7 +970,7 @@ function toggleAutoRefresh() {
 
                 <div class="p-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.03]">
                   <p class="text-[10px] text-amber-400/70 font-medium mb-1.5">⚠️ 唤醒方式</p>
-                  <div class="text-[10px] text-gray-500 space-y-1">
+                  <div class="text-[10px] text-[var(--color-ide-text-dim)] space-y-1">
                     <p>• <strong>Wake-on-LAN</strong>: 路由器 / 另一台设备发送魔术包唤醒</p>
                     <p>• <strong>定时唤醒</strong>: BIOS 设置定时开机 / RTC 唤醒</p>
                     <p>• <strong>手动唤醒</strong>: 按电源键或键盘鼠标</p>
@@ -987,19 +987,19 @@ function toggleAutoRefresh() {
                 </div>
                 <div>
                   <h2 class="text-base font-semibold text-white">远程唤醒</h2>
-                  <p class="text-xs text-gray-500">Wake-on-LAN 魔术包发送与配置</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">Wake-on-LAN 魔术包发送与配置</p>
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+              <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5">
                 <!-- 本机网络接口 -->
                 <div class="mb-5">
                   <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-medium text-gray-400">本机网络接口</span>
+                    <span class="text-xs font-medium text-[var(--color-ide-text-dim)]">本机网络接口</span>
                     <button
                       @click="handleRedetectWOL"
                       :disabled="wolLoading"
-                      class="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      class="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[var(--color-ide-text-dim)] hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                     >
                       <RefreshCw :class="['w-3 h-3', wolLoading && 'animate-spin']" />
                       重新检测
@@ -1012,56 +1012,56 @@ function toggleAutoRefresh() {
                       :key="iface.mac"
                       :class="[
                         'rounded-lg border p-2.5 flex items-center gap-3 text-xs',
-                        iface.mac === wolInfo.target_mac ? 'border-emerald-500/20 bg-emerald-500/[0.05]' : 'border-white/5 bg-white/[0.01]',
+                        iface.mac === wolInfo.target_mac ? 'border-emerald-500/20 bg-emerald-500/[0.05]' : 'border-[var(--color-ide-border)] bg-[var(--color-ide-surface)]',
                       ]"
                     >
-                      <Radio :class="['w-3.5 h-3.5 shrink-0', iface.mac === wolInfo.target_mac ? 'text-emerald-400' : 'text-gray-600']" />
+                      <Radio :class="['w-3.5 h-3.5 shrink-0', iface.mac === wolInfo.target_mac ? 'text-emerald-400' : 'text-[var(--color-ide-text-dim)]']" />
                       <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
-                          <span class="text-gray-300 font-medium truncate">{{ iface.interface_name }}</span>
+                          <span class="text-[var(--color-ide-text)] font-medium truncate">{{ iface.interface_name }}</span>
                           <span v-if="iface.mac === wolInfo.target_mac" class="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">唤醒目标</span>
                         </div>
                         <div class="flex items-center gap-3 mt-0.5">
-                          <span class="text-gray-500 font-mono text-[11px]">{{ iface.mac }}</span>
-                          <span v-if="iface.ip" class="text-gray-600">{{ iface.ip }}</span>
-                          <span v-if="iface.broadcast" class="text-gray-600">brd {{ iface.broadcast }}</span>
+                          <span class="text-[var(--color-ide-text-dim)] font-mono text-[11px]">{{ iface.mac }}</span>
+                          <span v-if="iface.ip" class="text-[var(--color-ide-text-dim)]">{{ iface.ip }}</span>
+                          <span v-if="iface.broadcast" class="text-[var(--color-ide-text-dim)]">brd {{ iface.broadcast }}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div v-else class="p-3 rounded-lg border border-white/5 bg-white/[0.01] text-xs text-gray-500 text-center">
+                  <div v-else class="p-3 rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] text-xs text-[var(--color-ide-text-dim)] text-center">
                     未检测到网络接口 — 请确保网卡已启用
                   </div>
                 </div>
 
                 <!-- WOL 发送表单 -->
-                <div class="mb-5 p-4 rounded-xl border border-white/8 bg-white/[0.02]">
-                  <p class="text-xs font-medium text-gray-400 mb-3">发送魔术包唤醒设备</p>
+                <div class="mb-5 p-4 rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)]">
+                  <p class="text-xs font-medium text-[var(--color-ide-text-dim)] mb-3">发送魔术包唤醒设备</p>
                   <div class="grid grid-cols-3 gap-2 mb-3">
                     <div>
-                      <label class="text-[10px] text-gray-500 mb-0.5 block">目标 MAC</label>
+                      <label class="text-[10px] text-[var(--color-ide-text-dim)] mb-0.5 block">目标 MAC</label>
                       <input
                         v-model="wolSendForm.mac_address"
                         :placeholder="wolInfo?.target_mac || 'AA:BB:CC:DD:EE:FF'"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-2.5 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
                       />
                     </div>
                     <div>
-                      <label class="text-[10px] text-gray-500 mb-0.5 block">广播地址</label>
+                      <label class="text-[10px] text-[var(--color-ide-text-dim)] mb-0.5 block">广播地址</label>
                       <input
                         v-model="wolSendForm.broadcast"
                         :placeholder="wolInfo?.broadcast_address || '255.255.255.255'"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-2.5 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
                       />
                     </div>
                     <div>
-                      <label class="text-[10px] text-gray-500 mb-0.5 block">端口</label>
+                      <label class="text-[10px] text-[var(--color-ide-text-dim)] mb-0.5 block">端口</label>
                       <input
                         v-model.number="wolSendForm.port"
                         type="number"
                         min="1"
                         max="65535"
-                        class="w-full rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
+                        class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] px-2.5 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-emerald-500/40 transition-all font-mono"
                       />
                     </div>
                   </div>
@@ -1074,7 +1074,7 @@ function toggleAutoRefresh() {
                     <Send v-else class="w-4 h-4" />
                     {{ wolLoading ? '发送中…' : '发送魔术包' }}
                   </button>
-                  <p v-if="wolInfo?.last_sent_at" class="mt-2 text-[10px] text-gray-500">
+                  <p v-if="wolInfo?.last_sent_at" class="mt-2 text-[10px] text-[var(--color-ide-text-dim)]">
                     上次发送：{{ new Date(wolInfo.last_sent_at * 1000).toLocaleString() }}
                     <span :class="wolInfo.last_sent_success ? 'text-green-500' : 'text-red-400'">
                       {{ wolInfo.last_sent_success ? '✓ 成功' : '✗ 失败' }}
@@ -1084,16 +1084,16 @@ function toggleAutoRefresh() {
 
                 <!-- 远程唤醒命令 -->
                 <div class="mb-3">
-                  <p class="text-xs font-medium text-gray-400 mb-2">📋 在另一台电脑上执行唤醒</p>
+                  <p class="text-xs font-medium text-[var(--color-ide-text-dim)] mb-2">📋 在另一台电脑上执行唤醒</p>
 
                   <!-- Python 脚本方式 -->
                   <div class="flex items-center gap-2 mb-2">
-                    <div class="flex-1 rounded-lg border border-white/8 bg-black/20 px-3 py-2 text-xs text-gray-400 font-mono overflow-x-auto whitespace-nowrap">
+                    <div class="flex-1 rounded-lg border border-[var(--color-ide-border)] bg-black/20 px-3 py-2 text-xs text-[var(--color-ide-text-dim)] font-mono overflow-x-auto whitespace-nowrap">
                       <Terminal class="w-3 h-3 inline mr-1 text-emerald-400/60" />{{ wolCommandPython }}
                     </div>
                     <button
                       @click="copyWOLCommand(wolCommandPython)"
-                      class="p-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-colors shrink-0"
+                      class="p-2 rounded-lg bg-[var(--color-ide-surface-hover)] hover:bg-[var(--color-ide-surface-active)] text-[var(--color-ide-text-dim)] hover:text-white transition-colors shrink-0"
                       title="复制"
                     >
                       <Copy class="w-3.5 h-3.5" />
@@ -1102,12 +1102,12 @@ function toggleAutoRefresh() {
 
                   <!-- Curl 方式 -->
                   <div class="flex items-center gap-2">
-                    <div class="flex-1 rounded-lg border border-white/8 bg-black/20 px-3 py-2 text-xs text-gray-400 font-mono overflow-x-auto whitespace-nowrap">
+                    <div class="flex-1 rounded-lg border border-[var(--color-ide-border)] bg-black/20 px-3 py-2 text-xs text-[var(--color-ide-text-dim)] font-mono overflow-x-auto whitespace-nowrap">
                       <Terminal class="w-3 h-3 inline mr-1 text-emerald-400/60" />{{ wolCommandCurl }}
                     </div>
                     <button
                       @click="copyWOLCommand(wolCommandCurl)"
-                      class="p-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-colors shrink-0"
+                      class="p-2 rounded-lg bg-[var(--color-ide-surface-hover)] hover:bg-[var(--color-ide-surface-active)] text-[var(--color-ide-text-dim)] hover:text-white transition-colors shrink-0"
                       title="复制"
                     >
                       <Copy class="w-3.5 h-3.5" />
@@ -1118,10 +1118,10 @@ function toggleAutoRefresh() {
                 <!-- WOL 设置说明 -->
                 <div class="p-3 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03]">
                   <p class="text-[10px] text-emerald-400/70 font-medium mb-1.5">🔧 确保能被远程唤醒</p>
-                  <div class="text-[10px] text-gray-500 space-y-1">
+                  <div class="text-[10px] text-[var(--color-ide-text-dim)] space-y-1">
                     <p>• <strong>BIOS</strong>: 启用 Wake-on-LAN / PCIe 唤醒（关闭 ErP/EuP 节能）</p>
                     <p>• <strong>Windows</strong>: 设备管理器 → 网卡属性 → 电源管理 → ✓「允许此设备唤醒」+ ✓「仅魔术包」</p>
-                    <p>• <strong>Linux</strong>: <code class="text-gray-500">ethtool -s eth0 wol g</code>（启用 WOL）</p>
+                    <p>• <strong>Linux</strong>: <code class="text-[var(--color-ide-text-dim)]">ethtool -s eth0 wol g</code>（启用 WOL）</p>
                     <p>• <strong>网络</strong>: 唤醒设备和被唤醒设备必须在同一子网</p>
                     <p>• <strong>MAC 地址</strong>: 必须选择有线网卡（无线 WOL 不稳定）</p>
                   </div>
@@ -1137,14 +1137,14 @@ function toggleAutoRefresh() {
                 </div>
                 <div>
                   <h2 class="text-base font-semibold text-white">守护进程</h2>
-                  <p class="text-xs text-gray-500">崩溃恢复状态</p>
+                  <p class="text-xs text-[var(--color-ide-text-dim)]">崩溃恢复状态</p>
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+              <div class="rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-5">
                 <div class="flex items-center justify-between mb-4">
-                  <span class="text-sm text-gray-400">健康状态</span>
-                  <span :class="['flex items-center gap-2 text-sm font-semibold', watchdogState === 'running' ? 'text-green-400' : 'text-gray-400']">
+                  <span class="text-sm text-[var(--color-ide-text-dim)]">健康状态</span>
+                  <span :class="['flex items-center gap-2 text-sm font-semibold', watchdogState === 'running' ? 'text-green-400' : 'text-[var(--color-ide-text-dim)]']">
                     <span class="w-2 h-2 rounded-full" :class="watchdogState === 'running' ? 'bg-green-400 animate-pulse' : 'bg-gray-500'" />
                     {{ watchdogState === 'running' ? '守护中' : watchdogState }}
                   </span>
@@ -1152,15 +1152,15 @@ function toggleAutoRefresh() {
 
                 <div v-if="status?.subsystems?.watchdog" class="space-y-2 text-xs">
                   <div class="flex justify-between">
-                    <span class="text-gray-500">守护进程 PID</span>
-                    <span class="text-gray-300 font-mono">{{ status.subsystems.watchdog.health_pid ?? '—' }}</span>
+                    <span class="text-[var(--color-ide-text-dim)]">守护进程 PID</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ status.subsystems.watchdog.health_pid ?? '—' }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-500">累计重启</span>
-                    <span class="text-gray-300 font-mono">{{ status.subsystems.watchdog.restarts ?? 0 }} 次</span>
+                    <span class="text-[var(--color-ide-text-dim)]">累计重启</span>
+                    <span class="text-[var(--color-ide-text)] font-mono">{{ status.subsystems.watchdog.restarts ?? 0 }} 次</span>
                   </div>
                 </div>
-                <div v-else class="text-xs text-gray-600">
+                <div v-else class="text-xs text-[var(--color-ide-text-dim)]">
                   守护进程由外部启动脚本管理，此处显示运行状态。
                 </div>
               </div>
@@ -1168,15 +1168,15 @@ function toggleAutoRefresh() {
 
             <!-- ===== 快速操作 ===== -->
             <section>
-              <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">快速命令</h3>
+              <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-3">快速命令</h3>
               <div class="space-y-2">
-                <div class="rounded-xl border border-white/6 bg-white/[0.01] p-3">
-                  <p class="text-[11px] font-medium text-gray-400 mb-1.5">查看健康状态</p>
-                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl http://localhost:18000/api/v1/utils/health-check/</code>
+                <div class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] p-3">
+                  <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1.5">查看健康状态</p>
+                  <code class="text-xs text-[var(--color-ide-text-dim)] bg-black/20 rounded px-2 py-1 block break-all">curl http://localhost:18000/api/v1/utils/health-check/</code>
                 </div>
-                <div class="rounded-xl border border-white/6 bg-white/[0.01] p-3">
-                  <p class="text-[11px] font-medium text-gray-400 mb-1.5">使用 API Key 调用 Agent</p>
-                  <code class="text-xs text-gray-500 bg-black/20 rounded px-2 py-1 block break-all">curl -H "Authorization: Bearer &lt;key&gt;" http://localhost:18000/api/v1/agent/chat/simple -d '{"message":"hello"}'</code>
+                <div class="rounded-xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface)] p-3">
+                  <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] mb-1.5">使用 API Key 调用 Agent</p>
+                  <code class="text-xs text-[var(--color-ide-text-dim)] bg-black/20 rounded px-2 py-1 block break-all">curl -H "Authorization: Bearer &lt;key&gt;" http://localhost:18000/api/v1/agent/chat/simple -d '{"message":"hello"}'</code>
                 </div>
               </div>
             </section>

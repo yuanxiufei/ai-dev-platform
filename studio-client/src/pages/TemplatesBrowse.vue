@@ -33,8 +33,14 @@ function filter() {
   )
 }
 
-function handleUse(_template: Template) {
-  router.push("/projects")
+function handleUse(tpl: Template) {
+  router.push({
+    path: "/projects/new",
+    query: {
+      template_id: tpl.id,
+      template_name: tpl.name,
+    },
+  })
 }
 </script>
 
@@ -43,20 +49,20 @@ function handleUse(_template: Template) {
     <div class="max-w-5xl mx-auto">
       <header class="mb-8">
         <h1 class="text-3xl font-bold text-white">模板市场</h1>
-        <p class="text-gray-400 mt-2">浏览并使用社区模板快速启动你的项目</p>
+        <p class="text-[var(--color-ide-text-dim)] mt-2">浏览并使用社区模板快速启动你的项目</p>
         <div class="mt-4 relative max-w-md">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input v-model="searchText" @input="filter" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-sm text-white placeholder-gray-500 outline-none focus:border-brand-500/50" placeholder="搜索模板名称、分类..." />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]" />
+          <input v-model="searchText" @input="filter" class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-sm text-white placeholder-[var(--color-ide-text-dim)] outline-none focus:border-brand-500/50" placeholder="搜索模板名称、分类..." />
         </div>
       </header>
 
-      <div v-if="loading" class="py-20 text-center text-gray-500">
+      <div v-if="loading" class="py-20 text-center text-[var(--color-ide-text-dim)]">
         <div class="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto" />
       </div>
 
       <div v-else-if="!filtered.length" class="py-20 text-center">
-        <LayoutGrid class="w-12 h-12 mx-auto mb-3 text-gray-600" />
-        <p class="text-gray-400">{{ searchText ? '无匹配模板' : '暂无可用模板' }}</p>
+        <LayoutGrid class="w-12 h-12 mx-auto mb-3 text-[var(--color-ide-text-dim)]" />
+        <p class="text-[var(--color-ide-text-dim)]">{{ searchText ? '无匹配模板' : '暂无可用模板' }}</p>
       </div>
 
       <div v-else class="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -71,15 +77,15 @@ function handleUse(_template: Template) {
             <div class="flex items-start justify-between">
               <div>
                 <h3 class="font-semibold text-gray-100">{{ tpl.name }}</h3>
-                <span class="text-xs text-gray-500 mt-0.5 block">{{ tpl.category }}</span>
+                <span class="text-xs text-[var(--color-ide-text-dim)] mt-0.5 block">{{ tpl.category }}</span>
               </div>
               <button class="flex items-center gap-1.5 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 px-3 py-1.5 text-xs font-medium transition-colors" @click="handleUse(tpl)">
                 <Play class="w-3 h-3" /> 使用
               </button>
             </div>
-            <p class="text-sm text-gray-500 line-clamp-2">{{ tpl.description }}</p>
+            <p class="text-sm text-[var(--color-ide-text-dim)] line-clamp-2">{{ tpl.description }}</p>
             <div class="flex items-center gap-2 pt-1">
-              <button class="text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors">
+              <button class="text-xs text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] flex items-center gap-1 transition-colors">
                 <ExternalLink class="w-3 h-3" /> 预览
               </button>
             </div>

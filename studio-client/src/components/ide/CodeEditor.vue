@@ -2,15 +2,11 @@
 /**
  * CodeBuddy IDE — Code Editor (Monaco Editor Wrapper)
  *
- * 借鉴: Monaco Editor 08-MonacoEditor.md
+ * 借鉴: Monaco Editor + VSCode editorPart
  *
- * Session 10 新增:
- *   - 全局主题同步 (useThemeStore → Monaco theme)
- *   - 动态编辑器选项更新 (updateEditorOptions)
- *   - 增强编辑器特性 (sticky scroll, bracket colorization, semantic tokens)
- *
- * Session 16 新增:
- *   - FIM 代码补全 (Tabby 风格内联幽灵文本 + 防抖触发 + Tab/Esc 交互)
+ * Session 10: 全局主题同步、动态编辑器选项、增强编辑器特性
+ * Session 16: FIM 代码补全 (Tabby 风格)
+ * Session 23: Find/Replace Widget + Breadcrumbs + Go To Line + 右键上下文菜单
  */
 
 import type * as monacoNs from "monaco-editor"
@@ -25,6 +21,8 @@ import {
 import type { EditorTab } from "@/types/ide"
 import { useThemeStore } from "@/stores/useThemeStore"
 import { useFIMCompletion } from "@/composables/useFIMCompletion"
+import { computeLineDiff, diffLinesToDecorations } from "@/composables/useQuickDiff"
+import ContextMenu, { type ContextMenuItem } from "./ui/ContextMenu.vue"
 import "monaco-editor/dev/vs/editor/editor.main.css"
 
 const props = defineProps<{ activeTab: EditorTab }>()
@@ -45,6 +43,48 @@ const themeStore = useThemeStore()
 let aiDecorationIds: string[] = []
 let aiSuggestionIds: string[] = []
 
+// ── Session 26: QuickDiff 装饰状态（gutter 修改标记） ──
+let quickDiffIds: string[] = []
+let quickDiffWatcher: ReturnType<typeof setTimeout> | null = null
+
+/** 应用 QuickDiff gutter 装饰（比较原始内容 vs 当前内容） */
+function applyQuickDiff(): void {
+  const editor = editorInstance.value
+  if (!editor || !monacoRaw) return
+  const monaco = monacoRaw
+
+  const currentContent = editor.getValue()
+  const originalContent = props.activeTab.originalContent
+  if (!originalContent || originalContent === currentContent) {
+    // 无变更，清除装饰
+    if (quickDiffIds.length > 0) {
+      editor.deltaDecorations(quickDiffIds, [])
+      quickDiffIds = []
+    }
+    return
+  }
+
+  const diffLines = computeLineDiff(originalContent, currentContent)
+  if (diffLines.length === 0) {
+    if (quickDiffIds.length > 0) {
+      editor.deltaDecorations(quickDiffIds, [])
+      quickDiffIds = []
+    }
+    return
+  }
+
+  const decoConfigs = diffLinesToDecorations(diffLines)
+  const models = decoConfigs.map(d => ({
+    range: new monaco.Range(
+      d.range.startLineNumber, d.range.startColumn,
+      d.range.endLineNumber, d.range.endColumn,
+    ),
+    options: d.options,
+  }))
+
+  quickDiffIds = editor.deltaDecorations(quickDiffIds, models)
+}
+
 // ── FIM 代码补全 ──
 const fim = useFIMCompletion(editorInstance, monacoInstance, {
   filePath: props.activeTab.filePath || "",
@@ -53,6 +93,99 @@ const fim = useFIMCompletion(editorInstance, monacoInstance, {
   debounceMs: 300,
 })
 let fimKeydownDisposable: monacoNs.IDisposable | null = null
+
+// ── VSCode 右键上下文菜单 ──
+const contextMenuVisible = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuItems = ref<ContextMenuItem[]>([])
+
+/** 构建编辑器右键菜单项（根据当前选区/语言动态生成） */
+function buildEditorContextMenu(editor: monacoNs.editor.IStandaloneCodeEditor): ContextMenuItem[] {
+  const hasSelection = !editor.getSelection()?.isEmpty()
+  return [
+    { id: "cut", label: "剪切", shortcut: "Ctrl+X", disabled: !hasSelection, action: () => editor.getAction("editor.action.clipboardCutAction")?.run() },
+    { id: "copy", label: "复制", shortcut: "Ctrl+C", disabled: !hasSelection, action: () => editor.getAction("editor.action.clipboardCopyAction")?.run() },
+    { id: "paste", label: "粘贴", shortcut: "Ctrl+V", action: () => editor.getAction("editor.action.clipboardPasteAction")?.run() },
+    { id: "sep1", label: "", separator: true },
+    { id: "find", label: "查找", shortcut: "Ctrl+F", action: () => editor.getAction("actions.find")?.run() },
+    { id: "replace", label: "替换", shortcut: "Ctrl+H", action: () => editor.getAction("editor.action.startFindReplaceAction")?.run() },
+    { id: "goto-line", label: "转到行...", shortcut: "Ctrl+G", action: () => editor.getAction("editor.action.gotoLine")?.run() },
+    { id: "goto-symbol", label: "转到符号...", shortcut: "Ctrl+Shift+O", action: () => editor.getAction("editor.action.gotoSymbol")?.run() },
+    { id: "sep2", label: "", separator: true },
+    { id: "select-all", label: "全选", shortcut: "Ctrl+A", action: () => editor.getAction("editor.action.selectAll")?.run() },
+    { id: "format", label: "格式化文档", shortcut: "Shift+Alt+F", action: () => editor.getAction("editor.action.formatDocument")?.run() },
+    { id: "format-sel", label: "格式化选定内容", shortcut: "Ctrl+K Ctrl+F", disabled: !hasSelection, action: () => editor.getAction("editor.action.formatSelection")?.run() },
+    { id: "toggle-comment", label: "切换注释", shortcut: "Ctrl+/", action: () => editor.getAction("editor.action.commentLine")?.run() },
+    { id: "sep3", label: "", separator: true },
+    { id: "go-def", label: "转到定义", shortcut: "F12", action: () => editor.getAction("editor.action.revealDefinition")?.run() },
+    { id: "go-refs", label: "查找所有引用", shortcut: "Shift+F12", action: () => {
+      // 尝试查找引用并显示在 Peek View 中
+      const pos = editor.getPosition()
+      if (pos) {
+        const word = editor.getModel()?.getWordAtPosition(pos)
+        const filePath = props.activeTab.filePath || ""
+        if (word && filePath) {
+          const items = [{
+            file: filePath, label: word.word,
+            startLine: pos.lineNumber, startColumn: word.startColumn,
+            endLine: pos.lineNumber, endColumn: word.endColumn,
+            content: editor.getValue(), language: props.activeTab.language,
+          }]
+          // 尝试全局 Peek View
+          const openPeek = (window as any).__openPeek
+          if (typeof openPeek === "function") {
+            openPeek(items, 0)
+            return
+          }
+        }
+      }
+      editor.getAction("editor.action.referenceSearch.trigger")?.run()
+    }},
+    { id: "peek-def", label: "速览定义", shortcut: "Alt+F12", action: () => {
+      // 优先 Monaco 内置 peek，无 language server 时用自定义 PeekView
+      editor.getAction("editor.action.peekDefinition")?.run()
+      // 延迟检测是否成功弹出
+      setTimeout(() => {
+        const peekWidget = document.querySelector(".monaco-editor .peekview-widget")
+        if (!peekWidget) {
+          // 用自定义 PeekView 做回退
+          const pos = editor.getPosition()
+          if (pos) {
+            const word = editor.getModel()?.getWordAtPosition(pos)
+            const filePath = props.activeTab.filePath || ""
+            if (word && filePath) {
+              const openPeek = (window as any).__openPeek
+              if (typeof openPeek === "function") {
+                openPeek([{
+                  file: filePath, label: `${word.word} (定义)`,
+                  startLine: editor.getModel()?.findMatches(word.word, false, false, false, null, true)?.[0]
+                    ?.range?.startLineNumber ?? pos.lineNumber,
+                  content: editor.getValue(), language: props.activeTab.language,
+                }], 0)
+              }
+            }
+          }
+        }
+      }, 200)
+    }},
+    { id: "rename", label: "重命名符号", shortcut: "F2", action: () => editor.getAction("editor.action.rename")?.run() },
+    { id: "sep4", label: "", separator: true },
+    { id: "fold-all", label: "折叠所有", shortcut: "Ctrl+K Ctrl+0", action: () => editor.getAction("editor.foldAll")?.run() },
+    { id: "unfold-all", label: "展开所有", shortcut: "Ctrl+K Ctrl+J", action: () => editor.getAction("editor.unfoldAll")?.run() },
+    { id: "sep5", label: "", separator: true },
+    { id: "word-wrap", label: "切换自动换行", shortcut: "Alt+Z", action: () => editor.updateOptions({ wordWrap: editor.getOption(monacoRaw!.editor.EditorOption.wordWrap) === "off" ? "on" : "off" }) },
+    { id: "toggle-minimap", label: "切换小地图", action: () => editor.updateOptions({ minimap: { enabled: !editor.getOption(monacoRaw!.editor.EditorOption.minimap).enabled } }) },
+    { id: "toggle-whitespace", label: "显示空白字符", shortcut: "Ctrl+R Ctrl+W", action: () => {
+      const current = editor.getOption(monacoRaw!.editor.EditorOption.renderWhitespace)
+      editor.updateOptions({ renderWhitespace: current === "selection" ? "all" : current === "all" ? "none" : "selection" })
+    }},
+    { id: "toggle-highlight-line", label: "切换行高亮", action: () => {
+      const current = editor.getOption(monacoRaw!.editor.EditorOption.renderLineHighlight)
+      editor.updateOptions({ renderLineHighlight: current === "all" ? "none" : current === "none" ? "line" : "all" })
+    }},
+  ]
+}
 
 /** AI 装饰选项 */
 export interface AIDecoration {
@@ -103,6 +236,7 @@ async function initMonaco(): Promise<void> {
         "editor.background": "#0F131D",
         "editor.foreground": "#DFE2F1",
         "editor.lineHighlightBackground": "#1C1F2A20",
+        "editor.lineHighlightBorder": "#2A2D3A10",
         "editorLineNumber.foreground": "#4B5563",
         "editorLineNumber.activeForeground": "#C0C1FF",
         "editor.selectionBackground": "#C0C1FF30",
@@ -110,6 +244,7 @@ async function initMonaco(): Promise<void> {
         "editorCursor.foreground": "#C0C1FF",
         "editorIndentGuide.background": "#46455440",
         "editorIndentGuide.activeBackground": "#46455480",
+        "editorRuler.foreground": "#2A2D3A80",
         "scrollbarSlider.background": "#46455450",
         "scrollbarSlider.hoverBackground": "#5a596b60",
         "scrollbarSlider.activeBackground": "#70708870",
@@ -137,12 +272,22 @@ async function initMonaco(): Promise<void> {
       smoothScrolling: true,
       cursorBlinking: "smooth",
       cursorSmoothCaretAnimation: "on",
-      renderLineHighlight: "gutter",
-      guides: { indentation: true, bracketPairs: true, bracketPairsHorizontal: true },
+      /** Session 25: VSCode 整行高亮 + 缩进参考线增强 */
+      renderLineHighlight: "all",
+      guides: { indentation: true, bracketPairs: true, bracketPairsHorizontal: true, highlightActiveIndentation: true },
+      /** Session 25: 垂直标尺线 (80 char 灰线, 120 char 红线) */
+      rulers: [80, 120],
+      /** Session 25: 选择时显示空白字符 */
+      renderWhitespace: "selection",
+      /** Session 25: 3 条 overview ruler */
+      overviewRulerLanes: 3,
+      /** Session 25: 鼠标悬停时显示折叠控件 */
+      showFoldingControls: "mouseover",
       wordWrap: "on",
       folding: true,
       foldingStrategy: "indentation",
       lineNumbers: "on",
+      lineNumbersMinChars: 4,
       links: true,
       glyphMargin: true,
       // Session 10: enhanced editor features
@@ -151,6 +296,14 @@ async function initMonaco(): Promise<void> {
       matchBrackets: "always",
       colorDecorators: true,
       parameterHints: { enabled: true },
+      /** Session 23: VSCode 编辑器内查找/替换 */
+      find: {
+        addExtraSpaceOnTop: false,
+        autoFindInSelection: "never",
+        seedSearchStringFromSelection: "always",
+      },
+      /** Session 23: VSCode 风格面包屑导航 */
+      breadcrumbs: { enabled: true },
       suggest: {
         showWords: true,
         showSnippets: true,
@@ -162,11 +315,25 @@ async function initMonaco(): Promise<void> {
       tabCompletion: "on",
       autoClosingBrackets: "always",
       autoClosingQuotes: "always",
+      /** Session 23: 禁用 Monaco 内置右键菜单，使用自定义 VSCode 风格菜单 */
+      contextmenu: false,
     })
     editorInstance.value = editor
-    editor.onDidChangeModelContent(() =>
-      emit("update-content", editor.getValue()),
-    )
+
+    /** Session 23: 自定义右键上下文菜单（VSCode 风格） */
+    editor.onContextMenu((e) => {
+      e.event.preventDefault()
+      contextMenuItems.value = buildEditorContextMenu(editor)
+      contextMenuX.value = e.event.posx
+      contextMenuY.value = e.event.posy
+      contextMenuVisible.value = true
+    })
+    editor.onDidChangeModelContent(() => {
+      emit("update-content", editor.getValue())
+      /** Session 26: 延迟应用 QuickDiff (防抖 300ms) */
+      if (quickDiffWatcher) clearTimeout(quickDiffWatcher)
+      quickDiffWatcher = setTimeout(() => applyQuickDiff(), 300)
+    })
     editor.onCursorPositionChanged(() => {
       const pos = editor.getPosition(),
         model = editor.getModel()
@@ -192,6 +359,9 @@ async function initMonaco(): Promise<void> {
     })
 
     editor.focus()
+
+    /** Session 26: 初始 QuickDiff */
+    setTimeout(() => applyQuickDiff(), 500)
   } catch (err) {
     console.warn("[CodeBuddy] Monaco init error:", err)
   }
@@ -380,12 +550,27 @@ watch(
 
 onBeforeUnmount(() => {
   clearAIDecorations()
+  if (quickDiffWatcher) clearTimeout(quickDiffWatcher)
+  if (quickDiffIds.length > 0 && editorInstance.value) {
+    editorInstance.value.deltaDecorations(quickDiffIds, [])
+    quickDiffIds = []
+  }
   editorInstance.value?.dispose()
   editorInstance.value = null
 })
 </script>
 
-<template><div ref="containerRef" class="absolute inset-0 w-full h-full" /></template>
+<template>
+  <div ref="containerRef" class="absolute inset-0 w-full h-full" />
+  <!-- Session 23: VSCode 风格编辑器右键上下文菜单 -->
+  <ContextMenu
+    :items="contextMenuItems"
+    :x="contextMenuX"
+    :y="contextMenuY"
+    :visible="contextMenuVisible"
+    @close="contextMenuVisible = false"
+  />
+</template>
 
 <style>
 /* 🆕 FIM 幽灵文本样式（借鉴 Tabby inline completion + Cursor ghost text）
@@ -396,4 +581,31 @@ onBeforeUnmount(() => {
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* Session 26: QuickDiff gutter / line 样式 */
+/* Gutter 标记: 修改(黄色条) */
+.qd-glyph-modified {
+  background: #d29922 !important;
+  width: 3px !important;
+  margin-left: 3px;
+  border-radius: 1px;
+}
+/* Gutter 标记: 新增(绿色条) */
+.qd-glyph-added {
+  background: #2ea043 !important;
+  width: 3px !important;
+  margin-left: 3px;
+  border-radius: 1px;
+}
+/* Gutter 标记: 删除(红色三角) — 简化版显示为色条 */
+.qd-glyph-deleted {
+  background: #f85149 !important;
+  width: 3px !important;
+  margin-left: 3px;
+  border-radius: 1px;
+}
+/* 行背景标记 */
+.qd-modified-line { background: rgba(210, 153, 34, 0.08) !important; border-left: 2px solid rgba(210, 153, 34, 0.4) !important; }
+.qd-added-line { background: rgba(46, 160, 67, 0.08) !important; border-left: 2px solid rgba(46, 160, 67, 0.4) !important; }
+.qd-deleted-line { background: rgba(248, 81, 73, 0.08) !important; border-left: 2px solid rgba(248, 81, 73, 0.4) !important; text-decoration: line-through; opacity: 0.5; }
 </style>

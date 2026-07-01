@@ -6,9 +6,11 @@
  *   - 3/4-bit, 256-color, true color
  *   - Bold, dim, italic, underline
  *   - Color-coded by type for non-ANSI lines
+ *   - 14 terminal themes
  */
 import { ref, computed, nextTick, onMounted } from "vue"
 import { useIDEStore } from "@/stores/useIDEStore"
+import { ChevronDown, Palette } from "lucide-vue-next"
 import {
   parseAnsi,
   hasAnsi,
@@ -17,13 +19,78 @@ import {
 } from "@/utils/ansi"
 import type { TerminalLine } from "@/types/ide"
 
+interface TerminalTheme {
+  id: string
+  name: string
+  bg: string
+  fg: string
+  accent: string
+  green: string
+  red: string
+  yellow: string
+  blue: string
+  cyan: string
+  magenta: string
+  white: string
+  brightBlack: string
+  cursor: string
+  selection: string
+}
+
+const TERMINAL_THEMES: TerminalTheme[] = [
+  { id: "default", name: "Default Dark", bg: "#1a1a2e", fg: "#cdd6f4", accent: "#89b4fa", green: "#50fa7b", red: "#f38ba8", yellow: "#f9e2af", blue: "#89b4fa", cyan: "#89dceb", magenta: "#cba6f7", white: "#cdd6f4", brightBlack: "#45475a", cursor: "#f5f5f5", selection: "#45475a99" },
+  { id: "solarized-dark", name: "Solarized Dark", bg: "#002b36", fg: "#839496", accent: "#268bd2", green: "#859900", red: "#dc322f", yellow: "#b58900", blue: "#268bd2", cyan: "#2aa198", magenta: "#d33682", white: "#eee8d5", brightBlack: "#586e75", cursor: "#839496", selection: "#073642" },
+  { id: "solarized-light", name: "Solarized Light", bg: "#fdf6e3", fg: "#657b83", accent: "#268bd2", green: "#859900", red: "#dc322f", yellow: "#b58900", blue: "#268bd2", cyan: "#2aa198", magenta: "#d33682", white: "#073642", brightBlack: "#839496", cursor: "#657b83", selection: "#eee8d5" },
+  { id: "tokyo-night", name: "Tokyo Night", bg: "#1a1b26", fg: "#a9b1d6", accent: "#7aa2f7", green: "#9ece6a", red: "#f7768e", yellow: "#e0af68", blue: "#7aa2f7", cyan: "#7dcfff", magenta: "#bb9af7", white: "#c0caf5", brightBlack: "#414868", cursor: "#c0caf5", selection: "#364A82" },
+  { id: "dracula", name: "Dracula", bg: "#282a36", fg: "#f8f8f2", accent: "#bd93f9", green: "#50fa7b", red: "#ff5555", yellow: "#f1fa8c", blue: "#6272a4", cyan: "#8be9fd", magenta: "#ff79c6", white: "#f8f8f2", brightBlack: "#44475a", cursor: "#f8f8f2", selection: "#44475a" },
+  { id: "monokai", name: "Monokai", bg: "#272822", fg: "#f8f8f2", accent: "#a6e22e", green: "#a6e22e", red: "#f92672", yellow: "#e6db74", blue: "#66d9ef", cyan: "#a1efe4", magenta: "#fd5ff0", white: "#f8f8f2", brightBlack: "#75715e", cursor: "#f8f8f2", selection: "#49483e" },
+  { id: "nord", name: "Nord", bg: "#2e3440", fg: "#d8dee9", accent: "#88c0d0", green: "#a3be8c", red: "#bf616a", yellow: "#ebcb8b", blue: "#81a1c1", cyan: "#88c0d0", magenta: "#b48ead", white: "#e5e9f0", brightBlack: "#4c566a", cursor: "#d8dee9", selection: "#434c5e" },
+  { id: "one-dark-pro", name: "One Dark Pro", bg: "#282c34", fg: "#abb2bf", accent: "#61afef", green: "#98c379", red: "#e06c75", yellow: "#d19a66", blue: "#61afef", cyan: "#56b6c2", magenta: "#c678dd", white: "#abb2bf", brightBlack: "#5c6370", cursor: "#528bff", selection: "#3e4452" },
+  { id: "github-dark", name: "GitHub Dark", bg: "#0d1117", fg: "#c9d1d9", accent: "#58a6ff", green: "#3fb950", red: "#f85149", yellow: "#d2991d", blue: "#58a6ff", cyan: "#39c5cf", magenta: "#bc8cff", white: "#b1bac4", brightBlack: "#484f58", cursor: "#c9d1d9", selection: "#264f78" },
+  { id: "github-light", name: "GitHub Light", bg: "#ffffff", fg: "#24292f", accent: "#0969da", green: "#1a7f37", red: "#cf222e", yellow: "#9a6700", blue: "#0969da", cyan: "#1b7c83", magenta: "#8250df", white: "#6e7781", brightBlack: "#57606a", cursor: "#24292f", selection: "#ddf4ff" },
+  { id: "material", name: "Material", bg: "#263238", fg: "#eeffff", accent: "#82aaff", green: "#c3e88d", red: "#ff5370", yellow: "#ffcb6b", blue: "#82aaff", cyan: "#89ddff", magenta: "#c792ea", white: "#eeffff", brightBlack: "#546e7a", cursor: "#eeffff", selection: "#314549" },
+  { id: "ayu-dark", name: "Ayu Dark", bg: "#0b0e14", fg: "#bfbdb6", accent: "#ff8f40", green: "#aad94c", red: "#f07178", yellow: "#ffb454", blue: "#59c2ff", cyan: "#95e6cb", magenta: "#d2a6ff", white: "#acb6bf", brightBlack: "#475266", cursor: "#f29668", selection: "#1f2430" },
+  { id: "catppuccin", name: "Catppuccin", bg: "#1e1e2e", fg: "#cdd6f4", accent: "#89b4fa", green: "#a6e3a1", red: "#f38ba8", yellow: "#f9e2af", blue: "#89b4fa", cyan: "#94e2d5", magenta: "#cba6f7", white: "#cdd6f4", brightBlack: "#585b70", cursor: "#f5e0dc", selection: "#45475a" },
+  { id: "vscode-dark", name: "VSCode Dark", bg: "#1e1e1e", fg: "#d4d4d4", accent: "#007acc", green: "#6a9955", red: "#f44747", yellow: "#d7ba7d", blue: "#569cd6", cyan: "#4ec9b0", magenta: "#c586c0", white: "#d4d4d4", brightBlack: "#808080", cursor: "#d4d4d4", selection: "#264f78" },
+]
+
 const store = useIDEStore()
 const inputRef = ref<HTMLInputElement | null>(null)
 const scrollRef = ref<HTMLDivElement | null>(null)
 const currentInput = ref("")
+const showThemeMenu = ref(false)
+
+// Load saved theme or use default
+const savedThemeId = localStorage.getItem('terminal_theme') || 'default'
+const activeTheme = ref<TerminalTheme>(TERMINAL_THEMES.find(t => t.id === savedThemeId) || TERMINAL_THEMES[0])
+
 const activeTerminal = computed(() =>
   store.terminalSessions.find((t) => t.id === store.activeTerminalId),
 )
+
+/** Apply theme CSS variables */
+const themeStyle = computed(() => ({
+  '--term-bg': activeTheme.value.bg,
+  '--term-fg': activeTheme.value.fg,
+  '--term-accent': activeTheme.value.accent,
+  '--term-green': activeTheme.value.green,
+  '--term-red': activeTheme.value.red,
+  '--term-yellow': activeTheme.value.yellow,
+  '--term-blue': activeTheme.value.blue,
+  '--term-cyan': activeTheme.value.cyan,
+  '--term-magenta': activeTheme.value.magenta,
+  '--term-white': activeTheme.value.white,
+  '--term-bright-black': activeTheme.value.brightBlack,
+  '--term-cursor': activeTheme.value.cursor,
+  '--term-selection': activeTheme.value.selection,
+} as Record<string, string>))
+
+function selectTheme(theme: TerminalTheme) {
+  activeTheme.value = theme
+  showThemeMenu.value = false
+  localStorage.setItem('terminal_theme', theme.id)
+  nextTick(() => inputRef.value?.focus())
+}
 
 function sb(): void {
   nextTick(() => {
@@ -142,28 +209,21 @@ function execute(): void {
 <template>
   <div
     class="h-full flex flex-col font-mono text-[12px]"
-    style="background:var(--color-terminal-bg)"
+    :style="themeStyle"
+    style="background:var(--term-bg, #1a1a2e); color:var(--term-fg, #cdd6f4);"
   >
-    <!-- Header -->
+    <!-- Session Tabs + Theme Selector (VSCode terminal bar style) -->
     <div
-      class="flex items-center justify-between px-4 h-9 shrink-0"
-      style="
-        background: #262a35;
-        border-bottom: 1px solid var(--color-ide-border);
-      "
+      class="flex items-center shrink-0 border-b border-[var(--color-ide-border)]"
+      style="background:var(--color-ide-bg-secondary); height:28px;"
     >
-      <div class="flex gap-0">
+      <!-- Terminal tabs -->
+      <div class="flex-1 flex items-center h-full min-w-0">
         <button
           v-for="term in store.terminalSessions"
           :key="term.id"
-          class="flex items-center gap-1 px-3 py-1 rounded text-[12px] transition-colors"
-          :class="
-            term.active ? 'text-white' : 'hover:bg-white/5'
-          "
-          style="
-            font-family: 'WenQuanYi Zen Hei', sans-serif;
-            font-weight: 500;
-          "
+          class="flex items-center gap-1 px-3 h-full text-[11px] uppercase tracking-wide relative font-semibold transition-colors shrink-0"
+          :class="term.active ? 'text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'"
           @click="
             store.terminalSessions.forEach(
               (t) => (t.active = t.id === term.id),
@@ -173,61 +233,43 @@ function execute(): void {
           "
         >
           {{ term.title }}
+          <div v-if="term.active" class="absolute bottom-0 left-3 right-3" style="height:1px; background:var(--term-accent, #89b4fa);" />
         </button>
       </div>
-      <div class="flex items-center gap-2">
-        <!-- Clear -->
+
+      <!-- Theme selector (compact inline) -->
+      <div class="relative shrink-0">
         <button
-          class="p-1 rounded hover:bg-white/5 transition-colors"
-          style="color: #908fa0"
-          title="清除"
+          class="flex items-center gap-1 px-2 h-full text-[10px] font-medium transition-colors"
+          style="color:var(--color-ide-text-dim);"
+          :style="{ color: showThemeMenu ? 'var(--term-accent)' : '' }"
+          @click="showThemeMenu = !showThemeMenu"
+          title="终端主题"
         >
-          <svg
-            width="9"
-            height="9"
-            viewBox="0 0 14 14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path d="M11 3L3 11M3 3l8 8" />
-          </svg>
+          <Palette :size="12" /> {{ activeTheme.name }}
+          <ChevronDown :size="8" />
         </button>
-        <!-- Split -->
-        <button
-          class="p-1 rounded hover:bg-white/5 transition-colors"
-          style="color: #908fa0"
-          title="分割"
-        >
-          <svg
-            width="11"
-            height="12"
-            viewBox="0 0 16 18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <rect x="3" y="3" width="10" height="12" rx="1" />
-            <path d="M8 3v12" />
-          </svg>
-        </button>
-        <!-- Close -->
-        <button
-          class="p-1 rounded hover:bg-white/5 transition-colors"
-          style="color: #908fa0"
-          title="关闭终端"
-        >
-          <svg
-            width="9"
-            height="9"
-            viewBox="0 0 14 14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path d="M11 3L3 11M3 3l8 8" />
-          </svg>
-        </button>
+        <Transition name="fade">
+          <div v-if="showThemeMenu"
+            class="absolute right-0 top-full z-50 mt-0.5 py-1 min-w-[160px] max-h-80 overflow-y-auto rounded-md shadow-xl border"
+            style="background:var(--color-ide-surface); border-color:var(--color-ide-border);">
+            <button
+              v-for="theme in TERMINAL_THEMES"
+              :key="theme.id"
+              @click="selectTheme(theme)"
+              class="w-full text-left px-3 py-1.5 text-[11px] flex items-center gap-2 transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+              style="color:var(--color-ide-text);"
+            >
+              <!-- Color preview dot -->
+              <span class="w-3 h-3 rounded-full border shrink-0" style="background:var(--color-ide-border);"
+                :style="{ background: theme.bg, borderColor: theme.fg + '40' }" />
+              <span class="flex-1">{{ theme.name }}</span>
+              <svg v-if="theme.id === activeTheme.id" width="10" height="8" viewBox="0 0 12 9" fill="none">
+                <path d="M1 3l4 4 6-6" stroke="var(--term-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -253,14 +295,14 @@ function execute(): void {
               :style="{
                 color:
                   line.type === 'success'
-                    ? 'var(--color-terminal-green)'
+                    ? 'var(--term-green, #50fa7b)'
                     : line.type === 'error'
-                      ? 'var(--color-terminal-red)'
+                      ? 'var(--term-red, #f38ba8)'
                       : line.type === 'info'
-                        ? 'var(--color-terminal-yellow)'
+                        ? 'var(--term-yellow, #f9e2af)'
                         : line.type === 'input'
-                          ? '#60A5FA'
-                          : 'var(--color-terminal-fg)',
+                          ? 'var(--term-blue, #60A5FA)'
+                          : 'var(--term-fg, #cdd6f4)',
               }"
             >{{ line.text }}</span>
           </template>
@@ -269,15 +311,10 @@ function execute(): void {
 
       <!-- Input Prompt -->
       <div class="flex items-center pt-1">
-        <span class="mr-2 shrink-0" style="color: #c0c1ff">
-          ➜
-        </span>
+        <span class="mr-2 shrink-0 select-none" style="color:var(--term-accent, #89b4fa);">➜</span>
         <span
-          class="shrink-0 mr-2 text-xs"
-          style="
-            font-family: 'JetBrains Mono', monospace;
-            color: #908fa0;
-          "
+          class="shrink-0 mr-2 text-xs select-none"
+          style="font-family:'JetBrains Mono','Cascadia Code',monospace;font-size:11px;color:var(--term-fg, #cdd6f4);opacity:0.6;"
         >
           {{ activeTerminal?.cwd ?? "~/projects/ai-app" }}
         </span>
@@ -285,12 +322,13 @@ function execute(): void {
           ref="inputRef"
           v-model="currentInput"
           type="text"
-          class="flex-1 bg-transparent outline-none text-xs"
-          style="
-            caret-color: #c0c1ff;
-            color: #dfe2f1;
-            font-family: 'JetBrains Mono', monospace;
-          "
+          class="flex-1 bg-transparent outline-none"
+          :style="{
+            caretColor: 'var(--term-accent, #89b4fa)',
+            color: 'var(--term-fg, #cdd6f4)',
+            fontFamily: `'JetBrains Mono','Cascadia Code',monospace`,
+            fontSize: '12px',
+          }"
           spellcheck="false"
           autocomplete="off"
           autofocus

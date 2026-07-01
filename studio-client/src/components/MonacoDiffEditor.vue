@@ -369,24 +369,24 @@ onBeforeUnmount(() => {
     :class="['rounded-xl border overflow-hidden transition-all duration-200', changeBg]"
   >
     <!-- ── 头部 ── -->
-    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/5">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-[var(--color-ide-border)]">
       <div class="flex items-center gap-2.5 min-w-0">
         <button
           v-if="collapsible"
           @click="collapsed = !collapsed"
-          class="p-1 rounded-md hover:bg-white/5 text-gray-500 hover:text-gray-300 shrink-0"
+          class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] shrink-0"
         >
           <ChevronDown v-if="!collapsed" class="w-3.5 h-3.5" />
           <ChevronRight v-else class="w-3.5 h-3.5" />
         </button>
         <component :is="changeIcon" :class="['w-4 h-4 shrink-0', changeColor]" />
-        <span class="text-sm font-mono font-medium text-gray-200 truncate">
+        <span class="text-sm font-mono font-medium text-[var(--color-ide-text)] truncate">
           {{ diff.file_name }}
         </span>
         <span :class="['text-[11px] font-semibold px-1.5 py-0.5 rounded', changeColor, changeBg]">
           {{ changeLabel }}
         </span>
-        <span class="text-[11px] text-gray-500 font-mono ml-1 flex items-center gap-0.5">
+        <span class="text-[11px] text-[var(--color-ide-text-dim)] font-mono ml-1 flex items-center gap-0.5">
           <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%23f05138'/%3E%3Ctext x='12' y='17' text-anchor='middle' fill='white' font-size='12' font-weight='bold'%3EM%3C/text%3E%3C/svg%3E" class="w-3 h-3" alt="" />
           Monaco
         </span>
@@ -402,33 +402,33 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- ── 工具栏 ── -->
-    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-white/5">
+    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-[var(--color-ide-border)]">
       <button
         @click="viewMode = 'unified'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
         title="统一视图"
       >
         <AlignLeft class="w-3.5 h-3.5" />
       </button>
       <button
         @click="viewMode = 'split'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
         title="双栏视图"
       >
         <Columns class="w-3.5 h-3.5" />
       </button>
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <button @click="jumpToPrevHunk" :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         title="上一个变更 (Shift+F3)">
         <ArrowUp class="w-3.5 h-3.5" />
       </button>
-      <span class="text-[10px] text-gray-500 font-mono min-w-[36px] text-center select-none">
+      <span class="text-[10px] text-[var(--color-ide-text-dim)] font-mono min-w-[36px] text-center select-none">
         {{ activeHunk >= 0 ? `${activeHunk + 1}/${totalHunks}` : `${totalHunks}` }}
       </span>
       <button @click="jumpToNextHunk" :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         title="下一个变更 (F3)">
         <ArrowDown class="w-3.5 h-3.5" />
       </button>
@@ -441,11 +441,11 @@ onBeforeUnmount(() => {
             hunkStates[h - 1] === 'accepted' ? 'bg-emerald-500' :
             hunkStates[h - 1] === 'rejected' ? 'bg-red-500' :
             activeHunk === h - 1 ? 'bg-brand-400 scale-110 shadow-sm shadow-brand-500/30'
-            : 'bg-white/[0.06] hover:bg-white/[0.12]']"
+            : 'bg-[var(--color-ide-surface-hover)] hover:bg-[var(--color-ide-surface-active)]']"
           :title="`变更 ${h}`" />
       </div>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <!-- Hunk Accept/Reject 按钮 -->
       <button @click="acceptHunk(activeHunk)" :disabled="activeHunk < 0"
@@ -458,7 +458,7 @@ onBeforeUnmount(() => {
         title="拒绝当前变更 (Alt+R)">
         <X class="w-3.5 h-3.5" />
       </button>
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
       <button @click="acceptAllHunks"
         class="px-2 py-1 text-[10px] rounded text-emerald-500 hover:bg-emerald-500/10 transition-colors font-medium"
         title="接受全部">
@@ -473,11 +473,11 @@ onBeforeUnmount(() => {
       <div class="flex-1" />
 
       <button @click="copyDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors" title="复制 diff">
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors" title="复制 diff">
         <Copy class="w-3.5 h-3.5" />
       </button>
       <button @click="downloadDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors" title="下载 .diff">
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors" title="下载 .diff">
         <Download class="w-3.5 h-3.5" />
       </button>
     </div>
@@ -486,7 +486,7 @@ onBeforeUnmount(() => {
     <div v-if="!collapsed" ref="containerRef" class="w-full" :style="{ minHeight: '320px', maxHeight: '600px' }" />
 
     <!-- ── 折叠时 ── -->
-    <div v-if="collapsed" class="px-4 py-2 text-xs text-gray-500">
+    <div v-if="collapsed" class="px-4 py-2 text-xs text-[var(--color-ide-text-dim)]">
       +{{ diff.lines_added }} -{{ diff.lines_removed }} {{ diff.lines_added + diff.lines_removed }} 行变更
     </div>
   </div>

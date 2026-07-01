@@ -106,20 +106,20 @@ const completedStages = computed(() =>
 </script>
 
 <template>
-  <div class="agent-pipeline rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+  <div class="agent-pipeline rounded-xl border border-[var(--color-ide-border)] bg-white/[0.02] overflow-hidden">
     <!-- 头部统计 -->
     <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05] bg-white/[0.01]">
       <div class="flex items-center gap-2">
         <div class="w-5 h-5 rounded-md bg-brand-500/10 flex items-center justify-center">
           <Bot class="w-3 h-3 text-brand-400" />
         </div>
-        <span class="text-xs font-semibold text-gray-300">Agent 编排管线</span>
+        <span class="text-xs font-semibold text-[var(--color-ide-text)]">Agent 编排管线</span>
         <span v-if="isActive" class="flex items-center gap-1 text-[10px] text-brand-400">
           <Loader2 class="w-3 h-3 animate-spin" />
           运行中
         </span>
       </div>
-      <div class="flex items-center gap-3 text-[10px] text-gray-500">
+      <div class="flex items-center gap-3 text-[10px] text-[var(--color-ide-text-dim)]">
         <span>{{ completedStages }}/{{ stages.length }} 阶段完成</span>
         <span v-if="totalToolCalls > 0">{{ totalToolCalls }} 次工具调用</span>
       </div>
@@ -185,7 +185,7 @@ const completedStages = computed(() =>
             <!-- 摘要 (完成时) -->
             <div
               v-if="stage.status === 'completed' && stage.summary"
-              class="text-[9px] text-gray-500 text-center leading-tight mt-0.5 line-clamp-2"
+              class="text-[9px] text-[var(--color-ide-text-dim)] text-center leading-tight mt-0.5 line-clamp-2"
             >
               {{ stage.summary }}
             </div>
@@ -224,7 +224,7 @@ const completedStages = computed(() =>
     </div>
 
     <!-- 空状态 -->
-    <div v-if="stages.length === 0" class="flex flex-col items-center justify-center py-8 text-gray-600">
+    <div v-if="stages.length === 0" class="flex flex-col items-center justify-center py-8 text-[var(--color-ide-text-dim)]">
       <Bot class="w-8 h-8 mb-2 opacity-20" />
       <p class="text-xs">等待 Agent 编排启动...</p>
     </div>

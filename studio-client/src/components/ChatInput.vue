@@ -216,15 +216,15 @@ defineExpose({ focusInput, insertFileRef, inputText, textareaRef })
       <div
         v-for="f in attachedFiles"
         :key="f.id"
-        class="flex items-center gap-2 rounded-lg bg-white/8 border border-white/10 px-2.5 py-1.5 text-xs text-gray-300 group"
+        class="flex items-center gap-2 rounded-lg bg-white/8 border border-[var(--color-ide-border)] px-2.5 py-1.5 text-xs text-[var(--color-ide-text)] group"
       >
         <ImageIcon v-if="f.type === 'image'" class="w-3.5 h-3.5 text-brand-400" />
-        <Paperclip v-else class="w-3.5 h-3.5 text-gray-400" />
+        <Paperclip v-else class="w-3.5 h-3.5 text-[var(--color-ide-text-dim)]" />
         <span>{{ f.name }}</span>
-        <span class="text-gray-600">·</span>
-        <span class="text-gray-500">{{ f.size }}</span>
+        <span class="text-[var(--color-ide-text-dim)]">·</span>
+        <span class="text-[var(--color-ide-text-dim)]">{{ f.size }}</span>
         <button
-          class="ml-1 p-0.5 rounded hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors"
+          class="ml-1 p-0.5 rounded hover:bg-white/10 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition-colors"
           @click="removeFile(f.id)"
         >
           <X class="w-3 h-3" />
@@ -233,18 +233,18 @@ defineExpose({ focusInput, insertFileRef, inputText, textareaRef })
     </div>
 
     <!-- 主输入区 -->
-    <div class="flex items-end gap-2.5 bg-surface-800 border border-white/10 focus-within:border-brand-500/30 focus-within:shadow-lg focus-within:shadow-brand-500/5 rounded-2xl p-2.5 transition-all duration-300">
+    <div class="flex items-end gap-2.5 bg-surface-800 border border-[var(--color-ide-border)] focus-within:border-brand-500/30 focus-within:shadow-lg focus-within:shadow-brand-500/5 rounded-2xl p-2.5 transition-all duration-300">
       <!-- 附件按钮区 -->
       <div class="flex items-center gap-1 mb-0.5">
         <button
-          class="p-2 rounded-xl text-gray-500 hover:text-gray-300 hover:bg-white/8 transition-colors"
+          class="p-2 rounded-xl text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-white/8 transition-colors"
           title="附加文件"
           @click="simulateAttach"
         >
           <Paperclip class="w-4 h-4" />
         </button>
         <button
-          class="p-2 rounded-xl text-gray-500 hover:text-gray-300 hover:bg-white/8 transition-colors"
+          class="p-2 rounded-xl text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-white/8 transition-colors"
           title="附加图片"
           @click="simulateImage"
         >
@@ -259,7 +259,7 @@ defineExpose({ focusInput, insertFileRef, inputText, textareaRef })
         :disabled="disabled"
         :placeholder="placeholder || '输入消息...（键入 @ 引用文件）'"
         rows="1"
-        class="flex-1 resize-none bg-transparent text-sm text-gray-200 placeholder-gray-500 focus:outline-none py-1.5 max-h-[180px]"
+        class="flex-1 resize-none bg-transparent text-sm text-[var(--color-ide-text)] placeholder-[var(--color-ide-text-dim)] focus:outline-none py-1.5 max-h-[180px]"
         @keydown="handleKeydown"
         @input="handleInput"
       />
@@ -268,7 +268,7 @@ defineExpose({ focusInput, insertFileRef, inputText, textareaRef })
       <button
         v-if="!isStreaming"
         :disabled="!inputText.trim() || disabled"
-        class="shrink-0 p-2 rounded-xl bg-gradient-to-br from-brand-400 to-purple-500 text-white hover:shadow-lg hover:shadow-brand-500/25 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:shadow-none"
+        class="shrink-0 p-2 rounded-[3px] bg-[var(--color-ide-accent)] text-white hover:bg-[var(--color-ide-accent-hover)] transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
         @click="handleSend"
       >
         <ArrowUp class="w-4 h-4" />

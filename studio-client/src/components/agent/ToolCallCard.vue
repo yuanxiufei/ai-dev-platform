@@ -122,7 +122,7 @@ const statusClass = computed(() => {
   if (props.tool.approval_status === "pending") return "border-amber-500/40 bg-amber-500/5"
   if (!props.tool.result) return "border-blue-500/30 bg-blue-500/5 animate-pulse"
   if (props.tool.success) return "border-emerald-500/30 bg-emerald-500/5"
-  return "border-white/10 bg-white/[0.02]"
+  return "border-[var(--color-ide-border)] bg-white/[0.02]"
 })
 
 // ── 文件路径提取 ──
@@ -199,7 +199,7 @@ const copyToolInfo = () => {
       <span class="font-medium text-white/90 truncate">{{ displayName }}</span>
 
       <!-- 参数摘要 (低风险工具显示) -->
-      <span v-if="isLowStakes && argsSummary" class="text-white/40 truncate max-w-[200px]">
+      <span v-if="isLowStakes && argsSummary" class="text-[var(--color-ide-text-dim)] truncate max-w-[200px]">
         {{ argsSummary }}
       </span>
 
@@ -209,7 +209,7 @@ const copyToolInfo = () => {
       <!-- 耗时 (RooCode 风格) -->
       <span
         v-if="props.tool.latency_ms != null"
-        class="text-white/40 tabular-nums shrink-0"
+        class="text-[var(--color-ide-text-dim)] tabular-nums shrink-0"
         :class="isLowStakes ? 'text-[10px]' : 'text-xs'"
       >
         {{ props.tool.latency_ms < 1000 ? `${props.tool.latency_ms}ms` : `${(props.tool.latency_ms / 1000).toFixed(1)}s` }}
@@ -275,14 +275,14 @@ const copyToolInfo = () => {
           </span>
           <div class="flex items-center gap-1">
             <button
-              class="text-[10px] text-white/40 hover:text-white/70 px-1.5 py-0.5 rounded hover:bg-white/5 flex items-center gap-0.5"
+              class="text-[10px] text-[var(--color-ide-text-dim)] hover:text-white/70 px-1.5 py-0.5 rounded hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-0.5"
               @click.stop="copyToolInfo"
             >
               <Copy class="size-2.5" />
               复制
             </button>
             <button
-              class="text-[10px] text-white/40 hover:text-white/70 px-1.5 py-0.5 rounded hover:bg-white/5"
+              class="text-[10px] text-[var(--color-ide-text-dim)] hover:text-white/70 px-1.5 py-0.5 rounded hover:bg-[var(--color-ide-surface-hover)]"
               @click.stop="showFullResult = !showFullResult"
             >
               {{ showFullResult ? '收起' : '展开全部' }}

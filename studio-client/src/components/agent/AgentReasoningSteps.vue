@@ -109,7 +109,7 @@ function formatElapsed(ms: number): string {
 </script>
 
 <template>
-  <div v-if="steps.length > 0" class="reasoning-steps rounded-lg border border-white/[0.06] bg-white/[0.01] overflow-hidden">
+  <div v-if="steps.length > 0" class="reasoning-steps rounded-lg border border-[var(--color-ide-border)] bg-white/[0.01] overflow-hidden">
     <!-- ═══════ 头部折叠栏 ═══════ -->
     <button
       @click="collapsed = !collapsed"
@@ -117,7 +117,7 @@ function formatElapsed(ms: number): string {
     >
       <div class="flex items-center gap-2 min-w-0">
         <Brain class="w-3.5 h-3.5 text-brand-400 shrink-0" />
-        <span class="text-xs font-semibold text-gray-300">推理过程</span>
+        <span class="text-xs font-semibold text-[var(--color-ide-text)]">推理过程</span>
 
         <!-- 统计标签 -->
         <div class="flex items-center gap-1.5">
@@ -130,17 +130,17 @@ function formatElapsed(ms: number): string {
           <span v-if="stats.errors > 0" class="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">
             {{ stats.errors }} 失败
           </span>
-          <span v-if="totalElapsed > 0" class="text-[10px] text-gray-500 flex items-center gap-0.5">
+          <span v-if="totalElapsed > 0" class="text-[10px] text-[var(--color-ide-text-dim)] flex items-center gap-0.5">
             <Clock class="w-2.5 h-2.5" />{{ formatElapsed(totalElapsed) }}
           </span>
         </div>
       </div>
 
-      <span class="text-gray-600 text-xs transition-transform duration-200 shrink-0" :class="{ 'rotate-180': collapsed }">▾</span>
+      <span class="text-[var(--color-ide-text-dim)] text-xs transition-transform duration-200 shrink-0" :class="{ 'rotate-180': collapsed }">▾</span>
     </button>
 
     <!-- ═══════ 进度条 (Cline 风格) ═══════ -->
-    <div v-if="!collapsed" class="h-0.5 bg-white/[0.04]">
+    <div v-if="!collapsed" class="h-0.5 bg-[var(--color-ide-surface-hover)]">
       <div
         class="h-full transition-all duration-500 ease-out rounded-r"
         :class="stats.errors > 0 ? 'bg-amber-500/60' : 'bg-brand-500/60'"
@@ -188,7 +188,7 @@ function formatElapsed(ms: number): string {
             />
           </div>
           <!-- Cline 风格: 步骤序号 -->
-          <span class="text-[9px] text-gray-600 tabular-nums font-mono">{{ getStepNumber(step) }}</span>
+          <span class="text-[9px] text-[var(--color-ide-text-dim)] tabular-nums font-mono">{{ getStepNumber(step) }}</span>
         </div>
 
         <!-- ── 右侧: 内容区 ── -->
@@ -203,7 +203,7 @@ function formatElapsed(ms: number): string {
             </span>
 
             <!-- Cline 风格: 耗时显示 -->
-            <span v-if="step.status === 'completed' && step.elapsed_ms" class="text-[10px] text-gray-500 tabular-nums flex items-center gap-0.5">
+            <span v-if="step.status === 'completed' && step.elapsed_ms" class="text-[10px] text-[var(--color-ide-text-dim)] tabular-nums flex items-center gap-0.5">
               <Clock class="w-2.5 h-2.5" />{{ formatElapsed(step.elapsed_ms) }}
             </span>
 
@@ -214,7 +214,7 @@ function formatElapsed(ms: number): string {
                 'w-3 h-3',
                 step.status === 'completed' ? 'text-emerald-400' :
                 step.status === 'in_progress' ? 'text-brand-400 animate-spin' :
-                step.status === 'error' ? 'text-red-400' : 'text-gray-600'
+                step.status === 'error' ? 'text-red-400' : 'text-[var(--color-ide-text-dim)]'
               ]"
             />
           </div>
@@ -224,7 +224,7 @@ function formatElapsed(ms: number): string {
             class="text-xs leading-relaxed whitespace-pre-wrap break-words"
             :class="[
               step.status === 'error' ? 'text-red-300/80' :
-              step.status === 'pending' ? 'text-gray-600' : 'text-gray-300'
+              step.status === 'pending' ? 'text-[var(--color-ide-text-dim)]' : 'text-[var(--color-ide-text)]'
             ]"
           >
             {{ step.content }}
@@ -234,7 +234,7 @@ function formatElapsed(ms: number): string {
           <div v-if="expandedDetails.has(step.id)" class="mt-2 space-y-1.5">
             <!-- 文件引用 -->
             <div v-if="step.references?.length" class="pl-1 border-l-2 border-brand-500/20 ml-0.5">
-              <div class="text-[10px] text-gray-500 font-medium mb-1">引用文件</div>
+              <div class="text-[10px] text-[var(--color-ide-text-dim)] font-medium mb-1">引用文件</div>
               <div
                 v-for="ref in step.references"
                 :key="ref"
@@ -270,7 +270,7 @@ function formatElapsed(ms: number): string {
         <div v-if="step.references?.length || (step.status === 'error' && step.error_detail)" class="shrink-0 mt-0.5">
           <ChevronDown
             v-if="!expandedDetails.has(step.id)"
-            class="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-400 transition-colors"
+            class="w-3.5 h-3.5 text-[var(--color-ide-text-dim)] group-hover:text-[var(--color-ide-text-dim)] transition-colors"
           />
           <ChevronUp
             v-else
@@ -281,16 +281,16 @@ function formatElapsed(ms: number): string {
     </div>
 
     <!-- ═══════ 折叠时摘要 ═══════ -->
-    <div v-else class="flex items-center gap-2 px-3.5 py-2 text-xs text-gray-500">
+    <div v-else class="flex items-center gap-2 px-3.5 py-2 text-xs text-[var(--color-ide-text-dim)]">
       <div class="flex-1">
         已完成 {{ stats.completed }}/{{ stats.total }} 步推理
         <span v-if="stats.inProgress > 0" class="text-brand-400"> · 执行中</span>
         <span v-if="stats.errors > 0" class="text-red-400"> · {{ stats.errors }} 失败</span>
-        <span v-if="totalElapsed > 0" class="text-gray-600"> · {{ formatElapsed(totalElapsed) }}</span>
+        <span v-if="totalElapsed > 0" class="text-[var(--color-ide-text-dim)]"> · {{ formatElapsed(totalElapsed) }}</span>
       </div>
 
       <!-- 折叠进度条 -->
-      <div class="h-1 bg-white/[0.05] rounded-full w-16 overflow-hidden shrink-0">
+      <div class="h-1 bg-[var(--color-ide-surface)] rounded-full w-16 overflow-hidden shrink-0">
         <div
           class="h-full rounded-full transition-all duration-500"
           :class="stats.errors > 0 ? 'bg-amber-500/60' : 'bg-brand-500/60'"

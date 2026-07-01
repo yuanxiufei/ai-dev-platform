@@ -112,14 +112,14 @@ function stateStyle(state: MCPConnState) {
     disconnected: {
       bg: "bg-gray-500/10",
       border: "gray-500/20",
-      text: "text-gray-500",
+      text: "text-[var(--color-ide-text-dim)]",
       dot: "bg-gray-600",
       label: "未连接",
     },
     disabled: {
       bg: "bg-gray-800/30",
       border: "gray-700/20",
-      text: "text-gray-600",
+      text: "text-[var(--color-ide-text-dim)]",
       dot: "bg-gray-700",
       label: "已禁用",
     },
@@ -418,7 +418,7 @@ const successRateLabel = (rate: number): string =>
     </Transition>
 
     <!-- Header -->
-    <header class="flex items-center justify-between px-6 md:px-8 pt-6 md:pt-8 pb-4 md:pb-6 border-b border-white/5 shrink-0">
+    <header class="flex items-center justify-between px-6 md:px-8 pt-6 md:pt-8 pb-4 md:pb-6 border-b border-[var(--color-ide-border)] shrink-0">
       <div class="min-w-0">
         <h1 class="text-lg md:text-2xl font-bold text-white flex items-center gap-2.5 md:gap-3">
           <span class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
@@ -426,15 +426,15 @@ const successRateLabel = (rate: number): string =>
           </span>
           <span class="truncate">MCP 管理</span>
         </h1>
-        <p class="text-xs md:text-sm text-gray-500 mt-1 ml-[2.85rem] md:ml-[3.25rem] hidden sm:block">连接外部工具和数据源，扩展 AI 助手的能力边界</p>
+        <p class="text-xs md:text-sm text-[var(--color-ide-text-dim)] mt-1 ml-[2.85rem] md:ml-[3.25rem] hidden sm:block">连接外部工具和数据源，扩展 AI 助手的能力边界</p>
       </div>
 
       <!-- Action buttons -->
       <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
-        <button @click="handleDiscover" class="hidden sm:flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs md:text-sm text-gray-400 hover:text-white transition-colors">
+        <button @click="handleDiscover" class="hidden sm:flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-xs md:text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors">
           <RefreshCw class="w-3.5 h-3.5" /> 扫描
         </button>
-        <button @click="handleRegister" class="hidden sm:flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs md:text-sm text-gray-400 hover:text-white transition-colors">
+        <button @click="handleRegister" class="hidden sm:flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-xs md:text-sm text-[var(--color-ide-text-dim)] hover:text-white transition-colors">
           <Zap class="w-3.5 h-3.5" /> 注册
         </button>
         <button v-if="activeTab === 'my'" @click="showAddForm = !showAddForm" class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs md:text-sm font-medium transition-colors shadow-lg shadow-brand-500/15">
@@ -452,7 +452,7 @@ const successRateLabel = (rate: number): string =>
     </Transition>
 
     <!-- Tabs -->
-    <nav class="px-6 md:px-8 pt-3 md:pt-4 pb-0 flex items-center gap-1 border-b border-white/5 shrink-0 overflow-x-auto hide-scrollbar">
+    <nav class="px-6 md:px-8 pt-3 md:pt-4 pb-0 flex items-center gap-1 border-b border-[var(--color-ide-border)] shrink-0 overflow-x-auto hide-scrollbar">
       <button
         v-for="tab in [{ id: 'marketplace', label: 'MCP 市场', count: marketplaceTotal }, { id: 'my', label: '我的 MCP', count: servers.length }] as const"
         :key="tab.id"
@@ -460,13 +460,13 @@ const successRateLabel = (rate: number): string =>
         :class="[
           'relative px-3 md:px-4 py-2 rounded-t-xl text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap',
           activeTab === tab.id
-            ? 'text-white bg-white/[0.03] border border-white/8 border-b-transparent -mb-[1px] z-10'
-            : 'text-gray-500 hover:text-gray-300'
+            ? 'text-white bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] border-b-transparent -mb-[1px] z-10'
+            : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'
         ]"
       >
         <component :is="tab.id === 'marketplace' ? Store : Monitor" class="w-3.5 h-3.5" />
         {{ tab.label }}
-        <span class="ml-0.5 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-400">{{ tab.count }}</span>
+        <span class="ml-0.5 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-[var(--color-ide-text-dim)]">{{ tab.count }}</span>
       </button>
     </nav>
 
@@ -476,16 +476,16 @@ const successRateLabel = (rate: number): string =>
       <!-- ═══════════════ MCP 市场 ═══════════════ -->
       <section v-if="activeTab === 'marketplace'" class="flex-1 flex overflow-hidden">
         <!-- Left sidebar: Categories -->
-        <aside class="w-44 md:w-52 shrink-0 border-r border-white/5 p-3 md:p-4 space-y-2 overflow-y-auto hidden sm:flex flex-col">
+        <aside class="w-44 md:w-52 shrink-0 border-r border-[var(--color-ide-border)] p-3 md:p-4 space-y-2 overflow-y-auto hidden sm:flex flex-col">
           <div class="relative mb-2">
-            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
-            <input v-model="mpSearch" placeholder="搜索..." class="w-full rounded-lg border border-white/10 bg-white/[0.03] pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand-500/40 transition-all" />
+            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-ide-text-dim)]" />
+            <input v-model="mpSearch" placeholder="搜索..." class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] pl-8 pr-3 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-brand-500/40 transition-all" />
           </div>
-          <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider px-1">分类</p>
-          <button @click="mpCategory = ''" :class="['w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors', !mpCategory ? 'bg-brand-500/10 text-brand-400' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]']">
+          <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-1">分类</p>
+          <button @click="mpCategory = ''" :class="['w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors', !mpCategory ? 'bg-brand-500/10 text-brand-400' : 'text-[var(--color-ide-text-dim)] hover:text-white hover:bg-[var(--color-ide-surface-hover)]']">
             全部 ({{ marketplaceTotal }})
           </button>
-          <button v-for="cat in categories" :key="cat.id" @click="mpCategory = cat.id" :class="['w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors', mpCategory === cat.id ? 'bg-brand-500/10 text-brand-400' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]']">
+          <button v-for="cat in categories" :key="cat.id" @click="mpCategory = cat.id" :class="['w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors', mpCategory === cat.id ? 'bg-brand-500/10 text-brand-400' : 'text-[var(--color-ide-text-dim)] hover:text-white hover:bg-[var(--color-ide-surface-hover)]']">
             {{ categoryLabelMap[cat.id] || cat.name }} ({{ cat.count }})
           </button>
         </aside>
@@ -493,30 +493,30 @@ const successRateLabel = (rate: number): string =>
         <!-- Main grid -->
         <main class="flex-1 overflow-y-auto p-4 md:p-6">
           <div v-if="marketplaceLoading" class="flex items-center justify-center py-24"><Loader2 class="w-8 h-8 animate-spin text-brand-400" /></div>
-          <div v-else-if="!filteredMarketplace.length" class="flex flex-col items-center justify-center py-24 text-gray-600">
-            <Store class="w-12 h-12 text-gray-700 mb-3" /><p class="text-sm text-gray-500">没有找到匹配的 MCP 服务</p><p class="text-xs text-gray-600 mt-1">尝试更换搜索词或分类</p>
+          <div v-else-if="!filteredMarketplace.length" class="flex flex-col items-center justify-center py-24 text-[var(--color-ide-text-dim)]">
+            <Store class="w-12 h-12 text-gray-700 mb-3" /><p class="text-sm text-[var(--color-ide-text-dim)]">没有找到匹配的 MCP 服务</p><p class="text-xs text-[var(--color-ide-text-dim)] mt-1">尝试更换搜索词或分类</p>
           </div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-            <article v-for="preset in filteredMarketplace" :key="preset.id" class="mcp-market-card group rounded-2xl border border-white/8 bg-white/[0.02] p-4 md:p-5 hover:border-white/15 transition-all duration-200 flex flex-col">
+            <article v-for="preset in filteredMarketplace" :key="preset.id" class="mcp-market-card group rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] p-4 md:p-5 hover:border-[var(--color-ide-border)] transition-all duration-200 flex flex-col">
               <div class="flex items-start gap-3 mb-3">
-                <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-white/10 to-white/[0.02] flex items-center justify-center shrink-0 text-base md:lg border border-white/5">{{ preset.icon }}</div>
-                <div class="min-w-0"><h3 class="text-sm font-semibold text-white truncate">{{ preset.name }}</h3><p class="text-[10px] text-gray-500">v{{ preset.version }} · {{ preset.author }}</p></div>
+                <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-white/10 to-white/[0.02] flex items-center justify-center shrink-0 text-base md:lg border border-[var(--color-ide-border)]">{{ preset.icon }}</div>
+                <div class="min-w-0"><h3 class="text-sm font-semibold text-white truncate">{{ preset.name }}</h3><p class="text-[10px] text-[var(--color-ide-text-dim)]">v{{ preset.version }} · {{ preset.author }}</p></div>
               </div>
-              <p class="text-xs text-gray-400 leading-relaxed mb-3 line-clamp-2">{{ preset.description }}</p>
+              <p class="text-xs text-[var(--color-ide-text-dim)] leading-relaxed mb-3 line-clamp-2">{{ preset.description }}</p>
               <div class="flex flex-wrap gap-1 mb-3">
-                <span v-for="feat in preset.features.slice(0, 4)" :key="feat" class="rounded-full bg-white/[0.03] border border-white/5 px-2 py-0.5 text-[10px] text-gray-500">{{ feat }}</span>
-                <span v-if="preset.features.length > 4" class="text-[10px] text-gray-600 self-center">+{{ preset.features.length - 4 }}</span>
+                <span v-for="feat in preset.features.slice(0, 4)" :key="feat" class="rounded-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] px-2 py-0.5 text-[10px] text-[var(--color-ide-text-dim)]">{{ feat }}</span>
+                <span v-if="preset.features.length > 4" class="text-[10px] text-[var(--color-ide-text-dim)] self-center">+{{ preset.features.length - 4 }}</span>
               </div>
-              <div class="flex items-center gap-3 text-[10px] text-gray-600 mb-4 mt-auto">
+              <div class="flex items-center gap-3 text-[10px] text-[var(--color-ide-text-dim)] mb-4 mt-auto">
                 <span class="flex items-center gap-1"><Star class="w-3 h-3 text-yellow-500/70" />{{ formatCount(preset.stars) }}</span>
                 <span class="flex items-center gap-1"><Download class="w-3 h-3 text-green-500/70" />{{ formatCount(preset.installs) }}</span>
-                <span class="rounded-full bg-white/[0.03] border border-white/5 px-1.5 py-0.5">{{ transportLabel[preset.transport] || preset.transport }}</span>
+                <span class="rounded-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] px-1.5 py-0.5">{{ transportLabel[preset.transport] || preset.transport }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <button @click="handleInstall(preset)" :disabled="installing === preset.id" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-500/15 border border-brand-500/20 text-brand-400 hover:bg-brand-500/25 disabled:opacity-50 text-xs font-medium transition-all">
                   <Loader2 v-if="installing === preset.id" class="w-3.5 h-3.5 animate-spin" /><Plug v-else class="w-3.5 h-3.5" />{{ installing === preset.id ? '安装中...' : '安装' }}
                 </button>
-                <a v-if="preset.homepage" :href="preset.homepage" target="_blank" class="p-2 rounded-lg text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-colors"><ExternalLink class="w-3.5 h-3.5" /></a>
+                <a v-if="preset.homepage" :href="preset.homepage" target="_blank" class="p-2 rounded-lg text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"><ExternalLink class="w-3.5 h-3.5" /></a>
               </div>
             </article>
           </div>
@@ -526,26 +526,26 @@ const successRateLabel = (rate: number): string =>
       <!-- ═══════════════ 我的 MCP ═══════════════ -->
       <section v-if="activeTab === 'my'" class="flex-1 flex overflow-hidden">
         <!-- Left sidebar: Stats -->
-        <aside class="w-44 md:w-52 shrink-0 border-r border-white/5 p-3 md:p-4 space-y-1.5 overflow-y-auto hidden sm:flex flex-col">
-          <p class="text-[11px] font-medium text-gray-500 uppercase tracking-wider px-2 mb-2">协议分布</p>
+        <aside class="w-44 md:w-52 shrink-0 border-r border-[var(--color-ide-border)] p-3 md:p-4 space-y-1.5 overflow-y-auto hidden sm:flex flex-col">
+          <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-2">协议分布</p>
           <div class="space-y-0.5">
             <StatRow icon="Globe" label="SSE" :value="sseCount" color="text-blue-400" />
             <StatRow icon="Server" label="HTTP" :value="httpCount" color="text-indigo-400" />
             <StatRow icon="Terminal" label="Stdio" :value="stdioCount" color="text-emerald-400" />
           </div>
 
-          <div class="mt-5 px-2 pt-4 border-t border-white/5 space-y-2">
-            <div class="flex items-center gap-1.5 text-xs" :class="connectedCount > 0 ? 'text-green-400' : 'text-gray-600'">
+          <div class="mt-5 px-2 pt-4 border-t border-[var(--color-ide-border)] space-y-2">
+            <div class="flex items-center gap-1.5 text-xs" :class="connectedCount > 0 ? 'text-green-400' : 'text-[var(--color-ide-text-dim)]'">
               <div class="w-1.5 h-1.5 rounded-full" :class="connectedCount > 0 ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]' : 'bg-gray-500'" />
               <span>{{ connectedCount }} 已连接 / {{ servers.length }} 总计</span>
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-gray-600">
+            <div class="flex items-center gap-1.5 text-xs text-[var(--color-ide-text-dim)]">
               <Wrench class="w-3 h-3" /><span>{{ totalTools }} 个工具</span>
             </div>
           </div>
 
-          <div class="mt-auto pt-4 border-t border-white/5 px-2">
-            <p class="text-[10px] text-gray-600 leading-relaxed">
+          <div class="mt-auto pt-4 border-t border-[var(--color-ide-border)] px-2">
+            <p class="text-[10px] text-[var(--color-ide-text-dim)] leading-relaxed">
               MCP 允许 AI 连接外部数据源和工具（文件系统、数据库、API 等），通过标准化 JSON-RPC 协议通信。
             </p>
           </div>
@@ -554,35 +554,35 @@ const successRateLabel = (rate: number): string =>
         <!-- Main content -->
         <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
           <!-- Add form -->
-          <div v-if="showAddForm" class="mcp-add-form rounded-2xl border border-brand-500/15 bg-white/[0.02] p-4 md:p-5 space-y-4">
+          <div v-if="showAddForm" class="mcp-add-form rounded-2xl border border-brand-500/15 bg-[var(--color-ide-surface-hover)] p-4 md:p-5 space-y-4">
             <div class="flex items-center gap-2 mb-1">
               <Plug class="w-4 h-4 text-brand-400" /><h3 class="text-sm font-semibold text-white">连接新的 MCP 服务器</h3>
             </div>
             <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">名称 <span class="text-red-400">*</span></label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">名称 <span class="text-red-400">*</span></label>
                 <input v-model="newServer.name" placeholder="例如：my-filesystem" class="mcp-input" />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-400 mb-1.5">传输类型</label>
+                <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">传输类型</label>
                 <select v-model="newServer.transport" class="mcp-input">
                   <option value="sse">SSE (推荐)</option><option value="streamable_http">Streamable HTTP</option><option value="stdio">Stdio (本地进程)</option>
                 </select>
               </div>
             </div>
             <div v-if="newServer.transport !== 'stdio'">
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">服务器 URL</label>
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">服务器 URL</label>
               <input v-model="newServer.url" placeholder="http://localhost:3001/sse" class="mcp-input font-mono" />
-              <p class="text-[10px] text-gray-600 mt-1">MCP 服务器暴露的 SSE 或 HTTP 端点地址</p>
+              <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-1">MCP 服务器暴露的 SSE 或 HTTP 端点地址</p>
             </div>
             <div v-if="newServer.transport === 'stdio'">
-              <label class="block text-xs font-medium text-gray-400 mb-1.5">启动命令</label>
+              <label class="block text-xs font-medium text-[var(--color-ide-text-dim)] mb-1.5">启动命令</label>
               <input v-model="newServer.command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" class="mcp-input font-mono" />
-              <p class="text-[10px] text-gray-600 mt-1">本地启动 MCP 服务器的命令（需通过安全白名单校验）</p>
+              <p class="text-[10px] text-[var(--color-ide-text-dim)] mt-1">本地启动 MCP 服务器的命令（需通过安全白名单校验）</p>
             </div>
             <div class="flex items-center gap-6 flex-wrap">
-              <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer"><input v-model="newServer.auto_discover" type="checkbox" class="rounded border-white/20 bg-white/[0.03]" /> 自动发现工具</label>
-              <label class="text-xs text-gray-400 flex items-center gap-2">超时<input v-model.number="newServer.timeout" type="number" min="5" max="120" class="mcp-number" />秒</label>
+              <label class="flex items-center gap-2 text-xs text-[var(--color-ide-text-dim)] cursor-pointer"><input v-model="newServer.auto_discover" type="checkbox" class="rounded border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)]" /> 自动发现工具</label>
+              <label class="text-xs text-[var(--color-ide-text-dim)] flex items-center gap-2">超时<input v-model.number="newServer.timeout" type="number" min="5" max="120" class="mcp-number" />秒</label>
             </div>
             <div class="flex gap-3 pt-1">
               <button :disabled="adding || !newServer.name.trim()" @click="handleAdd" class="mcp-btn-primary">
@@ -596,12 +596,12 @@ const successRateLabel = (rate: number): string =>
           <div v-if="myLoading && !servers.length" class="flex items-center justify-center py-24"><Loader2 class="w-8 h-8 animate-spin text-brand-400" /></div>
 
           <!-- Empty state (matches screenshot) -->
-          <div v-else-if="!servers.length" class="mcp-empty-state flex flex-col items-center justify-center py-16 md:py-24 text-gray-600">
-            <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-4">
+          <div v-else-if="!servers.length" class="mcp-empty-state flex flex-col items-center justify-center py-16 md:py-24 text-[var(--color-ide-text-dim)]">
+            <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] flex items-center justify-center mb-4">
               <Box class="w-7 h-7 md:w-8 md:h-8 text-gray-700" />
             </div>
-            <h3 class="text-sm md:text-base font-medium text-gray-400 mb-2">No MCP Tools</h3>
-            <p class="text-xs text-gray-500 max-w-sm text-center mb-6 leading-relaxed">
+            <h3 class="text-sm md:text-base font-medium text-[var(--color-ide-text-dim)] mb-2">No MCP Tools</h3>
+            <p class="text-xs text-[var(--color-ide-text-dim)] max-w-sm text-center mb-6 leading-relaxed">
               Connect Model Context Protocol (MCP) servers to extend AI capabilities with external tools, data sources, and services.
               您可以使用市场制作的服务器，也可以手动创建属于您的 MCP 服务器。
             </p>
@@ -612,7 +612,7 @@ const successRateLabel = (rate: number): string =>
 
           <!-- Server cards -->
           <div v-else class="space-y-3">
-            <div v-for="srv in servers" :key="srv.name" class="mcp-server-card rounded-2xl border border-white/8 bg-white/[0.02] overflow-hidden transition-all duration-200 group" :class="{ 'ring-1 ring-white/10': expandedServers.has(srv.name) }">
+            <div v-for="srv in servers" :key="srv.name" class="mcp-server-card rounded-2xl border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] overflow-hidden transition-all duration-200 group" :class="{ 'ring-1 ring-white/10': expandedServers.has(srv.name) }">
               <!-- Card header -->
               <div class="p-4 md:p-5" @click="toggleExpand(srv.name)">
                 <div class="flex items-start justify-between gap-3">
@@ -621,8 +621,8 @@ const successRateLabel = (rate: number): string =>
                     <div class="relative mt-1 shrink-0 cursor-pointer">
                       <div :class="['w-2.5 h-2.5 rounded-full', stateStyle(srv.state).dot]" />
                       <div v-if="srv.state === 'connecting' || srv.state === 'reconnecting'" class="absolute inset-0 w-2.5 h-2.5 rounded-full animate-ping opacity-30" :class="stateStyle(srv.state).dot.replace('animate-pulse','')" />
-                      <ChevronRight v-if="!expandedServers.has(srv.name)" class="w-3.5 h-3.5 text-gray-600 absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:block" />
-                      <ChevronDown v-else class="w-3.5 h-3.5 text-gray-400 absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:block" />
+                      <ChevronRight v-if="!expandedServers.has(srv.name)" class="w-3.5 h-3.5 text-[var(--color-ide-text-dim)] absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:block" />
+                      <ChevronDown v-else class="w-3.5 h-3.5 text-[var(--color-ide-text-dim)] absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:block" />
                     </div>
 
                     <!-- Server info -->
@@ -634,7 +634,7 @@ const successRateLabel = (rate: number): string =>
                           {{ stateStyle(srv.state).label }}
                         </span>
                         <!-- Transport badge -->
-                        <span class="shrink-0 flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-gray-500 border border-white/5">
+                        <span class="shrink-0 flex items-center gap-1 rounded-full bg-[var(--color-ide-surface-hover)] px-2 py-0.5 text-[10px] text-[var(--color-ide-text-dim)] border border-[var(--color-ide-border)]">
                           <component :is="transportIcon[srv.transport] || Server" class="w-2.5 h-2.5" />{{ transportLabel[srv.transport] || srv.transport }}
                         </span>
                         <!-- Health indicator -->
@@ -643,9 +643,9 @@ const successRateLabel = (rate: number): string =>
                         </span>
                       </div>
 
-                      <p class="text-xs text-gray-500 mb-2 font-mono truncate">{{ srv.url || srv.command || '—' }}</p>
+                      <p class="text-xs text-[var(--color-ide-text-dim)] mb-2 font-mono truncate">{{ srv.url || srv.command || '—' }}</p>
 
-                      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-600">
+                      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-[var(--color-ide-text-dim)]">
                         <span class="flex items-center gap-1"><Wrench class="w-3 h-3" />{{ srv.tools_count }} 个工具</span>
                         <span>{{ srv.timeout_seconds }}s 超时</span>
                         <span v-if="srv.tool_prefix" class="text-brand-400/70">前缀: {{ srv.tool_prefix }}</span>
@@ -667,15 +667,15 @@ const successRateLabel = (rate: number): string =>
               </div>
 
               <!-- Edit inline form -->
-              <div v-if="editingServer === srv.name" class="px-5 pb-4 border-t border-white/5 pt-3 space-y-3 bg-white/[0.01]">
-                <p class="text-xs text-gray-400 font-medium">编辑 "{{ srv.name }}" 配置</p>
+              <div v-if="editingServer === srv.name" class="px-5 pb-4 border-t border-[var(--color-ide-border)] pt-3 space-y-3 bg-[var(--color-ide-surface)]">
+                <p class="text-xs text-[var(--color-ide-text-dim)] font-medium">编辑 "{{ srv.name }}" 配置</p>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-[11px] text-gray-500 mb-1">URL</label>
+                    <label class="block text-[11px] text-[var(--color-ide-text-dim)] mb-1">URL</label>
                     <input v-model="editForm.url" placeholder="(保持不变留空)" class="mcp-input text-xs" />
                   </div>
                   <div>
-                    <label class="block text-[11px] text-gray-500 mb-1">超时(秒)</label>
+                    <label class="block text-[11px] text-[var(--color-ide-text-dim)] mb-1">超时(秒)</label>
                     <input v-model.number="editForm.timeout" type="number" min="5" max="300" class="mcp-input text-xs" />
                   </div>
                 </div>
@@ -688,21 +688,21 @@ const successRateLabel = (rate: number): string =>
               <!-- Expanded details -->
               <ExpandPanel v-if="expandedServers.has(srv.name)">
                 <!-- Tools list placeholder (loaded lazily via detail API) -->
-                <div class="px-5 py-4 border-t border-white/5 bg-black/10 space-y-3">
-                  <h4 class="text-xs font-medium text-gray-400 flex items-center gap-2"><Wrench class="w-3.5 h-3.5" /> 工具列表 ({{ srv.tools_count }})</h4>
+                <div class="px-5 py-4 border-t border-[var(--color-ide-border)] bg-black/10 space-y-3">
+                  <h4 class="text-xs font-medium text-[var(--color-ide-text-dim)] flex items-center gap-2"><Wrench class="w-3.5 h-3.5" /> 工具列表 ({{ srv.tools_count }})</h4>
                   <div v-if="srv.tools?.length" class="grid gap-1.5">
-                    <div v-for="tool in srv.tools" :key="tool.name" class="flex items-start gap-2 rounded-lg bg-white/[0.02] px-3 py-2 border border-white/5">
+                    <div v-for="tool in srv.tools" :key="tool.name" class="flex items-start gap-2 rounded-lg bg-[var(--color-ide-surface-hover)] px-3 py-2 border border-[var(--color-ide-border)]">
                       <ShieldCheck class="w-3.5 h-3.5 text-emerald-500/50 mt-0.5 shrink-0" />
                       <div class="min-w-0">
                         <code class="text-xs text-white font-mono">{{ tool.name }}</code>
-                        <p class="text-[10px] text-gray-600 line-clamp-1 mt-0.5">{{ tool.description }}</p>
+                        <p class="text-[10px] text-[var(--color-ide-text-dim)] line-clamp-1 mt-0.5">{{ tool.description }}</p>
                       </div>
                     </div>
                   </div>
-                  <div v-else class="text-xs text-gray-600 italic">点击上方「详情」按钮加载完整工具信息</div>
+                  <div v-else class="text-xs text-[var(--color-ide-text-dim)] italic">点击上方「详情」按钮加载完整工具信息</div>
 
                   <!-- Stats -->
-                  <div v-if="srv.calls_total > 0" class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-white/5">
+                  <div v-if="srv.calls_total > 0" class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-[var(--color-ide-border)]">
                     <StatCard label="总调用" :value="String(srv.calls_total)" icon="Activity" />
                     <StatCard label="成功" :value="String(srv.calls_success)" icon="CheckCircle2" color="text-green-400" />
                     <StatCard label="失败" :value="String(srv.calls_failed)" icon="AlertCircle" color="text-red-400" />
@@ -721,7 +721,7 @@ const successRateLabel = (rate: number): string =>
                       <Heart :class="['w-3.5 h-3.5', healthResults[srv.name].healthy ? '' : 'fill-red-400/20']" />
                       健康检查: {{ healthResults[srv.name].healthy ? '正常' : '异常' }}
                     </span>
-                    <span class="text-gray-600">{{ Math.round(healthResults[srv.name].latency_ms) }}ms · {{ formatUptime(healthResults[srv.name].uptime_seconds) }} 运行时间</span>
+                    <span class="text-[var(--color-ide-text-dim)]">{{ Math.round(healthResults[srv.name].latency_ms) }}ms · {{ formatUptime(healthResults[srv.name].uptime_seconds) }} 运行时间</span>
                     <button @click.stop="handleHealthCheck(srv.name)" :disabled="healthChecking === srv.name" class="text-brand-400 hover:text-brand-300 ml-auto">
                       <RefreshCw :class="['w-3 h-3', { 'animate-spin': healthChecking === srv.name }]" />
                     </button>
@@ -746,7 +746,7 @@ const statIconMap: Record<string, any> = { Activity, CheckCircle2, AlertCircle, 
 
 /* StatRow — 左侧栏统计行 */
 export const StatRow: FunctionalComponent<{ icon?: string; label?: string; value?: number; color?: string }> = (props) =>
-  h("div", { class: "flex items-center justify-between text-xs text-gray-500 py-1.5" }, [
+  h("div", { class: "flex items-center justify-between text-xs text-[var(--color-ide-text-dim)] py-1.5" }, [
     h("span", { class: "flex items-center gap-1.5" }, [
       iconMap[props.icon || ""] ? h(iconMap[props.icon], { class: "w-3 h-3" }) : null,
       props.label,
@@ -760,10 +760,10 @@ export const ExpandPanel: FunctionalComponent = (_, { slots }) =>
 
 /* StatCard — 统计卡片 */
 export const StatCard: FunctionalComponent<{ label?: string; value?: string | number; icon?: string; color?: string }> = (props) =>
-  h("div", { class: "rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2 text-center" }, [
-    statIconMap[props.icon || ""] ? h(statIconMap[props.icon], { class: `w-3.5 h-3.5 mx-auto mb-1 ${props.color || "text-gray-400"}` }) : null,
-    h("div", { class: `text-sm font-semibold ${props.color || "text-gray-400"}` }, `${props.value ?? ""}`),
-    h("div", { class: "text-[10px] text-gray-600" }, props.label || ""),
+  h("div", { class: "rounded-lg bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] px-3 py-2 text-center" }, [
+    statIconMap[props.icon || ""] ? h(statIconMap[props.icon], { class: `w-3.5 h-3.5 mx-auto mb-1 ${props.color || "text-[var(--color-ide-text-dim)]"}` }) : null,
+    h("div", { class: `text-sm font-semibold ${props.color || "text-[var(--color-ide-text-dim)]"}` }, `${props.value ?? ""}`),
+    h("div", { class: "text-[10px] text-[var(--color-ide-text-dim)]" }, props.label || ""),
   ])
 </script>
 <style scoped>

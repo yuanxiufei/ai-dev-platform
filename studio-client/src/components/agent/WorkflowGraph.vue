@@ -81,13 +81,13 @@ function stageDuration(stage: PipelineStage): string {
 </script>
 
 <template>
-  <div v-if="stages.length > 0" class="workflow-graph rounded-xl border border-white/[0.06] bg-white/[0.01] overflow-hidden">
+  <div v-if="stages.length > 0" class="workflow-graph rounded-xl border border-[var(--color-ide-border)] bg-white/[0.01] overflow-hidden">
     <!-- 头部进度 -->
     <div class="px-4 py-3 border-b border-white/[0.04] bg-white/[0.02]">
       <div class="flex items-center gap-3 mb-2">
         <Zap class="w-4 h-4 text-brand-400" />
-        <span class="text-sm font-semibold text-gray-300">Agent 流水线</span>
-        <span v-if="totalLatencyMs" class="flex items-center gap-1 text-[11px] text-gray-500 ml-auto">
+        <span class="text-sm font-semibold text-[var(--color-ide-text)]">Agent 流水线</span>
+        <span v-if="totalLatencyMs" class="flex items-center gap-1 text-[11px] text-[var(--color-ide-text-dim)] ml-auto">
           <Clock class="w-3 h-3" />
           {{ formatLatency(totalLatencyMs) }}
         </span>
@@ -95,7 +95,7 @@ function stageDuration(stage: PipelineStage): string {
 
       <!-- 进度条 -->
       <div class="flex items-center gap-2">
-        <div class="flex-1 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+        <div class="flex-1 h-1.5 rounded-full bg-[var(--color-ide-surface-hover)] overflow-hidden">
           <div
             :class="[
               'h-full rounded-full transition-all duration-500 ease-out',
@@ -104,7 +104,7 @@ function stageDuration(stage: PipelineStage): string {
             :style="{ width: `${stats.progress}%` }"
           />
         </div>
-        <span class="text-[10px] text-gray-500 font-mono">{{ stats.completed }}/{{ stats.total }}</span>
+        <span class="text-[10px] text-[var(--color-ide-text-dim)] font-mono">{{ stats.completed }}/{{ stats.total }}</span>
       </div>
     </div>
 
@@ -127,7 +127,7 @@ function stageDuration(stage: PipelineStage): string {
             <div class="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center"
               :class="stage.status === 'completed' ? 'bg-emerald-500/20' :
                       stage.status === 'in_progress' ? 'bg-brand-500/20' :
-                      stage.status === 'error' ? 'bg-red-500/20' : 'bg-white/[0.05]'"
+                      stage.status === 'error' ? 'bg-red-500/20' : 'bg-[var(--color-ide-surface)]'"
             >
               <CheckCircle2
                 v-if="stage.status === 'completed'"
@@ -141,7 +141,7 @@ function stageDuration(stage: PipelineStage): string {
                 v-else-if="stage.status === 'error'"
                 class="w-3 h-3 text-red-400"
               />
-              <Clock v-else class="w-3 h-3 text-gray-600" />
+              <Clock v-else class="w-3 h-3 text-[var(--color-ide-text-dim)]" />
             </div>
 
             <!-- Agent 头像 -->
@@ -160,18 +160,18 @@ function stageDuration(stage: PipelineStage): string {
                 <p class="text-xs font-semibold" :style="{ color: agentStyle(stage.agent_name).color }">
                   {{ agentStyle(stage.agent_name).label }}
                 </p>
-                <p class="text-[10px] text-gray-600">{{ stage.agent_name }}</p>
+                <p class="text-[10px] text-[var(--color-ide-text-dim)]">{{ stage.agent_name }}</p>
               </div>
             </div>
 
             <!-- 工具调用统计 -->
-            <div v-if="stage.tool_calls?.length" class="flex items-center gap-1 text-[10px] text-gray-500">
+            <div v-if="stage.tool_calls?.length" class="flex items-center gap-1 text-[10px] text-[var(--color-ide-text-dim)]">
               <Wrench class="w-3 h-3" />
               {{ stage.tool_calls.length }} 工具调用
             </div>
 
             <!-- 耗时 -->
-            <div v-if="stageDuration(stage)" class="mt-1 text-[10px] text-gray-600">
+            <div v-if="stageDuration(stage)" class="mt-1 text-[10px] text-[var(--color-ide-text-dim)]">
               <Clock class="w-3 h-3 inline mr-0.5" />
               {{ stageDuration(stage) }}
             </div>
@@ -179,7 +179,7 @@ function stageDuration(stage: PipelineStage): string {
             <!-- 摘要 -->
             <p
               v-if="stage.summary"
-              class="mt-1.5 text-[10px] text-gray-500 leading-relaxed line-clamp-2 group-hover:text-gray-400 transition-colors"
+              class="mt-1.5 text-[10px] text-[var(--color-ide-text-dim)] leading-relaxed line-clamp-2 group-hover:text-[var(--color-ide-text-dim)] transition-colors"
             >
               {{ stage.summary }}
             </p>
@@ -226,10 +226,10 @@ function stageDuration(stage: PipelineStage): string {
               'w-3.5 h-3.5',
               stage.status === 'in_progress' ? 'animate-spin text-brand-400' :
               stage.status === 'completed' ? 'text-emerald-400' :
-              stage.status === 'error' ? 'text-red-400' : 'text-gray-600'
+              stage.status === 'error' ? 'text-red-400' : 'text-[var(--color-ide-text-dim)]'
             ]"
           />
-          <span class="text-[10px] font-medium text-gray-300">{{ agentStyle(stage.agent_name).label }}</span>
+          <span class="text-[10px] font-medium text-[var(--color-ide-text)]">{{ agentStyle(stage.agent_name).label }}</span>
         </div>
       </div>
     </div>

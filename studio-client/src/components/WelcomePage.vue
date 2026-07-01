@@ -75,7 +75,7 @@ const quickPrompts = [
         让想法成为现实
       </span>
     </h1>
-    <p class="text-gray-400 text-sm md:text-base text-center max-w-lg mb-10">
+    <p class="text-[var(--color-ide-text-dim)] text-sm md:text-base text-center max-w-lg mb-10">
       AI Studio 是你的全能 AI 编程伙伴。用自然语言描述需求，让 AI 帮你构建、优化和部署项目。
     </p>
 
@@ -94,27 +94,27 @@ const quickPrompts = [
       <div
         v-for="(feat, idx) in features"
         :key="idx"
-        class="group relative rounded-2xl border border-white/8 bg-surface-800/50 hover:bg-surface-800 hover:border-white/12 transition-all duration-300 p-5 cursor-default"
+        class="group relative rounded-2xl border border-[var(--color-ide-border)] bg-surface-800/50 hover:bg-surface-800 hover:border-white/12 transition-all duration-300 p-5 cursor-default"
       >
         <div :class="['w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3', feat.gradient]">
           <component :is="feat.icon" :class="['w-5 h-5', feat.iconColor]" />
         </div>
-        <h3 class="text-sm font-semibold text-gray-200 mb-1.5">{{ feat.title }}</h3>
-        <p class="text-xs text-gray-500 leading-relaxed">{{ feat.desc }}</p>
+        <h3 class="text-sm font-semibold text-[var(--color-ide-text)] mb-1.5">{{ feat.title }}</h3>
+        <p class="text-xs text-[var(--color-ide-text-dim)] leading-relaxed">{{ feat.desc }}</p>
       </div>
     </div>
 
     <!-- 快捷提示 -->
     <div class="w-full max-w-2xl">
-      <p class="text-xs font-medium text-gray-500 mb-3 text-center">试试这些</p>
+      <p class="text-xs font-medium text-[var(--color-ide-text-dim)] mb-3 text-center">试试这些</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="(qp, idx) in quickPrompts"
           :key="idx"
-          class="flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 hover:bg-white/8 hover:border-brand-500/20 px-4 py-3 text-left text-sm text-gray-300 transition-all duration-200 group"
+          class="flex items-center gap-3 rounded-xl border border-[var(--color-ide-border)] bg-white/3 hover:bg-white/8 hover:border-brand-500/20 px-4 py-3 text-left text-sm text-[var(--color-ide-text)] transition-all duration-200 group"
           @click="emit('quickPrompt', qp.text)"
         >
-          <component :is="qp.icon" class="w-4 h-4 text-gray-500 group-hover:text-brand-400 shrink-0 transition-colors" />
+          <component :is="qp.icon" class="w-4 h-4 text-[var(--color-ide-text-dim)] group-hover:text-brand-400 shrink-0 transition-colors" />
           <span class="truncate">{{ qp.text }}</span>
         </button>
       </div>

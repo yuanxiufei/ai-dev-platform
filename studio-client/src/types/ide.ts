@@ -25,6 +25,21 @@ export interface EditorTab {
   modified: boolean
   originalContent: string
   order: number
+  /** VSCode: pinned tab (stays left-aligned, won't close with closeOthers) */
+  pinned?: boolean
+  /** Editor group id this tab belongs to */
+  groupId?: string
+}
+
+/** VSCode style editor group (split panes) */
+export interface EditorGroup {
+  id: string
+  tabs: string[]         // tab IDs
+  activeTabId: string | null
+  /** Ratio in horizontal split (0-1) */
+  widthRatio?: number
+  /** Ratio in vertical split (0-1) */
+  heightRatio?: number
 }
 
 /** Terminal session */
@@ -91,7 +106,7 @@ export interface SearchState {
 }
 
 /** Right panel view mode */
-export type RightPanelView = "output" | "terminal" | "debug" | "chat"
+export type RightPanelView = "output" | "terminal" | "debug" | "chat" | "memory" | "skills" | "mcp"
 
 /** Sidebar / Activity bar icon entry */
 export interface ActivityItem {

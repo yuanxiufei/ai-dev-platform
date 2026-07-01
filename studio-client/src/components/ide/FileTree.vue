@@ -1,11 +1,11 @@
-<script setup lang="ts">/** CodeBuddy IDE — File Tree Component (Zed/CodeEdit 风格增强) */
-import { ref, computed } from 'vue'
+<script setup lang="ts">/** CodeBuddy IDE — File Tree Component (VSCode Explorer) */
+import { ref, computed, nextTick } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
 import type { FileEntry } from '@/types/ide'
 import {
   ChevronDown, ChevronRight, FolderOpen, FolderClosed, FileCode, FileJson,
   FileText, Image as ImgIcon, Archive, File, FileSymlink, FilePlus, FolderPlus,
-  Pencil, Trash2, Copy, ClipboardPaste, AtSign,
+  Pencil, Trash2, Copy, AtSign,
 } from 'lucide-vue-next'
 
 const store = useIDEStore()
@@ -13,15 +13,16 @@ const props = defineProps<{ entries?: FileEntry[]; depth?: number }>()
 const entries = computed(() => props.entries ?? store.fileTree)
 
 const emit = defineEmits<{
-  /** 🆕 CodeEdit/Zed 风格: 请求在聊天中 @-引用此文件 */
   (e: "mentionFile", path: string, name: string): void
 }>()
 
-/** Right-click context menu state */
-const contextMenu = ref<{ x: number; y: number; entry: FileEntry | null } | null>(null)
-const contextParentEntries = ref<FileEntry[] | null>(null)
-const renamingEntry = ref<string | null>(null)
+/** Right-click context menu */
+const contextMenu = ref<{ x: number; y: number; entry: FileEntry } | null>(null)
+
+/** 🔥 VSCode: Inline rename (F2) — type new name and press Enter */
+const renamingPath = ref<string | null>(null)
 const renameValue = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
 
 function getIcon(e: FileEntry) {
   if (e.isDir) return e.expanded ? FolderOpen : FolderClosed
@@ -54,24 +55,68 @@ function handleClick(e: FileEntry): void {
   if (e.isDir) store.toggleExpand(e)
   else if (e.path) store.openFile(e.path)
 }
+
+/** 🔥 VSCode: F2 — start inline rename */
+function handleKeydown(ev: KeyboardEvent, entry: FileEntry): void {
+  if (ev.key === 'F2' && !entry.isDir) {
+    ev.preventDefault(); ev.stopPropagation()
+    startRename(entry)
+  }
+}
+
+function startRename(entry: FileEntry): void {
+  renamingPath.value = entry.path
+  renameValue.value = entry.name
+  nextTick(() => {
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  })
+}
+
+async function commitRename(entry: FileEntry): Promise<void> {
+  const newName = renameValue.value.trim()
+  if (!newName || newName === entry.name || !entry.path) {
+    renamingPath.value = null
+    return
+  }
+  const renamed = await store.renameFileEntry(entry.path, newName)
+  if (renamed) {
+    const parent = findParent(store.fileTree, entry.path)
+    if (parent?.children) await store.refreshEntry(parent)
+  }
+  renamingPath.value = null
+}
+
+function cancelRename(): void {
+  renamingPath.value = null
+}
+
+/** 🔥 VSCode: Drag & Drop files between folders */
+function onFileDragStart(e: DragEvent, entry: FileEntry): void {
+  e.dataTransfer!.setData("text/plain", entry.path)
+  e.dataTransfer!.effectAllowed = "move"
+}
+function onFileDragOver(e: DragEvent): void {
+  e.preventDefault(); e.dataTransfer!.dropEffect = "move"
+}
+function onFileDrop(_e: DragEvent, targetDir: FileEntry): void {
+  // Placeholder — full file move would require Tauri backend support
+  // For now, just visual feedback
+}
+
 function handleContextMenu(ev: MouseEvent, entry: FileEntry): void {
   ev.preventDefault()
-  contextParentEntries.value = entries.value
   contextMenu.value = { x: ev.clientX, y: ev.clientY, entry }
 }
 function closeContextMenu(): void { contextMenu.value = null }
 
-/** 🆕 复制文件路径 (CodeEdit 风格) */
 async function handleCopyPath(): Promise<void> {
   const entry = contextMenu.value?.entry
   if (!entry?.path) return
-  try {
-    await navigator.clipboard.writeText(entry.path)
-  } catch { /* ignore */ }
+  try { await navigator.clipboard.writeText(entry.path) } catch { /* ignore */ }
   closeContextMenu()
 }
 
-/** 🆕 @-引用到 AI 对话 (自定义 IDE 特有功能) */
 function handleMentionInChat(): void {
   const entry = contextMenu.value?.entry
   if (!entry?.path) return
@@ -124,14 +169,8 @@ async function handleNewFolder(): Promise<void> {
 async function handleRename(): Promise<void> {
   const entry = contextMenu.value!.entry
   if (!entry?.path) return
-  const newName = prompt('新名称:', entry.name)
-  if (!newName?.trim() || newName.trim() === entry.name) return
-  const renamed = await store.renameFileEntry(entry.path, newName.trim())
-  if (renamed) {
-    const parent = findParent(store.fileTree, entry.path)
-    if (parent?.children) await store.refreshEntry(parent)
-  }
   closeContextMenu()
+  startRename(entry)
 }
 
 async function handleDelete(): Promise<void> {
@@ -157,30 +196,45 @@ function findParent(entries: FileEntry[], childPath: string): FileEntry | null {
   }
   return null
 }
-
-function closeOnClickOutside(): void {
-  document.addEventListener('click', () => contextMenu.value = null, { once: true })
-}
 </script>
 
 <template>
-  <div class="file-tree text-xs select-none py-1">
+  <div class="file-tree text-[13px] select-none py-1">  <!-- was text-xs -->
     <div v-for="entry in entries" :key="entry.path || entry.name"
-      class="tree-item group relative flex items-center h-7 pr-2 cursor-pointer transition-colors"
+      class="tree-item group relative flex items-center h-8 pr-2 cursor-pointer transition-colors"  <!-- was h-7 -->
       :style="{ paddingLeft: `${(depth ?? 0) * 12 + 8}px` }"
       :class="[store.selectedFilePath === entry.path ? 'bg-[rgba(192,193,255,0.1)]' : 'hover:bg-[var(--color-ide-surface-hover)]']"
       @click.stop="handleClick(entry)"
-      @contextmenu.stop="handleContextMenu($event, entry)">
+      @contextmenu.stop="handleContextMenu($event, entry)"
+      @keydown="handleKeydown($event, entry)"
+      @dragover="onFileDragOver"
+      @drop="onFileDrop($event, entry)">
       <!-- Active left border -->
-      <div v-if="store.selectedFilePath === entry.path"
+      <div v-if="store.selectedFilePath === entry.path && renamingPath !== entry.path"
         class="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full shrink-0"
         style="background:#38BDF8;" />
       <span class="w-4 h-4 flex items-center justify-center shrink-0 mr-0.5">
         <component v-if="entry.isDir" :is="entry.expanded ? ChevronDown : ChevronRight" :size="14" style="color:#908FA0;" /><span v-else class="w-3.5" />
       </span>
       <span class="w-4 h-4 flex items-center justify-center mr-1.5 shrink-0"><component :is="getIcon(entry)" :size="15" :style="{ color: getColor(entry) }" /></span>
-      <span class="truncate flex-1"
-        :class="[store.selectedFilePath === entry.path ? 'font-semibold' : '', store.selectedFilePath === entry.path ? 'text-[#C0C1FF]' : 'text-[var(--color-ide-text)]']">
+
+      <!-- 🔥 VSCode: Inline rename (F2) -->
+      <template v-if="renamingPath === entry.path">
+        <input
+          ref="renameInputRef"
+          v-model="renameValue"
+          class="flex-1 min-w-0 bg-[#3C3C3C] border border-[var(--color-ide-accent)] rounded px-1 py-0 text-[13px] outline-none text-[var(--color-ide-text)]"
+          @blur="commitRename(entry)"
+          @keydown.enter="commitRename(entry)"
+          @keydown.escape="cancelRename()"
+          @click.stop
+        />
+      </template>
+      <!-- Normal label -->
+      <span v-else class="truncate flex-1"
+        :class="[store.selectedFilePath === entry.path ? 'font-semibold' : '', store.selectedFilePath === entry.path ? 'text-[#C0C1FF]' : 'text-[var(--color-ide-text)]']"
+        draggable="true"
+        @dragstart="onFileDragStart($event, entry)">
         {{ entry.name }}
       </span>
     </div>
@@ -188,32 +242,20 @@ function closeOnClickOutside(): void {
       <FileTree v-if="entry.isDir && entry.expanded && entry.children?.length" :entries="entry.children" :depth="(depth ?? 0) + 1" />
     </template>
 
-    <!-- 🆕 Right-Click Context Menu (Zed/CodeEdit 风格增强) -->
+    <!-- 🔥 Context Menu -->
     <Teleport to="body">
       <div v-if="contextMenu" class="fixed z-[300]" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @click.stop>
-        <div class="w-48 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl py-1.5 text-xs">
-          <!-- 🆕 打开 (文件) -->
-          <button
-            v-if="!contextMenu.entry?.isDir"
-            class="context-menu-item w-full text-left flex items-center gap-2"
-            @click="contextMenu.entry?.path && store.openFile(contextMenu.entry.path); closeContextMenu()"
-          >
-            <FileCode :size="13" /> 打开
+        <div class="w-48 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-[3px] shadow-[0_2px_8px_rgba(0,0,0,0.36)] py-1 text-[13px]">
+          <button v-if="!contextMenu.entry?.isDir" class="context-menu-item w-full text-left flex items-center justify-between gap-6"
+            @click="contextMenu.entry?.path && store.openFile(contextMenu.entry.path); closeContextMenu()">
+            <span>打开</span><kbd>Enter</kbd>
           </button>
-          <!-- 🆕 复制路径 -->
-          <button
-            v-if="!contextMenu.entry?.isDir"
-            class="context-menu-item w-full text-left flex items-center gap-2"
-            @click="handleCopyPath()"
-          >
+          <button v-if="!contextMenu.entry?.isDir" class="context-menu-item w-full text-left flex items-center gap-2"
+            @click="handleCopyPath()">
             <Copy :size="13" /> 复制路径
           </button>
-          <!-- 🆕 @-引用到对话 -->
-          <button
-            v-if="!contextMenu.entry?.isDir"
-            class="context-menu-item w-full text-left flex items-center gap-2 text-brand-400 hover:text-brand-300"
-            @click="handleMentionInChat()"
-          >
+          <button v-if="!contextMenu.entry?.isDir" class="context-menu-item w-full text-left flex items-center gap-2"
+            @click="handleMentionInChat()">
             <AtSign :size="13" /> @-引用到对话
           </button>
           <hr class="my-1 border-[var(--color-ide-border)]" />
@@ -223,12 +265,12 @@ function closeOnClickOutside(): void {
           <button v-if="contextMenu.entry?.isDir" class="context-menu-item w-full text-left flex items-center gap-2" @click="handleNewFolder()">
             <FolderPlus :size="13" /> 新建文件夹
           </button>
-          <button class="context-menu-item w-full text-left flex items-center gap-2" @click="handleRename()">
-            <Pencil :size="13" /> 重命名
+          <button class="context-menu-item w-full text-left flex items-center justify-between gap-6" @click="handleRename()">
+            <span><Pencil :size="13" class="inline mr-2"/>重命名</span><kbd>F2</kbd>
           </button>
           <hr class="my-1 border-[var(--color-ide-border)]" />
-          <button class="context-menu-item w-full text-left flex items-center gap-2 text-red-400 hover:text-red-300" @click="handleDelete()">
-            <Trash2 :size="13" /> 删除
+          <button class="context-menu-item w-full text-left flex items-center justify-between gap-6 text-red-400 hover:text-red-300" @click="handleDelete()">
+            <span><Trash2 :size="13" class="inline mr-2"/>删除</span><kbd>Del</kbd>
           </button>
         </div>
       </div>

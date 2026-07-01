@@ -445,7 +445,7 @@ watch([minImportance, selectedTypes], () => {
 
 .type-chip {
   @apply px-2 py-0.5 rounded-full border transition-colors cursor-pointer;
-  @apply border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400;
+  @apply border-gray-300 dark:border-gray-600 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 .type-chip:hover {
   @apply bg-gray-100 dark:bg-gray-700;
@@ -455,11 +455,11 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .separator {
-  @apply text-gray-300 dark:text-gray-600 mx-1;
+  @apply text-[var(--color-ide-text)] dark:text-[var(--color-ide-text-dim)] mx-1;
 }
 
 .filter-label {
-  @apply flex items-center gap-1 text-gray-500 dark:text-gray-400;
+  @apply flex items-center gap-1 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .importance-slider {
@@ -467,11 +467,11 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .filter-value {
-  @apply text-gray-700 dark:text-gray-300 font-mono w-8;
+  @apply text-gray-700 dark:text-[var(--color-ide-text)] font-mono w-8;
 }
 
 .refresh-btn {
-  @apply p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400;
+  @apply p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .refresh-btn:disabled {
@@ -492,7 +492,7 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .stat-label {
-  @apply text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide;
+  @apply text-[10px] text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)] uppercase tracking-wide;
 }
 
 /* Graph Canvas */
@@ -507,11 +507,11 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .loading-state {
-  @apply flex-col gap-2 text-gray-500 dark:text-gray-400;
+  @apply flex-col gap-2 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .empty-state {
-  @apply flex flex-col items-center justify-center h-full gap-2 text-gray-400 dark:text-gray-500;
+  @apply flex flex-col items-center justify-center h-full gap-2 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .empty-icon {
@@ -609,7 +609,7 @@ watch([minImportance, selectedTypes], () => {
 .detail-type.pattern { @apply bg-purple-500; }
 
 .close-btn {
-  @apply text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none;
+  @apply text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] dark:hover:text-[var(--color-ide-text)] text-lg leading-none;
 }
 
 .detail-body {
@@ -617,7 +617,7 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .detail-content {
-  @apply text-sm text-gray-700 dark:text-gray-300 leading-relaxed;
+  @apply text-sm text-gray-700 dark:text-[var(--color-ide-text)] leading-relaxed;
 }
 
 .detail-meta {
@@ -629,15 +629,15 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .meta-label {
-  @apply text-gray-500 dark:text-gray-400;
+  @apply text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .meta-value {
-  @apply text-gray-700 dark:text-gray-300 font-medium;
+  @apply text-gray-700 dark:text-[var(--color-ide-text)] font-medium;
 }
 
 .tag-badge {
-  @apply inline-block px-1.5 py-0.5 mr-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px];
+  @apply inline-block px-1.5 py-0.5 mr-1 rounded bg-gray-100 dark:bg-gray-700 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)] text-[10px];
 }
 
 .connections {
@@ -645,7 +645,7 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .connections-title {
-  @apply text-xs font-medium text-gray-500 dark:text-gray-400 mb-2;
+  @apply text-xs font-medium text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)] mb-2;
 }
 
 .connection-item {
@@ -653,18 +653,18 @@ watch([minImportance, selectedTypes], () => {
 }
 
 .conn-arrow {
-  @apply text-gray-400 dark:text-gray-500;
+  @apply text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 .conn-arrow.depends_on { @apply text-amber-500; }
 .conn-arrow.enhances { @apply text-green-500; }
 .conn-arrow.contradicts { @apply text-red-500; }
 
 .conn-type {
-  @apply text-[10px] px-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400;
+  @apply text-[10px] px-1 rounded bg-gray-100 dark:bg-gray-800 text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text-dim)];
 }
 
 .conn-content {
-  @apply text-gray-600 dark:text-gray-300 truncate;
+  @apply text-[var(--color-ide-text-dim)] dark:text-[var(--color-ide-text)] truncate;
 }
 
 .spinning {

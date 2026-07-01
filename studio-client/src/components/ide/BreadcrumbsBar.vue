@@ -123,7 +123,7 @@ function fileColor(name: string): string {
         <button
           v-for="sib in siblings"
           :key="sib.name"
-          class="w-full text-left flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 transition-colors"
+          class="w-full text-left flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--color-ide-surface-hover)] transition-colors"
           @click="handleSelectSibling(sib.name, sib.isDir)"
         >
           <component :is="sib.isDir ? FolderOpen : FileCode" :size="13"

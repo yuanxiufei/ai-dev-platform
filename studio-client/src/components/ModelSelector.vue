@@ -80,7 +80,7 @@ onUnmounted(() => document.removeEventListener("click", handleClickOutside))
 <template>
   <div ref="dropdownRef" class="relative">
     <button
-      class="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 px-3 py-1.5 text-xs text-gray-300 transition-all duration-200 min-w-[140px]"
+      class="flex items-center gap-2 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] hover:border-white/20 px-3 py-1.5 text-xs text-[var(--color-ide-text)] transition-all duration-200 min-w-[140px]"
       @click.stop="open = !open"
     >
       <Cpu class="w-3.5 h-3.5 text-brand-400 shrink-0" />
@@ -88,7 +88,7 @@ onUnmounted(() => document.removeEventListener("click", handleClickOutside))
         {{ defaultOptions.find(o => o.value === modelValue)?.label ?? 'Auto 自动选择' }}
       </span>
       <ChevronDown
-        :class="['w-3 h-3 text-gray-500 transition-transform duration-200', open && 'rotate-180']"
+        :class="['w-3 h-3 text-[var(--color-ide-text-dim)] transition-transform duration-200', open && 'rotate-180']"
       />
     </button>
 
@@ -103,9 +103,9 @@ onUnmounted(() => document.removeEventListener("click", handleClickOutside))
     >
       <div
         v-if="open"
-        class="absolute right-0 top-full mt-1.5 w-60 rounded-2xl border border-white/10 bg-surface-800 shadow-2xl shadow-black/30 backdrop-blur-xl p-1.5 z-50 max-h-72 overflow-y-auto"
+        class="absolute right-0 top-full mt-1.5 w-60 rounded-2xl border border-[var(--color-ide-border)] bg-surface-800 shadow-2xl shadow-black/30 backdrop-blur-xl p-1.5 z-50 max-h-72 overflow-y-auto"
       >
-        <div class="px-2.5 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+        <div class="px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider">
           选择模型
         </div>
         <button
@@ -115,7 +115,7 @@ onUnmounted(() => document.removeEventListener("click", handleClickOutside))
             'flex items-center gap-3 w-full text-left px-2.5 py-2 rounded-lg text-sm transition-colors duration-150',
             modelValue === opt.value
               ? 'bg-brand-500/15 text-brand-400'
-              : 'text-gray-300 hover:bg-white/5',
+              : 'text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)]',
           ]"
           @click.stop="open = false; $emit('update:modelValue', opt.value)"
         >
@@ -125,7 +125,7 @@ onUnmounted(() => document.removeEventListener("click", handleClickOutside))
           />
           <div class="flex-1 min-w-0">
             <div class="text-sm font-medium truncate">{{ opt.label }}</div>
-            <div v-if="opt.provider" class="text-[10px] text-gray-500 mt-0.5">{{ opt.provider }}</div>
+            <div v-if="opt.provider" class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5">{{ opt.provider }}</div>
           </div>
           <span
             :class="[

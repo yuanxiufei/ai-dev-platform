@@ -1,109 +1,119 @@
 @import "tailwindcss";
 
 /* ============================================
-   CodeBuddy IDE — Unified Theme (IDE + Studio)
-   Figma Design: studio-ai (node-id=9-195)
+   CodeBuddy IDE — VSCode Dark+ Theme (像素级对齐)
+   颜色值来源: D:\code\vscode\src\vs\platform\theme
+   尺寸值来源: D:\code\vscode\src\vs\workbench\browser\layout.ts
    ============================================ */
 
 @theme {
-  /* IDE Core Colors (Figma dark IDE theme) */
-  --color-ide-bg: #0f131d;
-  --color-ide-surface: #1c1f2a;
-  --color-ide-surface-hover: #252836;
-  --color-ide-surface-active: rgba(192, 193, 255, 0.1);
-  --color-ide-border: #464554;
-  --color-ide-border-focus: #c0c1ff;
+  /* ═══ VSCode 核心背景色 (Dark+ defaults) ═══ */
+  --color-ide-bg: #1E1E1E;              /* VSCode: editor.background */
+  --color-ide-surface: #252526;          /* VSCode: sideBar.background / editorWidget.background */
+  --color-ide-surface-hover: #2A2D2E;    /* VSCode: list.hoverBackground */
+  --color-ide-surface-active: #37373D;   /* VSCode: list.activeSelectionBackground */
+  --color-ide-border: #3C3C3C;           /* VSCode: contrastBorder / widget border */
+  --color-ide-border-focus: #007FD4;     /* VSCode: focusBorder */
 
-  /* Utility aliases */
-  --color-ide-bg-secondary: #171b26;
-  --color-ide-bg-tertiary: #1e2230;
-  --color-ide-hover: #252836;
-  --color-ide-selection: rgba(192, 193, 255, 0.15);
-  --color-ide-text-secondary: #908fa0;
+  /* Sidebar / ActivityBar */
+  --color-ide-bg-secondary: #2D2D2D;     /* VSCode: tab.inactiveBackground / editorGroupHeader.tabsBackground */
+  --color-activity-bg: #333333;          /* VSCode: activityBar.background */
+  --color-activity-hover: #3C3C3C;       /* VSCode: activityBar hover */
+  --color-activity-active: #2D2D2D;      /* VSCode: activityBar active */
 
-  /* Text (Figma text colors) */
-  --color-ide-text: #dfe2f1;
-  --color-ide-text-dim: #908fa0;
-  --color-ide-text-bright: #ffffff;
+  /* Text */
+  --color-ide-text: #CCCCCC;             /* VSCode: foreground */
+  --color-ide-text-dim: #858585;         /* VSCode: descriptionForeground / editorLineNumber.foreground */
+  --color-ide-text-bright: #FFFFFF;      /* VSCode: strongForeground */
 
-  /* Accent (Figma primary: purple-blue) */
-  --color-ide-accent: #c0c1ff;
-  --color-ide-accent-hover: #d4d5ff;
-  --color-ide-success: #98c379;
-  --color-ide-warning: #fbbf24;
-  --color-ide-error: #e06c75;
-  --color-ide-info: #38bdf8;
+  /* Accent */
+  --color-ide-accent: #007ACC;           /* VSCode: statusBar.background / button.background */
+  --color-ide-accent-hover: #1177BB;     /* VSCode: button.hoverBackground */
+  --color-ide-success: #4EC9B0;
+  --color-ide-warning: #CCA700;          /* VSCode: editorWarning.foreground */
+  --color-ide-error: #F48771;            /* VSCode: errorForeground */
+  --color-ide-info: #75BEFF;
 
-  /* Sidebar activity bar */
-  --color-activity-bg: #171b26;
-  --color-activity-hover: #1c1f2a;
-  --color-activity-active: #252836;
+  /* StatusBar */
+  --color-statusbar-bg: #007ACC;         /* VSCode: statusBar.background */
+  --color-statusbar-text: #FFFFFF;       /* VSCode: statusBar.foreground */
 
-  /* Status bar */
-  --color-statusbar-bg: #171b26;
-  --color-statusbar-text: #908fa0;
+  /* Editor */
+  --color-editor-bg: #1E1E1E;           /* VSCode: editor.background */
+  --color-tab-active: #1E1E1E;           /* VSCode: tab.activeBackground */
+  --color-tab-inactive: #2D2D2D;         /* VSCode: tab.inactiveBackground */
+  --color-tab-hover: #2D2D2D;            /* VSCode: tab.hoverBackground */
+  --color-tab-border: #252526;           /* VSCode: tab.border */
 
-  /* Editor (Figma editor background) */
-  --color-editor-bg: #0f131d;
-  --color-tab-active: #0f131d;
-  --color-tab-inactive: #1c1f2a;
-  --color-tab-hover: #252836;
-  --color-tab-border: #464554;
+  /* Terminal */
+  --color-terminal-bg: #1E1E1E;          /* VSCode: terminal.background */
+  --color-terminal-fg: #CCCCCC;          /* VSCode: terminal.foreground */
+  --color-terminal-green: #4EC9B0;
+  --color-terminal-red: #F14C4C;
+  --color-terminal-yellow: #CCA700;
+  --color-terminal-blue: #3794FF;
 
-  /* Terminal (Figma terminal bg) */
-  --color-terminal-bg: #0f131d;
-  --color-terminal-fg: #dfe2f1;
-  --color-terminal-green: #98c379;
-  --color-terminal-red: #e06c75;
-  --color-terminal-yellow: #fbbf24;
-  --color-terminal-blue: #38bdf8;
+  /* Code syntax (VSCode Dark+ defaults) */
+  --color-code-keyword: #569CD6;         /* blue */
+  --color-code-string: #CE9178;          /* orange */
+  --color-code-function: #DCDCAA;        /* yellow */
+  --color-code-number: #B5CEA8;          /* green */
+  --color-code-comment: #6A9955;         /* green comment */
+  --color-code-tag: #569CD6;             /* blue */
+  --color-code-attr: #9CDCFE;            /* light blue */
 
-  /* Code syntax highlighting (Figma / One Dark inspired) */
-  --color-code-tag: #e06c75; /* pink/red - HTML tags, keywords */
-  --color-code-string: #98c379; /* green - strings */
-  --color-code-keyword: #c678dd; /* purple - import/const/etc */
-  --color-code-function: #61afef; /* blue - function names */
-  --color-code-attr: #dfe2f1; /* light gray - attributes */
-  --color-code-comment: #5c6370; /* dim - comments */
-  --color-code-number: #d19a66; /* orange - numbers */
+  /* Panel sizes (VSCode exact values) */
+  --sidebar-width: 48px;                 /* VSCode: ACTIVITYBAR_WIDTH */
+  --menubar-height: 38px;                /* VSCode: DEFAULT_CUSTOM_TITLEBAR_HEIGHT (was 35) */
+  --statusbar-height: 28px;              /* VSCode: StatusbarPart.HEIGHT (was 22→26→28) */
+  --tabbar-height: 38px;                 /* VSCode: EDITOR_TAB_HEIGHT (normal) (was 35) */
+  --panel-title-height: 38px;            /* VSCode: Panel title bar (was 35) */
+  --panel-min-height: 77px;              /* VSCode: panel minimiumHeight */
+  --sash-size: 4px;                      /* VSCode: workbench.sash.size */
 
-  /* Panel sizes */
-  --sidebar-width: 48px;
-  --menubar-height: 35px;
-  --statusbar-height: 26px;
-  --tabbar-height: 40px;
+  /* VSCode Tab system */
+  --tab-accent-color: #007ACC;           /* VSCode: tab.activeBorder */
+  --tab-active-border-top: 1px solid #007ACC;
+  --tab-inactive-opacity: 0.7;
 
-  /* Studio brand colors (kept for Studio pages) */
-  --color-brand-400: #c0c1ff;
-  --color-brand-500: #a093e0;
-  --color-brand-600: #8b7bd6;
-  --color-purple-400: #c0c1ff;
-  --color-purple-500: #a093e0;
-  --color-surface-800: #1c1f2a;
-  --color-surface-900: #151823;
-  --color-surface-950: #0a0e18;
+  /* Misc */
+  --color-ide-bg-tertiary: #1E1E1E;     /* alias */
+  --color-ide-hover: #2A2D2E;
+  --color-ide-selection: #264F78;        /* VSCode: selection.background */
+  --color-ide-text-secondary: #858585;
+  --color-ide-menu-hover: #094771;       /* VSCode: menu.selectionBackground */
+
+  /* Studio brand (kept for Studio pages) */
+  --color-brand-400: #007ACC;
+  --color-brand-500: #005A9E;
+  --color-brand-600: #004578;
+  --color-purple-400: #007ACC;
+  --color-purple-500: #005A9E;
+  --color-surface-800: #252526;
+  --color-surface-900: #1E1E1E;
+  --color-surface-950: #121212;
 
   /* AI Chat specific */
-  --color-chat-user-bg: rgba(192, 193, 255, 0.08);
-  --color-chat-user-border: rgba(192, 193, 255, 0.18);
-  --color-chat-ai-bg: rgba(28, 31, 42, 0.6);
-  --color-chat-ai-border: #c0c1ff;
-  --color-chat-btn-primary: #c0c1ff;
-  --color-chat-btn-primary-text: #1000a9;
-  --color-chat-input-bg: #141822;
+  --color-chat-user-bg: rgba(0, 122, 204, 0.08);
+  --color-chat-user-border: rgba(0, 122, 204, 0.18);
+  --color-chat-ai-bg: rgba(37, 37, 38, 0.6);
+  --color-chat-ai-border: #007ACC;
+  --color-chat-btn-primary: #007ACC;
+  --color-chat-btn-primary-text: #FFFFFF;
+  --color-chat-input-bg: #3C3C3C;
 
-  /* Component tokens — unified UI primitives */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
+  /* Component tokens */
+  --radius-sm: 3px;                      /* VSCode: tighter corners */
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --shadow-sm: 0 0 2px rgba(0,0,0,0.24);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.36);     /* VSCode: widget.shadow */
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.48);
 }
 
 /* ============================================
-   Global Reset & Base Styles
+   Global Reset & Base
    ============================================ */
 
 * {
@@ -112,63 +122,62 @@
   box-sizing: border-box;
 }
 
-html,
-body,
-#app {
+html, body, #app {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI",
+    system-ui, Ubuntu, "Droid Sans", sans-serif;
+  font-size: 14px;                       /* VSCode: UI font-size (was 13px) */
+  line-height: 1.5;                      /* was 1.4 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-ide-bg);
   color: var(--color-ide-text);
 }
 
-/* Scrollbar styling (Figma: subtle, dark) */
+/* ── Scrollbar (VSCode 风格: 10px, dark, subtle) ── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #46455466;
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  background: rgba(121, 121, 121, 0.4);
+  border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a596b66;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  background: rgba(100, 100, 100, 0.7);
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(191, 191, 191, 0.4);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
 ::selection {
-  background-color: rgba(192, 193, 255, 0.2);
+  background-color: var(--color-ide-selection, #264F78);
+  color: inherit;
 }
+
+/* ── Focus outline (VSCode: 1px solid #007FD4 on focus-visible) ── */
 *:focus-visible {
-  outline: 1px solid var(--color-ide-accent);
+  outline: 1px solid var(--color-ide-border-focus);
   outline-offset: -1px;
 }
 
 /* ============================================
-   Utility Classes
+   Sash / Resize Handle (VSCode sash.css)
    ============================================ */
 
 .resize-handle {
   position: absolute;
   background: transparent;
   z-index: 10;
-  transition: background 0.15s;
+  transition: background 0.15s ease;
 }
 .resize-handle:hover,
 .resize-handle.active {
@@ -177,20 +186,40 @@ body,
 .resize-handle-h {
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: var(--sash-size, 4px);
   cursor: col-resize;
 }
 .resize-handle-v {
   left: 0;
   right: 0;
-  height: 4px;
+  height: var(--sash-size, 4px);
   cursor: row-resize;
 }
 
-/* Fade animations */
+/* ============================================
+   Context Menu (VSCode 风格)
+   ============================================ */
+
+.context-menu-item {
+  padding: 5px 24px 5px 16px;
+  cursor: default;
+  white-space: nowrap;
+  font-size: 14px;                      /* was 13px */
+  line-height: 24px;                    /* was 22px */
+  color: var(--color-ide-text);
+}
+.context-menu-item:hover {
+  background: #094771;                   /* VSCode: menu.selectionBackground */
+  color: #FFFFFF;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.15s ease;
+  transition: opacity 0.1s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
@@ -199,9 +228,7 @@ body,
 
 .slide-left-enter-active,
 .slide-left-leave-active {
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 .slide-left-enter-from {
   transform: translateX(-100%);
@@ -212,17 +239,10 @@ body,
   opacity: 0;
 }
 
-.context-menu-item {
-  padding: 4px 24px 4px 32px;
-  cursor: default;
-  white-space: nowrap;
-}
-.context-menu-item:hover {
-  background: var(--color-ide-accent);
-  color: #fff;
-}
+/* ============================================
+   Monaco Editor Overrides
+   ============================================ */
 
-/* Monaco editor overrides (Figma theme) */
 .monaco-editor .margin {
   background-color: var(--color-editor-bg);
 }
@@ -232,73 +252,70 @@ body,
   background-color: var(--color-editor-bg);
 }
 .monaco-editor .cursor {
-  color: #c0c1ff;
+  background-color: #AEAFAD;             /* VSCode: editorCursor.foreground */
 }
 
-/* ── AI 内联装饰 (Monaco deltaDecorations, 借鉴 08-MonacoEditor.md) ── */
-/* AI 插入行 — 绿色标注 */
+/* AI 内联装饰 */
 .ai-inserted-line {
-  background: rgba(46, 160, 67, 0.12) !important;
-  border-left: 3px solid #2ea043 !important;
+  background: rgba(78, 201, 176, 0.12) !important;
+  border-left: 3px solid #4EC9B0 !important;
 }
-/* AI 修改行 — 黄色标注 */
 .ai-modified-line {
-  background: rgba(210, 153, 34, 0.12) !important;
-  border-left: 3px solid #d29922 !important;
+  background: rgba(204, 167, 0, 0.12) !important;
+  border-left: 3px solid #CCA700 !important;
 }
-/* AI 删除行 — 红色标注 */
 .ai-deleted-line {
-  background: rgba(248, 81, 73, 0.1) !important;
-  border-left: 3px solid #f85149 !important;
+  background: rgba(244, 135, 113, 0.1) !important;
+  border-left: 3px solid #F48771 !important;
   opacity: 0.6;
   text-decoration: line-through;
-  text-decoration-color: #f8514960;
+  text-decoration-color: #F4877160;
 }
-/* AI 信息行 — 蓝色标注 */
 .ai-info-line {
-  background: rgba(97, 175, 239, 0.08) !important;
-  border-left: 3px solid #61AFEF !important;
+  background: rgba(117, 190, 255, 0.08) !important;
+  border-left: 3px solid #75BEFF !important;
 }
-/* AI 建议 ghost text */
 .ai-suggestion-ghost {
   opacity: 0.5;
   font-style: italic;
 }
-/* AI glyph margin 标记 */
 .monaco-editor .ai-glyph-insert {
-  background: #2ea043;
+  background: #4EC9B0;
   width: 4px !important;
   margin-left: 4px;
   border-radius: 2px;
 }
 .monaco-editor .ai-glyph-modify {
-  background: #d29922;
+  background: #CCA700;
   width: 4px !important;
   margin-left: 4px;
   border-radius: 2px;
 }
 .monaco-editor .ai-glyph-delete {
-  background: #f85149;
+  background: #F48771;
   width: 4px !important;
   margin-left: 4px;
   border-radius: 2px;
 }
 .monaco-editor .ai-glyph-info {
-  background: #61AFEF;
+  background: #75BEFF;
   width: 4px !important;
   margin-left: 4px;
   border-radius: 2px;
 }
 
-/* Studio-specific utility classes */
+/* ============================================
+   Studio Utilities
+   ============================================ */
+
 .text-gradient-brand {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #007ACC, #005A9E);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .glass {
-  background: rgba(30, 27, 46, 0.6);
+  background: rgba(30, 30, 30, 0.6);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -309,221 +326,101 @@ body,
   background-size: 40px 40px;
 }
 
-/* Transition helpers — only apply to interactive elements */
-button,
-a,
-[role="button"],
-input,
-textarea,
-select {
-  transition:
-    background-color 0.15s,
-    color 0.15s,
-    border-color 0.15s;
+/* Transition helpers */
+button, a, [role="button"], input, textarea, select {
+  transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
 
-/* Theme transition — smooth class swap */
+/* Theme transition */
 html {
-  /* Allow CSS variable transitions for theme switching */
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ═══ Workbench panel elevation / depth ═══ */
+.workbench {
+  contain: layout style;
+}
+.workbench-panel {
+  box-shadow: 0 0 0 1px var(--color-ide-border);
+}
+
+/* List item VSCode hover / active */
+.list-item-vscode {
+  cursor: default;
+  transition: background-color 0.08s ease;
+}
+.list-item-vscode:hover {
+  background-color: var(--color-ide-surface-hover);
+}
+.list-item-vscode:active {
+  background-color: var(--color-ide-surface-active);
+}
+
+/* Link style (VSCode: editorLink.activeForeground) */
+a.vscode-link {
+  color: var(--color-ide-accent);
+  text-decoration: none;
+}
+a.vscode-link:hover {
+  text-decoration: underline;
+  color: var(--color-ide-accent-hover);
+}
+
+/* Z-index system */
+.z-workbench {
+  z-index: 0;
+}
+.z-overlay {
+  z-index: 100;
+}
+.z-dropdown {
+  z-index: 200;
+}
+.z-modal {
+  z-index: 300;
+}
+.z-tooltip {
+  z-index: 500;
+}
+.z-notification {
+  z-index: 9000;
+}
+
+/* ═══ Horizontal rule divider ═══ */
+hr.vscode-divider {
+  border: 0;
+  border-top: 1px solid var(--color-ide-border);
+  margin: 4px 0;
+  opacity: 0.6;
 }
 
 /* ============================================
-   Session 10: Light Theme Overrides
-   ============================================ */
-html.theme-light {
-  --color-ide-bg: #f5f5f5;
-  --color-ide-surface: #ffffff;
-  --color-ide-surface-hover: #e8e8e8;
-  --color-ide-surface-active: rgba(0, 120, 212, 0.08);
-  --color-ide-border: #d4d4d4;
-  --color-ide-border-focus: #0078d4;
-
-  --color-ide-bg-secondary: #ececec;
-  --color-ide-bg-tertiary: #e0e0e0;
-  --color-ide-hover: #e8e8e8;
-  --color-ide-selection: rgba(0, 120, 212, 0.15);
-
-  --color-ide-text: #1e1e1e;
-  --color-ide-text-dim: #616161;
-  --color-ide-text-bright: #000000;
-  --color-ide-text-secondary: #616161;
-
-  --color-ide-accent: #0078d4;
-  --color-ide-accent-hover: #106ebe;
-  --color-ide-success: #388a34;
-  --color-ide-warning: #ca7100;
-  --color-ide-error: #d1242f;
-  --color-ide-info: #0078d4;
-
-  --color-activity-bg: #f3f3f3;
-  --color-activity-hover: #e8e8e8;
-  --color-activity-active: #ffffff;
-
-  --color-statusbar-bg: #007acc;
-  --color-statusbar-text: #ffffff;
-
-  --color-editor-bg: #ffffff;
-  --color-tab-active: #ffffff;
-  --color-tab-inactive: #ececec;
-  --color-tab-hover: #e8e8e8;
-  --color-tab-border: #d4d4d4;
-
-  --color-terminal-bg: #ffffff;
-  --color-terminal-fg: #1e1e1e;
-  --color-terminal-green: #388a34;
-  --color-terminal-red: #d1242f;
-  --color-terminal-yellow: #ca7100;
-  --color-terminal-blue: #0078d4;
-
-  --color-code-tag: #d1242f;
-  --color-code-string: #388a34;
-  --color-code-keyword: #8250df;
-  --color-code-function: #0550ae;
-  --color-code-attr: #1e1e1e;
-  --color-code-comment: #6e7781;
-  --color-code-number: #953800;
-
-  --color-chat-user-bg: rgba(0, 120, 212, 0.06);
-  --color-chat-user-border: rgba(0, 120, 212, 0.15);
-  --color-chat-ai-bg: rgba(243, 243, 243, 0.8);
-  --color-chat-ai-border: #007acc;
-  --color-chat-btn-primary: #0078d4;
-  --color-chat-btn-primary-text: #ffffff;
-  --color-chat-input-bg: #ffffff;
-
-  --color-brand-400: #0078d4;
-  --color-brand-500: #106ebe;
-  --color-brand-600: #005a9e;
-  --color-purple-400: #0078d4;
-  --color-purple-500: #005a9e;
-  --color-surface-800: #ffffff;
-  --color-surface-900: #f3f3f3;
-  --color-surface-950: #e0e0e0;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
-}
-
-html.theme-light .monaco-editor,
-html.theme-light .monaco-editor-background,
-html.theme-light .monaco-editor .inputarea.ime-input {
-  background-color: var(--color-editor-bg);
-}
-
-/* ============================================
-   Session 10: High-Contrast Theme Overrides
-   ============================================ */
-html.theme-high-contrast {
-  --color-ide-bg: #000000;
-  --color-ide-surface: #0a0a0a;
-  --color-ide-surface-hover: #1a1a1a;
-  --color-ide-surface-active: rgba(30, 220, 110, 0.15);
-  --color-ide-border: #666666;
-  --color-ide-border-focus: #1edc6e;
-
-  --color-ide-bg-secondary: #080808;
-  --color-ide-bg-tertiary: #111111;
-  --color-ide-hover: #1a1a1a;
-  --color-ide-selection: rgba(30, 220, 110, 0.25);
-
-  --color-ide-text: #ffffff;
-  --color-ide-text-dim: #bbbbbb;
-  --color-ide-text-bright: #ffffff;
-  --color-ide-text-secondary: #bbbbbb;
-
-  --color-ide-accent: #1edc6e;
-  --color-ide-accent-hover: #3df08a;
-  --color-ide-success: #1edc6e;
-  --color-ide-warning: #ffd700;
-  --color-ide-error: #ff4444;
-  --color-ide-info: #1edc6e;
-
-  --color-activity-bg: #000000;
-  --color-activity-hover: #1a1a1a;
-  --color-activity-active: #0a0a0a;
-
-  --color-statusbar-bg: #0a0a0a;
-  --color-statusbar-text: #ffffff;
-
-  --color-editor-bg: #000000;
-  --color-tab-active: #000000;
-  --color-tab-inactive: #0a0a0a;
-  --color-tab-hover: #1a1a1a;
-  --color-tab-border: #666666;
-
-  --color-terminal-bg: #000000;
-  --color-terminal-fg: #ffffff;
-  --color-terminal-green: #1edc6e;
-  --color-terminal-red: #ff4444;
-  --color-terminal-yellow: #ffd700;
-  --color-terminal-blue: #1edc6e;
-
-  --color-code-tag: #ff4444;
-  --color-code-string: #1edc6e;
-  --color-code-keyword: #ff8cff;
-  --color-code-function: #00bfff;
-  --color-code-attr: #ffffff;
-  --color-code-comment: #888888;
-  --color-code-number: #ffd700;
-
-  --color-chat-user-bg: rgba(30, 220, 110, 0.06);
-  --color-chat-user-border: rgba(30, 220, 110, 0.2);
-  --color-chat-ai-bg: rgba(0, 0, 0, 0.6);
-  --color-chat-ai-border: #1edc6e;
-  --color-chat-btn-primary: #1edc6e;
-  --color-chat-btn-primary-text: #000000;
-  --color-chat-input-bg: #0a0a0a;
-
-  --color-brand-400: #1edc6e;
-  --color-brand-500: #00cc55;
-  --color-brand-600: #00aa44;
-  --color-purple-400: #1edc6e;
-  --color-purple-500: #00aa44;
-  --color-surface-800: #0a0a0a;
-  --color-surface-900: #080808;
-  --color-surface-950: #000000;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.8);
-}
-
-html.theme-high-contrast .monaco-editor,
-html.theme-high-contrast .monaco-editor-background,
-html.theme-high-contrast .monaco-editor .inputarea.ime-input {
-  background-color: var(--color-editor-bg);
-}
-
-/* ============================================
-   Base Form Elements — Unified UI Primitives
+   Base Form Elements
    ============================================ */
 
-/* Input / Textarea — shared base */
 input[type="text"],
 input[type="password"],
 input[type="email"],
 input[type="search"],
 textarea,
 select {
-  background: var(--color-chat-input-bg, #141822);
-  border: 1px solid var(--color-ide-border);
-  border-radius: var(--radius-md, 10px);
+  background: var(--color-chat-input-bg, #3C3C3C);
+  border: 1px solid transparent;         /* VSCode: input border is transparent */
+  border-radius: var(--radius-sm, 3px);
   color: var(--color-ide-text);
   font-size: 13px;
-  padding: 8px 12px;
+  font-family: inherit;
+  padding: 4px 8px;
   outline: none;
 }
 input::placeholder,
 textarea::placeholder {
-  color: rgba(144, 143, 160, 0.5);
+  color: rgba(204, 204, 204, 0.5);      /* VSCode: input.placeholderForeground */
 }
 input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--color-ide-border-focus);
-  box-shadow: 0 0 0 2px rgba(192, 193, 255, 0.08);
 }
 
 /* Buttons */
@@ -537,14 +434,14 @@ button:not([class*=" "]) {
 
 .btn-primary {
   background: var(--color-ide-accent);
-  color: var(--color-chat-btn-primary-text);
+  color: #FFFFFF;
   font-weight: 600;
-  border-radius: var(--radius-sm, 6px);
-  padding: 6px 16px;
+  border-radius: var(--radius-sm, 3px);
+  padding: 4px 12px;
   font-size: 12px;
 }
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: var(--color-ide-accent-hover);
 }
 .btn-primary:disabled {
   opacity: 0.4;
@@ -554,21 +451,21 @@ button:not([class*=" "]) {
 .btn-ghost {
   background: transparent;
   color: var(--color-ide-text-dim);
-  border-radius: var(--radius-sm, 6px);
-  padding: 4px 8px;
-  font-size: 12px;
+  border-radius: var(--radius-sm, 3px);
+  padding: 3px 8px;                    /* was 2px 6px */
+  font-size: 12px;                     /* was 11px */
 }
 .btn-ghost:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--color-ide-text);
 }
 
-/* Select Dropdown base */
+/* Dropdown */
 .dropdown-menu {
-  background: var(--color-ide-bg-secondary, #171b26);
-  border: 1px solid var(--color-ide-border);
-  border-radius: var(--radius-md, 10px);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.35));
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.36);
   padding: 4px;
   min-width: 140px;
   z-index: 50;
@@ -581,49 +478,768 @@ button:not([class*=" "]) {
   width: 100%;
   text-align: left;
   font-size: 12px;
-  font-weight: 500;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm, 6px);
-  transition: background 0.12s;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: background 0.08s;
   cursor: pointer;
-  color: var(--color-ide-text-dim);
-}
-.dropdown-item:hover {
-  background: var(--color-ide-surface-hover, #252836);
   color: var(--color-ide-text);
 }
+.dropdown-item:hover {
+  background: #094771;
+  color: #FFFFFF;
+}
 .dropdown-item.active {
-  background: var(--color-ide-surface-active, rgba(192,193,255,0.1));
+  background: #37373D;
   color: var(--color-ide-text);
 }
 
+/* kbd */
 kbd {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 5px;
-  background: var(--color-ide-surface);
-  border: 1px solid var(--color-ide-border);
-  border-radius: 4px;
-  font-family: 'Cascadia Code', 'Fira Code', 'Liberation Mono', monospace;
-  font-size: 9px;
-  line-height: 16px;
-  height: 18px;
+  padding: 1px 4px;
+  background: rgba(128,128,128,0.17);
+  border: 1px solid rgba(51,51,51,0.6);
+  border-bottom-color: rgba(68,68,68,0.6);
+  border-radius: 3px;
+  box-shadow: inset 0 -1px 0 rgba(68,68,68,0.6);
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  line-height: 14px;
+  height: 16px;
   color: var(--color-ide-text-dim);
 }
 
 @keyframes thinking-dot {
-  0%,
-  80%,
-  100% {
-    transform: scale(0.6);
-    opacity: 0.4;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 .animate-thinking-dot {
   animation: thinking-dot 1.4s ease-in-out infinite;
+}
+
+/* ============================================
+   Light Theme (VSCode Light+)
+   ============================================ */
+html.theme-light {
+  --color-ide-bg: #FFFFFF;
+  --color-ide-surface: #F3F3F3;
+  --color-ide-surface-hover: #E8E8E8;
+  --color-ide-surface-active: #D6EBFF;
+  --color-ide-border: #E0E0E0;
+  --color-ide-border-focus: #0090F1;
+
+  --color-ide-bg-secondary: #ECECEC;
+  --color-activity-bg: #2C2C2C;
+  --color-activity-hover: #353535;
+  --color-activity-active: #252525;
+
+  --color-ide-text: #616161;
+  --color-ide-text-dim: #919191;
+  --color-ide-text-bright: #000000;
+
+  --color-ide-accent: #007ACC;
+  --color-ide-accent-hover: #0062A3;
+  --color-ide-success: #388A34;
+  --color-ide-warning: #BF8803;
+  --color-ide-error: #A1260D;
+  --color-ide-info: #0090F1;
+
+  --color-statusbar-bg: #007ACC;
+  --color-statusbar-text: #FFFFFF;
+
+  --color-editor-bg: #FFFFFF;
+  --color-tab-active: #FFFFFF;
+  --color-tab-inactive: #ECECEC;
+  --color-tab-hover: #E8E8E8;
+  --color-tab-border: #E0E0E0;
+
+  --color-terminal-bg: #FFFFFF;
+  --color-terminal-fg: #616161;
+  --color-terminal-green: #388A34;
+  --color-terminal-red: #A1260D;
+  --color-terminal-yellow: #BF8803;
+  --color-terminal-blue: #0090F1;
+
+  --color-code-keyword: #0000FF;
+  --color-code-string: #A31515;
+  --color-code-function: #795E26;
+  --color-code-number: #098658;
+  --color-code-comment: #008000;
+  --color-code-tag: #800000;
+  --color-code-attr: #FF0000;
+
+  --color-chat-user-bg: rgba(0, 122, 204, 0.06);
+  --color-chat-user-border: rgba(0, 122, 204, 0.15);
+  --color-chat-ai-bg: rgba(243, 243, 243, 0.8);
+  --color-chat-ai-border: #007ACC;
+  --color-chat-btn-primary: #007ACC;
+  --color-chat-btn-primary-text: #FFFFFF;
+  --color-chat-input-bg: #FFFFFF;
+
+  --color-brand-400: #007ACC;
+  --color-brand-500: #005A9E;
+  --color-brand-600: #004578;
+  --color-purple-400: #007ACC;
+  --color-purple-500: #005A9E;
+  --color-surface-800: #FFFFFF;
+  --color-surface-900: #F3F3F3;
+  --color-surface-950: #E0E0E0;
+
+  --tab-accent-color: #007ACC;
+  --shadow-sm: 0 0 2px rgba(0,0,0,0.08);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+html.theme-light .monaco-editor,
+html.theme-light .monaco-editor-background,
+html.theme-light .monaco-editor .inputarea.ime-input {
+  background-color: var(--color-editor-bg);
+}
+
+/* ============================================
+   High-Contrast Theme (VSCode High Contrast)
+   ============================================ */
+html.theme-high-contrast {
+  --color-ide-bg: #000000;
+  --color-ide-surface: #0A0A0A;
+  --color-ide-surface-hover: #1AEBFF;
+  --color-ide-surface-active: #1AEBFF;
+  --color-ide-border: #6FC3DF;
+  --color-ide-border-focus: #F38518;
+
+  --color-ide-bg-secondary: #080808;
+  --color-activity-bg: #000000;
+  --color-activity-hover: #1A1A1A;
+  --color-activity-active: #0A0A0A;
+
+  --color-ide-text: #FFFFFF;
+  --color-ide-text-dim: #BBBBBB;
+  --color-ide-text-bright: #FFFFFF;
+
+  --color-ide-accent: #1AEBFF;
+  --color-ide-accent-hover: #6FC3DF;
+  --color-ide-success: #89D185;
+  --color-ide-warning: #FFD700;
+  --color-ide-error: #F48771;
+  --color-ide-info: #1AEBFF;
+
+  --color-statusbar-bg: #0A0A0A;
+  --color-statusbar-text: #FFFFFF;
+
+  --color-editor-bg: #000000;
+  --color-tab-active: #000000;
+  --color-tab-inactive: #0A0A0A;
+  --color-tab-hover: #1A1A1A;
+  --color-tab-border: #6FC3DF;
+
+  --color-terminal-bg: #000000;
+  --color-terminal-fg: #FFFFFF;
+  --color-terminal-green: #89D185;
+  --color-terminal-red: #F48771;
+  --color-terminal-yellow: #FFD700;
+  --color-terminal-blue: #1AEBFF;
+
+  --color-code-keyword: #569CD6;
+  --color-code-string: #CE9178;
+  --color-code-function: #DCDCAA;
+  --color-code-number: #B5CEA8;
+  --color-code-comment: #6A9955;
+  --color-code-tag: #569CD6;
+  --color-code-attr: #9CDCFE;
+
+  --color-chat-user-bg: rgba(26, 235, 255, 0.06);
+  --color-chat-user-border: rgba(26, 235, 255, 0.25);
+  --color-chat-ai-bg: rgba(0, 0, 0, 0.6);
+  --color-chat-ai-border: #1AEBFF;
+  --color-chat-btn-primary: #1AEBFF;
+  --color-chat-btn-primary-text: #000000;
+  --color-chat-input-bg: #0A0A0A;
+
+  --color-brand-400: #1AEBFF;
+  --color-brand-500: #00CCDD;
+  --color-brand-600: #00AABB;
+  --color-purple-400: #1AEBFF;
+  --color-purple-500: #00AABB;
+  --color-surface-800: #0A0A0A;
+  --color-surface-900: #080808;
+  --color-surface-950: #000000;
+
+  --tab-accent-color: #1AEBFF;
+  --tab-active-border-top: 1px solid #1AEBFF;
+  --shadow-sm: 0 0 2px rgba(0,0,0,0.8);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.85);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.95);
+}
+
+html.theme-high-contrast .monaco-editor,
+html.theme-high-contrast .monaco-editor-background,
+html.theme-high-contrast .monaco-editor .inputarea.ime-input {
+  background-color: var(--color-editor-bg);
+}
+
+/* ============================================
+   Dark+ (VSCode Default Dark+) — #1E1E1E
+   ============================================ */
+html.theme-vscode-dark-plus {
+  --color-ide-bg: #1E1E1E;
+  --color-ide-surface: #252526;
+  --color-ide-surface-hover: #2A2D2E;
+  --color-ide-surface-active: #37373D;
+  --color-ide-border: #3C3C3C;
+  --color-ide-border-focus: #007FD4;
+  --color-ide-bg-secondary: #2D2D2D;
+  --color-activity-bg: #333333;
+  --color-activity-hover: #3C3C3C;
+  --color-activity-active: #2D2D2D;
+  --color-ide-text: #CCCCCC;
+  --color-ide-text-dim: #858585;
+  --color-ide-text-bright: #FFFFFF;
+  --color-ide-accent: #007ACC;
+  --color-ide-accent-hover: #1177BB;
+  --color-ide-success: #4EC9B0;
+  --color-ide-warning: #CCA700;
+  --color-ide-error: #F48771;
+  --color-ide-info: #75BEFF;
+  --color-statusbar-bg: #007ACC;
+  --color-statusbar-text: #FFFFFF;
+  --color-editor-bg: #1E1E1E;
+  --color-tab-active: #1E1E1E;
+  --color-tab-inactive: #2D2D2D;
+  --color-tab-hover: #2D2D2D;
+  --color-tab-border: #252526;
+  --color-terminal-bg: #1E1E1E;
+  --color-terminal-fg: #CCCCCC;
+  --color-terminal-green: #4EC9B0;
+  --color-terminal-red: #F14C4C;
+  --color-terminal-yellow: #CCA700;
+  --color-terminal-blue: #3794FF;
+  --color-chat-user-bg: rgba(0,122,204,0.08);
+  --color-chat-user-border: rgba(0,122,204,0.18);
+  --color-chat-ai-bg: rgba(37,37,38,0.6);
+  --color-chat-ai-border: #007ACC;
+  --color-chat-btn-primary: #007ACC;
+  --color-chat-btn-primary-text: #fff;
+  --color-chat-input-bg: #3C3C3C;
+  --color-brand-400: #007ACC;
+  --color-brand-500: #005A9E;
+  --color-brand-600: #004578;
+  --color-purple-400: #007ACC;
+  --color-purple-500: #005A9E;
+  --color-surface-800: #252526;
+  --color-surface-900: #1E1E1E;
+  --color-surface-950: #121212;
+  --tab-accent-color: #007ACC;
+  --tab-active-border-top: 1px solid #007ACC;
+}
+
+/* ============================================
+   One Dark Pro — #282C34
+   ============================================ */
+html.theme-one-dark-pro {
+  --color-ide-bg: #282C34;
+  --color-ide-surface: #21252B;
+  --color-ide-surface-hover: #2C313A;
+  --color-ide-surface-active: #323842;
+  --color-ide-border: #181A1F;
+  --color-ide-border-focus: #61AFEF;
+  --color-ide-bg-secondary: #21252B;
+  --color-activity-bg: #1B1E24;
+  --color-activity-hover: #282C34;
+  --color-activity-active: #21252B;
+  --color-ide-text: #ABB2BF;
+  --color-ide-text-dim: #5C6370;
+  --color-ide-text-bright: #FFFFFF;
+  --color-ide-accent: #61AFEF;
+  --color-ide-accent-hover: #528BFF;
+  --color-ide-success: #98C379;
+  --color-ide-warning: #D19A66;
+  --color-ide-error: #E06C75;
+  --color-ide-info: #56B6C2;
+  --color-statusbar-bg: #21252B;
+  --color-statusbar-text: #ABB2BF;
+  --color-editor-bg: #282C34;
+  --color-tab-active: #282C34;
+  --color-tab-inactive: #21252B;
+  --color-tab-hover: #2C313C;
+  --color-tab-border: #181A1F;
+  --color-terminal-bg: #21252B;
+  --color-terminal-fg: #ABB2BF;
+  --color-terminal-green: #98C379;
+  --color-terminal-red: #E06C75;
+  --color-terminal-yellow: #E5C07B;
+  --color-terminal-blue: #61AFEF;
+  --color-chat-user-bg: rgba(97,175,239,0.08);
+  --color-chat-user-border: rgba(97,175,239,0.2);
+  --color-chat-ai-bg: rgba(33,37,43,0.6);
+  --color-chat-ai-border: #61AFEF;
+  --color-chat-btn-primary: #61AFEF;
+  --color-chat-btn-primary-text: #282C34;
+  --color-chat-input-bg: #1B1E24;
+  --color-brand-400: #61AFEF;
+  --color-brand-500: #528BFF;
+  --color-brand-600: #3A7FD4;
+  --color-purple-400: #C678DD;
+  --color-purple-500: #A855F7;
+  --color-surface-800: #21252B;
+  --color-surface-900: #282C34;
+  --color-surface-950: #1B1E24;
+  --tab-accent-color: #61AFEF;
+  --tab-active-border-top: 1px solid #61AFEF;
+}
+
+/* ============================================
+   Monokai — #272822
+   ============================================ */
+html.theme-monokai {
+  --color-ide-bg: #272822;
+  --color-ide-surface: #1E1F1C;
+  --color-ide-surface-hover: #2C2D27;
+  --color-ide-surface-active: #3E3D32;
+  --color-ide-border: #3B3A32;
+  --color-ide-border-focus: #A6E22E;
+  --color-ide-bg-secondary: #1E1F1C;
+  --color-activity-bg: #1B1B18;
+  --color-activity-hover: #272822;
+  --color-activity-active: #1E1F1C;
+  --color-ide-text: #F8F8F2;
+  --color-ide-text-dim: #75715E;
+  --color-ide-text-bright: #FFFFFF;
+  --color-ide-accent: #A6E22E;
+  --color-ide-accent-hover: #B8F340;
+  --color-ide-success: #A6E22E;
+  --color-ide-warning: #E6DB74;
+  --color-ide-error: #F92672;
+  --color-ide-info: #66D9EF;
+  --color-statusbar-bg: #1E1F1C;
+  --color-statusbar-text: #F8F8F2;
+  --color-editor-bg: #272822;
+  --color-tab-active: #272822;
+  --color-tab-inactive: #1E1F1C;
+  --color-tab-hover: #2C2D27;
+  --color-tab-border: #3B3A32;
+  --color-terminal-bg: #1E1F1C;
+  --color-terminal-fg: #F8F8F2;
+  --color-terminal-green: #A6E22E;
+  --color-terminal-red: #F92672;
+  --color-terminal-yellow: #E6DB74;
+  --color-terminal-blue: #66D9EF;
+  --color-chat-user-bg: rgba(166,226,46,0.08);
+  --color-chat-user-border: rgba(166,226,46,0.2);
+  --color-chat-ai-bg: rgba(30,31,28,0.6);
+  --color-chat-ai-border: #A6E22E;
+  --color-chat-btn-primary: #A6E22E;
+  --color-chat-btn-primary-text: #272822;
+  --color-chat-input-bg: #3E3D32;
+  --color-brand-400: #A6E22E;
+  --color-brand-500: #8BC34A;
+  --color-brand-600: #689F38;
+  --color-purple-400: #AE81FF;
+  --color-purple-500: #8E6FCF;
+  --color-surface-800: #1E1F1C;
+  --color-surface-900: #272822;
+  --color-surface-950: #1B1B18;
+  --tab-accent-color: #A6E22E;
+  --tab-active-border-top: 1px solid #A6E22E;
+}
+
+/* ============================================
+   Solarized Dark — #002B36
+   ============================================ */
+html.theme-solarized-dark {
+  --color-ide-bg: #002B36;
+  --color-ide-surface: #073642;
+  --color-ide-surface-hover: #00212B;
+  --color-ide-surface-active: #0A3D4A;
+  --color-ide-border: #003541;
+  --color-ide-border-focus: #268BD2;
+  --color-ide-bg-secondary: #073642;
+  --color-activity-bg: #00151C;
+  --color-activity-hover: #002B36;
+  --color-activity-active: #073642;
+  --color-ide-text: #93A1A1;
+  --color-ide-text-dim: #586E75;
+  --color-ide-text-bright: #EEE8D5;
+  --color-ide-accent: #268BD2;
+  --color-ide-accent-hover: #2AA198;
+  --color-ide-success: #859900;
+  --color-ide-warning: #B58900;
+  --color-ide-error: #DC322F;
+  --color-ide-info: #268BD2;
+  --color-statusbar-bg: #073642;
+  --color-statusbar-text: #93A1A1;
+  --color-editor-bg: #002B36;
+  --color-tab-active: #002B36;
+  --color-tab-inactive: #073642;
+  --color-tab-hover: #00212B;
+  --color-tab-border: #003541;
+  --color-terminal-bg: #073642;
+  --color-terminal-fg: #93A1A1;
+  --color-terminal-green: #859900;
+  --color-terminal-red: #DC322F;
+  --color-terminal-yellow: #B58900;
+  --color-terminal-blue: #268BD2;
+  --color-chat-user-bg: rgba(38,139,210,0.08);
+  --color-chat-user-border: rgba(38,139,210,0.2);
+  --color-chat-ai-bg: rgba(7,54,66,0.6);
+  --color-chat-ai-border: #268BD2;
+  --color-chat-btn-primary: #268BD2;
+  --color-chat-btn-primary-text: #fff;
+  --color-chat-input-bg: #073642;
+  --color-brand-400: #268BD2;
+  --color-brand-500: #2AA198;
+  --color-brand-600: #1A7A6B;
+  --color-purple-400: #6C71C4;
+  --color-purple-500: #5A5EAF;
+  --color-surface-800: #073642;
+  --color-surface-900: #002B36;
+  --color-surface-950: #00151C;
+  --tab-accent-color: #268BD2;
+  --tab-active-border-top: 1px solid #268BD2;
+}
+
+/* ============================================
+   Dracula — #282A36
+   ============================================ */
+html.theme-dracula {
+  --color-ide-bg: #282A36;
+  --color-ide-surface: #21222C;
+  --color-ide-surface-hover: #2C2E3E;
+  --color-ide-surface-active: #343746;
+  --color-ide-border: #191A21;
+  --color-ide-border-focus: #BD93F9;
+  --color-ide-bg-secondary: #21222C;
+  --color-activity-bg: #191A21;
+  --color-activity-hover: #282A36;
+  --color-activity-active: #21222C;
+  --color-ide-text: #F8F8F2;
+  --color-ide-text-dim: #6272A4;
+  --color-ide-text-bright: #FFFFFF;
+  --color-ide-accent: #BD93F9;
+  --color-ide-accent-hover: #CDA5FA;
+  --color-ide-success: #50FA7B;
+  --color-ide-warning: #F1FA8C;
+  --color-ide-error: #FF5555;
+  --color-ide-info: #8BE9FD;
+  --color-statusbar-bg: #21222C;
+  --color-statusbar-text: #F8F8F2;
+  --color-editor-bg: #282A36;
+  --color-tab-active: #282A36;
+  --color-tab-inactive: #21222C;
+  --color-tab-hover: #2C2E3E;
+  --color-tab-border: #191A21;
+  --color-terminal-bg: #21222C;
+  --color-terminal-fg: #F8F8F2;
+  --color-terminal-green: #50FA7B;
+  --color-terminal-red: #FF5555;
+  --color-terminal-yellow: #F1FA8C;
+  --color-terminal-blue: #BD93F9;
+  --color-chat-user-bg: rgba(189,147,249,0.08);
+  --color-chat-user-border: rgba(189,147,249,0.2);
+  --color-chat-ai-bg: rgba(33,34,44,0.6);
+  --color-chat-ai-border: #BD93F9;
+  --color-chat-btn-primary: #BD93F9;
+  --color-chat-btn-primary-text: #282A36;
+  --color-chat-input-bg: #191A21;
+  --color-brand-400: #BD93F9;
+  --color-brand-500: #9B6BF0;
+  --color-brand-600: #7A4BE0;
+  --color-purple-400: #BD93F9;
+  --color-purple-500: #9B6BF0;
+  --color-surface-800: #21222C;
+  --color-surface-900: #282A36;
+  --color-surface-950: #191A21;
+  --tab-accent-color: #BD93F9;
+  --tab-active-border-top: 1px solid #BD93F9;
+}
+
+/* ============================================
+   Nord — #2E3440
+   ============================================ */
+html.theme-nord {
+  --color-ide-bg: #2E3440;
+  --color-ide-surface: #3B4252;
+  --color-ide-surface-hover: #373E4E;
+  --color-ide-surface-active: #434C5E;
+  --color-ide-border: #4C566A;
+  --color-ide-border-focus: #88C0D0;
+  --color-ide-bg-secondary: #3B4252;
+  --color-activity-bg: #262B36;
+  --color-activity-hover: #2E3440;
+  --color-activity-active: #3B4252;
+  --color-ide-text: #D8DEE9;
+  --color-ide-text-dim: #81A1C1;
+  --color-ide-text-bright: #ECEFF4;
+  --color-ide-accent: #88C0D0;
+  --color-ide-accent-hover: #8FBCBB;
+  --color-ide-success: #A3BE8C;
+  --color-ide-warning: #EBCB8B;
+  --color-ide-error: #BF616A;
+  --color-ide-info: #81A1C1;
+  --color-statusbar-bg: #3B4252;
+  --color-statusbar-text: #D8DEE9;
+  --color-editor-bg: #2E3440;
+  --color-tab-active: #2E3440;
+  --color-tab-inactive: #3B4252;
+  --color-tab-hover: #373E4E;
+  --color-tab-border: #4C566A;
+  --color-terminal-bg: #3B4252;
+  --color-terminal-fg: #D8DEE9;
+  --color-terminal-green: #A3BE8C;
+  --color-terminal-red: #BF616A;
+  --color-terminal-yellow: #EBCB8B;
+  --color-terminal-blue: #81A1C1;
+  --color-chat-user-bg: rgba(136,192,208,0.08);
+  --color-chat-user-border: rgba(136,192,208,0.2);
+  --color-chat-ai-bg: rgba(59,66,82,0.6);
+  --color-chat-ai-border: #88C0D0;
+  --color-chat-btn-primary: #88C0D0;
+  --color-chat-btn-primary-text: #2E3440;
+  --color-chat-input-bg: #434C5E;
+  --color-brand-400: #88C0D0;
+  --color-brand-500: #81A1C1;
+  --color-brand-600: #5E81AC;
+  --color-purple-400: #B48EAD;
+  --color-purple-500: #9A7189;
+  --color-surface-800: #3B4252;
+  --color-surface-900: #2E3440;
+  --color-surface-950: #262B36;
+  --tab-accent-color: #88C0D0;
+  --tab-active-border-top: 1px solid #88C0D0;
+}
+
+/* ============================================
+   Tokyo Night — #1A1B26
+   ============================================ */
+html.theme-tokyo-night {
+  --color-ide-bg: #1A1B26;
+  --color-ide-surface: #16161E;
+  --color-ide-surface-hover: #1F2233;
+  --color-ide-surface-active: #292E42;
+  --color-ide-border: #1F2335;
+  --color-ide-border-focus: #7AA2F7;
+  --color-ide-bg-secondary: #16161E;
+  --color-activity-bg: #111118;
+  --color-activity-hover: #1A1B26;
+  --color-activity-active: #16161E;
+  --color-ide-text: #A9B1D6;
+  --color-ide-text-dim: #565F89;
+  --color-ide-text-bright: #C0CAF5;
+  --color-ide-accent: #7AA2F7;
+  --color-ide-accent-hover: #89B4FA;
+  --color-ide-success: #9ECE6A;
+  --color-ide-warning: #E0AF68;
+  --color-ide-error: #F7768E;
+  --color-ide-info: #7DCFFF;
+  --color-statusbar-bg: #16161E;
+  --color-statusbar-text: #A9B1D6;
+  --color-editor-bg: #1A1B26;
+  --color-tab-active: #1A1B26;
+  --color-tab-inactive: #16161E;
+  --color-tab-hover: #1F2233;
+  --color-tab-border: #1F2335;
+  --color-terminal-bg: #16161E;
+  --color-terminal-fg: #A9B1D6;
+  --color-terminal-green: #9ECE6A;
+  --color-terminal-red: #F7768E;
+  --color-terminal-yellow: #E0AF68;
+  --color-terminal-blue: #7AA2F7;
+  --color-chat-user-bg: rgba(122,162,247,0.08);
+  --color-chat-user-border: rgba(122,162,247,0.2);
+  --color-chat-ai-bg: rgba(22,22,30,0.6);
+  --color-chat-ai-border: #7AA2F7;
+  --color-chat-btn-primary: #7AA2F7;
+  --color-chat-btn-primary-text: #1A1B26;
+  --color-chat-input-bg: #1F2335;
+  --color-brand-400: #7AA2F7;
+  --color-brand-500: #6B8EDB;
+  --color-brand-600: #5A7ABF;
+  --color-purple-400: #BB9AF7;
+  --color-purple-500: #9D7CD8;
+  --color-surface-800: #16161E;
+  --color-surface-900: #1A1B26;
+  --color-surface-950: #111118;
+  --tab-accent-color: #7AA2F7;
+  --tab-active-border-top: 1px solid #7AA2F7;
+}
+
+/* ============================================
+   Solarized Light — #FDF6E3
+   ============================================ */
+html.theme-solarized-light {
+  --color-ide-bg: #FDF6E3;
+  --color-ide-surface: #EEE8D5;
+  --color-ide-surface-hover: #EBE5D0;
+  --color-ide-surface-active: #DBD5C2;
+  --color-ide-border: #D3CBB8;
+  --color-ide-border-focus: #268BD2;
+  --color-ide-bg-secondary: #EEE8D5;
+  --color-activity-bg: #002B36;
+  --color-activity-hover: #073642;
+  --color-activity-active: #00151C;
+  --color-ide-text: #586E75;
+  --color-ide-text-dim: #93A1A1;
+  --color-ide-text-bright: #002B36;
+  --color-ide-accent: #268BD2;
+  --color-ide-accent-hover: #2AA198;
+  --color-ide-success: #859900;
+  --color-ide-warning: #B58900;
+  --color-ide-error: #DC322F;
+  --color-ide-info: #268BD2;
+  --color-statusbar-bg: #073642;
+  --color-statusbar-text: #93A1A1;
+  --color-editor-bg: #FDF6E3;
+  --color-tab-active: #FDF6E3;
+  --color-tab-inactive: #EEE8D5;
+  --color-tab-hover: #EBE5D0;
+  --color-tab-border: #D3CBB8;
+  --color-terminal-bg: #EEE8D5;
+  --color-terminal-fg: #586E75;
+  --color-terminal-green: #859900;
+  --color-terminal-red: #DC322F;
+  --color-terminal-yellow: #B58900;
+  --color-terminal-blue: #268BD2;
+  --color-chat-user-bg: rgba(38,139,210,0.06);
+  --color-chat-user-border: rgba(38,139,210,0.16);
+  --color-chat-ai-bg: rgba(238,232,213,0.8);
+  --color-chat-ai-border: #268BD2;
+  --color-chat-btn-primary: #268BD2;
+  --color-chat-btn-primary-text: #fff;
+  --color-chat-input-bg: #EEE8D5;
+  --color-brand-400: #268BD2;
+  --color-brand-500: #2AA198;
+  --color-brand-600: #1A7A6B;
+  --color-purple-400: #6C71C4;
+  --color-purple-500: #5A5EAF;
+  --color-surface-800: #FDF6E3;
+  --color-surface-900: #EEE8D5;
+  --color-surface-950: #E0D7C1;
+  --tab-accent-color: #268BD2;
+  --tab-active-border-top: 1px solid #268BD2;
+}
+
+/* ============================================
+   Theme: System (inherit from OS preference)
+   Uses dark or light via JS, no static CSS
+   ============================================ */
+
+/* ============================================
+   Monaco Theme-specific background sync
+   ============================================ */
+html.theme-monokai .monaco-editor,
+html.theme-monokai .monaco-editor-background,
+html.theme-monokai .monaco-editor .inputarea.ime-input { background-color: #272822; }
+
+html.theme-one-dark-pro .monaco-editor,
+html.theme-one-dark-pro .monaco-editor-background,
+html.theme-one-dark-pro .monaco-editor .inputarea.ime-input { background-color: #282C34; }
+
+html.theme-solarized-dark .monaco-editor,
+html.theme-solarized-dark .monaco-editor-background,
+html.theme-solarized-dark .monaco-editor .inputarea.ime-input { background-color: #002B36; }
+
+html.theme-dracula .monaco-editor,
+html.theme-dracula .monaco-editor-background,
+html.theme-dracula .monaco-editor .inputarea.ime-input { background-color: #282A36; }
+
+html.theme-nord .monaco-editor,
+html.theme-nord .monaco-editor-background,
+html.theme-nord .monaco-editor .inputarea.ime-input { background-color: #2E3440; }
+
+html.theme-tokyo-night .monaco-editor,
+html.theme-tokyo-night .monaco-editor-background,
+html.theme-tokyo-night .monaco-editor .inputarea.ime-input { background-color: #1A1B26; }
+
+html.theme-vscode-dark-plus .monaco-editor,
+html.theme-vscode-dark-plus .monaco-editor-background,
+html.theme-vscode-dark-plus .monaco-editor .inputarea.ime-input { background-color: #1E1E1E; }
+
+html.theme-solarized-light .monaco-editor,
+html.theme-solarized-light .monaco-editor-background,
+html.theme-solarized-light .monaco-editor .inputarea.ime-input { background-color: #FDF6E3; }
+
+/* ============================================
+   Smooth theme transition
+   ============================================ */
+html {
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+html * {
+  transition: background-color 0.3s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Disable transitions on initial load (prevents flash) */
+html.no-transitions,
+html.no-transitions * {
+  transition: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Page-level Global Utility Classes
+   所有Studio页面内统一使用，确保主题切换时自动适配
+   ═══════════════════════════════════════════════════════ */
+
+/* Page header bar (VSCode: editorGroupHeader.tabsBackground) */
+.page-header {
+  background: var(--color-ide-bg-secondary);
+  border-bottom: 1px solid var(--color-ide-border);
+  flex-shrink: 0;
+  height: 48px;
+}
+
+/* Page card (VSCode: editorWidget.background / list item) */
+.page-card {
+  background: var(--color-ide-surface);
+  border: 1px solid var(--color-ide-border);
+  transition: border-color 0.15s ease;
+}
+.page-card:hover {
+  border-color: var(--color-ide-accent);
+}
+
+/* Page card - elevated variant (subtle extra depth) */
+.page-card-raised {
+  background: var(--color-ide-surface);
+  border: 1px solid var(--color-ide-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.page-card-raised:hover {
+  border-color: var(--color-ide-accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Page input / textarea background */
+.page-input-bg {
+  background: var(--color-chat-input-bg, #3C3C3C);
+  border: 1px solid var(--color-ide-border);
+  color: var(--color-ide-text);
+}
+.page-input-bg:focus {
+  border-color: var(--color-ide-border-focus);
+}
+
+/* Page text: main */
+.page-text { color: var(--color-ide-text); }
+/* Page text: dim / muted */
+.page-text-dim { color: var(--color-ide-text-dim); }
+/* Page text: bright / heading */
+.page-text-bright { color: var(--color-ide-text-bright); }
+
+/* Page accent / link color */
+.page-accent { color: var(--color-ide-accent); }
+
+/* Page border utility */
+.page-border { border-color: var(--color-ide-border); }
+
+/* Page section title (VSCode: section header) */
+.page-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ide-text-dim);
+  padding: 8px 0 4px;
 }

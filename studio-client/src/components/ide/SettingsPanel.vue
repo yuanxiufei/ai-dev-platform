@@ -69,6 +69,54 @@
                   </div>
                 </div>
               </section>
+              <!-- Memory — Hermes-style -->
+              <section v-if="at==='memory'">
+                <h3 class="text-base font-medium mb-6">记忆管理</h3>
+                <SG title="记忆配置">
+                  <SI label="启用记忆"><ToggleSwitch :model-value="ls.memory.enabled" @update:modelValue="ls.memory.enabled=$event"/></SI>
+                  <SI label="用户画像"><ToggleSwitch :model-value="ls.memory.userProfileEnabled" @update:modelValue="ls.memory.userProfileEnabled=$event"/></SI>
+                  <SI :label="`记忆字符限制: ${ls.memory.charLimit}`"><input v-model.number="ls.memory.charLimit" type="range" min="100" max="10000" step="100" class="sl"/></SI>
+                  <SI :label="`用户字符限制: ${ls.memory.userCharLimit}`"><input v-model.number="ls.memory.userCharLimit" type="range" min="100" max="10000" step="100" class="sl"/></SI>
+                  <SI label="写入需审批"><ToggleSwitch :model-value="ls.memory.writeApproval" @update:modelValue="ls.memory.writeApproval=$event"/></SI>
+                </SG>
+              </section>
+              <!-- Voice — Hermes-style -->
+              <section v-if="at==='voice'">
+                <h3 class="text-base font-medium mb-6">语音设置</h3>
+                <SG title="文字转语音 (TTS)">
+                  <SI label="TTS 引擎"><select v-model="ls.voice.ttsProvider" class="ss"><option value="edge">Microsoft Edge</option><option value="openai">OpenAI TTS</option><option value="browser">浏览器内置</option></select></SI>
+                  <SI :label="`语速: ${ls.voice.ttsSpeed.toFixed(1)}x`"><input v-model.number="ls.voice.ttsSpeed" type="range" min="0.5" max="2" step="0.1" class="sl"/></SI>
+                </SG>
+                <SG title="语音转文字 (STT)">
+                  <SI label="STT 引擎"><select v-model="ls.voice.sttProvider" class="ss"><option value="browser">浏览器内置</option><option value="openai">OpenAI Whisper</option><option value="custom">自定义</option></select></SI>
+                </SG>
+              </section>
+              <!-- Proxy — Hermes-style -->
+              <section v-if="at==='proxy'">
+                <h3 class="text-base font-medium mb-6">代理设置</h3>
+                <SG title="网络代理">
+                  <SI label="HTTPS 代理"><input v-model="ls.proxy.httpsProxy" placeholder="http://127.0.0.1:7890" class="si w-80"/></SI>
+                  <SI label="HTTP 代理"><input v-model="ls.proxy.httpProxy" placeholder="http://127.0.0.1:7890" class="si w-80"/></SI>
+                  <SI label="SOCKS 代理"><input v-model="ls.proxy.allProxy" placeholder="socks5://127.0.0.1:7890" class="si w-80"/></SI>
+                  <SI label="直连白名单"><input v-model="ls.proxy.noProxy" placeholder="localhost,127.0.0.1,.local" class="si w-80"/></SI>
+                </SG>
+              </section>
+              <!-- Session — Hermes-style -->
+              <section v-if="at==='session'">
+                <h3 class="text-base font-medium mb-6">会话管理</h3>
+                <SG title="会话配置">
+                  <SI label="重置模式"><select v-model="ls.session.resetMode" class="ss"><option value="none">不重置</option><option value="idle">空闲后重置</option><option value="daily">每日重置</option><option value="both">空闲+每日</option></select></SI>
+                  <SI v-if="ls.session.resetMode==='idle'||ls.session.resetMode==='both'" :label="`空闲分钟: ${ls.session.idleMinutes} 分钟`"><input v-model.number="ls.session.idleMinutes" type="range" min="10" max="10080" step="30" class="sl"/></SI>
+                  <SI v-if="ls.session.resetMode==='daily'||ls.session.resetMode==='both'" :label="`重置时间: ${ls.session.resetHour}:00`"><input v-model.number="ls.session.resetHour" type="range" min="0" max="23" step="1" class="sl"/></SI>
+                </SG>
+              </section>
+              <!-- Privacy — Hermes-style -->
+              <section v-if="at==='privacy'">
+                <h3 class="text-base font-medium mb-6">隐私设置</h3>
+                <SG title="数据保护">
+                  <SI label="脱敏 PII"><ToggleSwitch :model-value="ls.privacy.redactPii" @update:modelValue="ls.privacy.redactPii=$event"/></SI>
+                </SG>
+              </section>
             </div>
           </div>
           <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-ide-border)] bg-[var(--color-ide-bg-secondary)]">
@@ -82,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bot, Check, Minus, Moon, Plus, Puzzle, RotateCcw, Settings as LSettings, Sun, TerminalSquare, Type, X } from "lucide-vue-next"
+import { Bot, BrainCircuit, Check, Globe, Minus, Moon, Plus, Puzzle, RotateCcw, Settings as LSettings, Shield, Sun, TerminalSquare, Type, X } from "lucide-vue-next"
 import { computed, reactive, ref } from "vue"
 import { usePlugins } from "@/composables/usePlugins"
 import { useThemeStore, type ThemeId } from "@/stores/useThemeStore"
@@ -108,6 +156,11 @@ const tabs = [
   { id: "terminal", label: "终端", icon: TerminalSquare },
   { id: "ai", label: "AI 助手", icon: Bot },
   { id: "extensions", label: "扩展", icon: Puzzle },
+  { id: "memory", label: "记忆", icon: BrainCircuit },
+  { id: "voice", label: "语音", icon: Bot },
+  { id: "proxy", label: "代理", icon: Globe },
+  { id: "session", label: "会话", icon: Shield },
+  { id: "privacy", label: "隐私", icon: Shield },
 ]
 const ls = reactive({
   editor: {
@@ -142,6 +195,32 @@ const ls = reactive({
     baseUrl: undefined as string | undefined,
     maxTokens: 4096,
     temperature: 0.7,
+  },
+  memory: {
+    enabled: true,
+    userProfileEnabled: true,
+    charLimit: 5000,
+    userCharLimit: 3000,
+    writeApproval: false,
+  },
+  voice: {
+    ttsProvider: 'edge' as string,
+    ttsSpeed: 1.0,
+    sttProvider: 'browser' as string,
+  },
+  proxy: {
+    httpsProxy: '',
+    httpProxy: '',
+    allProxy: '',
+    noProxy: 'localhost,127.0.0.1,.local',
+  },
+  session: {
+    resetMode: 'none' as 'both' | 'idle' | 'daily' | 'none',
+    idleMinutes: 30,
+    resetHour: 0,
+  },
+  privacy: {
+    redactPii: false,
   },
 })
 function close() {

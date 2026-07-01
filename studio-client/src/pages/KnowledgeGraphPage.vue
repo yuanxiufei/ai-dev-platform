@@ -186,12 +186,12 @@ onMounted(refreshAll)
     <header class="flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-3xl font-bold text-white">知识图谱</h1>
-        <p class="text-gray-400 mt-1 text-sm">Memory 关系图 · 反向链接 · 解析 · 统计</p>
+        <p class="text-[var(--color-ide-text-dim)] mt-1 text-sm">Memory 关系图 · 反向链接 · 解析 · 统计</p>
       </div>
       <div class="flex gap-2 items-center">
         <select
           v-model="viewMode"
-          class="bg-gray-800 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-gray-200 outline-none focus:border-brand-500/50"
+          class="bg-gray-800 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-[var(--color-ide-text)] outline-none focus:border-brand-500/50"
         >
           <option value="graph">图谱视图</option>
           <option value="backlinks">反向链接</option>
@@ -201,7 +201,7 @@ onMounted(refreshAll)
         <button
           @click="refreshAll"
           :disabled="loading"
-          class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition disabled:opacity-50"
+          class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-[var(--color-ide-text)] text-sm transition disabled:opacity-50"
           title="刷新"
         >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
@@ -223,27 +223,27 @@ onMounted(refreshAll)
     <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
       <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-green-400">{{ stats.total_memories ?? 0 }}</span>
-        <span class="text-xs text-gray-500">记忆总数</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">记忆总数</span>
       </div>
       <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-brand-400">{{ stats.total_links ?? 0 }}</span>
-        <span class="text-xs text-gray-500">链接数</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">链接数</span>
       </div>
       <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-purple-400">{{ stats.total_backlinks ?? 0 }}</span>
-        <span class="text-xs text-gray-500">反向链接</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">反向链接</span>
       </div>
       <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-amber-400">{{ stats.orphans ?? 0 }}</span>
-        <span class="text-xs text-gray-500">孤立节点</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">孤立节点</span>
       </div>
       <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-cyan-400">{{ stats.most_linked?.length ?? 0 }}</span>
-        <span class="text-xs text-gray-500">热门节点</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">热门节点</span>
       </div>
       <div v-if="stats.graph_density !== undefined" class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
         <span class="block text-xl font-bold text-pink-400">{{ (stats.graph_density * 100).toFixed(1) }}%</span>
-        <span class="text-xs text-gray-500">图密度</span>
+        <span class="text-xs text-[var(--color-ide-text-dim)]">图密度</span>
       </div>
     </div>
 
@@ -252,31 +252,31 @@ onMounted(refreshAll)
       <!-- Toolbar -->
       <div class="flex items-center gap-3 flex-wrap">
         <div class="relative flex-1 max-w-xs">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]" />
           <input
             v-model="graphSearch"
             placeholder="搜索节点…"
-            class="w-full bg-gray-900/50 border border-gray-800/50 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-200 outline-none focus:border-brand-500/50"
+            class="w-full bg-gray-900/50 border border-gray-800/50 rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--color-ide-text)] outline-none focus:border-brand-500/50"
           />
           <button
             v-if="graphSearch"
             @click="graphSearch = ''"
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]"
           >
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
         <div class="flex items-center gap-1 bg-gray-900/50 rounded-xl border border-gray-800/50 p-0.5">
-          <button @click="zoomOut" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400" title="缩小">
+          <button @click="zoomOut" class="p-1.5 rounded-lg hover:bg-gray-800 text-[var(--color-ide-text-dim)]" title="缩小">
             <ZoomOut class="w-4 h-4" />
           </button>
-          <button @click="resetZoom" class="px-2 py-1 text-xs text-gray-400 font-mono min-w-[3rem]">
+          <button @click="resetZoom" class="px-2 py-1 text-xs text-[var(--color-ide-text-dim)] font-mono min-w-[3rem]">
             {{ (graphZoom * 100).toFixed(0) }}%
           </button>
-          <button @click="zoomIn" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400" title="放大">
+          <button @click="zoomIn" class="p-1.5 rounded-lg hover:bg-gray-800 text-[var(--color-ide-text-dim)]" title="放大">
             <ZoomIn class="w-4 h-4" />
           </button>
-          <button @click="resetZoom" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400" title="重置">
+          <button @click="resetZoom" class="p-1.5 rounded-lg hover:bg-gray-800 text-[var(--color-ide-text-dim)]" title="重置">
             <Maximize2 class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -287,9 +287,9 @@ onMounted(refreshAll)
         v-if="!filteredGraph.nodes?.length"
         class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 text-center py-20"
       >
-        <GitGraph class="w-14 h-14 mx-auto mb-4 text-gray-600" />
-        <p class="text-gray-400 font-medium">还没有知识图谱数据</p>
-        <p class="text-sm text-gray-500 mt-1">在记忆中使用 <code class="px-1.5 py-0.5 bg-gray-800 rounded text-green-400 text-xs">[[key]]</code> 创建链接关系</p>
+        <GitGraph class="w-14 h-14 mx-auto mb-4 text-[var(--color-ide-text-dim)]" />
+        <p class="text-[var(--color-ide-text-dim)] font-medium">还没有知识图谱数据</p>
+        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1">在记忆中使用 <code class="px-1.5 py-0.5 bg-gray-800 rounded text-green-400 text-xs">[[key]]</code> 创建链接关系</p>
       </div>
 
       <!-- SVG graph -->
@@ -371,14 +371,14 @@ onMounted(refreshAll)
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1">
             <span class="font-semibold text-white text-sm">{{ selectedNode.label }}</span>
-            <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-400 font-mono">{{ selectedNode.id }}</span>
+            <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-800 text-[var(--color-ide-text-dim)] font-mono">{{ selectedNode.id }}</span>
           </div>
-          <div class="flex items-center gap-3 text-xs text-gray-400">
-            <span>领域: <span class="text-gray-300">{{ selectedNode.domain || "—" }}</span></span>
+          <div class="flex items-center gap-3 text-xs text-[var(--color-ide-text-dim)]">
+            <span>领域: <span class="text-[var(--color-ide-text)]">{{ selectedNode.domain || "—" }}</span></span>
             <span>重要性: <span class="font-mono" :style="{ color: nodeColor(selectedNode.importance) }">{{ (selectedNode.importance * 100).toFixed(0) }}%</span></span>
           </div>
         </div>
-        <button @click="selectedNode = null" class="text-gray-500 hover:text-gray-300 p-1">
+        <button @click="selectedNode = null" class="text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] p-1">
           <X class="w-4 h-4" />
         </button>
       </div>
@@ -386,7 +386,7 @@ onMounted(refreshAll)
 
     <!-- ═══════════ BACKLINKS VIEW ═══════════ -->
     <div v-if="viewMode === 'backlinks'" class="space-y-2">
-      <div v-if="!backlinks.length" class="text-center py-16 text-gray-500">
+      <div v-if="!backlinks.length" class="text-center py-16 text-[var(--color-ide-text-dim)]">
         <p class="font-medium">暂无反向链接</p>
         <p class="text-sm mt-1">创建包含 <code class="px-1.5 py-0.5 bg-gray-800 rounded text-green-400 text-xs">[[key]]</code> 的记忆即可生成反向链接</p>
       </div>
@@ -411,7 +411,7 @@ onMounted(refreshAll)
           <span
             v-for="s in bl.sources"
             :key="s"
-            class="text-xs px-2 py-1 rounded-md bg-gray-800 text-gray-400 font-mono hover:bg-gray-700 hover:text-gray-200 cursor-default transition"
+            class="text-xs px-2 py-1 rounded-md bg-gray-800 text-[var(--color-ide-text-dim)] font-mono hover:bg-gray-700 hover:text-[var(--color-ide-text)] cursor-default transition"
           >
             [[{{ s }}]]
           </span>
@@ -425,7 +425,7 @@ onMounted(refreshAll)
         <input
           v-model="parseKey"
           @keyup.enter="doParse"
-          class="flex-1 bg-gray-900/50 border border-gray-800/50 rounded-xl px-4 py-3 text-sm text-gray-200 outline-none focus:border-brand-500/50"
+          class="flex-1 bg-gray-900/50 border border-gray-800/50 rounded-xl px-4 py-3 text-sm text-[var(--color-ide-text)] outline-none focus:border-brand-500/50"
           placeholder="输入记忆 key 解析 (如 frontend-setup)…"
         />
         <button
@@ -444,20 +444,20 @@ onMounted(refreshAll)
       >
         <!-- Frontmatter -->
         <div v-if="parseResult.frontmatter?.title || parseResult.frontmatter?.tags?.length" class="space-y-2">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Frontmatter</h3>
-          <div v-if="parseResult.frontmatter.title" class="text-sm text-gray-200 font-medium">📄 {{ parseResult.frontmatter.title }}</div>
+          <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider">Frontmatter</h3>
+          <div v-if="parseResult.frontmatter.title" class="text-sm text-[var(--color-ide-text)] font-medium">📄 {{ parseResult.frontmatter.title }}</div>
           <div v-if="parseResult.frontmatter.tags?.length" class="flex flex-wrap gap-1">
-            <span v-for="t in parseResult.frontmatter.tags" :key="t" class="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-300">#{{ t }}</span>
+            <span v-for="t in parseResult.frontmatter.tags" :key="t" class="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-[var(--color-ide-text)]">#{{ t }}</span>
           </div>
-          <div v-if="parseResult.frontmatter.status" class="text-xs text-gray-400">
-            状态: <span class="text-gray-300">{{ parseResult.frontmatter.status }}</span>
-            <span v-if="parseResult.frontmatter.priority" class="ml-3">优先级: <span class="text-gray-300">{{ parseResult.frontmatter.priority }}</span></span>
+          <div v-if="parseResult.frontmatter.status" class="text-xs text-[var(--color-ide-text-dim)]">
+            状态: <span class="text-[var(--color-ide-text)]">{{ parseResult.frontmatter.status }}</span>
+            <span v-if="parseResult.frontmatter.priority" class="ml-3">优先级: <span class="text-[var(--color-ide-text)]">{{ parseResult.frontmatter.priority }}</span></span>
           </div>
         </div>
 
         <!-- Wikilinks -->
         <div v-if="parseResult.wikilinks?.length">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Wikilinks ({{ parseResult.wikilinks.length }})</h3>
+          <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2">Wikilinks ({{ parseResult.wikilinks.length }})</h3>
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="wl in parseResult.wikilinks"
@@ -471,30 +471,30 @@ onMounted(refreshAll)
 
         <!-- Tags -->
         <div v-if="parseResult.tags?.length">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">标签</h3>
+          <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2">标签</h3>
           <div class="flex flex-wrap gap-1.5">
-            <span v-for="t in parseResult.tags" :key="t" class="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">#{{ t }}</span>
+            <span v-for="t in parseResult.tags" :key="t" class="text-xs px-2 py-1 rounded-full bg-gray-800 text-[var(--color-ide-text)]">#{{ t }}</span>
           </div>
         </div>
 
         <!-- Callouts -->
         <div v-if="parseResult.callouts?.length">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Callouts ({{ parseResult.callout_count }})</h3>
+          <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2">Callouts ({{ parseResult.callout_count }})</h3>
           <div
             v-for="(c, i) in parseResult.callouts.slice(0, 3)"
             :key="i"
             class="bg-gray-800/50 rounded-lg p-3 border-l-2"
             :style="{ borderColor: c.type === 'warning' ? '#f59e0b' : c.type === 'error' ? '#ef4444' : c.type === 'info' ? '#3b82f6' : '#10b981' }"
           >
-            <div class="text-xs font-semibold text-gray-300 mb-1">{{ c.title || c.type }}</div>
-            <div class="text-xs text-gray-400">{{ c.content }}</div>
+            <div class="text-xs font-semibold text-[var(--color-ide-text)] mb-1">{{ c.title || c.type }}</div>
+            <div class="text-xs text-[var(--color-ide-text-dim)]">{{ c.content }}</div>
           </div>
         </div>
 
         <!-- Plain text -->
         <div v-if="parseResult.plain_text">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">纯文本</h3>
-          <pre class="text-xs text-gray-400 whitespace-pre-wrap max-h-56 overflow-auto bg-gray-800/50 rounded-lg p-3">{{ parseResult.plain_text }}</pre>
+          <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2">纯文本</h3>
+          <pre class="text-xs text-[var(--color-ide-text-dim)] whitespace-pre-wrap max-h-56 overflow-auto bg-gray-800/50 rounded-lg p-3">{{ parseResult.plain_text }}</pre>
         </div>
 
         <div v-if="parseResult.error" class="text-sm text-red-400 bg-red-500/5 rounded-lg p-3">
@@ -514,7 +514,7 @@ onMounted(refreshAll)
             :key="ml.key"
             class="flex items-center gap-3"
           >
-            <span class="text-xs text-gray-500 w-5 text-right font-mono">{{ i + 1 }}</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)] w-5 text-right font-mono">{{ i + 1 }}</span>
             <span class="text-sm font-mono text-green-400 w-44 truncate" :title="ml.key">{{ ml.key }}</span>
             <div class="flex-1 h-5 bg-gray-800 rounded-full overflow-hidden">
               <div
@@ -522,7 +522,7 @@ onMounted(refreshAll)
                 :style="{ width: ((ml.count / (stats.most_linked[0]?.count || 1)) * 100) + '%' }"
               />
             </div>
-            <span class="text-xs text-gray-400 w-10 text-right font-mono font-medium">{{ ml.count }}</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)] w-10 text-right font-mono font-medium">{{ ml.count }}</span>
           </div>
         </div>
       </div>
@@ -541,8 +541,8 @@ onMounted(refreshAll)
               class="w-2 h-2 rounded-full shrink-0"
               :style="{ background: domainColor(domain as string) }"
             />
-            <span class="font-mono text-gray-200">{{ domain }}</span>
-            <span class="text-xs text-gray-500">{{ count }}</span>
+            <span class="font-mono text-[var(--color-ide-text)]">{{ domain }}</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)]">{{ count }}</span>
           </span>
         </div>
       </div>
@@ -558,7 +558,7 @@ onMounted(refreshAll)
           >
             {{ k }}
           </span>
-          <span v-if="stats.orphan_keys.length > 30" class="text-xs text-gray-500 self-center">+{{ stats.orphan_keys.length - 30 }} more</span>
+          <span v-if="stats.orphan_keys.length > 30" class="text-xs text-[var(--color-ide-text-dim)] self-center">+{{ stats.orphan_keys.length - 30 }} more</span>
         </div>
       </div>
     </div>

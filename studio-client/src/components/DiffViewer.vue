@@ -253,24 +253,24 @@ function langClass(lang: string): string {
 <template>
   <div v-if="diff" :class="['rounded-xl border overflow-hidden transition-all duration-200', changeBg]">
     <!-- ── 头部：文件信息 + 变更状态 ── -->
-    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/5">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-[var(--color-ide-border)]">
       <div class="flex items-center gap-2.5 min-w-0">
         <button
           v-if="collapsible"
           @click="collapsed = !collapsed"
-          class="p-1 rounded-md hover:bg-white/5 text-gray-500 hover:text-gray-300 shrink-0"
+          class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] shrink-0"
         >
           <ChevronDown v-if="!collapsed" class="w-3.5 h-3.5" />
           <ChevronRight v-else class="w-3.5 h-3.5" />
         </button>
         <component :is="changeIcon" :class="['w-4 h-4 shrink-0', changeColor]" />
-        <span class="text-sm font-mono font-medium text-gray-200 truncate">
+        <span class="text-sm font-mono font-medium text-[var(--color-ide-text)] truncate">
           {{ diff.file_name }}
         </span>
         <span :class="['text-[11px] font-semibold px-1.5 py-0.5 rounded', changeColor, changeBg]">
           {{ changeLabel }}
         </span>
-        <span class="text-[11px] text-gray-500 font-mono ml-1">
+        <span class="text-[11px] text-[var(--color-ide-text-dim)] font-mono ml-1">
           <template v-if="diff.language">{{ diff.language }}</template>
         </span>
       </div>
@@ -287,46 +287,46 @@ function langClass(lang: string): string {
     </div>
 
     <!-- ── 工具栏 ── -->
-    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-white/5">
+    <div v-if="!collapsed" class="flex items-center gap-1 px-4 py-1.5 bg-white/[0.02] border-b border-[var(--color-ide-border)]">
       <button
         @click="viewMode = 'unified'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'unified' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
         title="统一视图"
       >
         <AlignLeft class="w-3.5 h-3.5" />
       </button>
       <button
         @click="viewMode = 'split'"
-        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-gray-200' : 'text-gray-500 hover:text-gray-300']"
+        :class="['p-1.5 rounded-md text-[11px] transition-colors', viewMode === 'split' ? 'bg-white/10 text-[var(--color-ide-text)]' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]']"
         title="双栏视图"
       >
         <Columns class="w-3.5 h-3.5" />
       </button>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <!-- Hunk 导航 (Monaco 风格) -->
       <button
         @click="jumpToPrevHunk"
         :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         title="上一个变更 (Shift+F3)"
       >
         <ArrowUp class="w-3.5 h-3.5" />
       </button>
-      <span class="text-[10px] text-gray-500 font-mono min-w-[36px] text-center select-none">
+      <span class="text-[10px] text-[var(--color-ide-text-dim)] font-mono min-w-[36px] text-center select-none">
         {{ activeHunk >= 0 ? `${activeHunk + 1}/${totalHunks}` : `${totalHunks}` }}
       </span>
       <button
         @click="jumpToNextHunk"
         :disabled="totalHunks === 0"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         title="下一个变更 (F3)"
       >
         <ArrowDown class="w-3.5 h-3.5" />
       </button>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <!-- Hunk 快速跳转圆点 (类似 Monaco diff navigator) -->
       <div v-if="totalHunks > 1" class="flex items-center gap-1 mr-1">
@@ -338,24 +338,24 @@ function langClass(lang: string): string {
             'w-3.5 h-3.5 rounded-full transition-all duration-200',
             activeHunk === h - 1
               ? 'bg-brand-400 scale-110 shadow-sm shadow-brand-500/30'
-              : 'bg-white/[0.06] hover:bg-white/[0.12]'
+              : 'bg-[var(--color-ide-surface-hover)] hover:bg-[var(--color-ide-surface-active)]'
           ]"
           :title="`跳转到变更 ${h}`"
         />
       </div>
 
-      <div class="w-px h-4 bg-white/5 mx-1" />
+      <div class="w-px h-4 bg-[var(--color-ide-surface-hover)] mx-1" />
 
       <button
         @click="copyDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
         title="复制 diff"
       >
         <Copy class="w-3.5 h-3.5" />
       </button>
       <button
         @click="downloadDiff"
-        class="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-colors"
+        class="p-1.5 rounded-md text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
         title="下载 .diff"
       >
         <Download class="w-3.5 h-3.5" />
@@ -383,10 +383,10 @@ function langClass(lang: string): string {
               {{ line.content }}
             </td>
             <template v-else>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">
                 {{ line.oldLineNum || '' }}
               </td>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">
                 {{ line.newLineNum || '' }}
               </td>
               <td class="w-4 text-center select-none text-xs py-0"
@@ -394,7 +394,7 @@ function langClass(lang: string): string {
                 {{ line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ' }}
               </td>
               <td class="px-3 py-0 whitespace-pre-wrap"
-                :class="line.type === 'add' ? 'text-emerald-200/80' : line.type === 'remove' ? 'text-red-200/80' : 'text-gray-300'">
+                :class="line.type === 'add' ? 'text-emerald-200/80' : line.type === 'remove' ? 'text-red-200/80' : 'text-[var(--color-ide-text)]'">
                 {{ line.content.slice(1) }}
               </td>
             </template>
@@ -414,19 +414,19 @@ function langClass(lang: string): string {
               <td colspan="4" class="py-0.5 px-4 text-blue-400/70 text-xs font-semibold">{{ line.content }}</td>
             </template>
             <template v-else-if="line.type === 'remove'">
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.oldLineNum }}</td>
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.oldLineNum }}</td>
               <td class="px-3 py-0 bg-red-500/[0.08] whitespace-pre-wrap text-red-200/80" colspan="3">{{ line.content.slice(1) }}</td>
             </template>
             <template v-else-if="line.type === 'add'">
-              <td class="w-10 px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs" />
+              <td class="w-10 px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs" />
               <td class="px-3 py-0 bg-emerald-500/[0.08] whitespace-pre-wrap text-emerald-200/80" colspan="3">{{ line.content.slice(1) }}</td>
             </template>
             <template v-else>
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.oldLineNum }}</td>
-              <td class="px-3 py-0 whitespace-pre-wrap text-gray-300">{{ line.content }}</td>
-              <td class="w-px bg-white/5" />
-              <td class="w-10 text-right px-2 py-0 text-gray-600 select-none border-r border-white/5 text-xs">{{ line.newLineNum }}</td>
-              <td class="px-3 py-0 whitespace-pre-wrap text-gray-300">{{ line.content }}</td>
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.oldLineNum }}</td>
+              <td class="px-3 py-0 whitespace-pre-wrap text-[var(--color-ide-text)]">{{ line.content }}</td>
+              <td class="w-px bg-[var(--color-ide-surface-hover)]" />
+              <td class="w-10 text-right px-2 py-0 text-[var(--color-ide-text-dim)] select-none border-r border-[var(--color-ide-border)] text-xs">{{ line.newLineNum }}</td>
+              <td class="px-3 py-0 whitespace-pre-wrap text-[var(--color-ide-text)]">{{ line.content }}</td>
             </template>
           </tr>
         </tbody>
@@ -434,7 +434,7 @@ function langClass(lang: string): string {
     </div>
 
     <!-- 折叠时只显示摘要 -->
-    <div v-if="collapsed" class="px-4 py-2 text-xs text-gray-500">
+    <div v-if="collapsed" class="px-4 py-2 text-xs text-[var(--color-ide-text-dim)]">
       +{{ diff.lines_added }} −{{ diff.lines_removed }} {{ diff.lines_added + diff.lines_removed }} 行变更
     </div>
   </div>

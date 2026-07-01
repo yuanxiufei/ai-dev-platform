@@ -76,6 +76,106 @@ class MessageHistoryStore:
         raise NotImplementedError
 
 
+class SqliteMessageHistoryStore(MessageHistoryStore):
+    """SQLite 持久化消息历史存储"""
+
+    def __init__(self, db_path: str = "data/messages.db") -> None:
+        import sqlite3
+        import os
+        os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
+        self._db = sqlite3.connect(db_path, check_same_thread=False)
+        self._db.execute("""
+            CREATE TABLE IF NOT EXISTS message_history (
+                message_id TEXT PRIMARY KEY,
+                platform_id TEXT NOT NULL DEFAULT 'unknown',
+                session_id TEXT NOT NULL,
+                sender_id TEXT,
+                sender_name TEXT,
+                content TEXT NOT NULL DEFAULT '{}',
+                llm_checkpoint_id TEXT,
+                timestamp REAL NOT NULL
+            )
+        """)
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_mh_session ON message_history(session_id)")
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_mh_ts ON message_history(timestamp)")
+        self._db.commit()
+
+    async def insert(self, record: MessageRecord) -> MessageRecord:
+        import json
+        self._db.execute(
+            """INSERT OR REPLACE INTO message_history
+               (message_id, platform_id, session_id, sender_id, sender_name,
+                content, llm_checkpoint_id, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.message_id, record.platform_id, record.session_id,
+             record.sender_id, record.sender_name,
+             json.dumps(record.content, ensure_ascii=False),
+             record.llm_checkpoint_id, record.timestamp),
+        )
+        self._db.commit()
+        return record
+
+    async def get(
+        self,
+        session_id: str,
+        platform_id: str | None = None,
+        page: int = 1,
+        page_size: int = 200,
+    ) -> list[MessageRecord]:
+        import json
+        query = "SELECT * FROM message_history WHERE session_id = ?"
+        params: list = [session_id]
+        if platform_id is not None:
+            query += " AND platform_id = ?"
+            params.append(platform_id)
+        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, (page - 1) * page_size])
+        rows = self._db.execute(query, params).fetchall()
+        results = []
+        for row in rows:
+            results.append(MessageRecord(
+                message_id=row[0], platform_id=row[1], session_id=row[2],
+                sender_id=row[3], sender_name=row[4],
+                content=json.loads(row[5]) if row[5] else {},
+                llm_checkpoint_id=row[6], timestamp=row[7],
+            ))
+        return results
+
+    async def delete_older_than(
+        self, session_id: str, max_age_seconds: int
+    ) -> int:
+        cutoff = time.time() - max_age_seconds
+        cursor = self._db.execute(
+            "DELETE FROM message_history WHERE session_id = ? AND timestamp < ?",
+            (session_id, cutoff),
+        )
+        self._db.commit()
+        return cursor.rowcount
+
+    async def delete_by_id(self, message_id: str) -> None:
+        self._db.execute("DELETE FROM message_history WHERE message_id = ?", (message_id,))
+        self._db.commit()
+
+    async def update(
+        self,
+        message_id: str,
+        content: dict[str, Any] | None = None,
+        llm_checkpoint_id: str | None = None,
+    ) -> None:
+        import json
+        if content is not None:
+            self._db.execute(
+                "UPDATE message_history SET content = ? WHERE message_id = ?",
+                (json.dumps(content, ensure_ascii=False), message_id),
+            )
+        if llm_checkpoint_id is not None:
+            self._db.execute(
+                "UPDATE message_history SET llm_checkpoint_id = ? WHERE message_id = ?",
+                (llm_checkpoint_id, message_id),
+            )
+        self._db.commit()
+
+
 class MemoryMessageHistoryStore(MessageHistoryStore):
     """内存消息历史存储（开发/测试用）"""
 
@@ -224,3 +324,31 @@ class PlatformMessageHistoryManager:
             content=content,
             llm_checkpoint_id=llm_checkpoint_id,
         )
+
+
+# ── 全局单例 ────────────────────────────────────────
+
+_message_history_manager: PlatformMessageHistoryManager | None = None
+
+
+def init_message_history_manager(
+    use_sqlite: bool = True,
+    db_path: str = "data/messages.db",
+) -> PlatformMessageHistoryManager:
+    """初始化全局消息历史管理器（默认 SQLite 持久化）"""
+    global _message_history_manager
+    store = SqliteMessageHistoryStore(db_path) if use_sqlite else MemoryMessageHistoryStore()
+    _message_history_manager = PlatformMessageHistoryManager(store=store)
+    logger.info(
+        "PlatformMessageHistoryManager initialized (backend=%s)",
+        "SQLite" if use_sqlite else "Memory",
+    )
+    return _message_history_manager
+
+
+def get_message_history_manager() -> PlatformMessageHistoryManager:
+    """获取全局消息历史管理器"""
+    global _message_history_manager
+    if _message_history_manager is None:
+        _message_history_manager = init_message_history_manager()
+    return _message_history_manager

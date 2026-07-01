@@ -19,7 +19,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlmodel import select, func
 
-from app.api.deps import SessionDep, commit_or_rollback
+from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
 from app.api.routes.agent.mcp_servers import get_mcp_manager, MCPAddServerRequest
 from app.core.mcp import MCPServerConfig, MCPTransport
 from app.models.mcp_models import McpMarketplaceEntry, McpInstalledServer
@@ -792,7 +792,9 @@ async def get_preset_detail(session: SessionDep, preset_id: str):
 
 
 @router.post("/install")
-async def install_from_marketplace(session: SessionDep, payload: MCPInstallRequest) -> dict:
+async def install_from_marketplace(
+    session: SessionDep, payload: MCPInstallRequest, user: CurrentUser,
+) -> dict:
     """从市场安装 MCP 服务器（DB 持久化安装记录 + 统计更新）"""
     from fastapi import HTTPException
 
@@ -859,7 +861,7 @@ async def install_from_marketplace(session: SessionDep, payload: MCPInstallReque
     # ── Session 09: 写入安装记录 + 更新市场统计 ──
     install_record = McpInstalledServer(
         preset_id=payload.preset_id,
-        user_id=None,  # TODO: 从 auth 上下文获取
+        user_id=user.id if user else None,
         server_name=name,
         status="connected" if result.success else "failed",
         error_message="; ".join(result.errors) if result.errors else None,

@@ -395,6 +395,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("MemoryStore init skipped: %s", e)
 
+    # 初始化平台消息历史 & 对话管理器（SQLite 持久化，防重启丢数据）
+    try:
+        from app.core.message_history import init_message_history_manager
+        msg_hist_mgr = init_message_history_manager(use_sqlite=True)
+        logger.info("PlatformMessageHistoryManager initialized (SQLite: data/messages.db)")
+    except Exception as e:
+        logger.warning("MessageHistoryManager init skipped: %s", e)
+
+    try:
+        from app.core.conversation.manager import init_conversation_manager
+        conv_mgr = init_conversation_manager(use_sqlite=True)
+        logger.info("ConversationManager initialized (SQLite: data/conversations.db)")
+    except Exception as e:
+        logger.warning("ConversationManager init skipped: %s", e)
+
     # 初始化 Reflection 管理器（LLM 自省/反思 — 借鉴 Trae Agent reflect）
     try:
         from app.core.agent.reflection import init_reflection_manager, ReflectionConfig

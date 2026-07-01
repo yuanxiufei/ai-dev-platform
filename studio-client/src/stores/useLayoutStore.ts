@@ -40,7 +40,7 @@ const defaultLayout: IDELayoutState = {
   bottomPanelVisible: true,
   activityBarVisible: true,
   statusBarVisible: true,
-  menuBarVisible: false,
+  menuBarVisible: true,
 }
 
 export const useLayoutStore = defineStore('layout', () => {

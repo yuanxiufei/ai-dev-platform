@@ -19,7 +19,7 @@ const icons: Record<string, any> = { output: Info, problems: AlertTriangle, 'deb
           <component :is="icons[ch.id]??Info" :size="12" />{{ ch.name }}
         </button>
       </div>
-      <button class="p-0.5 rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]" title="清除输出" @click="clear"><X :size="12" /></button>
+      <button class="p-0.5 rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="清除输出" @click="clear"><X :size="12" /></button>
     </div>
     <div ref="os" class="flex-1 overflow-y-auto p-2 font-mono text-[11px] space-y-0.5">
       <div v-if="ac" v-for="(line,i) in ac.lines" :key="i" class="whitespace-pre-wrap break-all text-[var(--color-ide-text-dim)]">{{ line }}</div>

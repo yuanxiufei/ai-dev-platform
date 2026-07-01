@@ -237,7 +237,9 @@ export function hasAnsi(text: string): boolean {
  * Strip all ANSI escape sequences from a string.
  */
 export function stripAnsi(text: string): string {
-  return text.replace(ANSI_RE, "")
+  // ANI_RE without global flag only replaces first match; use split+join
+  // or construct a global regex on the fly to strip all sequences.
+  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
 }
 
 /**

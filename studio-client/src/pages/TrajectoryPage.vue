@@ -69,9 +69,9 @@ onMounted(fetchList)
     <header class="flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-3xl font-bold text-white">Agent 轨迹回放</h1>
-        <p class="text-gray-400 mt-1 text-sm">查看 Agent 历史执行步骤 · 时间线回放</p>
+        <p class="text-[var(--color-ide-text-dim)] mt-1 text-sm">查看 Agent 历史执行步骤 · 时间线回放</p>
       </div>
-      <button @click="fetchList" :disabled="loading" class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition disabled:opacity-50" title="刷新">
+      <button @click="fetchList" :disabled="loading" class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-[var(--color-ide-text)] transition disabled:opacity-50" title="刷新">
         <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
       </button>
     </header>
@@ -87,14 +87,14 @@ onMounted(fetchList)
       <aside class="lg:col-span-1 space-y-3">
         <div class="bg-gray-900/50 rounded-xl p-4 border border-gray-800/50">
           <h3 class="text-sm font-semibold text-white mb-3">轨迹文件</h3>
-          <input v-model="agentFilter" @keyup.enter="fetchList" placeholder="筛选 Agent ID…" class="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-3 py-1.5 text-xs text-gray-200 outline-none mb-3 focus:border-brand-500/50" />
+          <input v-model="agentFilter" @keyup.enter="fetchList" placeholder="筛选 Agent ID…" class="w-full bg-gray-800 border border-gray-700/50 rounded-lg px-3 py-1.5 text-xs text-[var(--color-ide-text)] outline-none mb-3 focus:border-brand-500/50" />
 
           <!-- Loading -->
-          <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">加载中…</div>
+          <div v-if="loading" class="text-center py-8 text-[var(--color-ide-text-dim)] text-sm">加载中…</div>
 
           <!-- Empty -->
-          <div v-else-if="!files.length" class="text-center py-12 text-gray-500">
-            <FileJson class="w-10 h-10 mx-auto mb-2 text-gray-600" />
+          <div v-else-if="!files.length" class="text-center py-12 text-[var(--color-ide-text-dim)]">
+            <FileJson class="w-10 h-10 mx-auto mb-2 text-[var(--color-ide-text-dim)]" />
             <p class="font-medium">暂无轨迹数据</p>
             <p class="text-xs mt-1">Agent 运行后会自动生成轨迹文件</p>
           </div>
@@ -106,14 +106,14 @@ onMounted(fetchList)
               :key="f.filename"
               @click="doReplay(f.filename)"
               class="flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition text-sm border"
-              :class="selectedFile === f.filename ? 'bg-brand-500/10 border-brand-500/30 text-white' : 'bg-gray-800/50 border-transparent hover:bg-gray-800 text-gray-300 hover:text-gray-200'"
+              :class="selectedFile === f.filename ? 'bg-brand-500/10 border-brand-500/30 text-white' : 'bg-gray-800/50 border-transparent hover:bg-gray-800 text-[var(--color-ide-text)] hover:text-[var(--color-ide-text)]'"
             >
-              <Play class="w-3.5 h-3.5 shrink-0" :class="selectedFile === f.filename ? 'text-brand-400' : 'text-gray-500'" />
+              <Play class="w-3.5 h-3.5 shrink-0" :class="selectedFile === f.filename ? 'text-brand-400' : 'text-[var(--color-ide-text-dim)]'" />
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-mono truncate" :title="f.filename">{{ f.filename }}</div>
-                <div class="text-[10px] text-gray-500 mt-0.5">{{ formatTime(f.modified_at) }} · {{ formatBytes(f.size_bytes) }}</div>
+                <div class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5">{{ formatTime(f.modified_at) }} · {{ formatBytes(f.size_bytes) }}</div>
               </div>
-              <button @click.stop="doDelete(f.filename)" class="p-0.5 text-gray-600 hover:text-red-400 transition shrink-0" title="删除">
+              <button @click.stop="doDelete(f.filename)" class="p-0.5 text-[var(--color-ide-text-dim)] hover:text-red-400 transition shrink-0" title="删除">
                 <Trash2 class="w-3 h-3" />
               </button>
             </div>
@@ -125,15 +125,15 @@ onMounted(fetchList)
       <main class="lg:col-span-2 space-y-4">
         <!-- No selection -->
         <div v-if="!replay && !replaying" class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 text-center py-24">
-          <Play class="w-12 h-12 mx-auto mb-3 text-gray-600" />
-          <p class="text-gray-400 font-medium">选择左侧的轨迹文件进行回放</p>
-          <p class="text-sm text-gray-500 mt-1">查看 Agent 每一步的执行过程和时间线</p>
+          <Play class="w-12 h-12 mx-auto mb-3 text-[var(--color-ide-text-dim)]" />
+          <p class="text-[var(--color-ide-text-dim)] font-medium">选择左侧的轨迹文件进行回放</p>
+          <p class="text-sm text-[var(--color-ide-text-dim)] mt-1">查看 Agent 每一步的执行过程和时间线</p>
         </div>
 
         <!-- Replaying spinner -->
         <div v-if="replaying" class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 text-center py-20">
           <div class="w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p class="text-gray-400 text-sm">加载轨迹回放…</p>
+          <p class="text-[var(--color-ide-text-dim)] text-sm">加载轨迹回放…</p>
         </div>
 
         <!-- Replay result -->
@@ -142,28 +142,28 @@ onMounted(fetchList)
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
               <span class="block text-xl font-bold" :class="replay.summary.success ? 'text-green-400' : 'text-red-400'">{{ replay.summary.success ? '✓' : '✗' }}</span>
-              <span class="text-xs text-gray-500">{{ replay.summary.success ? '成功' : '失败' }}</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">{{ replay.summary.success ? '成功' : '失败' }}</span>
             </div>
             <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
               <span class="block text-xl font-bold text-brand-400">{{ replay.summary.total_steps }}</span>
-              <span class="text-xs text-gray-500">总步骤</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">总步骤</span>
             </div>
             <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
               <span class="block text-xl font-bold text-amber-400">{{ totalTime }}</span>
-              <span class="text-xs text-gray-500">总耗时</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">总耗时</span>
             </div>
             <div class="p-3 rounded-xl bg-gray-900/50 border border-gray-800/50 text-center">
               <span class="block text-xl font-bold" :class="successRate >= 80 ? 'text-green-400' : successRate >= 50 ? 'text-amber-400' : 'text-red-400'">{{ successRate }}%</span>
-              <span class="text-xs text-gray-500">成功率</span>
+              <span class="text-xs text-[var(--color-ide-text-dim)]">成功率</span>
             </div>
           </div>
 
           <!-- Meta info -->
-          <div class="bg-gray-900/50 rounded-xl p-4 border border-gray-800/50 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-400">
-            <span>Agent: <span class="text-gray-300 font-mono">{{ replay.summary.agent_id }}</span></span>
-            <span v-if="replay.summary.session_id">Session: <span class="text-gray-300 font-mono">{{ replay.summary.session_id }}</span></span>
-            <span v-if="replay.summary.started_at">开始: <span class="text-gray-300">{{ new Date(replay.summary.started_at).toLocaleString("zh-CN") }}</span></span>
-            <span class="text-gray-500 font-mono text-[10px]">{{ replay._filename }}</span>
+          <div class="bg-gray-900/50 rounded-xl p-4 border border-gray-800/50 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--color-ide-text-dim)]">
+            <span>Agent: <span class="text-[var(--color-ide-text)] font-mono">{{ replay.summary.agent_id }}</span></span>
+            <span v-if="replay.summary.session_id">Session: <span class="text-[var(--color-ide-text)] font-mono">{{ replay.summary.session_id }}</span></span>
+            <span v-if="replay.summary.started_at">开始: <span class="text-[var(--color-ide-text)]">{{ new Date(replay.summary.started_at).toLocaleString("zh-CN") }}</span></span>
+            <span class="text-[var(--color-ide-text-dim)] font-mono text-[10px]">{{ replay._filename }}</span>
           </div>
 
           <!-- Error banner -->
@@ -174,8 +174,8 @@ onMounted(fetchList)
 
           <!-- Final answer -->
           <div v-if="replay.summary.final_answer" class="bg-gray-900/50 rounded-xl p-4 border border-gray-800/50">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">最终回答</h3>
-            <div class="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">{{ replay.summary.final_answer }}</div>
+            <h3 class="text-xs font-semibold text-[var(--color-ide-text-dim)] uppercase tracking-wider mb-2">最终回答</h3>
+            <div class="text-sm text-[var(--color-ide-text)] whitespace-pre-wrap leading-relaxed">{{ replay.summary.final_answer }}</div>
           </div>
 
           <!-- Steps timeline -->
@@ -202,13 +202,13 @@ onMounted(fetchList)
                 >
                   <div class="flex items-center gap-2 mb-1.5">
                     <component :is="stepIcon(s.type).icon" class="w-3.5 h-3.5" :style="{ color: stepIcon(s.type).color }" />
-                    <span class="text-xs font-semibold text-gray-300">Step {{ s.step }}</span>
+                    <span class="text-xs font-semibold text-[var(--color-ide-text)]">Step {{ s.step }}</span>
                     <span class="text-[10px] px-1.5 py-0.5 rounded-md font-medium" :style="{ background: stepIcon(s.type).color + '15', color: stepIcon(s.type).color }">{{ stepIcon(s.type).label }}</span>
-                    <span v-if="s.elapsed_ms" class="ml-auto text-[10px] text-gray-500 flex items-center gap-1"><Clock class="w-3 h-3" />{{ s.elapsed_ms }}ms</span>
+                    <span v-if="s.elapsed_ms" class="ml-auto text-[10px] text-[var(--color-ide-text-dim)] flex items-center gap-1"><Clock class="w-3 h-3" />{{ s.elapsed_ms }}ms</span>
                   </div>
-                  <div v-if="s.action" class="text-xs text-gray-400 mb-1 font-mono">{{ s.action }}</div>
+                  <div v-if="s.action" class="text-xs text-[var(--color-ide-text-dim)] mb-1 font-mono">{{ s.action }}</div>
                   <div v-if="s.error" class="text-xs text-red-400 bg-red-500/5 rounded-lg p-2 mt-1 whitespace-pre-wrap">{{ s.error }}</div>
-                  <div v-else-if="s.output" class="text-xs text-gray-400 bg-gray-800/50 rounded-lg p-2 mt-1 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ truncate(s.output, 400) }}</div>
+                  <div v-else-if="s.output" class="text-xs text-[var(--color-ide-text-dim)] bg-gray-800/50 rounded-lg p-2 mt-1 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ truncate(s.output, 400) }}</div>
                 </div>
               </div>
             </div>
@@ -216,7 +216,7 @@ onMounted(fetchList)
 
           <!-- No steps -->
           <div v-else class="bg-gray-900/50 rounded-xl p-6 border border-gray-800/50 text-center py-12">
-            <p class="text-gray-500 text-sm">该轨迹没有执行步骤数据</p>
+            <p class="text-[var(--color-ide-text-dim)] text-sm">该轨迹没有执行步骤数据</p>
           </div>
         </div>
       </main>

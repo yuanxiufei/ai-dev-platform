@@ -110,7 +110,7 @@ function downloadB64(b64: string, index: number) {
         <Image class="w-6 h-6 text-brand-400" />
         图像生成
       </h1>
-      <p class="text-sm text-gray-400 mt-1">
+      <p class="text-sm text-[var(--color-ide-text-dim)] mt-1">
         通过 AI 生成图像 — 支持 DALL-E / Stability / ComfyUI 多引擎自动选择
       </p>
     </header>
@@ -118,33 +118,33 @@ function downloadB64(b64: string, index: number) {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 左侧控制面板 -->
       <div
-        class="bg-surface-800/60 rounded-xl p-5 border border-white/10 space-y-4 lg:col-span-1"
+        class="bg-surface-800/60 rounded-xl p-5 border border-[var(--color-ide-border)] space-y-4 lg:col-span-1"
       >
         <label class="block space-y-1.5">
-          <span class="text-sm text-gray-300 font-medium">描述词 (Prompt)</span>
+          <span class="text-sm text-[var(--color-ide-text)] font-medium">描述词 (Prompt)</span>
           <textarea
             v-model="prompt"
             rows="4"
-            class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-brand-500 resize-none placeholder:text-gray-600"
+            class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg p-3 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500 resize-none placeholder:text-[var(--color-ide-text-dim)]"
             placeholder="描述你想生成的图像，如：一只赛博朋克风格的猫，霓虹灯背景..."
           />
         </label>
 
         <label class="block space-y-1.5">
-          <span class="text-sm text-gray-300 font-medium">排除词 (Negative Prompt)</span>
+          <span class="text-sm text-[var(--color-ide-text)] font-medium">排除词 (Negative Prompt)</span>
           <input
             v-model="negativePrompt"
-            class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-brand-500 placeholder:text-gray-600"
+            class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500 placeholder:text-[var(--color-ide-text-dim)]"
             placeholder="模糊, 低质量, 畸形, extra fingers"
           />
         </label>
 
         <div class="grid grid-cols-2 gap-3">
           <label class="space-y-1.5">
-            <span class="text-xs text-gray-400">尺寸</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)]">尺寸</span>
             <select
               v-model="size"
-              class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none"
+              class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-ide-text)] focus:outline-none"
             >
               <option v-for="s in sizes" :key="s.value" :value="s.value">
                 {{ s.label }}
@@ -152,10 +152,10 @@ function downloadB64(b64: string, index: number) {
             </select>
           </label>
           <label class="space-y-1.5">
-            <span class="text-xs text-gray-400">风格</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)]">风格</span>
             <select
               v-model="style"
-              class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none"
+              class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-ide-text)] focus:outline-none"
             >
               <option v-for="s in styles" :key="s.value" :value="s.value">
                 {{ s.label }}
@@ -166,20 +166,20 @@ function downloadB64(b64: string, index: number) {
 
         <div class="grid grid-cols-2 gap-3">
           <label class="space-y-1.5">
-            <span class="text-xs text-gray-400">数量</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)]">数量</span>
             <input
               v-model.number="n"
               type="number"
               min="1"
               max="4"
-              class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none"
+              class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-ide-text)] focus:outline-none"
             />
           </label>
           <label class="space-y-1.5">
-            <span class="text-xs text-gray-400">引擎</span>
+            <span class="text-xs text-[var(--color-ide-text-dim)]">引擎</span>
             <select
               v-model="engine"
-              class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none"
+              class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-ide-text)] focus:outline-none"
             >
               <option value="">自动选择</option>
               <option v-for="p in providers" :key="p" :value="p">
@@ -208,7 +208,7 @@ function downloadB64(b64: string, index: number) {
           <div
             class="flex items-center justify-between px-1"
           >
-            <span class="text-xs text-gray-500">
+            <span class="text-xs text-[var(--color-ide-text-dim)]">
               引擎: {{ result.provider_used }} · 耗时: {{ result.latency_ms.toFixed(0) }}ms
             </span>
           </div>
@@ -219,7 +219,7 @@ function downloadB64(b64: string, index: number) {
             <div
               v-for="(img, i) in result.images"
               :key="i"
-              class="bg-surface-800/60 rounded-xl border border-white/10 overflow-hidden group cursor-pointer hover:border-brand-500/30 transition"
+              class="bg-surface-800/60 rounded-xl border border-[var(--color-ide-border)] overflow-hidden group cursor-pointer hover:border-brand-500/30 transition"
               @click="showLightbox = img.b64_json || img.url"
             >
               <img
@@ -235,18 +235,18 @@ function downloadB64(b64: string, index: number) {
               <div class="p-3 flex items-center justify-between">
                 <span
                   v-if="img.revised_prompt"
-                  class="text-xs text-gray-500 truncate max-w-[80%]"
+                  class="text-xs text-[var(--color-ide-text-dim)] truncate max-w-[80%]"
                 >
                   改写: {{ img.revised_prompt.slice(0, 50) }}...
                 </span>
-                <span v-else class="text-xs text-gray-600">{{ img.width }}×{{ img.height }}</span>
+                <span v-else class="text-xs text-[var(--color-ide-text-dim)]">{{ img.width }}×{{ img.height }}</span>
                 <button
                   v-if="img.b64_json"
                   @click.stop="downloadB64(img.b64_json, i)"
                   class="p-1.5 rounded-lg hover:bg-white/10 transition"
                   title="下载"
                 >
-                  <Download class="w-3.5 h-3.5 text-gray-400" />
+                  <Download class="w-3.5 h-3.5 text-[var(--color-ide-text-dim)]" />
                 </button>
               </div>
             </div>
@@ -256,37 +256,37 @@ function downloadB64(b64: string, index: number) {
         <!-- 空状态提示 -->
         <div
           v-if="!result && !generating"
-          class="flex flex-col items-center justify-center py-16 text-gray-500"
+          class="flex flex-col items-center justify-center py-16 text-[var(--color-ide-text-dim)]"
         >
           <div
             class="w-20 h-20 rounded-2xl bg-surface-800 flex items-center justify-center mb-4"
           >
-            <Image class="w-10 h-10 text-gray-600" />
+            <Image class="w-10 h-10 text-[var(--color-ide-text-dim)]" />
           </div>
           <p class="mb-1">输入描述词后点击「生成图像」</p>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-[var(--color-ide-text-dim)]">
             支持 DALL-E · Stable Diffusion · ComfyUI
           </p>
         </div>
 
         <!-- 批量生成折叠区 -->
         <details
-          class="bg-surface-800/60 rounded-xl border border-white/10 mt-4"
+          class="bg-surface-800/60 rounded-xl border border-[var(--color-ide-border)] mt-4"
         >
-          <summary class="p-4 cursor-pointer text-sm font-medium text-gray-300 select-none hover:text-white transition">
+          <summary class="p-4 cursor-pointer text-sm font-medium text-[var(--color-ide-text)] select-none hover:text-white transition">
             批量生成
           </summary>
           <div class="px-4 pb-4 space-y-3">
             <textarea
               v-model="batchPrompts"
               rows="4"
-              class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-brand-500 resize-none placeholder:text-gray-600"
+              class="w-full bg-black/30 border border-[var(--color-ide-border)] rounded-lg p-3 text-sm text-[var(--color-ide-text)] focus:outline-none focus:border-brand-500 resize-none placeholder:text-[var(--color-ide-text-dim)]"
               placeholder="每行一个 Prompt..."
             />
             <button
               @click="doBatch"
               :disabled="generating"
-              class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-gray-300 transition-colors disabled:opacity-50"
+              class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-[var(--color-ide-text)] transition-colors disabled:opacity-50"
             >
               提交批量
             </button>
@@ -299,7 +299,7 @@ function downloadB64(b64: string, index: number) {
                 :key="i"
                 class="bg-black/30 rounded-lg p-3"
               >
-                <p class="text-xs text-gray-300 mb-2 truncate">
+                <p class="text-xs text-[var(--color-ide-text)] mb-2 truncate">
                   {{ r.prompt.slice(0, 50) }}
                 </p>
                 <img

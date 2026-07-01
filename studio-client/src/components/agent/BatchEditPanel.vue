@@ -142,19 +142,19 @@ function truncate(text: string, max: number = 60): string {
         <div class="flex items-center gap-2">
           <!-- 视图切换 -->
           <button
-            class="px-2 py-1 text-xs rounded border border-[var(--color-ide-border)] hover:bg-white/5 text-[var(--color-ide-text-dim)]"
+            class="px-2 py-1 text-xs rounded border border-[var(--color-ide-border)] hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]"
             @click="viewMode = viewMode === 'unified' ? 'split' : 'unified'"
           >
             {{ viewMode === 'unified' ? '统一' : '分栏' }}
           </button>
           <button
-            class="px-2 py-1 text-xs rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"
+            class="px-2 py-1 text-xs rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]"
             @click="collapseAll"
           >
             全部折叠
           </button>
           <button
-            class="px-2 py-1 text-xs rounded hover:bg-white/5 text-[var(--color-ide-text-dim)]"
+            class="px-2 py-1 text-xs rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]"
             @click="expandAll"
           >
             全部展开
@@ -174,7 +174,7 @@ function truncate(text: string, max: number = 60): string {
             <XCircle :size="13" /> 全部拒绝
           </button>
           <button
-            class="px-2 py-1 text-xs rounded hover:bg-white/5 text-[var(--color-ide-text-dim)] ml-1"
+            class="px-2 py-1 text-xs rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] ml-1"
             @click="emit('close')"
           >
             ✕
