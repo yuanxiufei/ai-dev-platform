@@ -507,3 +507,107 @@ export const trajectoryApi = {
       params: { session_id: sessionId },
     }),
 }
+
+// ── FileCheckpoint 文件检查点 (借鉴 RooCode) ──────────
+
+export interface FileCheckpointItem {
+  id: string
+  agent_name: string
+  turn_number: number
+  timestamp: number
+  user_message: string
+  assistant_summary: string
+  files_count: number
+  files_modified: { path: string; hash: string }[]
+  model_used: string
+  tokens_used: number
+  tool_calls_count: number
+}
+
+export interface FileCheckpointDetail {
+  id: string
+  agent_name: string
+  turn_number: number
+  timestamp: number
+  user_message: string
+  assistant_summary: string
+  files_modified: { path: string; hash: string; preview: string }[]
+  model_used: string
+  tokens_used: number
+  tool_calls_count: number
+}
+
+export interface RollbackResult {
+  restored: string[]
+  failed: string[]
+  checkpoint_id: string
+  agent_name: string
+  turn_number: number
+}
+
+export const checkpointApi = {
+  list: (params?: { agent_name?: string; limit?: number; offset?: number }) =>
+    apiClient.get<{ data: FileCheckpointItem[]; total: number; limit: number; offset: number }>(
+      "/agent/checkpoints", { params },
+    ),
+  get: (id: string) =>
+    apiClient.get<FileCheckpointDetail>(`/agent/checkpoints/${id}`),
+  rollback: (id: string) =>
+    apiClient.post<RollbackResult>(`/agent/checkpoints/${id}/rollback`),
+  cleanup: (maxCheckpoints?: number) =>
+    apiClient.post<{ deleted: number; remaining: number }>(
+      "/agent/checkpoints/cleanup",
+      null as unknown as Record<string, never>,
+      { params: { max_checkpoints: maxCheckpoints } },
+    ),
+}
+
+// ── Auto-Approval 智能审批 (借鉴 RooCode + OpenInterpreter) ─
+
+export interface ApprovalRuleItem {
+  tool_name: string
+  allowed: boolean
+  path_pattern: string
+  param_conditions: Record<string, unknown>
+  usage_count: number
+  last_used: number
+  created_at: number
+}
+
+export interface ApprovalCheckResult {
+  approved: boolean
+  reason: string
+  needs_user_confirmation: boolean
+  risk_level: string
+  tool_name: string
+}
+
+export interface RiskLevelMap {
+  levels: { safe: string[]; moderate: string[]; dangerous: string[] }
+  total_tools: number
+}
+
+export const approvalApi = {
+  listRules: () =>
+    apiClient.get<{ data: ApprovalRuleItem[]; total: number; mode: string }>(
+      "/agent/approval/rules",
+    ),
+  addRule: (data: {
+    tool_name: string; allowed?: boolean
+    path_pattern?: string; param_conditions?: Record<string, unknown>
+  }) =>
+    apiClient.post("/agent/approval/rules", data),
+  removeRule: (toolName: string, pathPattern?: string) =>
+    apiClient.delete(`/agent/approval/rules/${toolName}`, {
+      params: { path_pattern: pathPattern },
+    }),
+  check: (data: {
+    tool_name: string; tool_args?: Record<string, unknown>
+    agent_name?: string; turn_number?: number
+  }) =>
+    apiClient.post<ApprovalCheckResult>("/agent/approval/check", data),
+  riskLevels: () =>
+    apiClient.get<RiskLevelMap>("/agent/approval/risk-levels"),
+  setMode: (mode: string) =>
+    apiClient.post<{ status: string; mode: string }>("/agent/approval/mode", { mode }),
+}

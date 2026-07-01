@@ -34,3 +34,5 @@ from app.api.routes.agent.rules import router as rules_router  # noqa: F401
 from app.api.routes.agent.integrations import router as integrations_router  # noqa: F401
 from app.api.routes.agent.run import router as agent_run_router  # noqa: F401
 from app.api.routes.agent.agents import router as agents_router  # noqa: F401
+from app.api.routes.agent.checkpoint import router as checkpoint_router  # noqa: F401
+from app.api.routes.agent.auto_approval import router as auto_approval_router  # noqa: F401

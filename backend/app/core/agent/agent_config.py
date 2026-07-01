@@ -113,6 +113,10 @@ class AgentConfig:
     git_auto_commit: bool = False
     """是否在 Agent 执行完成后自动 git add + commit"""
 
+    # ── Checkpoint/Rollback (借鉴 RooCode checkpoints/) ──
+    enable_checkpoint: bool = True
+    """是否在 Agent 执行后自动保存 checkpoint (文件快照)"""
+
     # ── 高级配置 ──
     allow_parallel_tools: bool = True
     """是否允许 LLM 并行调用多个工具"""

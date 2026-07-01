@@ -370,21 +370,37 @@ Example response:
             description: 已插值后的任务描述 (CrewAI context chain 风格)
         """
         from app.core.agent.agent_config import AgentConfig
+        from app.core.agent.prompt_templates import get_prompt_builder
+
+        pb = get_prompt_builder()
 
         # 根据任务类型确定 Agent 配置
         code_types = {TaskType.CODE, TaskType.FIX, TaskType.REFACTOR, TaskType.TEST}
 
         if subtask.task_type in code_types:
+            # 使用 Cline 风格结构化 prompt
+            code_instructions = pb.build(
+                role="coder",
+                task=description or subtask.description,
+                context=f"Task type: {subtask.task_type.value}, Priority: {subtask.priority}",
+            )
             config = AgentConfig(
                 name=f"orchestrator-{subtask.task_type.value}",
                 description=f"Orchestrator {subtask.task_type.value} agent",
-                instructions=(
-                    "You are a coding agent in a multi-agent orchestration pipeline. "
-                    f"Your task type is: {subtask.task_type.value}.\n"
-                    "Complete the assigned subtask thoroughly. "
-                    "Use available tools to search code, read files, and verify your work."
-                ),
+                instructions=code_instructions,
                 max_turns=5,
+                enable_memory=False,
+            )
+        elif subtask.task_type == TaskType.PLAN:
+            plan_instructions = pb.build(
+                role="planner",
+                task=description or subtask.description,
+            )
+            config = AgentConfig(
+                name=f"orchestrator-{subtask.task_type.value}",
+                description=f"Orchestrator {subtask.task_type.value} agent",
+                instructions=plan_instructions,
+                max_turns=3,
                 enable_memory=False,
             )
         else:

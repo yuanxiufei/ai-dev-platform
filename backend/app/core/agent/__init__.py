@@ -104,3 +104,22 @@ from app.core.agent.context_window import (  # noqa: F401
 from app.core.agent.differ import (  # noqa: F401
     FuzzyDiffer, DiffResult, EditBlock, get_differ,
 )
+
+# ── FileCheckpoint 文件快照 + 回滚（借鉴 RooCode） ──
+from app.core.agent.checkpoint import (  # noqa: F401
+    FileCheckpoint, FileSnapshot, FileCheckpointManager,
+    get_file_checkpoint_manager, init_file_checkpoint_manager,
+)
+
+# ── Auto-Approval 智能审批引擎（借鉴 RooCode + OpenInterpreter） ──
+from app.core.agent.auto_approval import (  # noqa: F401
+    AutoApprovalEngine, ApprovalRule, ApprovalRequest, ApprovalDecision,
+    RiskLevel, TOOL_RISK_MAP,
+    get_approval_engine, init_approval_engine,
+)
+
+# ── Prompt Templates 结构化提示（借鉴 Cline） ──
+from app.core.agent.prompt_templates import (  # noqa: F401
+    PromptBuilder, get_prompt_builder,
+    PLANNER_PROMPT, CODER_PROMPT, REVIEWER_PROMPT, DEBUG_PROMPT,
+)

@@ -644,6 +644,29 @@ class AgentRunner:
         except Exception as e:
             logger.warning("TraceDB finish_trace failed (non-blocking): %s", e)
 
+        # 🆕 Checkpoint/Rollback (借鉴 RooCode checkpoints/)
+        if config.enable_checkpoint and not result.cancelled:
+            try:
+                from app.core.agent.checkpoint import get_file_checkpoint_manager
+                cpm = get_file_checkpoint_manager()
+                modified_paths = list(result.file_changes.keys()) if result.file_changes else []
+                await cpm.save(
+                    agent_name=config.name,
+                    user_message=user_message,
+                    assistant_summary=result.final_answer[:200] if result.final_answer else "",
+                    modified_files=modified_paths,
+                    model_used=result.final_model or "",
+                    tokens_used=result.tokens_used or 0,
+                    tool_calls_count=result.total_tool_calls or 0,
+                    turn_number=result.turns or 1,
+                )
+                logger.info(
+                    "Agent '%s': checkpoint saved (%d files)",
+                    config.name, len(modified_paths),
+                )
+            except Exception as e:
+                logger.warning("Checkpoint save failed (non-blocking): %s", e)
+
         # 🆕 Trajectory: 最终化
         recorder.finalize(
             total_turns=result.turns,
