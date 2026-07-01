@@ -10,6 +10,8 @@ Agent 系统 — Function Calling + Tool Loop 运行器
 - ContextWindowManager: 智能上下文窗口管理（SWE-agent 三层截断策略）
 - WorkflowGraph: 声明式 Agent 状态图（LangGraph StateGraph 模式）
 - MentionParser: @mention 解析器（@file:/@dir:/@symbol: 上下文注入，借鉴 Continue）
+- ContextProvider: 分层上下文注入插件系统（借鉴 Continue）
+- RelatedFilesProvider: 多文件关系感知上下文（借鉴 Zed multi-buffer）
 - AgentHooks: Agent 生命周期钩子（EventBus 桥接 + 组合模式）
 - TrajectoryRecorder: Agent 轨迹记录（增量持久化）
 - MiddlewarePipeline: Agent 中间件管道（Guardrail/LoopDetection/Summarization/ErrorHandling）
@@ -122,4 +124,19 @@ from app.core.agent.auto_approval import (  # noqa: F401
 from app.core.agent.prompt_templates import (  # noqa: F401
     PromptBuilder, get_prompt_builder,
     PLANNER_PROMPT, CODER_PROMPT, REVIEWER_PROMPT, DEBUG_PROMPT,
+)
+
+# ── ContextProvider 插件系统（借鉴 Continue） ──
+from app.core.agent.context_provider import (  # noqa: F401
+    ContextProvider, ContextProviderRegistry, ProviderEntry,
+    SystemInstructionProvider, ToolDescriptionProvider,
+    MemoryContextProvider, SkillContextProvider,
+    ProjectContextProvider, FileContextProvider, MCPContextProvider,
+    get_context_provider_registry, init_context_provider_registry,
+)
+
+# ── RelatedFiles 多文件关系（借鉴 Zed multi-buffer） ──
+from app.core.agent.related_files import (  # noqa: F401
+    FileRelationshipTracker, RelatedFilesProvider,
+    get_related_files_provider, init_related_files_provider,
 )

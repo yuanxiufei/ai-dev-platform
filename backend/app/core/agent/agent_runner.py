@@ -23,6 +23,7 @@ AgentRunner — 多轮工具调用循环
   - 🆕 Middleware 管道（LoopDetection / Summarization / ErrorHandling）
   - 🆕 TrajectoryRecorder 轨迹记录（增量持久化）
   - 🆕 LakeviewSummarizer 步骤摘要（人类可读 + 上下文压缩）
+  - 🆕 ContextProvider 插件系统（分层上下文注入，借鉴 Continue）
 """
 
 from __future__ import annotations
@@ -217,39 +218,13 @@ class AgentRunner:
                 f"{config.time_budget_ms/1000:.0f}",
             )
 
-        # ── Memory 注入：运行前加载相关记忆上下文 ──
-        memory_context = ""
-        if config.enable_memory:
-            try:
-                from app.core.memory.memory_retriever import get_retriever
-                retriever = get_retriever()
-                memory_context = retriever.retrieve_as_context(
-                    query=user_message,
-                    max_items=10,
-                )
-                if memory_context:
-                    logger.info(
-                        "Agent '%s': injected memory context (%d chars)",
-                        config.name, len(memory_context),
-                    )
-            except Exception as e:
-                logger.warning("Memory retrieval failed (non-blocking): %s", e)
-
         # ── 前置钩子 ──
         self._fire_hooks(config.hooks, "before_run", context)
 
-        # 存储 memory_context 供 after_run 复用
-        config._memory_context = memory_context
-
         try:
-            # 构建 system 消息（Agent 指令 + 工具使用指导 + 记忆上下文）
-            system_content = self._build_system_prompt(config, registry)
-            if memory_context:
-                system_content = (
-                    system_content
-                    + "\n\n## Relevant Context from Memory\n"
-                    + memory_context
-                )
+            # 🆕 ContextProvider 插件系统: 分层组装 system prompt
+            # 替代原有硬编码的 _build_system_prompt() + memory_context 拼接
+            system_content = await self._assemble_system_prompt(config, user_message, context)
 
             # 添加用户消息
             if not context.messages:
@@ -737,6 +712,59 @@ class AgentRunner:
         return result
 
     # ── 内部方法 ──────────────────────────────────────────
+
+    async def _assemble_system_prompt(
+        self,
+        config: AgentConfig,
+        user_message: str,
+        context: AgentRunContext,
+    ) -> str:
+        """🆕 使用 ContextProvider 插件系统分层组装 system prompt
+
+        替代原有的 _build_system_prompt() + 硬编码 memory_context 拼接。
+        所有 Provider 按 priority 排序后依次调用，输出拼接成最终 prompt。
+
+        回退: 如果注册中心为空或出错，回退到 _build_system_prompt() 原有逻辑。
+        """
+        try:
+            from app.core.agent.context_provider import get_context_provider_registry
+            registry = get_context_provider_registry()
+            providers = registry.get_all(config)
+
+            if not providers:
+                logger.debug("No ContextProviders registered, falling back to _build_system_prompt")
+                from app.core.tools.registry import get_tool_registry
+                return self._build_system_prompt(config, get_tool_registry())
+
+            parts: list[str] = []
+            for provider in providers:
+                try:
+                    text = await provider.provide(config, user_message, context)
+                    if text and text.strip():
+                        parts.append(text.strip())
+                        logger.debug(
+                            "Agent '%s': Provider '%s' injected %d chars",
+                            config.name, provider.name, len(text),
+                        )
+                except Exception as e:
+                    logger.warning(
+                        "ContextProvider '%s' failed (non-blocking): %s",
+                        provider.name, e,
+                    )
+
+            result = "\n\n".join(parts)
+            logger.info(
+                "Agent '%s': system prompt assembled from %d/%d providers (%d chars)",
+                config.name, len(parts), len(providers), len(result),
+            )
+            return result
+
+        except Exception as e:
+            logger.warning(
+                "ContextProvider assembly failed (%s), falling back to _build_system_prompt", e
+            )
+            from app.core.tools.registry import get_tool_registry
+            return self._build_system_prompt(config, get_tool_registry())
 
     def _build_system_prompt(
         self,

@@ -8,6 +8,9 @@
  *   - 全局主题同步 (useThemeStore → Monaco theme)
  *   - 动态编辑器选项更新 (updateEditorOptions)
  *   - 增强编辑器特性 (sticky scroll, bracket colorization, semantic tokens)
+ *
+ * Session 16 新增:
+ *   - FIM 代码补全 (Tabby 风格内联幽灵文本 + 防抖触发 + Tab/Esc 交互)
  */
 
 import type * as monacoNs from "monaco-editor"
@@ -21,6 +24,7 @@ import {
 } from "vue"
 import type { EditorTab } from "@/types/ide"
 import { useThemeStore } from "@/stores/useThemeStore"
+import { useFIMCompletion } from "@/composables/useFIMCompletion"
 import "monaco-editor/dev/vs/editor/editor.main.css"
 
 const props = defineProps<{ activeTab: EditorTab }>()
@@ -33,12 +37,22 @@ const containerRef = ref<HTMLElement | null>(null)
 const editorInstance = shallowRef<monacoNs.editor.IStandaloneCodeEditor | null>(
   null,
 )
-let monacoInstance: typeof monacoNs | null = null
+let monacoRaw: typeof monacoNs | null = null  // 非响应式快照（兼容原有代码）
+const monacoInstance = shallowRef<typeof monacoNs | null>(null)  // 响应式给 composable 用
 const themeStore = useThemeStore()
 
 // ── AI 装饰状态 ──
 let aiDecorationIds: string[] = []
 let aiSuggestionIds: string[] = []
+
+// ── FIM 代码补全 ──
+const fim = useFIMCompletion(editorInstance, monacoInstance, {
+  filePath: props.activeTab.filePath || "",
+  language: props.activeTab.language || "plaintext",
+  enabled: true,
+  debounceMs: 300,
+})
+let fimKeydownDisposable: monacoNs.IDisposable | null = null
 
 /** AI 装饰选项 */
 export interface AIDecoration {
@@ -62,7 +76,8 @@ async function initMonaco(): Promise<void> {
   if (!containerRef.value) return
   try {
     const monaco = (await import("monaco-editor")).default
-    monacoInstance = monaco
+    monacoRaw = monaco
+    monacoInstance.value = monaco
     monaco.editor.defineTheme("codebuddy-dark", {
       base: "vs-dark",
       inherit: true,
@@ -163,6 +178,19 @@ async function initMonaco(): Promise<void> {
         languageId: model?.getLanguageId() ?? "plaintext",
       })
     })
+
+    // 🆕 FIM 补全: 按键触发 + Tab/Esc 拦截
+    editor.onKeyDown((e) => {
+      // 先让 FIM 处理（Tab/Esc 接受/驳回幽灵文本）
+      if (fim.handleKeydown(e as unknown as KeyboardEvent)) return
+
+      // 按键触发补全
+      const key = e as unknown as KeyboardEvent
+      if (key.key && key.key.length === 1) {
+        fim.handleKeystroke(key.key)
+      }
+    })
+
     editor.focus()
   } catch (err) {
     console.warn("[CodeBuddy] Monaco init error:", err)
@@ -188,8 +216,8 @@ const AI_OVERVIEW_COLOR: Record<string, string> = {
  */
 function applyAIDecorations(decorations: AIDecoration[]) {
   const editor = editorInstance.value
-  if (!editor || !monacoInstance) return
-  const monaco = monacoInstance
+  if (!editor || !monacoRaw) return
+  const monaco = monacoRaw
 
   clearAIDecorations()
 
@@ -236,8 +264,8 @@ function clearAIDecorations() {
  */
 function showAISuggestion(line: number, suggestedCode: string, description?: string) {
   const editor = editorInstance.value
-  if (!editor || !monacoInstance) return
-  const monaco = monacoInstance
+  if (!editor || !monacoRaw) return
+  const monaco = monacoRaw
 
   clearAIDecorations()
   const contentAtLine = editor.getModel()?.getLineContent(line) || ""
@@ -263,9 +291,9 @@ function showAISuggestion(line: number, suggestedCode: string, description?: str
 function acceptAISuggestion(line: number, suggestedCode: string) {
   clearAIDecorations()
   const editor = editorInstance.value
-  if (!editor || !monacoInstance) return
+  if (!editor || !monacoRaw) return
   editor.executeEdits("ai-accept", [{
-    range: new monacoInstance.Range(line, 1, line, Number.MAX_SAFE_INTEGER),
+    range: new monacoRaw.Range(line, 1, line, Number.MAX_SAFE_INTEGER),
     text: suggestedCode,
   }])
 }
@@ -276,7 +304,7 @@ function rejectAISuggestion() {
 
 /** 获取 Monaco 实例（供父组件使用） */
 function getMonaco() {
-  return monacoInstance
+  return monacoRaw
 }
 
 /** 获取编辑器实例 */
@@ -299,7 +327,7 @@ defineExpose({
 watch(
   () => [props.activeTab.id, props.activeTab.language],
   async ([newId], [oldId]) => {
-    if (!monacoInstance) return
+    if (!monacoRaw) return
     if (newId !== oldId) {
       clearAIDecorations()
       editorInstance.value?.dispose()
@@ -307,7 +335,7 @@ watch(
       await nextTick()
       await initMonaco()
     } else if (editorInstance.value) {
-      monacoInstance!.editor.setModelLanguage(
+      monacoRaw.editor.setModelLanguage(
         editorInstance.value.getModel()!,
         props.activeTab.language ?? "plaintext",
       )
@@ -333,8 +361,8 @@ onMounted(async () => {
 watch(
   () => themeStore.definition.monacoTheme,
   (newTheme) => {
-    if (monacoInstance && editorInstance.value) {
-      monacoInstance.editor.setTheme(newTheme)
+    if (monacoRaw && editorInstance.value) {
+      monacoRaw.editor.setTheme(newTheme)
     }
   },
 )
@@ -358,3 +386,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template><div ref="containerRef" class="absolute inset-0 w-full h-full" /></template>
+
+<style>
+/* 🆕 FIM 幽灵文本样式（借鉴 Tabby inline completion + Cursor ghost text）
+ * 必须使用全局选择器，因为 Monaco 内部使用 shadow DOM 渲染 */
+.fim-ghost-text {
+  color: #6B7280 !important;
+  font-style: italic;
+  opacity: 0.6;
+  pointer-events: none;
+}
+</style>
