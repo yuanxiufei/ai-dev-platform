@@ -59,6 +59,16 @@ const router = createRouter({
       component: () => import("@/pages/SettingsPage.vue"),
     },
     {
+      path: "/jobs",
+      name: "jobs",
+      component: () => import("@/pages/ScheduledJobsPage.vue"),
+    },
+    {
+      path: "/workflow",
+      name: "workflow",
+      component: () => import("@/pages/WorkflowPage.vue"),
+    },
+    {
       path: "/group-chat",
       name: "group-chat",
       component: () => import("@/pages/GroupChatPage.vue"),

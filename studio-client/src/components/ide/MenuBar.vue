@@ -105,6 +105,8 @@ const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
       { label: "集成管理", action: () => router.push("/integrations") },
       { separator: true },
       { label: "Kanban 看板", action: () => router.push("/kanban") },
+      { label: "工作流", action: () => router.push("/workflow") },
+      { label: "定时任务", action: () => router.push("/jobs") },
       { label: "群聊协作", action: () => router.push("/group-chat") },
       { label: "设置", shortcut: "Ctrl+,", action: () => router.push("/settings") },
     ],
