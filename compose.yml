@@ -43,7 +43,7 @@ services:
       - traefik.http.services.${STACK_NAME?Variable not set}-adminer.loadbalancer.server.port=18080
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
