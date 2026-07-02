@@ -5,7 +5,7 @@
  */
 import { computed, ref } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
-import { AlertTriangle, AlertCircle, Info, X, ChevronRight, Filter } from 'lucide-vue-next'
+import { AlertTriangle, AlertCircle, Info, X, ChevronRight, Filter, Search } from 'lucide-vue-next'
 
 const store = useIDEStore()
 
@@ -96,15 +96,39 @@ const summary = computed(() => {
 })
 
 const filterSeverity = ref<'all' | 'error' | 'warning' | 'info'>('all')
+const searchQuery = ref("")
+const collapsedFiles = ref<Record<string, boolean>>({})
+
+function toggleFileCollapse(file: string): void {
+  collapsedFiles.value[file] = !collapsedFiles.value[file]
+}
 
 const filteredGroups = computed(() => {
-  if (filterSeverity.value === 'all') return groupedProblems.value
-  return groupedProblems.value
-    .map(g => ({
-      ...g,
-      problems: g.problems.filter(p => p.severity === filterSeverity.value),
-    }))
-    .filter(g => g.problems.length > 0)
+  let groups = groupedProblems.value
+  // 按严重级别筛选
+  if (filterSeverity.value !== 'all') {
+    groups = groups
+      .map(g => ({
+        ...g,
+        problems: g.problems.filter(p => p.severity === filterSeverity.value),
+      }))
+      .filter(g => g.problems.length > 0)
+  }
+  // 按搜索词筛选
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    groups = groups
+      .map(g => ({
+        ...g,
+        problems: g.problems.filter(p =>
+          p.message.toLowerCase().includes(q) ||
+          p.file.toLowerCase().includes(q) ||
+          (p.code && p.code.toLowerCase().includes(q))
+        ),
+      }))
+      .filter(g => g.problems.length > 0)
+  }
+  return groups
 })
 
 function openProblem(problem: Problem) {
@@ -149,21 +173,39 @@ const severityBg = {
           {{ s === 'error' ? summary.err : s === 'warning' ? summary.warn : summary.info }}
         </span>
       </button>
+      <!-- 🔥 搜索框 -->
+      <div class="flex-1" />
+      <div class="flex items-center gap-1 border rounded-[3px] overflow-hidden"
+        :style="{ background: searchQuery.trim() ? 'var(--color-chat-input-bg)' : 'transparent', borderColor: searchQuery.trim() ? 'var(--color-ide-border-focus)' : 'transparent' }">
+        <Search :size="11" class="ml-1.5" style="color: var(--color-ide-text-dim);" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="flex-1 h-5 bg-transparent text-[11px] outline-none px-1 w-24"
+          placeholder="筛选..."
+        />
+        <button v-if="searchQuery" class="shrink-0 w-4 h-5 flex items-center justify-center"
+          @click="searchQuery = ''">
+          <X :size="9" style="color: var(--color-ide-text-dim);" />
+        </button>
+      </div>
     </div>
 
     <!-- Problem list -->
     <div class="flex-1 overflow-y-auto">
       <div v-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 text-[var(--color-ide-text-dim)] opacity-50">
         <AlertCircle :size="24" class="mb-2" />
-        <p class="text-[11px]">没有检测到问题</p>
+        <p class="text-[11px]">{{ searchQuery ? '没有匹配的问题' : '没有检测到问题' }}</p>
       </div>
       <div v-else>
         <div v-for="group in filteredGroups" :key="group.file" class="border-b" style="border-color:var(--color-ide-border)/30">
-          <!-- File header -->
-          <div class="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors">
-            <ChevronRight :size="12" class="text-[var(--color-ide-text-dim)] rotate-90 transition-transform" />
+          <!-- 🔥 File header (可折叠) -->
+          <div class="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+            @click="toggleFileCollapse(group.file)">
+            <ChevronRight :size="12" class="text-[var(--color-ide-text-dim)] transition-transform"
+              :class="collapsedFiles[group.file] ? '' : 'rotate-90'" />
             <span class="font-medium text-[var(--color-ide-text)] truncate">{{ group.file.split(/[\\/]/).pop() }}</span>
-            <span class="text-[10px] text-[var(--color-ide-text-dim)] opacity-50 ml-1">{{ group.file }}</span>
+            <span class="text-[10px] text-[var(--color-ide-text-dim)] opacity-50 ml-1 truncate">{{ group.file }}</span>
             <span class="ml-auto flex gap-1.5 text-[10px]">
               <span v-if="group.count.error" class="px-1 rounded" :style="{background:severityBg.error,color:severityColor.error}">{{ group.count.error }}</span>
               <span v-if="group.count.warning" class="px-1 rounded" :style="{background:severityBg.warning,color:severityColor.warning}">{{ group.count.warning }}</span>
@@ -171,13 +213,15 @@ const severityBg = {
             </span>
           </div>
           <!-- Problem items -->
-          <div v-for="p in group.problems" :key="`${p.file}:${p.line}:${p.column}`"
-            class="flex items-start gap-1.5 px-4 py-1 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors"
-            @click="openProblem(p)">
-            <component :is="severityIcon[p.severity]" :size="13" class="mt-0.5 shrink-0" :style="{ color: severityColor[p.severity] }" />
-            <span class="flex-1 text-[11px] text-[var(--color-ide-text)] leading-relaxed truncate" :title="p.message">{{ p.message }}</span>
-            <span class="text-[10px] text-[var(--color-ide-text-dim)] opacity-50 shrink-0 ml-2 tabular-nums">{{ p.line }}:{{ p.column }}</span>
-            <span v-if="p.code" class="text-[9px] text-[var(--color-ide-text-dim)] opacity-30 shrink-0 w-20 text-right truncate">{{ p.code }}</span>
+          <div v-if="!collapsedFiles[group.file]">
+            <div v-for="p in group.problems" :key="`${p.file}:${p.line}:${p.column}`"
+              class="flex items-start gap-1.5 px-4 py-1 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+              @click="openProblem(p)">
+              <component :is="severityIcon[p.severity]" :size="13" class="mt-0.5 shrink-0" :style="{ color: severityColor[p.severity] }" />
+              <span class="flex-1 text-[11px] text-[var(--color-ide-text)] leading-relaxed truncate" :title="p.message">{{ p.message }}</span>
+              <span class="text-[10px] text-[var(--color-ide-text-dim)] opacity-50 shrink-0 ml-2 tabular-nums">{{ p.line }}:{{ p.column }}</span>
+              <span v-if="p.code" class="text-[9px] text-[var(--color-ide-text-dim)] opacity-30 shrink-0 w-20 text-right truncate">{{ p.code }}</span>
+            </div>
           </div>
         </div>
       </div>

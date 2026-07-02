@@ -25,6 +25,8 @@
 - Session 24: 键盘快捷键集成+DebugPanel+ZenMode（useKeybindingStore注册回调到App.vue/补充IDEStore facade/DebugPanel.vue断点调用栈变量监视/Zen Mode Ctrl+K Z全屏编辑），零lint错误
 - Session 25: VSCode/hermes功能对标继续（OutlinePanel.vue文档符号树~300行/Sidebar集成大纲区域/WelcomePage.vue欢迎页6快捷操作/useMarkdown.ts自研MD渲染引擎Mermaid+KaTeX+代码高亮/ChatPanel集成Markdown/Monaco增强rulers+行高亮+whitespace/7文件），零lint错误
 - Session 26: VSCode/hermes功能对标（PeekView.vue悬浮预览~140行/useQuickDiff.ts行内差异~110行/ChatOutlinePanel.vue对话大纲~150行/GlobalSearch文件分组树形搜索/useMarkdown headingPrefix增强/8文件），零lint错误
+- Session 27: VS Code ActivityBar分离+面板全量补齐（ActivityBar.vue独立48px活动栏~220行/SearchPanel.vue搜索替换面板~440行/ExtensionsPanel.vue扩展管理器~680行含12个模拟扩展/TestingPanel.vue测试资源管理器~420行/Sidebar.vue重构纯内容区/Terminal.vue增强多终端新建分割重命名Shell类型14主题/App.vue布局适配ActivityBar+测试快捷键/useLayoutStore添加testing活动项/useTerminalStore新增createTerminal/closeTerminal/switchToTerminal/duplicateTerminal/renameTerminal/useIDEStore facade暴露），10文件，零lint错误
+- Session 28: 快捷键管理+SCM增强+时间线+任务系统（KeybindingsPage.vue快捷键管理页~430行64条默认快捷键搜索编辑录制冲突检测/ScmPanel.vue分支切换5个分支创建+Stash暂存弹出丢弃/TimelinePanel.vue文件历史时间线8条目按时间分组恢复对比/TasksPanel.vue任务系统11个任务自动检测npm/shell运行状态/TasksPanel集成RightPanel/CodeEditor启用CodeLens语义高亮/ProblemsPanel搜索折叠分组/路由添加/keybindings/App.vue命令入口/ide.ts类型扩展），10文件，零lint错误
 
 ## 前端视觉规范
 - 所有UI颜色必须通过CSS变量引用(`var(--color-ide-*)`)，禁止硬编码色值

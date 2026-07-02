@@ -28,11 +28,13 @@
  *    SASH_SIZE         = 4px
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
+import { useRouter } from "vue-router"
 import { usePlugins } from "@/composables/usePlugins"
 import { useShortcuts } from "@/composables/useShortcuts"
 import { useIDEStore } from "@/stores/useIDEStore"
 import { useKeybindingStore } from "@/stores/useKeybindingStore"
 import MenuBar from "@/components/ide/MenuBar.vue"
+import ActivityBar from "@/components/ide/ActivityBar.vue"
 import Sidebar from "@/components/ide/Sidebar.vue"
 import EditorArea from "@/components/ide/EditorArea.vue"
 import RightPanel from "@/components/ide/RightPanel.vue"
@@ -44,6 +46,7 @@ import SettingsPanel from "@/components/ide/SettingsPanel.vue"
 import NotificationToast from "@/components/ide/NotificationToast.vue"
 
 const store = useIDEStore()
+const router = useRouter()
 const {
   isCommandPaletteVisible,
   toggleCommandPalette,
@@ -68,6 +71,16 @@ kb.registerCallbacks({
   toggleBottomPanel: () => { store.layout.rightPanelVisible = !store.layout.rightPanelVisible },
   toggleGlobalSearch: () => { store.showGlobalSearch = !store.showGlobalSearch },
   newUntitledFile: () => store.createUntitledTab(),
+  /** 🔥 Testing Panel shortcut (Ctrl+Shift+T) */
+  focusTesting: () => {
+    store.activeActivityItem = "testing"
+    store.layout.fileTreeVisible = true
+  },
+  /** 🔥 Extensions shortcut (Ctrl+Shift+X) */
+  focusExtensions: () => {
+    store.activeActivityItem = "extensions"
+    store.layout.fileTreeVisible = true
+  },
 })
 
 // Zen Mode: Ctrl+K Z
@@ -92,6 +105,8 @@ onCommand("ai.chatPanel", () => {
 })
 onCommand("view.resetLayout", () => { store.resetLayout() })
 onCommand("view.zenMode", () => { toggleZenMode() })
+onCommand("preferences.openKeybindings", () => { router.push("/keybindings") })
+onCommand("preferences.openSettings", () => { showSettings.value = true })
 
 // Zen Mode 快捷键: Ctrl+K Z
 onCommand("view.exitZenMode", () => { exitZenMode() })
@@ -145,7 +160,9 @@ onMounted(async () => {
 
     <!-- ═══ Middle: ActivityBar + Sidebar + Editor + AuxBar (HORIZONTAL) ═══ -->
     <div class="flex-1 flex overflow-hidden min-h-0">
-      <!-- Sidebar (ActivityBar 48px + FileTree) — Zen Mode 隐藏 -->
+      <!-- 🔥 ActivityBar — VS Code activitybarPart (48px left, always visible) -->
+      <ActivityBar v-if="!zenMode && store.layout.activityBarVisible" />
+      <!-- 🔥 Sidebar — 内容面板 (资源管理器/搜索/SCM/扩展…) -->
       <Sidebar v-if="!zenMode" />
       <!-- Editor Area (flex-1) — Zen Mode 全屏 -->
       <EditorArea class="flex-1 min-w-0" :class="{ 'zen-editor': zenMode }" />

@@ -74,6 +74,11 @@ export const useIDEStore = defineStore('ide', () => {
     // Terminal
     terminalSessions: terminalStore.terminalSessions,
     activeTerminalId: terminalStore.activeTerminalId,
+    createTerminal: terminalStore.createTerminal,
+    closeTerminal: terminalStore.closeTerminal,
+    switchToTerminal: terminalStore.switchToTerminal,
+    duplicateTerminal: terminalStore.duplicateTerminal,
+    renameTerminal: terminalStore.renameTerminal,
     addTerminalLine: terminalStore.addTerminalLine,
     outputChannels: terminalStore.outputChannels,
     activeOutputChannel: terminalStore.activeOutputChannel,

@@ -106,7 +106,7 @@ export interface SearchState {
 }
 
 /** Right panel view mode */
-export type RightPanelView = "output" | "terminal" | "debug" | "chat" | "memory" | "skills" | "mcp"
+export type RightPanelView = "output" | "terminal" | "tasks" | "debug" | "chat" | "memory" | "skills" | "mcp"
 
 /** Sidebar / Activity bar icon entry */
 export interface ActivityItem {

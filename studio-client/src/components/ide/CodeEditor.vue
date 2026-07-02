@@ -312,6 +312,9 @@ async function initMonaco(): Promise<void> {
         showModules: true,
         showProperties: true,
       },
+      /** Session 27: VSCode CodeLens + 语义高亮 */
+      codeLens: true,
+      "semanticHighlighting.enabled": true,
       tabCompletion: "on",
       autoClosingBrackets: "always",
       autoClosingQuotes: "always",

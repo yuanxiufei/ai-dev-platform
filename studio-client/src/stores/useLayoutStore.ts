@@ -88,6 +88,7 @@ export const useLayoutStore = defineStore('layout', () => {
         badge: gitStore.gitChangedFiles > 0 ? String(gitStore.gitChangedFiles) : undefined,
       },
       { id: 'debug', icon: 'Bug', label: '运行和调试', badge: undefined },
+      { id: 'testing', icon: 'FlaskConical', label: '测试', badge: undefined },
       { id: 'extensions', icon: 'Blocks', label: '扩展', badge: undefined },
     ]
   })

@@ -9,7 +9,7 @@ import { useGitStore, type GitFileChange } from '@/stores/useGitStore'
 import {
   GitBranch, GitCommit, RefreshCw, Plus, Minus, Check, X,
   ArrowUp, ArrowDown, Trash2, FileDiff, FileCode,
-  ChevronRight, Disc, Upload, Download
+  ChevronRight, Disc, Upload, Download, Package, Layers, GitFork, StretchHorizontal
 } from 'lucide-vue-next'
 
 const store = useIDEStore()
@@ -19,6 +19,58 @@ const expandedSections = ref<Record<string, boolean>>({
   staged: true,
   changes: true,
 })
+
+// 🔥 分支切换状态
+const showBranchMenu = ref(false)
+const branches = ref([
+  { name: "main", current: true, ahead: 2, behind: 1 },
+  { name: "develop", current: false, ahead: 0, behind: 0 },
+  { name: "feature/editor-enhance", current: false, ahead: 5, behind: 2 },
+  { name: "fix/sidebar-layout", current: false, ahead: 0, behind: 0 },
+  { name: "release/v1.0", current: false, ahead: 0, behind: 3 },
+])
+const newBranchName = ref("")
+const showCreateBranch = ref(false)
+
+// 🔥 Stash 状态
+const stashList = ref([
+  { id: "stash-0", message: "WIP: Sidebar重构进行中", date: "2小时前" },
+  { id: "stash-1", message: "临时保存: Terminal增强前的状态", date: "1天前" },
+])
+const stashMessage = ref("")
+const showStashInput = ref(false)
+const showStashSection = ref(false)
+
+function switchBranch(branchName: string): void {
+  branches.value.forEach(b => b.current = b.name === branchName)
+  git.gitBranch = branchName
+  showBranchMenu.value = false
+  if (store.workspaceRoot) git.refreshGitStatus(store.workspaceRoot)
+}
+
+function createBranch(): void {
+  if (!newBranchName.value.trim()) return
+  branches.value.push({ name: newBranchName.value.trim(), current: false, ahead: 0, behind: 0 })
+  newBranchName.value = ""
+  showCreateBranch.value = false
+}
+
+function stashChanges(): void {
+  if (!stashMessage.value.trim()) {
+    stashMessage.value = "WIP: " + new Date().toLocaleString("zh-CN")
+  }
+  stashList.value.unshift({ id: `stash-${Date.now()}`, message: stashMessage.value, date: "刚刚" })
+  stashMessage.value = ""
+  showStashInput.value = false
+}
+
+function popStash(id: string): void {
+  stashList.value = stashList.value.filter(s => s.id !== id)
+}
+
+function dropStash(id: string): void {
+  stashList.value = stashList.value.filter(s => s.id !== id)
+}
 
 const selectedFile = ref<string | null>(null)
 const diffContent = ref('')
@@ -204,13 +256,55 @@ watch(() => store.activeActivityItem, (v) => {
 
     <!-- ── Commit Area (VSCode style: always visible input) ── -->
     <div class="shrink-0 border-t border-[var(--color-ide-border)] p-2 space-y-2 bg-[var(--color-ide-bg-secondary)]">
-      <!-- Branch + Push/Pull bar -->
+      <!-- 🔥 Branch selector + Push/Pull -->
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-1.5 text-[12px] text-[var(--color-ide-text)]">
-          <GitBranch :size="13" class="text-[var(--color-ide-accent)]" />
-          <span class="font-medium">{{ git.gitBranch || 'main' }}</span>
-          <span v-if="git.gitAhead > 0" class="text-[11px] text-blue-400 ml-1">{{ '↑' + git.gitAhead }}</span>
-          <span v-if="git.gitBehind > 0" class="text-[11px] text-yellow-400">{{ '↓' + git.gitBehind }}</span>
+        <div class="relative">
+          <button
+            class="flex items-center gap-1.5 text-[12px] px-2 py-0.5 rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+            @click="showBranchMenu = !showBranchMenu; showStashSection = false"
+          >
+            <GitFork :size="13" class="text-[var(--color-ide-accent)]" />
+            <span class="font-medium" style="color: var(--color-ide-text);">{{ git.gitBranch || 'main' }}</span>
+            <ChevronRight :size="10" class="transition-transform" :class="{ 'rotate-90': showBranchMenu }"
+              style="color: var(--color-ide-text-dim);" />
+          </button>
+          <!-- 🔥 分支下拉菜单 -->
+          <div v-if="showBranchMenu"
+            class="absolute left-0 bottom-full mb-1 py-1 min-w-[200px] max-h-60 overflow-y-auto rounded-md shadow-xl border z-50"
+            style="background:var(--color-ide-surface); border-color:var(--color-ide-border);">
+            <div class="px-2 py-1 text-[10px] uppercase tracking-wider font-semibold" style="color: var(--color-ide-text-dim);">分支</div>
+            <button
+              v-for="b in branches"
+              :key="b.name"
+              @click="switchBranch(b.name)"
+              class="w-full text-left px-3 py-1.5 text-[12px] flex items-center gap-2 transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+              :class="b.current ? 'text-[var(--color-ide-accent)] font-semibold' : 'text-[var(--color-ide-text)]'"
+            >
+              <GitBranch :size="11" />
+              <span class="flex-1 truncate">{{ b.name }}</span>
+              <span v-if="b.ahead > 0" class="text-[10px] text-blue-400">↑{{ b.ahead }}</span>
+              <span v-if="b.behind > 0" class="text-[10px] text-yellow-400">↓{{ b.behind }}</span>
+            </button>
+            <div class="border-t border-[var(--color-ide-border)] mt-1 pt-1 px-2">
+              <div class="flex items-center gap-1" v-if="!showCreateBranch">
+                <button class="w-full text-left px-1 py-1 text-[11px] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] transition-colors"
+                  @click="showCreateBranch = true">
+                  <Plus :size="10" class="inline mr-1" />创建分支...
+                </button>
+              </div>
+              <div v-else class="flex items-center gap-1">
+                <input
+                  v-model="newBranchName"
+                  type="text"
+                  class="flex-1 h-6 bg-[var(--color-chat-input-bg)] text-[11px] rounded-[2px] px-1.5 outline-none border"
+                  :style="{ borderColor: 'var(--color-ide-border-focus)', color: 'var(--color-ide-text)' }"
+                  placeholder="分支名称"
+                  @keydown.enter="createBranch"
+                />
+                <button class="shrink-0 text-[10px] px-1 hover:text-[var(--color-ide-text)]" style="color: var(--color-ide-text-dim);" @click="showCreateBranch = false">✕</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="flex items-center gap-0.5">
           <button class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors" title="拉取" @click="handlePushPull('pull')">
@@ -219,6 +313,53 @@ watch(() => store.activeActivityItem, (v) => {
           <button class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors" title="推送" @click="handlePushPull('push')">
             <Upload :size="11" /> Push
           </button>
+        </div>
+      </div>
+
+      <!-- 🔥 Stash 区域 -->
+      <div class="border-t border-[var(--color-ide-border)]/30 pt-1.5">
+        <button
+          class="flex items-center gap-1 w-full text-[10px] uppercase tracking-wider font-semibold hover:text-[var(--color-ide-text)] transition-colors"
+          style="color: var(--color-ide-text-dim);"
+          @click="showStashSection = !showStashSection; showBranchMenu = false"
+        >
+          <Package :size="10" />
+          STASH ({{ stashList.length }})
+          <ChevronRight :size="9" class="ml-auto transition-transform" :class="{ 'rotate-90': showStashSection }" />
+        </button>
+        <div v-if="showStashSection" class="mt-1 space-y-1">
+          <div v-for="s in stashList" :key="s.id"
+            class="flex items-center gap-1.5 px-1.5 py-1 rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors group">
+            <Package :size="10" style="color: var(--color-ide-text-dim); opacity: 0.5;" />
+            <div class="flex-1 min-w-0">
+              <div class="text-[11px] truncate" style="color: var(--color-ide-text);">{{ s.message }}</div>
+              <div class="text-[9px]" style="color: var(--color-ide-text-dim);">{{ s.date }}</div>
+            </div>
+            <div class="hidden group-hover:flex items-center gap-0.5">
+              <button class="text-[9px] px-1 py-0 hover:text-[var(--color-ide-accent)] transition-colors"
+                style="color: var(--color-ide-text-dim);" @click="popStash(s.id)" title="应用并删除">Pop</button>
+              <button class="text-[9px] px-1 py-0 hover:text-[var(--color-ide-error)] transition-colors"
+                style="color: var(--color-ide-text-dim);" @click="dropStash(s.id)" title="删除">Drop</button>
+            </div>
+          </div>
+          <div v-if="!showStashInput" class="flex items-center gap-1 px-1.5">
+            <button class="text-[10px] hover:text-[var(--color-ide-text)] transition-colors w-full text-left py-0.5"
+              style="color: var(--color-ide-text-dim);"
+              @click="showStashInput = true">
+              <Plus :size="9" class="inline mr-0.5" />暂存更改...
+            </button>
+          </div>
+          <div v-else class="flex items-center gap-1 px-1.5">
+            <input
+              v-model="stashMessage"
+              type="text"
+              class="flex-1 h-6 bg-[var(--color-chat-input-bg)] text-[11px] rounded-[2px] px-1.5 outline-none border"
+              :style="{ borderColor: 'var(--color-ide-border-focus)', color: 'var(--color-ide-text)' }"
+              placeholder="Stash 消息"
+              @keydown.enter="stashChanges"
+            />
+            <button class="shrink-0 text-[10px] px-1" style="color: var(--color-ide-text-dim);" @click="showStashInput = false">✕</button>
+          </div>
         </div>
       </div>
 

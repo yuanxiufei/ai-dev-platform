@@ -9,6 +9,7 @@ import ChatPanel from './ChatPanel.vue'
 import MemoryPanel from './MemoryPanel.vue'
 import SkillsPanel from './SkillsPanel.vue'
 import McpPanel from './McpPanel.vue'
+import TasksPanel from './TasksPanel.vue'
 
 const store = useIDEStore()
 const route = useRoute()
@@ -23,7 +24,7 @@ function onResizeStart(e: MouseEvent): void {
 }
 
 const isAgentChatRoute = computed(() => route.path === '/chat')
-const allLabels: Record<string, string> = { output:'输出', terminal:'终端', debug:'运行和调试', chat:'AI 助手', memory:'记忆', skills:'技能', mcp:'MCP' }
+const allLabels: Record<string, string> = { output:'输出', terminal:'终端', tasks:'任务', debug:'运行和调试', chat:'AI 助手', memory:'记忆', skills:'技能', mcp:'MCP' }
 const viewLabels = computed(() => isAgentChatRoute.value ? (()=>{const{chat:_,...r}=allLabels;return r})() : allLabels)
 
 watch(isAgentChatRoute, (onChat) => { if (onChat && store.rightPanelView==='chat') store.rightPanelView='output' })
@@ -61,6 +62,7 @@ watch(isAgentChatRoute, (onChat) => { if (onChat && store.rightPanelView==='chat
     <div class="flex-1 overflow-hidden">
       <OutputPanel v-if="store.rightPanelView==='output'" />
       <Terminal v-else-if="store.rightPanelView==='terminal'" />
+      <TasksPanel v-else-if="store.rightPanelView==='tasks'" />
       <div v-else-if="store.rightPanelView==='debug'" class="p-3 text-xs text-[var(--color-ide-text-dim)]">
         <p>运行和调试面板</p>
         <pre class="mt-2 text-[11px] font-mono p-2 rounded-[3px] border border-[var(--color-ide-border)]" style="background:var(--color-editor-bg);">等待调试会话...</pre>
