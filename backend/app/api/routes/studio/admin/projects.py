@@ -10,6 +10,7 @@ Studio — 项目管理 API
 
 import json
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, func, select
 
 from app.api.deps import CurrentUser, SessionDep, commit_or_rollback
+from app.core.config import settings
 from app.models.studio_models import (
     StudioProject,
     StudioTemplate,

@@ -6,8 +6,11 @@
   - 模型状态
   - API 网关状态
   - 内存/磁盘使用
+  - Docker 容器健康状态
 """
 
+import logging
+import subprocess
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
@@ -17,6 +20,8 @@ from app.api.deps import SessionDep
 from app.models.system_models import ModelDownload, ModelUsageStat, ApiCredential
 from app.models.video_models import VideoTask, VideoAsset
 from app.models.studio_models import StudioProject, ChatSession
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system/health", tags=["system-health"])
 
@@ -113,4 +118,51 @@ def system_stats(session: SessionDep):
             "usage_records": usage_records,
         },
         "storage": disk,
+    }
+
+
+@router.get("/containers")
+def container_health():
+    """Docker 容器健康状态 (ollama, vllm, open-webui)"""
+    target_containers = ["ollama", "vllm", "open-webui"]
+    result: dict[str, dict] = {}
+
+    try:
+        output = subprocess.check_output(
+            ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"],
+            text=True,
+            timeout=5,
+        )
+        for line in output.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                continue
+            name, status = parts
+            if name in target_containers:
+                is_healthy = "healthy" in status.lower() and "unhealthy" not in status.lower()
+                is_running = "up" in status.lower()
+                result[name] = {
+                    "running": is_running,
+                    "healthy": is_healthy,
+                    "status": status,
+                }
+
+        # 更新 Prometheus 指标
+        try:
+            from app.core.metrics import update_container_health
+            for name in target_containers:
+                update_container_health(name, result.get(name, {}).get("healthy", False))
+        except Exception:
+            pass
+
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("Docker health check failed: %s", e)
+        for name in target_containers:
+            result[name] = {"running": False, "healthy": False, "status": "docker unavailable"}
+
+    return {
+        "containers": result,
+        "all_healthy": all(c.get("healthy", False) for c in result.values()),
     }

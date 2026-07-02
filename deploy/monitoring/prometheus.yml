@@ -1,0 +1,32 @@
+# Prometheus 配置 — AI Fullstack Platform 监控
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: ai-platform
+    environment: local
+
+# Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# 告警规则
+rule_files:
+  - /etc/prometheus/alerting_rules.yml
+
+# 抓取目标
+scrape_configs:
+  # 后端 API（包含 HTTP/模型/系统/容器健康指标）
+  - job_name: backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["172.18.0.1:18000"]
+        labels:
+          service: backend
+
+  # Prometheus 自身
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

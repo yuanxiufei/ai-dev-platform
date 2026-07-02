@@ -1,0 +1,23 @@
+{{/* 企业微信/钉钉 Webhook 告警模板 */}}
+{{ define "wechat.default.message" }}
+{{- $severityIcon := "⚠️" -}}
+{{- if eq .CommonLabels.severity "critical" -}}{{- $severityIcon = "🚨" -}}{{- end -}}
+{{ $severityIcon }} **{{ .CommonLabels.alertname }}** {{ $severityIcon }}
+
+{{ range .Alerts }}
+> **服务**: {{ .Labels.service | default "未知" }}
+> **级别**: {{ .Labels.severity | default "unknown" }}
+> **状态**: {{ .Status | toUpper }}
+> **描述**: {{ .Annotations.description }}
+> **时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+{{ if ne .Status "resolved" }}
+> {{ end }}
+{{ end }}
+{{- if gt (len .Alerts.Firing) 0 }}
+> 当前活跃告警: {{ len .Alerts.Firing }} 条
+{{- end }}
+{{ end }}
+
+{{ define "dingtalk.message" }}
+{{ template "wechat.default.message" . }}
+{{ end }}

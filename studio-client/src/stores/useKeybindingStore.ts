@@ -82,7 +82,7 @@ const KEY_MAP: Record<string, number> = {
   "F5": KeyCode.F5, "F6": KeyCode.F6, "F7": KeyCode.F7, "F8": KeyCode.F8,
   "F9": KeyCode.F9, "F10": KeyCode.F10, "F11": KeyCode.F11, "F12": KeyCode.F12,
   "Space": KeyCode.Space, "Tab": KeyCode.Tab, "Enter": KeyCode.Enter,
-  "Escape": KeyCode.Escape, "Escape": KeyCode.Escape,
+  "Escape": KeyCode.Escape,
   "Backspace": KeyCode.Backspace, "Delete": KeyCode.Delete,
   "Insert": KeyCode.Insert,
   "Up": KeyCode.UpArrow, "Down": KeyCode.DownArrow,

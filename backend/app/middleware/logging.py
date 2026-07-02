@@ -13,6 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.metrics import record_http_request, http_requests_in_progress
+
 logger = logging.getLogger("middleware.access")
 
 # 避免记录到日志中的敏感路径
@@ -33,8 +35,12 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint,
     ) -> Response:
+        http_requests_in_progress.inc()
         request.state.start_time = time.monotonic()
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        finally:
+            http_requests_in_progress.dec()
 
 
 class AccessLogMiddleware(BaseHTTPMiddleware):
@@ -60,6 +66,18 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         elapsed_ms = (time.monotonic() - start_time) * 1000
+        duration_s = elapsed_ms / 1000.0
+
+        # 记录 Prometheus 指标
+        try:
+            record_http_request(
+                method=request.method,
+                path=request.url.path,
+                status=response.status_code,
+                duration=duration_s,
+            )
+        except Exception:
+            pass
 
         logger.info(
             "[%s] %s %s → %d (%.1fms)",

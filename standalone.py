@@ -96,7 +96,7 @@ class StandaloneLauncher:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.host: str = args.host or "0.0.0.0"
-        self.port: int = args.port or 8000
+        self.port: int = args.port or 18000
         self.watchdog_enabled: bool = args.watchdog and not args.no_watchdog
         self.sleep_enabled: bool = not args.no_sleep
         self.auth_enabled: bool = not args.no_auth

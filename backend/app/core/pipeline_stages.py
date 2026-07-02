@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
+from app.core.metrics import record_model_call
 from app.core.pipeline import (
     PipelineContext, PipelineStage, OnionPipelineStage,
     StageDecision, StageResult,
@@ -393,6 +394,24 @@ class UsageRecordStage(PipelineStage):
                 logger.debug("[%s] Usage recorded: model=%s", self.stage_name, getattr(output, "model_used", "?"))
             except Exception as e:
                 logger.error("[%s] Failed to record usage: %s", self.stage_name, e)
+
+        # 记录 Prometheus 模型调用指标
+        try:
+            model_name = getattr(output, "model_used", "unknown")
+            provider = getattr(output, "provider", "unknown")
+            capability = request.capability.value if request else "unknown"
+            latency_ms = getattr(output, "latency_ms", 0)
+            finish_reason = getattr(output, "finish_reason", "stop")
+            is_error = finish_reason not in ("stop", "length")
+            record_model_call(
+                provider=provider,
+                model_name=model_name,
+                capability=capability,
+                duration=latency_ms / 1000.0,
+                error=is_error,
+            )
+        except Exception:
+            pass
 
         return StageResult(stage_name=self.stage_name, decision=StageDecision.CONTINUE)
 

@@ -1,0 +1,89 @@
+# Alertmanager 配置 — AI Fullstack Platform
+# 多渠道通知：企业微信 + 钉钉 + 邮件
+
+global:
+  resolve_timeout: 5m
+
+# 根路由
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # 严重告警 → 全渠道通知
+    - match:
+        severity: critical
+      receiver: all-channels
+      continue: true
+    # warning 告警 → 企业微信
+    - match:
+        severity: warning
+      receiver: wechat-dingtalk
+
+# 默认接收器
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "${WECHAT_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        max_alerts: 5
+
+  # 全渠道（严重告警）
+  - name: all-channels
+    webhook_configs:
+      - url: "${WECHAT_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        max_alerts: 5
+      - url: "${DINGTALK_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        max_alerts: 5
+    email_configs:
+      - to: "${ALERT_EMAIL_TO}"
+        from: "${ALERT_EMAIL_FROM}"
+        smarthost: "${SMTP_HOST}:${SMTP_PORT}"
+        auth_username: "${SMTP_USER}"
+        auth_password: "${SMTP_PASSWORD}"
+        require_tls: true
+        send_resolved: true
+
+  # 企业微信 + 钉钉
+  - name: wechat-dingtalk
+    webhook_configs:
+      - url: "${WECHAT_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        max_alerts: 5
+      - url: "${DINGTALK_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+        max_alerts: 5
+
+# 抑制规则
+inhibit_rules:
+  # 容器不健康时抑制模型错误告警
+  - source_match:
+      alertname: ContainerUnhealthy
+    target_match:
+      alertname: ModelCallErrorRate
+    equal: ["severity"]
+  # 后端宕机时抑制其他后端告警
+  - source_match:
+      alertname: BackendDown
+    target_match_re:
+      alertname: "BackendHigh5xx|BackendHighLatency"
+    equal: ["severity"]
+
+# 告警模板
+templates:
+  - /etc/alertmanager/wechat.tmpl

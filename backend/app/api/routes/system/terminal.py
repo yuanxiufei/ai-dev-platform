@@ -81,8 +81,8 @@ async def list_terminal_sessions(
 @router.delete("/sessions/{session_id}")
 async def close_terminal_session(
     session_id: str,
-    force: bool = False,
     user: CurrentUser,
+    force: bool = False,
 ) -> dict[str, str]:
     """关闭终端会话"""
     _ensure_terminal_enabled()

@@ -82,6 +82,10 @@ model_call_errors_total: "Counter" = _noop_metric  # type: ignore[assignment]
 active_tasks_gauge: "Gauge" = _noop_metric  # type: ignore[assignment]
 memory_usage_gauge: "Gauge" = _noop_metric  # type: ignore[assignment]
 
+# ── 容器健康指标 ──────────────────────────────────────
+
+container_health_gauge: "Gauge" = _noop_metric  # type: ignore[assignment]
+
 
 def init_metrics() -> None:
     """初始化 Prometheus 指标（可选启用）"""
@@ -89,6 +93,7 @@ def init_metrics() -> None:
     global http_requests_total, http_request_duration_seconds, http_requests_in_progress
     global model_calls_total, model_call_duration_seconds, model_call_errors_total
     global active_tasks_gauge, memory_usage_gauge
+    global container_health_gauge
 
     enabled = getattr(settings, "METRICS_ENABLED", True)
 
@@ -147,6 +152,13 @@ def init_metrics() -> None:
         "Process memory usage in bytes",
     )
 
+    # 容器健康指标
+    container_health_gauge = Gauge(
+        "container_health_status",
+        "Docker container health status (1=healthy, 0=unhealthy)",
+        ["container"],
+    )
+
     logger.info("Prometheus metrics initialized")
 
 
@@ -187,5 +199,32 @@ def record_model_call(
             model_call_errors_total.labels(
                 provider=provider, model_name=model_name, error_type=error,
             ).inc()
+    except Exception:
+        pass
+
+
+def update_container_health(container: str, healthy: bool) -> None:
+    """更新容器健康状态 (1=healthy, 0=unhealthy)"""
+    if not _metrics_enabled:
+        return
+    try:
+        container_health_gauge.labels(container=container).set(1 if healthy else 0)
+    except Exception:
+        pass
+
+
+def update_system_gauges() -> None:
+    """更新系统资源 gauge (内存/tasks)"""
+    if not _metrics_enabled:
+        return
+    try:
+        import os
+        import threading
+
+        import psutil
+        proc = psutil.Process(os.getpid())
+        mem = proc.memory_info()
+        memory_usage_gauge.set(mem.rss)
+        active_tasks_gauge.set(threading.active_count())
     except Exception:
         pass

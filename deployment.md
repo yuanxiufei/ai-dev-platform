@@ -12,6 +12,11 @@
   `dashboard.ai-platform.example.com`、`api.ai-platform.example.com`、`traefik.ai-platform.example.com`、`adminer.ai-platform.example.com` 等。
 * 在远程服务器上安装 [Docker Engine](https://docs.docker.com/engine/install/)（非 Docker Desktop）。
 
+> **Windows 用户**: 生产部署推荐 Linux 服务器。本地开发可在 Windows 上通过
+> [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+> （启用 WSL2 后端）运行大部分服务。部分服务限制见下方
+> [Windows 兼容性说明](#windows-兼容性说明)。
+
 ## 公共 Traefik 代理
 
 需要先部署一个 Traefik 反向代理来处理 HTTPS 证书。
@@ -304,6 +309,168 @@ cd /home/github/actions-runner
 |------|------|
 | `LATEST_CHANGES` | [latest-changes](https://github.com/tiangolo/latest-changes) 工具的个人访问令牌 |
 | `SMOKESHOW_AUTH_KEY` | [Smokeshow](https://github.com/samuelcolvin/smokeshow) 代码覆盖率密钥（免费） |
+
+---
+
+---
+
+## Docker 镜像说明
+
+项目使用以下 Docker 镜像，导出文件位于 `docker-images/` 目录。
+
+### 基础服务镜像 (`infra-images-latest.tar`)
+
+| 镜像 | 大小 | 作用 |
+|------|------|------|
+| `postgres:16-alpine` | 420M | PostgreSQL 关系型数据库，存储项目/用户/会话/视频等核心数据 |
+| `redis:7-alpine` | 58M | Redis 内存缓存，支持分布式限流、会话缓存、Celery 任务队列 |
+| `qdrant/qdrant:latest` | 270M | Qdrant 向量数据库，存储知识库 embedding，支持语义搜索和 RAG |
+
+### AI 模型服务镜像
+
+| 镜像 | 大小 | 作用 |
+|------|------|------|
+| `ollama/ollama:latest` | 8G | Ollama 本地大模型推理引擎，提供 llama3.1/qwen2.5-coder/gemma2 等模型服务 |
+| `vllm/vllm-openai:latest` | 30G | vLLM 高性能推理引擎，提供 OpenAI 兼容 API，支持 GPU 加速 |
+| `ghcr.io/open-webui/open-webui:main` | 7G | Open WebUI 聊天界面，连接 Ollama/vLLM 提供 Web 对话和模型管理 |
+
+### 监控服务镜像 (`monitoring-images-latest.tar`)
+
+| 镜像 | 大小 | 作用 |
+|------|------|------|
+| `prom/prometheus:latest` | 359M | Prometheus 时序监控，采集 HTTP/模型/系统/容器健康指标 |
+| `prom/alertmanager:latest` | 121M | Alertmanager 告警管理，支持企业微信/钉钉/邮件多渠道通知 |
+| `grafana/grafana:latest` | 1.6G | Grafana 可视化仪表盘，预置 AI Platform 概览面板 |
+
+### 镜像导入
+
+```bash
+# 导入基础服务
+docker load -i docker-images/infra-images-latest.tar
+
+# 导入 AI 模型
+docker load -i docker-images/ollama-latest.tar
+docker load -i docker-images/vllm-openai-latest.tar
+docker load -i docker-images/open-webui-main.tar
+
+# 导入监控栈
+docker load -i docker-images/monitoring-images-latest.tar
+```
+
+---
+
+## Windows 兼容性说明
+
+### 可直接运行
+
+| 服务 | 状态 | 说明 |
+|------|------|------|
+| 后端 (FastAPI) | ✅ 完全支持 | Python 跨平台，直接 `python -m uvicorn` 或通过 Docker |
+| PostgreSQL | ✅ Docker | Docker Desktop + WSL2 完美支持 |
+| Redis | ✅ Docker | Docker Desktop + WSL2 完美支持 |
+| Qdrant | ✅ Docker | Docker Desktop + WSL2 完美支持 |
+| Ollama | ✅ 原生 | [Windows 原生安装包](https://ollama.com/download/windows)，支持 GPU |
+| Open WebUI | ✅ Docker | Docker Desktop + WSL2 支持 |
+| Prometheus | ✅ Docker | Docker Desktop + WSL2 支持 |
+| Grafana | ✅ Docker | Docker Desktop + WSL2 支持 |
+| Alertmanager | ✅ Docker | Docker Desktop + WSL2 支持 |
+
+### 需要 Linux 环境
+
+| 服务 | 状态 | 说明 |
+|------|------|------|
+| vLLM | ❌ 仅 Linux | 依赖 CUDA 内核驱动和 Linux 内核特性，**不支持 Windows/Docker Desktop** |
+
+> **替代方案**: vLLM 不可用时，Ollama 提供 OpenAI 兼容 API（`http://localhost:11434/v1`），可替代 vLLM 作为推理后端。
+
+### Windows 本地开发最小配置
+
+```bash
+# 1. 安装 Docker Desktop (启用 WSL2)
+# 2. 安装 Ollama for Windows
+# 3. 启动基础服务
+docker compose -f compose.yml up -d db redis qdrant
+
+# 4. 启动后端 (无 vLLM)
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 18000
+
+# 5. (可选) 启动 Open WebUI
+docker compose -f /data/ai-platform/compose/docker-compose.yml up -d ollama open-webui
+
+# 6. (可选) 启动监控栈
+docker compose -f deploy/monitoring/docker-compose.monitoring.yml up -d
+```
+
+### 后端 Windows 适配说明
+
+后端部分模块在非 Linux 环境下会自动降级：
+
+| 模块 | Windows 行为 |
+|------|-------------|
+| `psutil` 系统指标 | ✅ 完全支持 |
+| GPU 监控 | ❌ 跳过（无 nvidia-smi） |
+| Docker 容器健康检测 | ❌ 跳过（Docker Desktop 需手动配置） |
+| AutoCLI 命令行 | ⚠️ 部分命令不可用（bash shell 脚本） |
+| vLLM 模型 | ❌ 不可用（需 Linux 环境） |
+
+---
+
+## 监控栈部署
+
+项目内置 Prometheus + Alertmanager + Grafana 监控栈。
+
+### 快速启动
+
+```bash
+cd deploy/monitoring
+
+# 配置告警通知（可选）
+cp .env .env.local
+# 编辑 .env.local 填入 Webhook URL / SMTP
+
+# 启动
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+### 访问地址
+
+| 服务 | 地址 | 默认账号 |
+|------|------|----------|
+| Prometheus | http://localhost:9090 | 无认证 |
+| Grafana | http://localhost:3100 | admin / admin |
+| Alertmanager | http://localhost:9093 | 无认证 |
+
+### 告警规则
+
+| 告警 | 级别 | 条件 |
+|------|------|------|
+| BackendDown | 🚨 critical | 后端不可达 > 1分钟 |
+| BackendHigh5xx | ⚠️ warning | 5xx 错误率 > 10% (5分钟) |
+| BackendHighLatency | ⚠️ warning | P95 延迟 > 2秒 |
+| ContainerUnhealthy | 🚨 critical | 容器不健康 > 2分钟 |
+| VllmStartupTimeout | ⚠️ warning | vLLM 启动超 5 分钟 |
+| ModelCallErrorRate | ⚠️ warning | 模型调用错误率 > 20% (5分钟) |
+| HighMemoryUsage | ⚠️ warning | 内存 > 16GB |
+
+### 告警通知渠道
+
+在 `.env` 中配置：
+
+```bash
+# 企业微信机器人
+WECHAT_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx
+
+# 钉钉机器人
+DINGTALK_WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?access_token=xxx
+
+# 邮件通知
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=alert@example.com
+SMTP_PASSWORD=xxx
+ALERT_EMAIL_TO=admin@example.com
+```
 
 ---
 
