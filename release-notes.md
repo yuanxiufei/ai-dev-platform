@@ -2,6 +2,29 @@
 
 ## AI Fullstack Platform — 近期更新
 
+### 2026-07-02 · v2.2 桌面端 + 真实登录
+
+**Tauri 桌面端** — Studio Client 原生桌面应用：
+- 🖥️ **Tauri v2 桌面端**：`pnpm tauri dev` 启动原生窗口（1400×900）
+- 📦 系统依赖自动化安装（Rust / Cargo / WebKit2GTK / GTK3）
+- 🔗 `/tmp/tauri-target` symlink 解决 NTFS/noexec 文件系统编译问题
+- 🔧 `scripts/dev.mjs` Vite 启动脚本（绕过 noexec 权限限制）
+- 🗜️ 配置 crates.io 镜像加速（ustc / tuna）
+
+**前端登录系统** — 从模拟登录升级为真实认证：
+- 🔐 **`useAuthStore`** Pinia store：token 管理 + 用户信息 + login/logout
+- 📝 **`LoginPage.vue`** 调用 `POST /api/v1/login/access-token` 真实后端登录
+- 🔒 **路由守卫** 检查 `isAuthenticated` 状态（替代裸 localStorage 判断）
+- 🚪 **退出登录**：MenuBar 右侧显示用户名 + 退出按钮
+- 🔄 **Token 自动附加**：axios interceptor 自动注入 `Authorization: Bearer` header
+
+**后端修复**：
+- 🐛 `main.py` 添加 `init_db()` 自动创建数据库表 + 超级用户
+- 🐛 `login.py` 修复 `ACCESS_TOKEN_EXPIRE_MINUTES` 字符串→整数转换
+- 🐛 添加 PostgreSQL `user.tenant_id` 缺失列
+
+**默认登录凭证**：`admin@example.com` / `changethis`
+
 ### 2026-06-24 · v2.1 模型选择与路由增强
 
 **模型选择系统** — 完整的前后端模型选择功能：

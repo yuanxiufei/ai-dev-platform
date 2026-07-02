@@ -33,8 +33,17 @@ docker compose watch
 | 工具 | 用途 |
 |------|------|
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | 数据库 / Redis / 邮件 |
+| [Rust](https://www.rust-lang.org/) (>= 1.90) | Tauri 桌面端编译 |
 | [pnpm](https://pnpm.io/) | 前端包管理 |
-| [uv](https://docs.astral.sh/uv/) | Python 包管理 |
+| WebKit2GTK (Linux) | Tauri 桌面端系统依赖 |
+
+**Linux 桌面端系统依赖：**
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y cargo rustc libwebkit2gtk-4.1-dev libgtk-3-dev \
+  libayatana-appindicator3-dev librsvg2-dev patchelf
+```
 
 ### 第一步：启动基础设施
 
@@ -90,7 +99,28 @@ uv run fastapi dev app/main.py --port 8000
 
 > 后端自动读取根目录 `.env`，修改代码 → 保存 → 自动热重载。
 
-### 第四步：启动前端（新终端）
+**首次启动时，数据库和超级用户会自动初始化（v0.1.1+）：**
+
+- 数据库表自动创建
+- 超级用户自动注册：`admin@example.com` / `changethis`
+- 无需手动执行 `prestart.sh` / `initial_data.py`
+
+### 第四步：启动 Tauri 桌面端（可选）
+
+```bash
+cd studio-client
+
+# 首次运行需要安装 Rust 工具链和系统依赖（见「前置条件」）
+# 安装依赖
+pnpm install
+
+# 启动桌面端（自动编译 Rust 后端 + 启动 Vite 前端）
+pnpm tauri dev
+```
+
+> **注意**：Windows 需要安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)。
+
+### 第五步：启动前端（新终端，如需 Web 端开发）
 
 ```bash
 # 安装依赖（首次）
@@ -114,12 +144,31 @@ pnpm dev:video-admin
 | 服务 | URL |
 |------|-----|
 | Studio Client | http://localhost:5173 |
+| Tauri 桌面端 | `pnpm tauri dev` → 原生窗口 |
 | Video Client | http://localhost:5174 |
 | Studio Admin | http://localhost:5175 |
 | Video Admin | http://localhost:5176 |
 | API 文档 | http://localhost:8000/docs |
 | 数据库管理 | http://localhost:18080 |
 | 邮件查看 | http://localhost:1080 |
+
+### 登录认证
+
+首次启动后默认超级用户：
+
+| 账号 | 密码 |
+|------|------|
+| `admin@example.com` | `changethis` |
+
+> 生产环境请修改 `.env` 中的 `FIRST_SUPERUSER` 和 `FIRST_SUPERUSER_PASSWORD`。
+
+**登录流程：**
+
+1. 前端 `LoginPage.vue` → `useAuthStore.login()`
+2. `POST /api/v1/login/access-token` → 返回 JWT `access_token`
+3. Store 将 token 存入 `localStorage`，axios interceptor 自动附加 `Authorization: Bearer {token}`
+4. 路由守卫 `router.beforeEach` 检查 `useAuthStore.isAuthenticated`
+5. 退出登录：MenuBar 右侧用户名旁的退出按钮 → `authStore.logout()`
 
 ---
 
