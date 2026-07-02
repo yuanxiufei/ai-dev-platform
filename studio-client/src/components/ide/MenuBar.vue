@@ -12,12 +12,19 @@ import type { Ref } from "vue"
 import { onMounted, onUnmounted, ref, unref } from "vue"
 import { useRouter } from "vue-router"
 import { useIDEStore } from "@/stores/useIDEStore"
+import { useAuthStore } from "@/stores/useAuthStore"
 import type { MenuItem } from "@/types/ide"
 
 const router = useRouter()
 const store = useIDEStore()
+const authStore = useAuthStore()
 const openMenu = ref<string | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 
 const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
   {
@@ -96,6 +103,10 @@ const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
       { label: "OpenAPI 发现", action: () => router.push("/openapi") },
       { label: "Webhooks", action: () => router.push("/webhooks") },
       { label: "集成管理", action: () => router.push("/integrations") },
+      { separator: true },
+      { label: "Kanban 看板", action: () => router.push("/kanban") },
+      { label: "群聊协作", action: () => router.push("/group-chat") },
+      { label: "设置", shortcut: "Ctrl+,", action: () => router.push("/settings") },
     ],
   },
   { id: "help", label: "帮助", items: [
@@ -184,6 +195,20 @@ function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): vo
 
     <!-- Right actions -->
     <div style="display:flex; align-items:center; gap:2px; padding-left:4px; padding-right:4px">
+      <!-- User / Logout -->
+      <div style="display:flex; align-items:center; gap:4px; margin-right:6px;">
+        <span style="font-size:12px; color:var(--color-ide-text-dim);">{{ authStore.userName || '用户' }}</span>
+        <button
+          style="padding-left:8px; padding-right:8px; height:24px; display:flex; align-items:center; border-radius:3px; border:none; background:transparent; color:var(--color-ide-text-dim); font-size:12px; cursor:default;"
+          title="退出登录"
+          @mouseover="(e) => { e.currentTarget.style.color = 'var(--color-ide-error)'; e.currentTarget.style.background = 'var(--color-ide-surface-hover)' }"
+          @mouseout="(e) => { e.currentTarget.style.color = 'var(--color-ide-text-dim)'; e.currentTarget.style.background = 'transparent' }"
+          @click="handleLogout">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+      </div>
       <button
         style="padding-left: 10px; padding-right: 10px; margin-left: 4px; margin-right: 4px; height: 100%; display: flex; align-items: center; border-radius: 3px; border: none; background: transparent; color: var(--color-ide-text-dim); font-size: 14px; cursor: default;"
         @mouseover="(e) => { e.currentTarget.style.color = 'var(--color-ide-text)'; e.currentTarget.style.background = 'var(--color-ide-surface-hover)' }"

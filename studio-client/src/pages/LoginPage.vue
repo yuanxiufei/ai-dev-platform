@@ -203,29 +203,39 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
+
 const username = ref('admin@example.com')
 const password = ref('changethis')
 const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)
-const rememberMe = ref(true)
 const port = ref(18000)
 
 onMounted(() => {
-  // 自动检测端口
   const host = window.location.port
   if (host) port.value = parseInt(host)
+
+  // Auto-redirect if already authenticated
+  if (authStore.isAuthenticated) {
+    router.push('/chat')
+  }
 })
 
 async function login() {
   loading.value = true
   error.value = ''
-  // 前端直通：模拟登录，不走后端（样式开发阶段）
-  await new Promise(r => setTimeout(r, 600))
-  localStorage.setItem('token', 'dev-mode-token')
-  router.push('/chat')
+
+  const success = await authStore.login(username.value, password.value)
+  if (success) {
+    router.push('/chat')
+  } else {
+    error.value = authStore.error
+    loading.value = false
+  }
 }
 
 /* ═════ 数据定义 ════ */

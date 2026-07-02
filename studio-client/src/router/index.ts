@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 const router = createRouter({
   history: createWebHistory(),
@@ -51,6 +52,21 @@ const router = createRouter({
       path: "/arena",
       name: "arena",
       component: () => import("@/pages/ArenaPage.vue"),
+    },
+    {
+      path: "/settings",
+      name: "settings",
+      component: () => import("@/pages/SettingsPage.vue"),
+    },
+    {
+      path: "/group-chat",
+      name: "group-chat",
+      component: () => import("@/pages/GroupChatPage.vue"),
+    },
+    {
+      path: "/kanban",
+      name: "kanban",
+      component: () => import("@/pages/KanbanPage.vue"),
     },
     {
       path: "/memory",
@@ -148,6 +164,11 @@ const router = createRouter({
       component: () => import("@/pages/StandaloneDashboard.vue"),
     },
     {
+      path: "/keybindings",
+      name: "keybindings",
+      component: () => import("@/pages/KeybindingsPage.vue"),
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/chat",
     },
@@ -157,11 +178,11 @@ const router = createRouter({
 export default router
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('token')
-  if (!token && to.path !== '/login') {
+  const authStore = useAuthStore()
+  if (!authStore.isAuthenticated && to.path !== '/login') {
     return '/login'
   }
-  if (token && to.path === '/login') {
+  if (authStore.isAuthenticated && to.path === '/login') {
     return '/chat'
   }
 })

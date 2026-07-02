@@ -6,7 +6,7 @@
     "description": "CodeBuddy IDE — AI Fullstack Platform (Studio + IDE)",
     "packageManager": "pnpm@9.12.3",
     "scripts": {
-        "dev": "vite",
+        "dev": "node scripts/dev.mjs",
         "dev:tauri": "tauri dev",
         "build": "vue-tsc -b && vite build",
         "build:tauri": "tauri build",

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -127,12 +128,17 @@ def _register_native_codebase_tools() -> int:
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
-    return f"{route.tags[0]}-{route.name}"
+    if route.tags:
+        return f"{route.tags[0]}-{route.name}"
+    return route.name
 
+
+_bg_tasks: set[asyncio.Task] = set()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
+    global _bg_tasks
     # ═══ STARTUP ═══
     logger.info("=" * 60)
     logger.info(f"Starting {settings.PROJECT_NAME}")
@@ -181,6 +187,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Scheduler init skipped: %s", e)
 
+    # 初始化数据库 + 创建初始超级用户
+    try:
+        from app.core.db import engine, init_db
+        from sqlmodel import Session
+
+        with Session(engine) as session:
+            init_db(session)
+        logger.info("Database initialized (tables created + first superuser)")
+    except Exception as e:
+        logger.warning("Database init skipped: %s", e)
     # 初始化全局模型路由器
     try:
         from app.core.model_router import (
@@ -462,6 +478,16 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.metrics import init_metrics
         init_metrics()
+        from app.core.metrics import update_system_gauges as _update_sys_gauges
+        async def _metrics_updater():
+            while True:
+                try:
+                    _update_sys_gauges()
+                except Exception:
+                    pass
+                await asyncio.sleep(15)
+        task = asyncio.create_task(_metrics_updater())
+        _bg_tasks.add(task)
     except Exception as e:
         logger.warning("Metrics init skipped: %s", e)
 
@@ -672,6 +698,9 @@ async def lifespan(app: FastAPI):
     yield
     # ═══ SHUTDOWN ═══
     logger.info("Shutting down...")
+    # 取消后台指标更新任务
+    for task in _bg_tasks:
+        task.cancel()
     try:
         from app.core.api_gateway import get_api_gateway
 
@@ -794,16 +823,22 @@ if settings.MULTI_TENANCY_ENABLED:
 
 # ── P3: Prometheus /metrics 端点 ——————————————————
 from app.core.metrics import is_metrics_enabled as _metrics_enabled
-if _metrics_enabled():
-    from app.core.metrics import generate_latest, CONTENT_TYPE_LATEST
-    from starlette.responses import Response
+from app.core.metrics import generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 
-    @app.get("/metrics", include_in_schema=False)
-    async def metrics_endpoint() -> Response:
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint() -> Response:
+    if not _metrics_enabled():
         return Response(
-            content=generate_latest(),
-            media_type=CONTENT_TYPE_LATEST,
+            content=b"# Metrics not enabled\n",
+            media_type="text/plain",
+            status_code=503,
         )
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

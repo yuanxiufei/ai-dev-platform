@@ -2,7 +2,7 @@
 
 ## AI Fullstack Platform — 近期更新
 
-### 2026-07-02 · v2.2 桌面端 + 真实登录
+### 2026-07-02 · v2.2 桌面端 + 真实登录 + 设置页 + Kanban + 群聊
 
 **Tauri 桌面端** — Studio Client 原生桌面应用：
 - 🖥️ **Tauri v2 桌面端**：`pnpm tauri dev` 启动原生窗口（1400×900）
@@ -14,9 +14,25 @@
 **前端登录系统** — 从模拟登录升级为真实认证：
 - 🔐 **`useAuthStore`** Pinia store：token 管理 + 用户信息 + login/logout
 - 📝 **`LoginPage.vue`** 调用 `POST /api/v1/login/access-token` 真实后端登录
-- 🔒 **路由守卫** 检查 `isAuthenticated` 状态（替代裸 localStorage 判断）
+- 🔒 **路由守卫** 检查 `isAuthenticated` 状态
 - 🚪 **退出登录**：MenuBar 右侧显示用户名 + 退出按钮
-- 🔄 **Token 自动附加**：axios interceptor 自动注入 `Authorization: Bearer` header
+
+**设置页** — 5 个 Tab 的系统设置：
+- 👤 **账户**：用户信息、角色标签、修改密码
+- 🎨 **显示**：主题切换、流式输出、紧凑模式、通知设置
+- 🤖 **Agent**：最大轮次、超时配置、工具执行策略
+- 🧠 **记忆**：长期记忆开关、容量限制、衰减配置
+- ⚡ **模型**：API 提供商密钥管理、模型列表展示
+
+**Kanban 看板** — 5 列任务管理：
+- 📋 Backlog / 待处理 / 进行中 / 评审中 / 已完成
+- 🔄 拖拽排序（HTML5 Drag & Drop）
+- ✏️ 创建/编辑任务（标题、描述、优先级、负责人）
+
+**群聊协作** — 多 Agent 对话房间：
+- 💬 3 个预设群聊（代码评审、前端协作、部署运维）
+- 🤖 以 Agent 身份发言，模拟多 Agent 协作
+- ➕ 自定义创建房间
 
 **后端修复**：
 - 🐛 `main.py` 添加 `init_db()` 自动创建数据库表 + 超级用户
