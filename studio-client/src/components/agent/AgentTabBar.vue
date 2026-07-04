@@ -130,7 +130,7 @@ function truncateTitle(title: string): string {
   height: 3px;
 }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: #46455466;
+  background: var(--scrollbar-thumb-color);
   border-radius: 3px;
 }
 </style>

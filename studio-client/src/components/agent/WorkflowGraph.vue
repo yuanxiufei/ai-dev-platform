@@ -45,11 +45,11 @@ const AGENT_STYLES: Record<string, {
   bg: string
   label: string
 }> = {
-  Planner: { icon: Search, color: "#f59e0b", bg: "rgba(245,158,11,0.08)", label: "Planner" },
-  Coder:   { icon: Code2,  color: "#6366f1", bg: "rgba(99,102,241,0.08)",  label: "Coder" },
-  Reviewer:{ icon: Eye,    color: "#a78bfa", bg: "rgba(167,139,250,0.08)", label: "Reviewer" },
-  Tester:  { icon: Zap,    color: "#22d3ee", bg: "rgba(34,211,238,0.08)",  label: "Tester" },
-  Default: { icon: MessageSquare, color: "#8b8b8b", bg: "rgba(139,139,139,0.08)", label: "Agent" },
+  Planner: { icon: Search, color: "var(--agent-planner-color)", bg: "var(--agent-planner-bg)", label: "Planner" },
+  Coder:   { icon: Code2,  color: "var(--agent-coder-color)", bg: "var(--agent-coder-bg)",  label: "Coder" },
+  Reviewer:{ icon: Eye,    color: "var(--agent-reviewer-color)", bg: "var(--agent-reviewer-bg)", label: "Reviewer" },
+  Tester:  { icon: Zap,    color: "var(--agent-tester-color)", bg: "var(--agent-tester-bg)",  label: "Tester" },
+  Default: { icon: MessageSquare, color: "var(--agent-default-color)", bg: "var(--agent-default-bg)", label: "Agent" },
 }
 
 function agentStyle(name: string) {
@@ -198,7 +198,7 @@ function stageDuration(stage: PipelineStage): string {
             v-if="idx < stages.length - 1"
             class="flex items-center self-center flex-shrink-0"
           >
-            <div class="flex items-center" :style="{ color: '#4b5563' }">
+            <div class="flex items-center" :style="{ color: 'var(--agent-arrow-color)' }">
               <ArrowRight class="w-5 h-5" />
             </div>
           </div>

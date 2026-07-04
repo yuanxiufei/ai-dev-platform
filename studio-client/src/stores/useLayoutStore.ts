@@ -3,7 +3,7 @@
 // ============================================
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { ActivityItem, IDELayoutState, RightPanelView } from '@/types/ide'
+import type { ActivityItem, BottomPanelView, IDELayoutState, RightPanelView } from '@/types/ide'
 import { useGitStore } from './useGitStore'
 
 const LAYOUT_STORAGE_KEY = "ide_layout_v2"
@@ -72,14 +72,16 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   const rightPanelView = ref<RightPanelView>('chat')
+  const bottomPanelView = ref<BottomPanelView>('terminal')
   const menuBarOpen = ref<string | null>(null)
   const activeActivityItem = ref('explorer')
+  /** 🔥 设置面板显示状态（修复 P2: ActivityBar settings 按钮打开设置面板） */
+  const showSettingsPanel = ref(false)
 
   const activityItems = computed<ActivityItem[]>(() => {
     const gitStore = useGitStore()
     return [
-      { id: 'explorer', icon: 'Files', label: '资源管理器', badge: undefined },
-      { id: 'studio', icon: 'Sparkles', label: 'AI Studio', badge: undefined },
+      // ── 标准视图 (Standard views, 切换 Sidebar) ──
       { id: 'search', icon: 'Search', label: '搜索', badge: undefined },
       {
         id: 'git',
@@ -90,15 +92,29 @@ export const useLayoutStore = defineStore('layout', () => {
       { id: 'debug', icon: 'Bug', label: '运行和调试', badge: undefined },
       { id: 'testing', icon: 'FlaskConical', label: '测试', badge: undefined },
       { id: 'extensions', icon: 'Blocks', label: '扩展', badge: undefined },
+      // ── AI 工具 (AI tools, 路由导航) ──
+      { id: 'ai-chat', icon: 'MessageSquare', label: 'AI 对话' },
+      { id: 'ai-studio', icon: 'LayoutDashboard', label: 'AI Studio 面板' },
+      { id: 'ai-projects', icon: 'FolderKanban', label: '项目管理', route: '/projects' },
+      { id: 'ai-templates', icon: 'LayoutTemplate', label: '模板市场', route: '/templates' },
+      { id: 'ai-knowledge', icon: 'Brain', label: '知识库', route: '/knowledge' },
+      { id: 'ai-screenshot', icon: 'Camera', label: '截图转代码', route: '/screenshot-to-code' },
+      { id: 'ai-skills', icon: 'Cpu', label: '技能管理', route: '/skills' },
+      { id: 'ai-mcp', icon: 'Puzzle', label: 'MCP 设置', route: '/mcp' },
+      { id: 'ai-plugins', icon: 'Plug2', label: '插件市场', route: '/plugins' },
+      { id: 'ai-agents', icon: 'Bot', label: 'Agent 管理', route: '/agents' },
+      { id: 'ai-more', icon: 'Sparkles', label: '更多 AI 工具' },
     ]
   })
 
   return {
     layout,
     rightPanelView,
+    bottomPanelView,
     menuBarOpen,
     activityItems,
     activeActivityItem,
+    showSettingsPanel,
     resetLayout,
   }
 })

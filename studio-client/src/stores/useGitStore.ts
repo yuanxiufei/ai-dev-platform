@@ -36,8 +36,14 @@ export const useGitStore = defineStore('git', () => {
   const stagedFiles = computed(() => gitChanges.value.filter(c => c.status === 'staged'))
   const unstagedFiles = computed(() => gitChanges.value.filter(c => c.status !== 'staged'))
 
+  /**
+   * Rust git_status 返回格式：
+   *   { branch, ahead, behind, staged: [{path, status, staged}], unstaged: [{path, status, staged}], untracked: [string], clean }
+   * 前端将其展开到统一的 GitFileChange[] 中。
+   */
   async function refreshGitStatus(workspaceRoot: string): Promise<void> {
     isRefreshing.value = true
+    _wsRoot = workspaceRoot
     try {
       if (isTauriEnv() && workspaceRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
@@ -45,22 +51,24 @@ export const useGitStore = defineStore('git', () => {
         gitBranch.value = status.branch ?? ''
         gitAhead.value = status.ahead ?? 0
         gitBehind.value = status.behind ?? 0
-        remoteUrl.value = status.remote ?? ''
 
         const changes: GitFileChange[] = []
-        for (const f of (status.staged || [])) changes.push({ path: f, status: 'staged' })
-        for (const f of (status.modified || [])) changes.push({ path: f, status: 'modified' })
-        for (const f of (status.added || [])) changes.push({ path: f, status: 'added' })
-        for (const f of (status.deleted || [])) changes.push({ path: f, status: 'deleted' })
-        for (const f of (status.untracked || [])) changes.push({ path: f, status: 'untracked' })
-        for (const f of (status.renamed || [])) {
-          if (typeof f === 'object') {
-            changes.push({ path: f.to, status: 'renamed', oldPath: f.from })
-          } else {
-            changes.push({ path: f, status: 'renamed' })
-          }
+        // Rust response: staged/unstaged are arrays of { path, status, staged }
+        for (const f of (status.staged || [])) {
+          const s = mapRustGitStatus(f.status, true)
+          changes.push({ path: f.path, status: s })
+        }
+        for (const f of (status.unstaged || [])) {
+          // dedup: already in staged
+          if (changes.some(c => c.path === f.path)) continue
+          const s = mapRustGitStatus(f.status, false)
+          changes.push({ path: f.path, status: s })
+        }
+        for (const f of (status.untracked || [])) {
+          changes.push({ path: typeof f === 'string' ? f : f.path, status: 'untracked' })
         }
         gitChanges.value = changes
+        gitChangedFiles.value = changes.length
       }
     } catch (e) {
       console.warn('[Git] Status refresh failed:', e)
@@ -69,13 +77,28 @@ export const useGitStore = defineStore('git', () => {
     }
   }
 
+  /** Map Rust git porcelain status codes to frontend status enum */
+  function mapRustGitStatus(code: string, staged: boolean): GitFileChange['status'] {
+    if (staged) return 'staged'
+    switch (code) {
+      case 'M': return 'modified'
+      case 'A': return 'added'
+      case 'D': return 'deleted'
+      case 'R': return 'renamed'
+      default: return 'modified'
+    }
+  }
+
+  /** Current workspace root (cached from refreshGitStatus) — used for stage/unstage/discard */
+  let _wsRoot = ''
+
   async function stageFile(filePath: string): Promise<void> {
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_stage', { path: filePath })
+        // Tauri git_stage(path=repo_root, file_path=relative_or_absolute)
+        await invoke('git_stage', { path: _wsRoot, filePath })
       }
-      // Update local state optimistically
       const found = gitChanges.value.find(c => c.path === filePath)
       if (found) found.status = 'staged'
     } catch (e) {
@@ -85,9 +108,9 @@ export const useGitStore = defineStore('git', () => {
 
   async function unstageFile(filePath: string): Promise<void> {
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_unstage', { path: filePath })
+        await invoke('git_unstage', { path: _wsRoot, filePath })
       }
       const found = gitChanges.value.find(c => c.path === filePath)
       if (found) found.status = 'modified'
@@ -113,9 +136,9 @@ export const useGitStore = defineStore('git', () => {
     if (!msg) return false
     isCommitting.value = true
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_commit', { message: msg })
+        await invoke('git_commit', { path: _wsRoot, message: msg })
       }
       commitMessage.value = ''
       return true
@@ -129,9 +152,9 @@ export const useGitStore = defineStore('git', () => {
 
   async function push(): Promise<void> {
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_push', {})
+        await invoke('git_push', { path: _wsRoot })
       }
     } catch (e) {
       console.warn('[Git] Push failed:', e)
@@ -140,9 +163,9 @@ export const useGitStore = defineStore('git', () => {
 
   async function pull(): Promise<void> {
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_pull', {})
+        await invoke('git_pull', { path: _wsRoot })
       }
     } catch (e) {
       console.warn('[Git] Pull failed:', e)
@@ -151,9 +174,9 @@ export const useGitStore = defineStore('git', () => {
 
   async function discardChanges(filePath: string): Promise<void> {
     try {
-      if (isTauriEnv()) {
+      if (isTauriEnv() && _wsRoot) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('git_discard', { path: filePath })
+        await invoke('git_discard', { path: _wsRoot, filePath })
       }
       gitChanges.value = gitChanges.value.filter(c => c.path !== filePath)
     } catch (e) {

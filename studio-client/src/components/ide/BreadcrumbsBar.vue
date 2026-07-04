@@ -7,7 +7,7 @@
  *   - 支持快捷导航到同级文件
  */
 import { ChevronRight, FileCode, FolderOpen } from "lucide-vue-next"
-import { computed, ref, type Ref } from "vue"
+import { computed, ref, type Ref, nextTick } from "vue"
 import { useIDEStore } from "@/stores/useIDEStore"
 
 const store = useIDEStore()
@@ -21,6 +21,9 @@ const segments = computed<string[]>(() => {
 
 /** 哪个分段的下拉菜单打开 */
 const openSegmentIdx: Ref<number | null> = ref(null)
+/** 🔥 动态计算下拉菜单位置 (修复硬编码 left/top) */
+const dropdownStyle = ref<{ left: string; top: string }>({ left: '0px', top: '0px' })
+const segmentRefs = ref<Record<number, HTMLElement>>({})
 
 /** 同级候选项 */
 const siblings = computed<Array<{ name: string; isDir: boolean }>>(() => {
@@ -45,8 +48,21 @@ function getSiblings(
   return current.map((e) => ({ name: e.name, isDir: e.isDir }))
 }
 
-function handleSegmentClick(idx: number) {
-  openSegmentIdx.value = openSegmentIdx.value === idx ? null : idx
+function handleSegmentClick(idx: number, event?: MouseEvent) {
+  if (openSegmentIdx.value === idx) {
+    openSegmentIdx.value = null
+    return
+  }
+  // 🔥 动态计算下拉菜单位置（替代硬编码 220px/110px）
+  if (event) {
+    const target = event.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    dropdownStyle.value = {
+      left: `${Math.min(rect.left, window.innerWidth - 220)}px`,
+      top: `${rect.bottom + 4}px`,
+    }
+  }
+  openSegmentIdx.value = idx
 }
 
 function handleSelectSibling(name: string, isDir: boolean) {
@@ -70,11 +86,12 @@ function closeDropdown() {
 function fileColor(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase() ?? ""
   const map: Record<string, string> = {
-    vue: "#38BDF8", ts: "#60A5FA", tsx: "#60A5FA", js: "#F7DF1E",
-    jsx: "#61DAFB", py: "#3776AB", json: "#FB923C", md: "#3B82F6",
-    css: "#264DE4", html: "#E06C75",
+    vue: "var(--bc-icon-vue)", ts: "var(--bc-icon-ts)", tsx: "var(--bc-icon-tsx)",
+    js: "var(--bc-icon-js)", jsx: "var(--bc-icon-jsx)", py: "var(--bc-icon-py)",
+    json: "var(--bc-icon-json)", md: "var(--bc-icon-md)",
+    css: "var(--bc-icon-css)", html: "var(--bc-icon-html)",
   }
-  return map[ext] ?? "#90A4AE"
+  return map[ext] ?? "var(--bc-icon-default)"
 }
 </script>
 
@@ -82,7 +99,7 @@ function fileColor(name: string): string {
   <!-- VSCode 风格 Breadcrumbs -->
   <div
     v-if="segments.length > 0"
-    class="breadcrumb-bar flex items-center h-full px-2 text-xs shrink-0 select-none relative"
+    class="breadcrumbs breadcrumb-bar flex items-center h-full px-2 text-xs shrink-0 select-none relative"
     style="background: var(--color-editor-bg); border-right: 1px solid var(--color-tab-border);"
     @mouseleave="closeDropdown"
   >
@@ -101,7 +118,7 @@ function fileColor(name: string): string {
           'text-[var(--color-ide-text-dim)]': i !== segments.length - 1,
         }"
         :title="seg"
-        @click="handleSegmentClick(i)"
+        @click="handleSegmentClick(i, $event)"
       >
         {{ seg }}
       </button>
@@ -113,8 +130,8 @@ function fileColor(name: string): string {
         v-if="openSegmentIdx !== null && siblings.length > 0"
         class="fixed z-[350] mt-1 w-52 max-h-64 overflow-y-auto bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl py-1 text-xs"
         :style="{
-          left: '220px',
-          top: '110px',
+          left: dropdownStyle.left,
+          top: dropdownStyle.top,
         }"
       >
         <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-ide-text-dim)] opacity-50">
@@ -127,7 +144,7 @@ function fileColor(name: string): string {
           @click="handleSelectSibling(sib.name, sib.isDir)"
         >
           <component :is="sib.isDir ? FolderOpen : FileCode" :size="13"
-            :style="{ color: sib.isDir ? '#FBBF24' : fileColor(sib.name) }"
+            :style="{ color: sib.isDir ? 'var(--color-terminal-yellow)' : fileColor(sib.name) }"
             class="shrink-0"
           />
           <span class="truncate">{{ sib.name }}</span>
@@ -141,3 +158,13 @@ function fileColor(name: string): string {
     </span>
   </div>
 </template>
+
+<style scoped>
+/* ═══ 面包屑文件图标颜色（组件级 CSS 变量） ═══ */
+.breadcrumbs {
+  --bc-icon-vue: #38BDF8;    --bc-icon-ts: #60A5FA;    --bc-icon-tsx: #60A5FA;
+  --bc-icon-js: #F7DF1E;     --bc-icon-jsx: #61DAFB;   --bc-icon-py: #3776AB;
+  --bc-icon-json: #FB923C;   --bc-icon-md: #3B82F6;    --bc-icon-css: #264DE4;
+  --bc-icon-html: #E06C75;   --bc-icon-default: #90A4AE;
+}
+</style>

@@ -493,7 +493,7 @@ function formatRating(r: number): string {
               <span
                 v-if="ext.isBuiltin"
                 class="shrink-0 text-[9px] px-1.5 py-0 rounded-full font-medium"
-                style="background: rgba(117,190,255,0.12); color: var(--color-ide-info);"
+                style="background: var(--ext-badge-bg); color: var(--color-ide-info);"
               >
                 内置
               </span>
@@ -678,6 +678,11 @@ function formatRating(r: number): string {
 </template>
 
 <style scoped>
+/* ═══ 扩展面板主题变量（组件级 CSS 变量） ═══ */
+.extensions-panel {
+  --ext-badge-bg: rgba(117, 190, 255, 0.12);
+  --ext-detail-bg: rgba(0, 0, 0, 0.15);
+}
 /* ═══ 扩展列表项 ═══ */
 .extension-item {
   border-bottom: 1px solid transparent;
@@ -703,6 +708,6 @@ function formatRating(r: number): string {
 
 /* ═══ 扩展详情 ═══ */
 .extension-detail {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--ext-detail-bg);
 }
 </style>

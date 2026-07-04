@@ -11,12 +11,11 @@ const router = createRouter({
     },
     {
       path: "/",
-      redirect: "/chat",
+      redirect: "/projects",
     },
     {
       path: "/chat",
-      name: "chat",
-      component: () => import("@/pages/AgentChat.vue"),
+      redirect: "/projects",
     },
     {
       path: "/projects",
@@ -180,7 +179,7 @@ const router = createRouter({
     },
     {
       path: "/:pathMatch(.*)*",
-      redirect: "/chat",
+      redirect: "/projects",
     },
   ],
 })
@@ -193,6 +192,6 @@ router.beforeEach((to) => {
     return '/login'
   }
   if (authStore.isAuthenticated && to.path === '/login') {
-    return '/chat'
+    return '/projects'
   }
 })

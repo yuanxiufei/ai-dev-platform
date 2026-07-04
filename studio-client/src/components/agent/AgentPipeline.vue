@@ -43,21 +43,21 @@ const STAGE_CONFIG: Record<string, {
     icon: FileSearch,
     label: "Planner",
     color: "#6366f1",
-    bg: "rgba(99,102,241,0.08)",
+    bg: "var(--agent-planner-bg)",
     description: "分析需求，制定计划",
   },
   coder: {
     icon: Code2,
     label: "Coder",
     color: "#10b981",
-    bg: "rgba(16,185,129,0.08)",
+    bg: "var(--agent-executing-bg)",
     description: "执行编码任务",
   },
   reviewer: {
     icon: GitPullRequest,
     label: "Reviewer",
     color: "#f59e0b",
-    bg: "rgba(245,158,11,0.08)",
+    bg: "var(--agent-planning-bg)",
     description: "审查代码质量",
   },
 }
@@ -68,7 +68,7 @@ function stageConfig(stage: PipelineStage) {
     icon: Bot,
     label: stage.agent_name,
     color: "#a78bfa",
-    bg: "rgba(167,139,250,0.08)",
+    bg: "var(--agent-deciding-bg)",
     description: "",
   }
 }
@@ -82,10 +82,10 @@ const statusIcon: Record<PipelineStage["status"], typeof CheckCircle2> = {
 }
 
 const statusColor: Record<PipelineStage["status"], string> = {
-  pending: "#475569",
-  in_progress: "#6366f1",
-  completed: "#10b981",
-  error: "#ef4444",
+  pending: "var(--color-ide-text-dim)",
+  in_progress: "var(--color-ide-accent)",
+  completed: "var(--color-ide-success)",
+  error: "var(--color-ide-error)",
 }
 
 const statusLabel: Record<PipelineStage["status"], string> = {
@@ -140,7 +140,7 @@ const completedStages = computed(() =>
                 ? stageConfig(stage).color + '40'
                 : stage.status === 'completed'
                   ? stageConfig(stage).color + '20'
-                  : 'rgba(255,255,255,0.04)',
+                  : 'var(--agent-border-dim)',
             }"
           >
             <!-- 状态图标 -->
@@ -160,7 +160,7 @@ const completedStages = computed(() =>
             <!-- 阶段标签 -->
             <span
               class="text-[11px] font-semibold truncate max-w-full"
-              :style="{ color: stage.status === 'pending' ? '#64748b' : '#e2e8f0' }"
+              :style="{ color: stage.status === 'pending' ? 'var(--color-ide-text-dim)' : 'var(--color-ide-text-bright)' }"
             >
               {{ stageConfig(stage).label }}
             </span>

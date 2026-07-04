@@ -249,6 +249,7 @@ class PluginManager {
 
   constructor() {
     this.loadBuiltIn()
+    this.loadFromTauri()
   }
 
   private loadBuiltIn() {
@@ -259,7 +260,27 @@ class PluginManager {
         active: false,
         status: "loaded",
       })
-    // Built-in plugins initialized
+  }
+
+  /** Load plugins from Tauri backend registry */
+  private async loadFromTauri() {
+    try {
+      if (!(window as any).__TAURI__) return
+      const { invoke } = await import('@tauri-apps/api/core')
+      const plugins: PluginManifest[] = await invoke('list_plugins')
+      for (const p of plugins) {
+        if (!this.plugins.has(p.id)) {
+          this.plugins.set(p.id, {
+            ...p,
+            enabled: true,
+            active: false,
+            status: 'loaded',
+          })
+        }
+      }
+    } catch {
+      // Tauri not available or no plugins installed — ok
+    }
   }
 
   async load(manifest: PluginManifest): Promise<boolean> {
@@ -270,6 +291,13 @@ class PluginManager {
       active: false,
       status: "loaded",
     })
+    // Sync to Tauri
+    try {
+      if ((window as any).__TAURI__) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('install_plugin', { source: manifest.entry || manifest.id })
+      }
+    } catch { /* ok */ }
     return true
   }
 
@@ -291,27 +319,46 @@ class PluginManager {
     return true
   }
 
-  enable(pluginId: string): boolean {
+  async enable(pluginId: string): Promise<boolean> {
     const p = this.plugins.get(pluginId)
     if (p) {
       p.enabled = true
       p.status = "loaded"
       this.emit("plugin:enabled", pluginId)
+      // Sync to Tauri backend
+      try {
+        if ((window as any).__TAURI__) {
+          const { invoke } = await import('@tauri-apps/api/core')
+          await invoke('enable_plugin', { pluginId })
+        }
+      } catch { /* desktop may not have this plugin installed */ }
     }
     return !!p
   }
-  disable(pluginId: string): boolean {
+  async disable(pluginId: string): Promise<boolean> {
     this.deactivate(pluginId)
     const p = this.plugins.get(pluginId)
     if (p) {
       p.enabled = false
       p.status = "disabled"
       this.emit("plugin:disabled", pluginId)
+      try {
+        if ((window as any).__TAURI__) {
+          const { invoke } = await import('@tauri-apps/api/core')
+          await invoke('disable_plugin', { pluginId })
+        }
+      } catch { /* ok */ }
     }
     return !!p
   }
-  uninstall(pluginId: string): boolean {
+  async uninstall(pluginId: string): Promise<boolean> {
     this.deactivate(pluginId)
+    try {
+      if ((window as any).__TAURI__) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('uninstall_plugin', { pluginId })
+      }
+    } catch { /* ok */ }
     return this.plugins.delete(pluginId)
   }
   get(id: string): LoadedPlugin | undefined {

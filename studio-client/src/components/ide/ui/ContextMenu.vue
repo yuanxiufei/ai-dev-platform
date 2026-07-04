@@ -179,7 +179,7 @@ function closeSubmenu() {
 }
 .context-menu-item:hover:not(.disabled) {
   background: var(--color-ide-accent, #007acc);
-  color: #fff;
+  color: var(--color-ide-text-bright);
 }
 .context-menu-item.disabled {
   opacity: 0.4;

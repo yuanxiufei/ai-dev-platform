@@ -164,7 +164,7 @@ function hl(lineText: string, matches: any[]): string {
   let r = '', le = 0
   for (const m of matches) {
     r += lineText.slice(le, m.start)
-    r += `<mark class="bg-yellow-500/40 text-yellow-200 rounded px-0.5">${lineText.slice(m.start, m.end)}</mark>`
+    r += `<mark style="background:var(--search-highlight-bg);color:var(--search-highlight-text);border-radius:2px;padding:0 2px">${lineText.slice(m.start, m.end)}</mark>`
     le = m.end
   }
   return r + lineText.slice(le)
@@ -212,7 +212,7 @@ function flatIndexOf(file: string, result: typeof store.searchState.results[0]):
 <template>
   <Teleport to="body">
     <Transition name="fade">
-      <div v-if="visible" class="fixed inset-0 z-[200] flex flex-col" @keydown="onKD">
+      <div v-if="visible" class="search-overlay fixed inset-0 z-[200] flex flex-col" @keydown="onKD">
         <div class="absolute inset-0 bg-black/30" @click.self="emit('close')" />
         <div class="mx-auto mt-16 w-[780px] max-w-[92vw] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl flex flex-col overflow-hidden relative z-10">
           <!-- Search row -->
@@ -308,3 +308,11 @@ function flatIndexOf(file: string, result: typeof store.searchState.results[0]):
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* ═══ 搜索结果高亮色（组件级 CSS 变量） ═══ */
+.search-overlay {
+  --search-highlight-bg: rgba(234, 179, 8, 0.4);
+  --search-highlight-text: #fde68a;
+}
+</style>

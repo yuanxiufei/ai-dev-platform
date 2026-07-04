@@ -9,7 +9,7 @@
  *   - Right section: window controls (min/max/close)
  */
 import type { Ref } from "vue"
-import { onMounted, onUnmounted, ref, unref } from "vue"
+import { computed, onMounted, onUnmounted, ref, unref } from "vue"
 import { useRouter } from "vue-router"
 import { useIDEStore } from "@/stores/useIDEStore"
 import { useAuthStore } from "@/stores/useAuthStore"
@@ -26,7 +26,41 @@ function handleLogout() {
   router.push('/login')
 }
 
-const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
+/** 切换 Sidebar 视图（与 ActivityBar 行为一致：再次点击同项 = 关闭 Sidebar） */
+function toggleView(activityId: string): void {
+  if (store.activeActivityItem === activityId && store.layout.fileTreeVisible) {
+    store.layout.fileTreeVisible = false
+  } else {
+    store.activeActivityItem = activityId
+    store.layout.fileTreeVisible = true
+  }
+}
+
+/** 打开 Studio 工具面板（左侧 Sidebar） */
+function goStudioPanel(): void {
+  // 🔥 修复: 使用 'ai-studio' 而非 'ai-more'，确保 ActivityBar 按钮正确高亮
+  // Sidebar.vue line 432 同时支持 'studio'/'ai-more'/'ai-studio'，无需修改 Sidebar
+  store.activeActivityItem = "ai-studio"
+  store.layout.fileTreeVisible = true
+}
+
+/** 直接打开 AI 对话（右侧 ChatPanel） */
+function goStudioChat(): void {
+  store.rightPanelView = "chat"
+  store.layout.rightPanelVisible = true
+}
+
+/** 调用 Tauri 窗口命令 (zoom/toggle_fullscreen/open_devtools) */
+async function callTauriCmd(cmd: string): Promise<void> {
+  try {
+    if ((window as any).__TAURI__) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke(cmd)
+    }
+  } catch { /* 浏览器模式下忽略 */ }
+}
+
+  const menus = computed(() => [
   {
     id: "file", label: "文件",
     items: [
@@ -53,68 +87,75 @@ const menus = ref<{ id: string; label: string; items: MenuItem[] }[]>([
       { separator: true },
       { label: "查找", shortcut: "Ctrl+F", action: () => store.toggleGlobalSearch() },
       { label: "替换", shortcut: "Ctrl+H", action: () => { store.showGlobalSearch = true; store.searchState.replaceQuery = "" } },
-      { label: "在文件中查找", shortcut: "Ctrl+Shift+F" },
+      { label: "在文件中查找", shortcut: "Ctrl+Shift+F", action: () => { store.activeActivityItem = "search"; store.layout.fileTreeVisible = true; store.showGlobalSearch = true } },
     ],
   },
   {
     id: "view", label: "查看",
     items: [
-      { label: "命令面板...", shortcut: "Ctrl+Shift+P" },
+      { label: "命令面板...", shortcut: "Ctrl+Shift+P", action: () => { store.showGlobalSearch = false; /* openCommandPalette is handled globally */ } },
       { separator: true },
-      { label: "资源管理器", shortcut: "Ctrl+Shift+E", checked: store.activeActivityItem === "explorer", action: () => (store.activeActivityItem = "explorer") },
-      { label: "搜索", shortcut: "Ctrl+Shift+F", action: () => { store.activeActivityItem = "search"; store.toggleGlobalSearch() } },
-      { label: "源代码管理", shortcut: "Ctrl+Shift+G", checked: store.activeActivityItem === "git", action: () => (store.activeActivityItem = "git") },
-      { label: "运行和调试", action: () => (store.activeActivityItem = "debug") },
-      { label: "扩展", action: () => (store.activeActivityItem = "extensions") },
+      { label: "资源管理器", shortcut: "Ctrl+Shift+E", checked: store.activeActivityItem === "explorer" && store.layout.fileTreeVisible, action: () => toggleView("explorer") },
+      { label: "搜索", action: () => { store.activeActivityItem = "search"; store.layout.fileTreeVisible = true; store.toggleGlobalSearch() } },
+      { label: "源代码管理", shortcut: "Ctrl+Shift+G", checked: store.activeActivityItem === "git" && store.layout.fileTreeVisible, action: () => toggleView("git") },
+      { label: "运行和调试", checked: store.activeActivityItem === "debug" && store.layout.fileTreeVisible, action: () => toggleView("debug") },
+      { label: "测试", checked: store.activeActivityItem === "testing" && store.layout.fileTreeVisible, action: () => toggleView("testing") },
+      { label: "扩展", checked: store.activeActivityItem === "extensions" && store.layout.fileTreeVisible, action: () => toggleView("extensions") },
       { separator: true },
-      { label: "终端", shortcut: "Ctrl+`", action: () => { store.rightPanelView = "terminal"; store.layout.rightPanelVisible = true } },
-      { label: "侧边栏可见性", shortcut: "Ctrl+B", action: () => (store.layout.fileTreeVisible = !store.layout.fileTreeVisible) },
+      { label: "终端", shortcut: "Ctrl+`", action: () => { store.bottomPanelView = "terminal"; store.layout.bottomPanelVisible = !store.layout.bottomPanelVisible } },
+      { label: "侧边栏可见性", shortcut: "Ctrl+B", checked: store.layout.fileTreeVisible, action: () => (store.layout.fileTreeVisible = !store.layout.fileTreeVisible) },
+      { separator: true },
+      { label: "放大", shortcut: "Ctrl+=", action: () => callTauriCmd('zoom_in') },
+      { label: "缩小", shortcut: "Ctrl+-", action: () => callTauriCmd('zoom_out') },
+      { label: "重置缩放", action: () => callTauriCmd('reset_zoom') },
+      { label: "全屏", shortcut: "F11", action: () => callTauriCmd('toggle_fullscreen') },
+      { label: "开发人员工具", action: () => callTauriCmd('open_devtools') },
+    ],
+  },
+  {
+    id: "terminal", label: "终端",
+    items: [
+      { label: "新建终端", shortcut: "Ctrl+Shift+`", action: () => {
+        store.createTerminal("powershell")
+        store.bottomPanelView = "terminal"
+        store.layout.bottomPanelVisible = true
+      }},
+      { label: "分割终端", shortcut: "Ctrl+Shift+5", action: () => {
+        store.duplicateTerminal()
+        store.bottomPanelView = "terminal"
+        store.layout.bottomPanelVisible = true
+      }},
+      { separator: true },
+      { label: "清空终端", action: () => {
+        const term = store.terminalSessions.find((t: any) => t.active)
+        if (term) term.lines = []
+      }},
+      { label: "关闭终端", action: () => {
+        if (store.activeTerminalId && store.terminalSessions.length > 1) {
+          store.closeTerminal(store.activeTerminalId)
+        }
+      }, disabled: store.terminalSessions.length <= 1 },
+      { separator: true },
+      { label: "显示终端面板", checked: store.layout.bottomPanelVisible && store.bottomPanelView === "terminal", action: () => {
+        store.bottomPanelView = "terminal"
+        store.layout.bottomPanelVisible = !store.layout.bottomPanelVisible
+      }},
     ],
   },
   {
     id: "studio", label: "Studio",
     items: [
-      { label: "AI 对话", shortcut: "\u21E7\u2318C", action: () => router.push("/chat") },
+      { label: "所有 Studio 工具...", action: goStudioPanel },
       { separator: true },
-      { label: "项目管理", action: () => router.push("/projects") },
-      { label: "模板市场", action: () => router.push("/templates") },
-      { label: "Standalone 面板", action: () => router.push("/standalone") },
-      { separator: true },
-      { label: "知识库", action: () => router.push("/knowledge") },
-      { label: "知识图谱", action: () => router.push("/knowledge-graph") },
-      { label: "长期记忆", action: () => router.push("/memory") },
-      { separator: true },
-      { label: "工具浏览器", action: () => router.push("/tools") },
-      { label: "MCP 设置", action: () => router.push("/mcp") },
-      { label: "技能管理", action: () => router.push("/skills") },
-      { label: "插件市场", action: () => router.push("/plugins") },
-      { separator: true },
-      { label: "AI 图片生成", action: () => router.push("/image-gen") },
-      { label: "语音合成", action: () => router.push("/voice") },
-      { label: "截图转代码", action: () => router.push("/screenshot-to-code") },
-      { separator: true },
-      { label: "模型竞技场", action: () => router.push("/arena") },
-      { label: "Agent 管理", action: () => router.push("/agents") },
-      { label: "Rules 配置", action: () => router.push("/rules") },
-      { separator: true },
-      { label: "数据分析", action: () => router.push("/analytics") },
-      { label: "存储管理", action: () => router.push("/storage") },
-      { label: "链路追踪", action: () => router.push("/trajectory") },
-      { label: "OpenAPI 发现", action: () => router.push("/openapi") },
-      { label: "Webhooks", action: () => router.push("/webhooks") },
-      { label: "集成管理", action: () => router.push("/integrations") },
-      { separator: true },
-      { label: "Kanban 看板", action: () => router.push("/kanban") },
-      { label: "工作流", action: () => router.push("/workflow") },
-      { label: "定时任务", action: () => router.push("/jobs") },
-      { label: "群聊协作", action: () => router.push("/group-chat") },
-      { label: "设置", shortcut: "Ctrl+,", action: () => router.push("/settings") },
+      { label: "AI 对话", shortcut: "Ctrl+Shift+I", action: goStudioChat },
     ],
   },
   { id: "help", label: "帮助", items: [
-    { label: "欢迎" }, { label: "文档" },
-    { label: "键盘快捷方式", shortcut: "Ctrl+K Ctrl+S" },
-    { separator: true }, { label: "关于 CodeBuddy IDE" },
+    { label: "欢迎", action: () => { /* 关闭所有编辑器，显示欢迎页 */ store.closeAll(); } },
+    { label: "文档", action: () => { window.open("https://docs.codebuddy.ai", "_blank") } },
+    { label: "键盘快捷方式", shortcut: "Ctrl+K Ctrl+S", action: () => { router.push("/keybindings") } },
+    { separator: true },
+    { label: "关于 CodeBuddy IDE", action: () => { /* 可在后续补充关于对话框 */ } },
   ]},
 ])
 
@@ -161,7 +202,7 @@ function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): vo
     <!-- Menu items (VSCode: menubar) -->
     <div v-for="menu in menus" :key="menu.id" style="position:relative;" :style="{ marginLeft: '4px', marginRight: '4px' }">
       <button
-        :style="[{ paddingLeft:'10px', paddingRight:'10px', display:'flex', alignItems:'center', height:'100%', borderRadius:'3px', fontSize:'14px', border:'none', cursor:'default' },
+        :style="[{ paddingLeft:'10px', paddingRight:'10px', display:'flex', alignItems:'center', height:'100%', borderRadius:'3px', fontSize:'13px', border:'none', cursor:'default' },
           openMenu === menu.id
             ? { background: 'var(--color-ide-surface-active)', color: 'var(--color-ide-text)' }
             : { color: 'var(--color-ide-text-dim)' }
@@ -174,13 +215,13 @@ function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): vo
 
       <Transition name="fade">
         <div v-if="openMenu === menu.id"
-          style="position:absolute; top:100%; left:0; min-width:220px; padding-top:4px; padding-bottom:4px; z-index:100; background: var(--color-ide-surface); border: 1px solid var(--color-ide-border); border-radius: 3px; box-shadow: var(--shadow-md);"
+          style="position:absolute; top:100%; left:0; min-width:260px; padding-top:4px; padding-bottom:4px; z-index:100; background: var(--color-ide-surface); border: 1px solid var(--color-ide-border); border-radius: 3px; box-shadow: var(--shadow-md);"
           @click.stop>
           <template v-for="(item, idx) in menu.items" :key="idx">
             <hr v-if="item.separator" style="margin: 4px 0; border: none; border-top: 1px solid var(--color-ide-border);" />
             <button v-else
               :disabled="item.disabled"
-              :style="{ width:'100%', textAlign:'left', paddingLeft:'16px', paddingRight:'16px', paddingTop:'6px', paddingBottom:'6px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'32px', fontSize:'14px', lineHeight:'28px', background:'transparent', color: item.checked ? 'var(--color-ide-accent)' : 'var(--color-ide-text)', cursor: item.disabled ? 'default' : 'pointer', opacity: item.disabled ? 0.4 : 1 }"
+              :style="{ width:'100%', textAlign:'left', paddingLeft:'16px', paddingRight:'16px', paddingTop:'5px', paddingBottom:'5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'32px', fontSize:'13px', lineHeight:'22px', background:'transparent', color: item.checked ? 'var(--color-ide-accent)' : 'var(--color-ide-text)', cursor: item.disabled ? 'default' : 'pointer', opacity: item.disabled ? 0.4 : 1 }"
               @mouseenter="(e) => { e.currentTarget.style.background = 'var(--color-ide-menu-hover, #094771)'; e.currentTarget.style.color = '#FFFFFF' }"
               @mouseleave="(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = item.checked ? 'var(--color-ide-accent)' : 'var(--color-ide-text)' }"
               @click="handleItemClick(item)">
@@ -212,7 +253,7 @@ function onClickOutside(elRef: Ref<HTMLElement | null>, handler: () => void): vo
         </button>
       </div>
       <button
-        style="padding-left: 10px; padding-right: 10px; margin-left: 4px; margin-right: 4px; height: 100%; display: flex; align-items: center; border-radius: 3px; border: none; background: transparent; color: var(--color-ide-text-dim); font-size: 14px; cursor: default;"
+        style="padding-left: 10px; padding-right: 10px; margin-left: 4px; margin-right: 4px; height: 100%; display: flex; align-items: center; border-radius: 3px; border: none; background: transparent; color: var(--color-ide-text-dim); font-size: 13px; cursor: default;"
         @mouseover="(e) => { e.currentTarget.style.color = 'var(--color-ide-text)'; e.currentTarget.style.background = 'var(--color-ide-surface-hover)' }"
         @mouseout="(e) => { e.currentTarget.style.color = 'var(--color-ide-text-dim)'; e.currentTarget.style.background = 'transparent' }"
         @click="store.rightPanelView = 'chat'; store.layout.rightPanelVisible = true">

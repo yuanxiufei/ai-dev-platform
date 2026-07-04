@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { Globe, Server, Terminal } from "lucide-vue-next"
 import {
   Activity, AlertCircle, Box, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy,
@@ -774,16 +774,16 @@ export const StatCard: FunctionalComponent<{ label?: string; value?: string | nu
 .fade-enter-from,.fade-leave-to{opacity:0}
 
 /* ── Shared input styles ── */
-.mcp-input{width:100%;border-radius:.75rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);padding:1rem 1.5rem;font-size:.875rem;color:#fff;transition:border-color .15s,box-shadow .15s}.mcp-input::placeholder{color:#6b7280}.mcp-input:focus{outline:none;border-color:rgba(99,102,241,.4);box-shadow:0 0 0 1px rgba(99,102,241,.2)}
+.mcp-input{width:100%;border-radius:.75rem;border:1px solid var(--color-ide-border);background:var(--color-ide-surface-hover);padding:1rem 1.5rem;font-size:.875rem;color:var(--color-ide-text-bright);transition:border-color .15s,box-shadow .15s}.mcp-input::placeholder{color:var(--color-ide-text-dim)}.mcp-input:focus{outline:none;border-color:var(--color-ide-accent);box-shadow:0 0 0 1px var(--color-ide-accent)}
 .mcp-input:focus{box-shadow:none}
-.mcp-number{width:4rem;border-radius:.5rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);padding:.25rem .5rem;font-size:.875rem;text-align:center;outline:none;transition:border-color .15s}.mcp-number:focus{border-color:rgba(99,102,241,.4)}
+.mcp-number{width:4rem;border-radius:.5rem;border:1px solid var(--color-ide-border);background:var(--color-ide-surface-hover);padding:.25rem .5rem;font-size:.875rem;text-align:center;outline:none;transition:border-color .15s}.mcp-number:focus{border-color:rgba(99,102,241,.4)}
 
 /* ── Buttons ── */
-.mcp-btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:.75rem;background:var(--color-brand-500,#6366f1)}.mcp-btn-primary:hover{background:var(--color-brand-600,#4f46e5)}.mcp-btn-primary:disabled{opacity:.4}.mcp-btn-primary,.mcp-btn-secondary{font-size:.875rem;font-weight:500;color:#fff;transition:color .15s,background .15s}
-.mcp-btn-secondary{padding:.5rem 1rem;border-radius:.75rem;font-size:.875rem;color:#9ca3af}.mcp-btn-secondary:hover{color:#fff}
+.mcp-btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:.75rem;background:var(--color-brand-500,#6366f1)}.mcp-btn-primary:hover{background:var(--color-brand-600,#4f46e5)}.mcp-btn-primary:disabled{opacity:.4}.mcp-btn-primary,.mcp-btn-secondary{font-size:.875rem;font-weight:500;color:var(--color-ide-text-bright);transition:color .15s,background .15s}
+.mcp-btn-secondary{padding:.5rem 1rem;border-radius:.75rem;font-size:.875rem;color:var(--color-ide-text-dim)}.mcp-btn-secondary:hover{color:var(--color-ide-text-bright)}
 
 /* ── Action icons (hover reveal) ── */
-.action-icon{display:flex;align-items:center;justify-content:center;padding:.375rem;border-radius:.5rem;font-size:.875rem;color:#4b5563;transition:color .15s,background .15s}.action-icon:hover{color:#d1d5db;background:rgba(255,255,255,.05)}
+.action-icon{display:flex;align-items:center;justify-content:center;padding:.375rem;border-radius:.5rem;font-size:.875rem;color:var(--color-ide-text-dim);transition:color .15s,background .15s}.action-icon:hover{color:var(--color-ide-text);background:var(--color-ide-surface-hover)}
 .action-icon:disabled{opacity:.4;cursor:not-allowed}
 
 /* ── Card hover effect ── */

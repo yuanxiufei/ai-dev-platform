@@ -103,18 +103,8 @@ import { computed } from 'vue'
 
       <!-- 空状态 -->
       <div v-else-if="!projects.length" class="py-20 text-center">
-        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-500/10 to-purple-500/10 flex items-center justify-center">
-          <LayoutGrid class="w-8 h-8 text-brand-400/60" />
-        </div>
         <p class="text-[var(--color-ide-text-dim)] text-lg font-medium">还没有项目</p>
-        <p class="text-[var(--color-ide-text-dim)] text-sm mt-1">创建你的第一个 AI 项目开始吧</p>
-        <button
-          class="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-500 hover:shadow-lg hover:shadow-brand-500/20 px-5 py-2.5 text-sm font-medium text-white transition-all"
-          @click="goCreate"
-        >
-          <Plus class="w-4 h-4" />
-          创建项目
-        </button>
+        <p class="text-[var(--color-ide-text-dim)] text-sm mt-1">点击右上角"创建项目"开始吧</p>
       </div>
 
       <!-- 搜索无结果 -->

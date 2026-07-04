@@ -64,10 +64,10 @@
 
   /* Panel sizes (VSCode exact values) */
   --sidebar-width: 48px;                 /* VSCode: ACTIVITYBAR_WIDTH */
-  --menubar-height: 38px;                /* VSCode: DEFAULT_CUSTOM_TITLEBAR_HEIGHT (was 35) */
-  --statusbar-height: 28px;              /* VSCode: StatusbarPart.HEIGHT (was 22→26→28) */
-  --tabbar-height: 38px;                 /* VSCode: EDITOR_TAB_HEIGHT (normal) (was 35) */
-  --panel-title-height: 38px;            /* VSCode: Panel title bar (was 35) */
+  --menubar-height: 35px;                /* VSCode: DEFAULT_CUSTOM_TITLEBAR_HEIGHT */
+  --statusbar-height: 22px;              /* VSCode: StatusbarPart.HEIGHT */
+  --tabbar-height: 35px;                 /* VSCode: EDITOR_TAB_HEIGHT (normal) */
+  --panel-title-height: 35px;            /* VSCode: Panel title bar */
   --panel-min-height: 77px;              /* VSCode: panel minimiumHeight */
   --sash-size: 4px;                      /* VSCode: workbench.sash.size */
 
@@ -101,6 +101,44 @@
   --color-chat-btn-primary: #007ACC;
   --color-chat-btn-primary-text: #FFFFFF;
   --color-chat-input-bg: #3C3C3C;
+
+  /* Scrollbar */
+  --scrollbar-thumb-color: rgba(121, 121, 121, 0.4);
+
+  /* Agent Pipeline colors (shared across agent components) */
+  --agent-planner-color: #f59e0b;        /* Amber */
+  --agent-planner-bg: rgba(245, 158, 11, 0.08);
+  --agent-coder-color: #6366f1;          /* Indigo */
+  --agent-coder-bg: rgba(99, 102, 241, 0.08);
+  --agent-reviewer-color: #a78bfa;       /* Purple */
+  --agent-reviewer-bg: rgba(167, 139, 250, 0.08);
+  --agent-tester-color: #22d3ee;         /* Cyan */
+  --agent-tester-bg: rgba(34, 211, 238, 0.08);
+  --agent-default-color: #8b8b8b;        /* Gray */
+  --agent-default-bg: rgba(139, 139, 139, 0.08);
+  --agent-thinking-color: #6366f1;       /* Indigo */
+  --agent-thinking-bg: rgba(99, 102, 241, 0.08);
+  --agent-planning-color: #f59e0b;       /* Amber */
+  --agent-planning-bg: rgba(245, 158, 11, 0.08);
+  --agent-analyzing-color: #22d3ee;      /* Cyan */
+  --agent-analyzing-bg: rgba(34, 211, 238, 0.08);
+  --agent-deciding-color: #a78bfa;       /* Purple */
+  --agent-deciding-bg: rgba(167, 139, 250, 0.08);
+  --agent-executing-color: #10b981;      /* Emerald */
+  --agent-executing-bg: rgba(16, 185, 129, 0.08);
+  --agent-border-dim: rgba(255, 255, 255, 0.04);
+  --agent-arrow-color: #4b5563;
+
+  /* InputDialog (VS Code QuickInput style) */
+  --input-dialog-header-bg: rgba(255, 255, 255, 0.06);
+  --input-dialog-close-hover: rgba(255, 255, 255, 0.08);
+  --input-dialog-footer-bg: rgba(255, 255, 255, 0.02);
+
+  /* Diff editor decorations */
+  --diff-accepted-bg: rgba(46, 160, 67, 0.12);
+  --diff-accepted-border: #2ea043;
+  --diff-rejected-bg: rgba(248, 81, 73, 0.08);
+  --diff-rejected-border: #f85149;
 
   /* Component tokens */
   --radius-sm: 3px;                      /* VSCode: tighter corners */
@@ -145,7 +183,7 @@ html, body, #app {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(121, 121, 121, 0.4);
+  background: var(--scrollbar-thumb-color);
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {

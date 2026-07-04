@@ -146,14 +146,14 @@ const severityColor = {
   info: 'var(--color-ide-info)',
 }
 const severityBg = {
-  error: 'rgba(239,68,68,0.1)',
-  warning: 'rgba(251,191,36,0.1)',
-  info: 'rgba(59,130,246,0.1)',
+  error: 'var(--problems-error-bg)',
+  warning: 'var(--problems-warning-bg)',
+  info: 'var(--problems-info-bg)',
 }
 </script>
 
 <template>
-  <div class="h-full flex flex-col text-[12px]" style="background:var(--color-ide-bg)">
+  <div class="problems-panel h-full flex flex-col text-[12px]" style="background:var(--color-ide-bg)">
     <!-- Filter bar -->
     <div class="flex items-center gap-1 px-2 py-1.5 border-b" style="border-color:var(--color-ide-border)">
       <Filter :size="12" class="text-[var(--color-ide-text-dim)]" />
@@ -242,3 +242,12 @@ const severityBg = {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ═══ 问题面板严重级别背景（组件级 CSS 变量） ═══ */
+.problems-panel {
+  --problems-error-bg: rgba(239, 68, 68, 0.1);
+  --problems-warning-bg: rgba(251, 191, 36, 0.1);
+  --problems-info-bg: rgba(59, 130, 246, 0.1);
+}
+</style>

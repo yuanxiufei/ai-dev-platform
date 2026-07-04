@@ -72,11 +72,11 @@ const STEP_CONFIG: Record<ReasoningStep["type"], {
   color: string
   bg: string
 }> = {
-  thinking:  { icon: Brain,      label: "思考",   color: "#6366f1", bg: "rgba(99,102,241,0.08)" },
-  planning:  { icon: BarChart3,  label: "规划",   color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
-  analyzing: { icon: Search,     label: "分析",   color: "#22d3ee", bg: "rgba(34,211,238,0.08)" },
-  deciding:  { icon: BookOpen,   label: "决策",   color: "#a78bfa", bg: "rgba(167,139,250,0.08)" },
-  executing: { icon: Code2,      label: "执行",   color: "#10b981", bg: "rgba(16,185,129,0.08)" },
+  thinking:  { icon: Brain,      label: "思考",   color: "var(--agent-thinking-color)", bg: "var(--agent-thinking-bg)" },
+  planning:  { icon: BarChart3,  label: "规划",   color: "var(--agent-planning-color)", bg: "var(--agent-planning-bg)" },
+  analyzing: { icon: Search,     label: "分析",   color: "var(--agent-analyzing-color)", bg: "var(--agent-analyzing-bg)" },
+  deciding:  { icon: BookOpen,   label: "决策",   color: "var(--agent-deciding-color)", bg: "var(--agent-deciding-bg)" },
+  executing: { icon: Code2,      label: "执行",   color: "var(--agent-executing-color)", bg: "var(--agent-executing-bg)" },
 }
 
 function stepConfig(step: ReasoningStep) {
@@ -303,5 +303,5 @@ function formatElapsed(ms: number): string {
 
 <style scoped>
 .custom-scroll::-webkit-scrollbar { width: 3px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.06); border-radius: 9999px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-color); border-radius: 9999px; }
 </style>

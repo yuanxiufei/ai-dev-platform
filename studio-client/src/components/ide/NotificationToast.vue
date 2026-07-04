@@ -21,10 +21,10 @@ const iconMap = {
 }
 
 const colorMap = {
-  error: { bg: 'rgba(244,135,113,0.08)', border: 'var(--color-ide-error)', icon: 'var(--color-ide-error)' },
-  warning: { bg: 'rgba(204,167,0,0.08)', border: 'var(--color-ide-warning)', icon: 'var(--color-ide-warning)' },
-  success: { bg: 'rgba(78,201,176,0.08)', border: 'var(--color-ide-success)', icon: 'var(--color-ide-success)' },
-  info: { bg: 'rgba(117,190,255,0.08)', border: 'var(--color-ide-info)', icon: 'var(--color-ide-info)' },
+  error: { bg: 'var(--toast-error-bg)', border: 'var(--color-ide-error)', icon: 'var(--color-ide-error)' },
+  warning: { bg: 'var(--toast-warning-bg)', border: 'var(--color-ide-warning)', icon: 'var(--color-ide-warning)' },
+  success: { bg: 'var(--toast-success-bg)', border: 'var(--color-ide-success)', icon: 'var(--color-ide-success)' },
+  info: { bg: 'var(--toast-info-bg)', border: 'var(--color-ide-info)', icon: 'var(--color-ide-info)' },
 }
 
 function timeAgo(ts: number): string {
@@ -134,6 +134,13 @@ function timeAgo(ts: number): string {
 </template>
 
 <style scoped>
+/* ═══ 通知提示背景颜色（组件级 CSS 变量） ═══ */
+.notification-toast {
+  --toast-error-bg: rgba(244, 135, 113, 0.08);
+  --toast-warning-bg: rgba(204, 167, 0, 0.08);
+  --toast-success-bg: rgba(78, 201, 176, 0.08);
+  --toast-info-bg: rgba(117, 190, 255, 0.08);
+}
 .toast-enter-active { transition: all 0.3s ease-out; }
 .toast-leave-active { transition: all 0.2s ease-in; }
 .toast-enter-from { opacity: 0; transform: translateX(60px); }

@@ -399,7 +399,7 @@ function langColor(lang?: string): string {
 
 <style scoped>
 .custom-scroll::-webkit-scrollbar { width: 3px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.06); border-radius: 9999px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-color); border-radius: 9999px; }
 
 @keyframes slide-in-from-bottom-2 {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }

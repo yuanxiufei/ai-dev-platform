@@ -175,7 +175,7 @@ pub async fn global_replace(request: GlobalSearchRequest) -> Result<ReplaceResul
 
     // Apply replacements (simplified - real implementation would be more careful about overlapping replacements)
     for (_fid, filepath) in &file_paths {
-        if let Ok(mut content) = fs::read_to_string(filepath) {
+        if let Ok(content) = fs::read_to_string(filepath) {
             // Build regex from request
             let re = Regex::new(&regex::escape(&request.query)).unwrap_or_else(|_| Regex::new("").unwrap());
             let new_content = re.replace_all(&content, &replacement).to_string();

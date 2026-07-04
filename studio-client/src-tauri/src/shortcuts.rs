@@ -89,6 +89,7 @@ pub fn init(_app: &AppHandle) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn lookup(key: &str) -> Vec<ShortcutEntry> {
     let registry = SHORTCUT_REGISTRY.read().unwrap();
     registry.values()

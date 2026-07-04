@@ -55,7 +55,7 @@ async function checkModelHealth() {
 onMounted(() => { checkModelHealth(); healthTimer = setInterval(checkModelHealth, 60_000); document.addEventListener('click', closeContextMenu) })
 onUnmounted(() => { if (healthTimer) clearInterval(healthTimer); document.removeEventListener('click', closeContextMenu) })
 
-const healthDotColor = computed(() => modelHealth.value==='healthy'?'#4EC9B0':modelHealth.value==='degraded'?'#CCA700':'#F48771')
+const healthDotColor = computed(() => modelHealth.value==='healthy'?'var(--color-terminal-green)':modelHealth.value==='degraded'?'var(--color-terminal-yellow)':'var(--color-terminal-red)')
 const modelLabel = computed(() => {
   if (!activeModel.value) return '自动'
   return activeModel.value.replace('qwen25-coder-7b','Qwen2.5-Coder-7B').replace('deepseek-r1','DeepSeek-R1').replace('deepseek-v3','DeepSeek-V3').replace('claude-sonnet','Claude-Sonnet').replace('gpt-4o','GPT-4o') || activeModel.value
@@ -79,7 +79,7 @@ function statusCtx(e: MouseEvent) {
 </script>
 
 <template>
-  <footer class="flex items-center shrink-0 select-none" style="height:var(--statusbar-height); background:var(--color-statusbar-bg); color:var(--color-statusbar-text); font-size:14px; padding:0 6px;"
+  <footer class="flex items-center shrink-0 select-none" style="height:var(--statusbar-height); background:var(--color-statusbar-bg); color:var(--color-statusbar-text); font-size:12px; padding:0 6px;"
     @contextmenu="statusCtx">
     <!-- Left -->
     <div class="flex items-center">
@@ -89,21 +89,21 @@ function statusCtx(e: MouseEvent) {
         <span style="max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ store.workspaceRoot?.split(/[/\\]/).pop() || 'workspace' }}</span>
       </button>
       <button class="statusbar-item hover:bg-white/10" style="display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px; border-radius:3px" title="Git分支" @click="store.refreshGitStatus()">
-        <GitBranch :size="14" style="flex-shrink:0" />
+        <GitBranch :size="12" style="flex-shrink:0" />
         <span>{{ branchLabel }}</span>
-        <span v-if="store.gitAhead>0" style="color:#75BEFF">{{ '\u2191'+store.gitAhead }}</span>
-        <span v-if="store.gitBehind>0" style="color:#FBBF24">{{ '\u2193'+store.gitBehind }}</span>
+        <span v-if="store.gitAhead>0" style="color:var(--color-ide-info)">{{ '\u2191'+store.gitAhead }}</span>
+        <span v-if="store.gitBehind>0" style="color:var(--color-terminal-yellow)">{{ '\u2193'+store.gitBehind }}</span>
       </button>
       <span style="display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px">
-        <XCircle :size="14" style="color:#4EC9B0" /><span>0</span>
-        <AlertCircle :size="14" style="color:#CCA700; margin-left:4px" /><span>{{ changedLabel }}</span>
+        <XCircle :size="12" style="color: var(--color-terminal-green)" /><span>0</span>
+        <AlertCircle :size="12" style="color: var(--color-terminal-yellow); margin-left:4px" /><span>{{ changedLabel }}</span>
       </span>
     </div>
     <div class="flex-1" />
     <!-- Center-Right: editor status -->
     <div style="display:flex; align-items:center">
       <button class="statusbar-item hover:bg-white/10" style="position:relative; display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px; border-radius:3px" :title="posText+' — 点击复制'" @click="copyPos">
-        <Braces :size="14" style="opacity:0.5" />{{ posText }}
+        <Braces :size="12" style="opacity:0.5" />{{ posText }}
         <transition name="fade"><span v-if="copied?.includes(posText)" style="position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:11px; background:var(--color-ide-accent); padding-left:6px; padding-right:6px; padding-top:2px; padding-bottom:2px; border-radius:4px; white-space:nowrap; z-index:50"><Check :size="11" style="display:inline; margin-right:2px"/>已复制</span></transition>
       </button>
       <button v-if="selectionText" class="statusbar-item hover:bg-white/10" style="padding-left:10px; padding-right:10px; border-radius:3px">{{ selectionText }}</button>
@@ -115,22 +115,22 @@ function statusCtx(e: MouseEvent) {
     <!-- Right -->
     <div style="display:flex; align-items:center">
       <button class="statusbar-item hover:bg-white/10" style="display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px; border-radius:3px" :title="`模型: ${modelLabel}`" @click="copyModelName">
-        <span style="position:relative"><Cpu :size="14" /><span style="position:absolute; bottom:-2px; right:-2px; width:6px; height:6px; border-radius:50%; border:1px solid" :style="{backgroundColor:healthDotColor,borderColor:'var(--color-statusbar-bg)'}" /></span>
+        <span style="position:relative"><Cpu :size="12" /><span style="position:absolute; bottom:-2px; right:-2px; width:6px; height:6px; border-radius:50%; border:1px solid" :style="{backgroundColor:healthDotColor,borderColor:'var(--color-statusbar-bg)'}" /></span>
         <span>{{ modelLabel }}</span>
       </button>
-      <button class="statusbar-item hover:bg-white/10" style="position:relative; padding-left:10px; padding-right:10px; border-radius:3px" title="通知" @click="notifStore.showNotificationPanel=!notifStore.showNotificationPanel"><Bell :size="14" />
-        <span v-if="notifStore.notifications.length>0||notifStore.historyCount>0" style="position:absolute; top:-2px; right:-2px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#EF4444; font-size:10px; font-weight:bold; padding-left:2px; padding-right:2px">{{ notifStore.notifications.length||notifStore.historyCount }}</span>
+      <button class="statusbar-item hover:bg-white/10" style="position:relative; padding-left:10px; padding-right:10px; border-radius:3px" title="通知" @click="notifStore.showNotificationPanel=!notifStore.showNotificationPanel"><Bell :size="12" />
+        <span v-if="notifStore.notifications.length>0||notifStore.historyCount>0" style="position:absolute; top:-2px; right:-2px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--color-ide-error); font-size:10px; font-weight:bold; padding-left:2px; padding-right:2px">{{ notifStore.notifications.length||notifStore.historyCount }}</span>
       </button>
       <button class="statusbar-item hover:bg-white/10" style="display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px; border-radius:3px" title="连接状态" @click="checkModelHealth">
-        <CheckCircle2 :size="14" style="color:#4EC9B0" v-if="modelHealth==='healthy'" />
-        <AlertCircle :size="14" style="color:#CCA700" v-else-if="modelHealth==='degraded'" />
-        <WifiOff :size="14" style="color:#F48771" v-else />
+        <CheckCircle2 :size="12" style="color:var(--color-terminal-green)" v-if="modelHealth==='healthy'" />
+        <AlertCircle :size="12" style="color:var(--color-terminal-yellow)" v-else-if="modelHealth==='degraded'" />
+        <WifiOff :size="12" style="color:var(--color-terminal-red)" v-else />
       </button>
       <button class="statusbar-item hover:bg-white/10" style="padding-left:10px; padding-right:10px; border-radius:3px; opacity:0.6" title="反馈" @mouseenter="($el as HTMLElement).style.opacity='1'" @mouseleave="($el as HTMLElement).style.opacity='0.6'">👍</button>
       <button class="statusbar-item hover:bg-white/10" style="display:flex; align-items:center; gap:4px; padding-left:10px; padding-right:10px; border-radius:3px" :title="`主题: ${themeStore.definition?.labelZh || themeStore.definition?.label || 'Dark'}`" @click="themeStore.cycleTheme()">
-        <Sun :size="14" v-if="themeStore.appliedType==='light'" style="color:#FBBF24"/>
-        <Moon :size="14" v-else-if="themeStore.appliedType==='dark'" style="color:#75BEFF"/>
-        <span v-else style="font-size:11px; font-weight:bold; color:#1AEBFF">HC</span>
+        <Sun :size="12" v-if="themeStore.appliedType==='light'" style="color:var(--color-terminal-yellow)"/>
+        <Moon :size="12" v-else-if="themeStore.appliedType==='dark'" style="color:var(--color-ide-info)"/>
+        <span v-else style="font-size:11px; font-weight:bold; color:var(--color-ide-accent)">HC</span>
         <span style="font-size:12px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" class="hidden sm:inline">{{ themeStore.definition?.labelZh || themeStore.definition?.label }}</span>
       </button>
     </div>
@@ -151,5 +151,5 @@ function statusCtx(e: MouseEvent) {
 </template>
 
 <style scoped>
-.statusbar-item { height: 28px; line-height: 28px; white-space: nowrap; } /* was 26px */
+.statusbar-item { height: 22px; line-height: 22px; white-space: nowrap; }
 </style>

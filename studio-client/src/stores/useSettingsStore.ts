@@ -1,91 +1,107 @@
 import { ref, reactive } from 'vue'
 import { defineStore } from 'pinia'
 import apiClient from '@/api/client'
+import { isTauriEnv } from './shared'
 
 export interface DisplaySettings {
   theme: 'dark' | 'light' | 'high-contrast'
-  streaming: boolean
-  compact: boolean
-  showReasoning: boolean
-  showCost: boolean
-  inlineDiffs: boolean
-  bellOnComplete: boolean
-  notifyOnComplete: boolean
-  chatInputHeight: number
+  streaming: boolean; compact: boolean
+  showReasoning: boolean; showCost: boolean; inlineDiffs: boolean
+  bellOnComplete: boolean; notifyOnComplete: boolean; chatInputHeight: number
 }
 
 export interface AgentSettings {
-  maxTurns: number
-  gatewayTimeout: number
-  restartDrainTimeout: number
+  maxTurns: number; gatewayTimeout: number; restartDrainTimeout: number
   toolEnforcement: 'auto' | 'always' | 'never'
 }
 
 export interface MemorySettings {
-  enabled: boolean
-  maxEntries: number
-  decayEnabled: boolean
+  enabled: boolean; maxEntries: number; decayEnabled: boolean
 }
 
 export interface ModelProvider {
-  name: string
-  key: string
-  isBuiltin: boolean
-  apiKey: string
-  models: string[]
+  name: string; key: string; isBuiltin: boolean; apiKey: string; models: string[]
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  // ── State ──
   const loading = ref(false)
   const saving = ref(false)
   const error = ref('')
   const activeTab = ref('account')
 
   const display = reactive<DisplaySettings>({
-    theme: 'dark',
-    streaming: true,
-    compact: false,
-    showReasoning: true,
-    showCost: false,
-    inlineDiffs: true,
-    bellOnComplete: false,
-    notifyOnComplete: false,
-    chatInputHeight: 200,
+    theme: 'dark', streaming: true, compact: false,
+    showReasoning: true, showCost: false, inlineDiffs: true,
+    bellOnComplete: false, notifyOnComplete: false, chatInputHeight: 200,
   })
-
   const agent = reactive<AgentSettings>({
-    maxTurns: 30,
-    gatewayTimeout: 600,
-    restartDrainTimeout: 60,
-    toolEnforcement: 'auto',
+    maxTurns: 30, gatewayTimeout: 600, restartDrainTimeout: 60, toolEnforcement: 'auto',
   })
-
   const memory = reactive<MemorySettings>({
-    enabled: true,
-    maxEntries: 1000,
-    decayEnabled: true,
+    enabled: true, maxEntries: 1000, decayEnabled: true,
   })
-
   const providers = ref<ModelProvider[]>([])
-
   const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 
-  // ── Actions ──
+  // ── IDE Local Settings (via Tauri) ──
+
+  /** Load IDE settings from Tauri native storage */
+  async function loadIDESettings(): Promise<void> {
+    if (!isTauriEnv()) return
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const settings: any = await invoke('get_settings')
+      if (settings?.editor?.fontSize) {
+        // Sync editor settings to local state (used by CodeEditor/MenuBar)
+      }
+      if (settings?.appearance) {
+        const a = settings.appearance
+        if (a.theme) display.theme = a.theme
+      }
+      if (settings?.ai) {
+        const ai = settings.ai
+        agent.toolEnforcement = ai.toolEnforcement || 'auto'
+      }
+    } catch {
+      // First launch — use defaults
+    }
+  }
+
+  /** Save IDE settings to Tauri */
+  async function saveIDESettings(): Promise<void> {
+    if (!isTauriEnv()) return
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('save_settings', {
+        settings: {
+          appearance: { theme: display.theme, zoomLevel: 0 },
+          ai: {
+            provider: 'openai',
+            model: 'gpt-4o',
+            maxTokens: 4096,
+            temperature: 0.7,
+            apiKey: '',
+          },
+          terminal: { shell: 'powershell', fontSize: 13, cursorBlinking: true, scrollback: 10000 },
+        },
+      })
+    } catch (e) {
+      console.warn('[Settings] Tauri save failed:', e)
+    }
+  }
+
+  // ── HTTP API (providers, runtime config) ──
 
   async function fetchSettings(): Promise<void> {
     loading.value = true
     try {
-      // Fetch display/agent/memory settings from backend if available
+      await loadIDESettings()
       const res = await apiClient.get('/system/config')
       if (res.data?.display) Object.assign(display, res.data.display)
       if (res.data?.agent) Object.assign(agent, res.data.agent)
       if (res.data?.memory) Object.assign(memory, res.data.memory)
-    } catch {
-      // Fallback to defaults — backend may not have this endpoint yet
-    } finally {
-      loading.value = false
-    }
+    } catch { /* use defaults */ }
+    finally { loading.value = false }
   }
 
   async function fetchProviders(): Promise<void> {
@@ -98,9 +114,7 @@ export const useSettingsStore = defineStore('settings', () => {
         apiKey: p.api_key || '***',
         models: p.models || [],
       }))
-    } catch {
-      providers.value = []
-    }
+    } catch { providers.value = [] }
   }
 
   function updateLocal(section: string, values: Record<string, any>): void {
@@ -111,19 +125,9 @@ export const useSettingsStore = defineStore('settings', () => {
     if (target) Object.assign(target, values)
   }
 
-  async function saveSection(
-    section: string,
-    values: Record<string, any>,
-    immediate?: boolean,
-  ): Promise<void> {
+  async function saveSection(section: string, values: Record<string, any>, immediate?: boolean): Promise<void> {
     updateLocal(section, values)
-
-    if (immediate) {
-      await doSave(section, values)
-      return
-    }
-
-    // Debounce
+    if (immediate) { await doSave(section, values); return }
     const key = section
     if (debounceTimers[key]) clearTimeout(debounceTimers[key])
     debounceTimers[key] = setTimeout(() => doSave(section, values), 300)
@@ -133,42 +137,26 @@ export const useSettingsStore = defineStore('settings', () => {
     saving.value = true
     try {
       await apiClient.patch('/system/config', { [section]: values })
-    } catch {
-      // Silently fail for now — backend endpoint may not exist
-    } finally {
-      saving.value = false
-    }
+      if (section === 'display') await saveIDESettings()
+    } catch { /* ok */ }
+    finally { saving.value = false }
   }
 
   async function saveProviderKey(providerKey: string, apiKey: string): Promise<void> {
     saving.value = true
     try {
-      await apiClient.post('/system/models/providers', {
-        provider: providerKey,
-        api_key: apiKey,
-      })
+      await apiClient.post('/system/models/providers', { provider: providerKey, api_key: apiKey })
       const p = providers.value.find(pr => pr.key === providerKey)
       if (p) p.apiKey = apiKey
-    } catch {
-      error.value = '保存 API Key 失败'
-    } finally {
-      saving.value = false
-    }
+    } catch { error.value = '保存 API Key 失败' }
+    finally { saving.value = false }
   }
 
   return {
-    loading,
-    saving,
-    error,
-    activeTab,
-    display,
-    agent,
-    memory,
-    providers,
-    fetchSettings,
-    fetchProviders,
-    updateLocal,
-    saveSection,
-    saveProviderKey,
+    loading, saving, error, activeTab,
+    display, agent, memory, providers,
+    fetchSettings, fetchProviders,
+    loadIDESettings, saveIDESettings,
+    updateLocal, saveSection, saveProviderKey,
   }
 })

@@ -4,6 +4,7 @@ use std::fs::{self, File};
 use walkdir::WalkDir;
 use chrono::{DateTime, Utc};
 use anyhow::Result;
+use crate::file_watcher;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileInfo {
@@ -158,16 +159,32 @@ pub async fn read_file(path: String, encoding: Option<String>) -> Result<String,
 /// Write file content
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), String> {
+    // Validation: reject empty paths
+    if path.trim().is_empty() {
+        return Err("File path cannot be empty".to_string());
+    }
+
+    log::info!("[write_file] path={}, content_len={}", path, content.len());
+    
     // Create parent directories if needed
     if let Some(parent) = Path::new(&path).parent() {
-        if !parent.exists() {
+        // parent() returns Some("") for root-level files — check it's meaningful
+        let parent_str = parent.as_os_str().to_string_lossy();
+        if !parent_str.is_empty() && parent_str != "" && !parent.exists() {
+            log::info!("[write_file] creating parent dirs: {:?}", parent);
             fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create directory: {}", e))?;
         }
     }
     
     fs::write(&path, content.as_bytes())
-        .map_err(|e| format!("Failed to write file: {}", e))
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    // Notify file watcher that we just wrote this file (suppress self-triggered events)
+    file_watcher::notify_saved(&path);
+
+    log::info!("[write_file] saved successfully: {}", path);
+    Ok(())
 }
 
 /// Create new file

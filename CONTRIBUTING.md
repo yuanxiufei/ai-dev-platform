@@ -26,7 +26,7 @@
 
 ## 开发环境
 
-关于开发环境搭建、启动方式、代码检查、pre-commit 等详情，见 [开发指南](development.md)。
+关于开发环境搭建、启动方式、代码检查、pre-commit 等详情，见 [开发指南](docs/development/开发指南.md)。
 
 ## Pull Request 规范
 

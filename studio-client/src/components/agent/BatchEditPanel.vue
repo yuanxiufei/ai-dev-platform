@@ -85,7 +85,7 @@ function opLabel(op: FileEdit["op"]): string {
   return { modify: "修改", create: "新建", delete: "删除" }[op]
 }
 function opColor(op: FileEdit["op"]): string {
-  return { modify: "#FBBF24", create: "#4ADE80", delete: "#EF4444" }[op]
+  return { modify: "var(--color-ide-warning)", create: "var(--color-ide-success)", delete: "var(--color-ide-error)" }[op]
 }
 
 /** 生成统一 Diff 视图的行 */

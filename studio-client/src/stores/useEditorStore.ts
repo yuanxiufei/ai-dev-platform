@@ -2,7 +2,7 @@
 // Editor Store — tabs, cursor, file open/save
 // ============================================
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { CursorPosition, EditorGroup, EditorTab } from '@/types/ide'
 import { generateDemoContent, getLanguageFromPath, isTauriEnv, uid } from './shared'
 import { useFileTreeStore } from './useFileTreeStore'
@@ -340,42 +340,73 @@ export const useEditorStore = defineStore('editor', () => {
     if (!tab) return
     tab.content = content
     tab.modified = content !== tab.originalContent
+    _scheduleAutoSave()
   }
+
+  let _isSaving = false // guard against concurrent saves
+  let _lastSaveTime = 0 // throttle rapid saves (ms timestamp)
 
   async function saveActiveFile(): Promise<boolean> {
     const tab = activeTab.value
     if (!tab?.filePath) return false
+    if (_isSaving) {
+      console.debug('[IDE] Save already in progress, skipping')
+      return false
+    }
+    // Throttle: max 1 save per 200ms
+    const now = Date.now()
+    if (now - _lastSaveTime < 200) {
+      console.debug('[IDE] Save throttled (too frequent)')
+      return false
+    }
+    _isSaving = true
+    _lastSaveTime = now
     try {
+      const path = tab.filePath // snapshot before async
+      const content = tab.content  // snapshot before async
       if (isTauriEnv()) {
         const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('write_file', { path: tab.filePath, content: tab.content })
+        await invoke('write_file', { path, content })
       }
-      tab.originalContent = tab.content
-      tab.modified = false
+      // Only update if this is still the active tab and its content hasn't changed externally
+      if (activeTab.value?.filePath === path) {
+        tab.originalContent = content
+        tab.modified = content !== tab.content
+      }
       return true
     } catch (e) {
       console.warn(`[IDE] Failed to save: ${tab.filePath}`, e)
       return false
+    } finally {
+      _isSaving = false
     }
   }
 
   async function saveAllFiles(): Promise<void> {
-    for (const tab of tabs.value) {
-      if (tab.modified && tab.filePath) {
-        try {
-          if (isTauriEnv()) {
-            const { invoke } = await import('@tauri-apps/api/core')
-            await invoke('write_file', {
-              path: tab.filePath,
-              content: tab.content,
-            })
+    if (_isSaving) {
+      console.debug('[IDE] SaveAll already in progress')
+      return
+    }
+    _isSaving = true
+    try {
+      for (const tab of tabs.value) {
+        if (tab.modified && tab.filePath) {
+          try {
+            const path = tab.filePath
+            const content = tab.content
+            if (isTauriEnv()) {
+              const { invoke } = await import('@tauri-apps/api/core')
+              await invoke('write_file', { path, content })
+            }
+            tab.originalContent = content
+            tab.modified = content !== tab.content
+          } catch (e) {
+            console.warn(`[IDE] Failed to save: ${tab.filePath}`, e)
           }
-          tab.originalContent = tab.content
-          tab.modified = false
-        } catch (e) {
-          console.warn(`[IDE] Failed to save: ${tab.filePath}`, e)
         }
       }
+    } finally {
+      _isSaving = false
     }
   }
 
@@ -395,6 +426,60 @@ export const useEditorStore = defineStore('editor', () => {
   function updateCursorPosition(pos: Partial<CursorPosition>): void {
     Object.assign(cursorPosition.value, pos)
   }
+
+  // ── Auto-Save (VSCode-style: afterDelay / onWindowChange / onFocusChange) ──
+  const autoSaveEnabled = ref(true)
+  const autoSaveDelay = ref(1000) // ms after last keystroke
+  let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Schedule auto-save after typing stops */
+  function _scheduleAutoSave(): void {
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer)
+    if (!autoSaveEnabled.value) return
+    const tab = activeTab.value
+    if (!tab?.modified || !tab?.filePath) return
+    _autoSaveTimer = setTimeout(async () => {
+      // Double-check still valid before saving
+      if (activeTab.value?.filePath === tab.filePath && activeTab.value.modified) {
+        await saveActiveFile()
+      }
+    }, autoSaveDelay.value)
+  }
+
+  function enableAutoSave(): void {
+    autoSaveEnabled.value = true
+  }
+
+  function disableAutoSave(): void {
+    autoSaveEnabled.value = false
+    if (_autoSaveTimer) {
+      clearTimeout(_autoSaveTimer)
+      _autoSaveTimer = null
+    }
+  }
+
+  // ── Window title sync ──
+  /** Update window title to show current file + modified indicator */
+  function _syncWindowTitle(): void {
+    const tab = activeTab.value
+    if (isTauriEnv()) {
+      const appName = 'CodeBuddy IDE'
+      if (tab?.filePath) {
+        const fileName = tab.filePath.split(/[/\\]/).pop() ?? tab.filePath
+        const dirty = tab.modified ? ' ● ' : ' '
+        document.title = `${dirty}${fileName} — ${appName}`
+      } else if (tab) {
+        document.title = `● ${tab.label} — ${appName}`
+      } else {
+        document.title = appName
+      }
+    }
+  }
+
+  // Watch for title changes
+  watch([activeTabId, () => activeTab.value?.filePath, () => activeTab.value?.modified], () => {
+    _syncWindowTitle()
+  }, { immediate: true })
 
   return {
     tabs,
@@ -423,5 +508,10 @@ export const useEditorStore = defineStore('editor', () => {
     saveAllFiles,
     cursorPosition,
     updateCursorPosition,
+    // Auto-save
+    autoSaveEnabled,
+    autoSaveDelay,
+    enableAutoSave,
+    disableAutoSave,
   }
 })

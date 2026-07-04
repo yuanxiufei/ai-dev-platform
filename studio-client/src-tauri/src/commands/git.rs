@@ -272,6 +272,30 @@ pub async fn git_stash(path: String, message: Option<String>, pop: Option<bool>)
     }.map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Stage a file (git add)
+#[tauri::command]
+pub async fn git_stage(path: String, file_path: String) -> Result<(), String> {
+    run_git_command(&path, &["add", &file_path])
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Unstage a file (git reset HEAD)
+#[tauri::command]
+pub async fn git_unstage(path: String, file_path: String) -> Result<(), String> {
+    run_git_command(&path, &["reset", "HEAD", "--", &file_path])
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Discard changes to a file (git checkout --)
+#[tauri::command]
+pub async fn git_discard(path: String, file_path: String) -> Result<(), String> {
+    run_git_command(&path, &["checkout", "--", &file_path])
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 /// Pull from remote
 #[tauri::command]
 pub async fn git_pull(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
@@ -299,16 +323,16 @@ pub async fn git_push(path: String, remote: Option<String>, branch: Option<Strin
 }
 
 fn parse_diff_output(output: &str) -> Vec<GitDiff> {
-    /// 解析 unified diff 输出为结构化的 GitDiff 列表
-    ///
-    /// 解析以下格式:
-    ///   diff --git a/path b/path
-    ///   --- a/path
-    ///   +++ b/path
-    ///   @@ -a,b +c,d @@ context line
-    ///   -removed line
-    ///   +added line
-    ///    context line
+    // 解析 unified diff 输出为结构化的 GitDiff 列表
+    //
+    // 解析以下格式:
+    //   diff --git a/path b/path
+    //   --- a/path
+    //   +++ b/path
+    //   @@ -a,b +c,d @@ context line
+    //   -removed line
+    //   +added line
+    //    context line
     let mut diffs: Vec<GitDiff> = Vec::new();
     let mut current_diff: Option<GitDiff> = None;
     let mut current_hunk: Option<GitDiffHunk> = None;

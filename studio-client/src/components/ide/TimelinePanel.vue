@@ -9,8 +9,8 @@
  *   - 文件内容对比恢复
  *   - 自动保存快照触发器
  */
-import { ref, computed } from "vue"
-import { Clock, GitCommit, Save, FileText, RotateCw, ChevronRight, History, ArrowLeftRight, ArrowUpCircle } from "lucide-vue-next"
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { Clock, GitCommit, Save, FileText, ChevronRight, History, ArrowLeftRight, ArrowUpCircle, Check, X } from "lucide-vue-next"
 import { useIDEStore } from "@/stores/useIDEStore"
 
 const store = useIDEStore()
@@ -125,13 +125,70 @@ const timeGroups = computed(() => {
   return groups.filter(g => g.entries.length > 0)
 })
 
-// ── 文件过滤 ──
+// ── 文件过滤 (自定义下拉, 不使用浏览器原生 <select>) ──
 const filterFile = ref<string | null>(null)
+const filterOpen = ref(false)
+const filterTriggerRef = ref<HTMLElement | null>(null)
+const filterMenuStyle = ref<Record<string, string>>({})
 
-const filteredEntries = computed(() => {
-  if (!filterFile.value) return entries.value
-  return entries.value.filter(e => e.file === filterFile.value)
+const fileOptions = computed(() => {
+  const set = new Set<string>()
+  for (const e of entries.value) {
+    if (e.file) set.add(e.file)
+  }
+  return Array.from(set)
 })
+
+const currentFilterLabel = computed(() => {
+  if (!filterFile.value) return "所有文件"
+  return filterFile.value.split(/[\\/]/).pop() || filterFile.value
+})
+
+function toggleFilter(e: MouseEvent): void {
+  e.stopPropagation()
+  if (filterOpen.value) {
+    filterOpen.value = false
+    return
+  }
+  filterOpen.value = true
+  // 计算浮层位置 (基于 trigger 按钮)
+  nextTick(() => {
+    const el = filterTriggerRef.value
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const menuWidth = 220
+    const menuMaxHeight = 280
+    const viewportH = window.innerHeight
+    // 默认向下展开
+    let top = rect.bottom + 4
+    let height = Math.min(menuMaxHeight, fileOptions.value.length * 28 + 36)
+    // 如果下方空间不够, 改为向上展开
+    if (top + height > viewportH - 8) {
+      top = Math.max(8, rect.top - height - 4)
+    }
+    filterMenuStyle.value = {
+      top: `${top}px`,
+      left: `${Math.max(8, rect.right - menuWidth)}px`,
+      width: `${menuWidth}px`,
+      maxHeight: `${menuMaxHeight}px`,
+    }
+  })
+}
+
+function selectFilter(value: string | null): void {
+  filterFile.value = value
+  filterOpen.value = false
+}
+
+function onDocClick(e: MouseEvent): void {
+  if (!filterOpen.value) return
+  const target = e.target as HTMLElement
+  if (target.closest(".tl-filter-menu") || target.closest(".tl-filter-trigger")) return
+  filterOpen.value = false
+}
+
+onMounted(() => document.addEventListener("click", onDocClick))
+onBeforeUnmount(() => document.removeEventListener("click", onDocClick))
 
 // ── 时间格式化 ──
 function formatTime(ts: number): string {
@@ -152,17 +209,6 @@ function formatRelative(ts: number): string {
   return `${Math.floor(diff / 86400000)}天前`
 }
 
-// ── 类型图标 ──
-function entryIcon(type: string): string {
-  switch (type) {
-    case "auto-save": return "save"
-    case "git-commit": return "commit"
-    case "manual-save": return "save"
-    case "file-save": return "file"
-    default: return "clock"
-  }
-}
-
 // ── 恢复操作 (模拟) ──
 function restoreEntry(entry: TimelineEntry): void {
   console.log("[Timeline] Restore:", entry.label)
@@ -179,26 +225,79 @@ function compareWithCurrent(entry: TimelineEntry): void {
     style="color: var(--color-ide-text); background: var(--color-ide-surface);">
 
     <!-- ═══ Header ═══ -->
-    <div class="shrink-0 flex items-center px-3 h-9" style="border-bottom: 1px solid var(--color-ide-border);">
-      <History :size="14" class="mr-2" style="color: var(--color-ide-accent);" />
+    <div class="shrink-0 flex items-center px-3 h-9 gap-2" style="border-bottom: 1px solid var(--color-ide-border);">
+      <History :size="14" style="color: var(--color-ide-accent);" />
       <span class="text-[12px] font-semibold uppercase tracking-wider">时间线</span>
       <div class="flex-1" />
-      <!-- 文件过滤 -->
-      <select
-        v-model="filterFile"
-        class="h-6 text-[11px] rounded-[3px] px-2 border-0 outline-none cursor-pointer"
+      <!-- 自定义下拉过滤器 -->
+      <button
+        ref="filterTriggerRef"
+        type="button"
+        class="tl-filter-trigger flex items-center gap-1.5 h-6 px-2 rounded-[3px] text-[11px] transition-colors"
+        :class="{ 'tl-filter-open': filterOpen }"
         :style="{
-          background: 'var(--color-chat-input-bg)',
+          background: filterOpen ? 'var(--color-ide-surface-active)' : 'var(--color-chat-input-bg)',
           color: 'var(--color-ide-text)',
           border: '1px solid var(--color-ide-border)',
         }"
+        @click="toggleFilter"
       >
-        <option :value="null">所有文件</option>
-        <option v-for="tab in store.tabs" :key="tab.id" :value="tab.filePath || tab.label">
-          {{ tab.label }}
-        </option>
-      </select>
+        <FileText :size="11" style="color: var(--color-ide-text-dim);" />
+        <span class="truncate max-w-[110px]">{{ currentFilterLabel }}</span>
+        <ChevronRight
+          :size="10"
+          class="transition-transform duration-150 -rotate-90"
+          :class="{ 'rotate-90': filterOpen }"
+          style="color: var(--color-ide-text-dim);"
+        />
+      </button>
     </div>
+
+    <!-- ═══ 过滤浮层 (Teleport 到 body) ═══ -->
+    <Teleport to="body">
+      <div
+        v-if="filterOpen"
+        class="tl-filter-menu fixed z-50 rounded-[4px] overflow-hidden"
+        :style="{
+          ...filterMenuStyle,
+          background: 'var(--color-ide-surface)',
+          border: '1px solid var(--color-ide-border)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        }"
+        @click.stop
+      >
+        <div class="text-[10px] uppercase tracking-wider px-2.5 py-1.5 font-semibold"
+          style="color: var(--color-ide-text-dim); border-bottom: 1px solid var(--color-ide-border);">
+          按文件过滤
+        </div>
+        <div class="overflow-y-auto">
+          <button
+            type="button"
+            class="tl-filter-item flex items-center gap-2 w-full px-2.5 py-1.5 text-[12px] text-left"
+            :class="{ 'tl-filter-active': filterFile === null }"
+            @click="selectFilter(null)"
+          >
+            <Check :size="11" :class="filterFile === null ? 'opacity-100' : 'opacity-0'" style="color: var(--color-ide-accent);" />
+            <span class="flex-1 truncate">所有文件</span>
+          </button>
+          <button
+            v-for="file in fileOptions"
+            :key="file"
+            type="button"
+            class="tl-filter-item flex items-center gap-2 w-full px-2.5 py-1.5 text-[12px] text-left"
+            :class="{ 'tl-filter-active': filterFile === file }"
+            @click="selectFilter(file)"
+          >
+            <Check :size="11" :class="filterFile === file ? 'opacity-100' : 'opacity-0'" style="color: var(--color-ide-accent);" />
+            <FileText :size="11" style="color: var(--color-ide-text-dim);" />
+            <span class="flex-1 truncate">{{ file.split(/[\\/]/).pop() }}</span>
+            <span class="text-[10px] opacity-50 truncate max-w-[80px]" style="color: var(--color-ide-text-dim);">
+              {{ file }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- ═══ 时间线列表 ═══ -->
     <div class="flex-1 overflow-y-auto py-1">
@@ -226,34 +325,36 @@ function compareWithCurrent(entry: TimelineEntry): void {
           <div
             v-for="entry in group.entries"
             :key="entry.id"
-            class="timeline-entry flex items-start gap-2 px-5 py-1.5 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors group"
+            class="timeline-entry flex items-start gap-2.5 px-3 py-2 cursor-pointer transition-colors group"
             :class="{
-              'border-l-2': true,
-              'border-[var(--color-ide-accent)]': entry.type === 'git-commit',
-              'border-[var(--color-ide-success)]': entry.type === 'file-save',
-              'border-[var(--color-ide-text-dim)]/30': entry.type === 'auto-save',
+              'tl-entry-commit': entry.type === 'git-commit',
+              'tl-entry-save': entry.type === 'file-save',
+              'tl-entry-auto': entry.type === 'auto-save',
             }"
           >
-            <!-- 图标 -->
-            <div class="shrink-0 w-5 h-5 flex items-center justify-center rounded-full mt-0.5"
-              :style="{
-                background: entry.type === 'git-commit'
-                  ? 'var(--color-ide-accent)'
-                  : entry.type === 'file-save'
-                    ? 'var(--color-ide-success)'
-                    : 'var(--color-ide-surface-hover)',
-                border: entry.type === 'auto-save' ? '1px solid var(--color-ide-border)' : 'none',
-              }">
-              <GitCommit v-if="entry.type === 'git-commit'" :size="10" style="color: #fff;" />
-              <Save v-else-if="entry.type === 'auto-save'" :size="10" style="color: var(--color-ide-text-dim);" />
-              <FileText v-else :size="10" style="color: #fff;" />
+            <!-- 图标列 (与左侧时间线对齐) -->
+            <div class="shrink-0 flex flex-col items-center gap-0.5 pt-0.5">
+              <div class="w-5 h-5 flex items-center justify-center rounded-full"
+                :style="{
+                  background: entry.type === 'git-commit'
+                    ? 'var(--color-ide-accent)'
+                    : entry.type === 'file-save'
+                      ? 'var(--color-ide-success)'
+                      : 'var(--color-ide-surface-hover)',
+                  border: entry.type === 'auto-save' ? '1px solid var(--color-ide-border)' : 'none',
+                }">
+                <GitCommit v-if="entry.type === 'git-commit'" :size="10" style="color: #fff;" />
+                <Save v-else-if="entry.type === 'auto-save'" :size="10" style="color: var(--color-ide-text-dim);" />
+                <FileText v-else :size="10" style="color: #fff;" />
+              </div>
             </div>
 
+            <!-- 主体内容 -->
             <div class="flex-1 min-w-0">
               <!-- 标签行 -->
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 min-w-0">
                 <span class="text-[12px] font-medium truncate"
-                  :style="{ color: entry.type === 'git-commit' ? 'var(--color-ide-text)' : 'var(--color-ide-text)' }">
+                  style="color: var(--color-ide-text);">
                   {{ entry.label }}
                 </span>
                 <span class="shrink-0 text-[10px]" style="color: var(--color-ide-text-dim);">
@@ -267,35 +368,37 @@ function compareWithCurrent(entry: TimelineEntry): void {
                 {{ entry.description }}
               </div>
 
-              <!-- 元信息行 -->
-              <div class="flex items-center gap-3 mt-0.5 text-[10px]">
-                <span v-if="entry.file" class="flex items-center gap-0.5" style="color: var(--color-ide-text-dim);">
+              <!-- 元信息行 (单行紧凑) -->
+              <div class="flex items-center gap-2 mt-1 text-[10px] min-w-0">
+                <span v-if="entry.file" class="flex items-center gap-1 truncate min-w-0"
+                  style="color: var(--color-ide-text-dim);">
                   <FileText :size="9" />
-                  {{ entry.file?.split(/[\\/]/).pop() || entry.file }}
+                  <span class="truncate">{{ entry.file?.split(/[\\/]/).pop() || entry.file }}</span>
                 </span>
-                <span v-if="entry.commitHash" class="font-mono" style="color: var(--color-ide-accent);">
+                <span v-if="entry.commitHash" class="shrink-0 font-mono px-1 rounded-[2px]"
+                  style="color: var(--color-ide-accent); background: color-mix(in srgb, var(--color-ide-accent) 12%, transparent);">
                   {{ entry.commitHash }}
                 </span>
-                <span v-if="entry.author" style="color: var(--color-ide-text-dim);">
+                <span v-if="entry.author" class="shrink-0" style="color: var(--color-ide-text-dim);">
                   {{ entry.author }}
                 </span>
-                <span class="opacity-40" style="color: var(--color-ide-text-dim);">
+                <span class="shrink-0 opacity-40 ml-auto" style="color: var(--color-ide-text-dim);">
                   {{ formatTime(entry.timestamp) }}
                 </span>
               </div>
             </div>
 
             <!-- hover 操作按钮 -->
-            <div class="hidden group-hover:flex items-center gap-0.5 shrink-0">
+            <div class="hidden group-hover:flex items-center gap-0.5 shrink-0 self-center">
               <button
-                class="w-6 h-6 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-active)] transition-colors"
+                class="w-6 h-6 flex items-center justify-center rounded-[3px] transition-colors"
                 title="与当前文件比较"
                 @click.stop="compareWithCurrent(entry)"
               >
                 <ArrowLeftRight :size="11" style="color: var(--color-ide-text-dim);" />
               </button>
               <button
-                class="w-6 h-6 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-active)] transition-colors"
+                class="w-6 h-6 flex items-center justify-center rounded-[3px] transition-colors"
                 title="恢复此版本"
                 @click.stop="restoreEntry(entry)"
               >
@@ -322,9 +425,50 @@ function compareWithCurrent(entry: TimelineEntry): void {
 
 <style scoped>
 .timeline-entry {
-  border-left-width: 2px;
-  border-left-style: solid;
-  margin-left: 11px;
-  padding-left: 10px;
+  position: relative;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ide-border) 40%, transparent);
+}
+.timeline-entry:last-child {
+  border-bottom: none;
+}
+.timeline-entry:hover {
+  background: var(--color-ide-surface-hover);
+}
+
+/* 类型 hover 强调 (左侧细线) */
+.timeline-entry::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.tl-entry-commit:hover::before { background: var(--color-ide-accent); }
+.tl-entry-save:hover::before { background: var(--color-ide-success); }
+.tl-entry-auto:hover::before { background: var(--color-ide-text-dim); }
+
+/* 自定义下拉触发器 */
+.tl-filter-trigger:hover {
+  background: var(--color-ide-surface-hover) !important;
+  border-color: color-mix(in srgb, var(--color-ide-accent) 50%, var(--color-ide-border)) !important;
+}
+.tl-filter-open {
+  border-color: var(--color-ide-accent) !important;
+}
+
+/* 浮层菜单项 */
+.tl-filter-item {
+  color: var(--color-ide-text);
+  background: transparent;
+  transition: background 0.1s;
+}
+.tl-filter-item:hover {
+  background: var(--color-ide-surface-hover);
+}
+.tl-filter-active {
+  background: color-mix(in srgb, var(--color-ide-accent) 8%, transparent);
 }
 </style>

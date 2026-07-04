@@ -132,6 +132,7 @@ function eventToHash(e: KeyboardEvent): number {
 
 const bindings = ref<Keybinding[]>([])
 let pendingChord: number | null = null  // 等待和弦第二键
+let chordTimer: ReturnType<typeof setTimeout> | null = null  // 和弦超时计时器
 const contextStack: string[] = ["global"]
 
 // ── 预定义快捷键 ──
@@ -166,6 +167,8 @@ let _toggleSidebar: () => void = () => {}
 let _toggleBottomPanel: () => void = () => {}
 let _toggleGlobalSearch: () => void = () => {}
 let _newUntitledFile: () => void = () => {}
+let _focusTesting: () => void = () => {}
+let _focusExtensions: () => void = () => {}
 
 function toggleCommandPalette() { _toggleCommandPalette() }
 function toggleQuickOpen() { _toggleQuickOpen() }
@@ -178,6 +181,9 @@ function toggleSidebar() { _toggleSidebar() }
 function toggleBottomPanel() { _toggleBottomPanel() }
 function toggleGlobalSearch() { _toggleGlobalSearch() }
 function newUntitledFile() { _newUntitledFile() }
+// focusTesting/focusExtensions: callbacks registered via registerCallbacks(), wrapper preserved for future default bindings
+function focusTesting() { _focusTesting() }
+function focusExtensions() { _focusExtensions() }
 
 /** 检测当前上下文是否匹配 when 条件 */
 function contextMatches(actual: string, expected: string): boolean {
@@ -187,27 +193,46 @@ function contextMatches(actual: string, expected: string): boolean {
 
 /** 核心事件处理 */
 function handleKeydown(e: KeyboardEvent): void {
-  // 在输入框/文本区域内不拦截（除非是全局快捷键）
-  const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
-  const isInput = tag === "input" || tag === "textarea" || tag === "select" || (e.target as HTMLElement)?.isContentEditable
-  // Monaco 编辑器内部有自己的快捷键处理，我们在外部处理全局/面板级快捷键
+  // 在输入框/文本区域/Monaco 编辑器内不拦截（除非是带修饰键的全局快捷键）
+  // 这样普通字符输入不会被吞掉
+  const target = e.target as HTMLElement | null
+  const tag = target?.tagName?.toLowerCase()
+  const isFormInput = tag === "input" || tag === "textarea" || tag === "select"
+  const isContentEditable = target?.isContentEditable === true
+  const isInMonaco = !!target?.closest?.(".monaco-editor")
+
+  // 是否有修饰键（Ctrl/Meta/Alt）
+  const hasModifier = e.ctrlKey || e.metaKey || e.altKey
+
+  // 普通字符键（无修饰键）且在输入控件中：直接放行，不参与快捷键匹配
+  // 这是修复"编辑文件后 IDE 卡死、其他面板无法输入"的关键
+  if (!hasModifier && (isFormInput || isContentEditable || isInMonaco)) {
+    return
+  }
 
   const hash = eventToHash(e)
 
   // 如果有等待的和弦第二键
   if (pendingChord !== null) {
-    e.preventDefault()
+    // 清除待定状态（避免卡住后续输入）
+    pendingChord = null
+    if (chordTimer !== null) {
+      clearTimeout(chordTimer)
+      chordTimer = null
+    }
     const matched = bindings.value
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
       .find(b => b._chordFirst === pendingChord && b._chordSecond === hash && contextMatches(currentContext.value, b.when ?? "global"))
-    pendingChord = null
     if (matched) {
+      e.preventDefault()
+      e.stopPropagation()
       matched.action()
     }
+    // 未匹配也要让浏览器正常处理（不放行 e.preventDefault）
     return
   }
 
-  // 查找匹配的绑定
+  // 查找匹配的单键绑定
   const sorted = bindings.value
     .filter(b => !b.key.includes(" "))  // 非和弦
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
@@ -232,8 +257,12 @@ function handleKeydown(e: KeyboardEvent): void {
 
     e.preventDefault()
     pendingChord = hash
-    // 1 秒后超时清除
-    setTimeout(() => { pendingChord = null }, 1000)
+    // 1 秒后超时清除（保留 timer 引用以便主动取消）
+    if (chordTimer !== null) clearTimeout(chordTimer)
+    chordTimer = setTimeout(() => {
+      pendingChord = null
+      chordTimer = null
+    }, 1000)
     return
   }
 }
@@ -279,18 +308,34 @@ function unregisterAll(): void {
 function setContext(context: string): void {
   contextStack[0] = context
   currentContext.value = context
+  // 上下文切换时清空和弦状态，避免跨区域卡键
+  pendingChord = null
+  if (chordTimer !== null) {
+    clearTimeout(chordTimer)
+    chordTimer = null
+  }
 }
 
 /** 推入上下文（进入编辑器区域等） */
 function pushContext(context: string): void {
   contextStack.unshift(context)
   currentContext.value = context
+  pendingChord = null
+  if (chordTimer !== null) {
+    clearTimeout(chordTimer)
+    chordTimer = null
+  }
 }
 
 /** 弹出上下文 */
 function popContext(): void {
   contextStack.shift()
   currentContext.value = contextStack[0] ?? "global"
+  pendingChord = null
+  if (chordTimer !== null) {
+    clearTimeout(chordTimer)
+    chordTimer = null
+  }
 }
 
 // ── 注册预定义快捷键的回调 ──
@@ -307,6 +352,8 @@ interface KeybindingCallbacks {
   toggleBottomPanel: () => void
   toggleGlobalSearch: () => void
   newUntitledFile: () => void
+  focusTesting: () => void
+  focusExtensions: () => void
 }
 
 /** 注册预定义快捷键的回调 */
@@ -322,6 +369,8 @@ function registerCallbacks(cbs: Partial<KeybindingCallbacks>): void {
   if (cbs.toggleBottomPanel) _toggleBottomPanel = cbs.toggleBottomPanel
   if (cbs.toggleGlobalSearch) _toggleGlobalSearch = cbs.toggleGlobalSearch
   if (cbs.newUntitledFile) _newUntitledFile = cbs.newUntitledFile
+  if (cbs.focusTesting) _focusTesting = cbs.focusTesting
+  if (cbs.focusExtensions) _focusExtensions = cbs.focusExtensions
 }
 
 // ── Composable ──

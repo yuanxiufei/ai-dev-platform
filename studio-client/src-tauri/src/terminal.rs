@@ -1,5 +1,6 @@
 use tauri::AppHandle;
 
+#[allow(dead_code)]
 pub struct TerminalSession {
     pub id: String,
     pub shell: String,

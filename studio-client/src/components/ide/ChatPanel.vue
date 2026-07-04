@@ -1,13 +1,19 @@
 <script setup lang="ts">
 /**
- * CodeBuddy IDE — AI Chat Panel (Hermes-Enhanced)
- * Streaming · Tool Traces · Session Search · Voice Ready
+ * CodeBuddy IDE — AI Chat Panel
+ *
+ * Session 31: ChatGPT 风格改造
+ *   - 左侧 ChatHistoryPanel 统一管理历史对话（按时间分组、搜索、重命名、删除）
+ *   - 删除冗余的 PanelRight/ListTree 侧栏图标
+ *   - 顶部精简为标题栏（当前对话名 + 历史面板切换 + 清空）
+ *   - 底部输入面板不变
  */
 import { computed, nextTick, onMounted, onUnmounted, onUpdated, ref } from "vue"
-import { Bot, ChevronDown, ChevronRight, ImagePlus, Paperclip, Send, Sparkles, StopCircle, Mic, History, Wrench, Trash2, Pin, Archive, Download, Copy, Check, Square, MoreHorizontal, X, FolderOpen, Terminal, FileText, PanelRight, ListTree } from "lucide-vue-next"
+import { ChevronDown, ImagePlus, Paperclip, Send, Sparkles, StopCircle, Mic, Wrench, Trash2, PanelLeftClose, PanelLeft } from "lucide-vue-next"
 import apiClient from "@/api/client"
 import { renderMarkdownToHtml, postProcessMarkdown } from "@/composables/useMarkdown"
-import ChatOutlinePanel from "./ChatOutlinePanel.vue"
+import { useAgentTabsStore } from "@/stores/useAgentTabsStore"
+import ChatHistoryPanel from "./ChatHistoryPanel.vue"
 
 interface Message {
   role: "user" | "assistant" | "system"
@@ -18,320 +24,157 @@ interface Message {
   provider?: string
 }
 
-interface Session {
-  id: string
-  title: string
-  lastMessage: string
-  timestamp: number
-  messageCount: number
-  pinned?: boolean
-  archived?: boolean
-  workspace?: string
-  model?: string
-  agentMode?: string
-}
-
 const models = [
-  { id: "llama3.1:8b", label: "Llama 3.1", desc: "(本地·8B·Tools)", active: true },
-  { id: "qwen2.5-coder:7b", label: "Qwen2.5-Coder", desc: "(本地·7B·代码)", active: false },
-  { id: "gemma2:27b", label: "Gemma 2", desc: "(本地·27B)", active: false },
-  { id: "deepseek-coder-v2", label: "DeepSeek Coder", desc: "(本地·代码)", active: false },
-  { id: "gpt-4o", label: "GPT-4o", desc: "(API·最强)", active: false },
-  { id: "claude-sonnet", label: "Claude Sonnet", desc: "(API·长文本)", active: false },
-]
+  { id: "llama3.1:8b", label: "Llama 3.1", desc: "本地 · 8B · 支持工具", group: "local" },
+  { id: "qwen2.5-coder:7b", label: "Qwen2.5-Coder", desc: "本地 · 7B · 代码专精", group: "local" },
+  { id: "gemma2:27b", label: "Gemma 2", desc: "本地 · 27B · 通用", group: "local" },
+  { id: "deepseek-coder-v2", label: "DeepSeek Coder", desc: "本地 · 代码专精", group: "local" },
+  { id: "gpt-4o", label: "GPT-4o", desc: "云端 · 最强综合", group: "cloud" },
+  { id: "claude-sonnet", label: "Claude Sonnet", desc: "云端 · 长文本", group: "cloud" },
+] as const
 
-const modes = [
-  { id: "chat", label: "对话模式", active: true },
-  { id: "agent", label: "Agent 模式", active: false },
-]
+const modelGroups = [
+  { id: "local", label: "内置模型", icon: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" },
+  { id: "cloud", label: "自定义模型", icon: "M3 15a4 4 0 0 1 4-4h.5a5.5 5.5 0 0 1 10.5 2A4 4 0 0 1 17 19H7a4 4 0 0 1-4-4z" },
+] as const
+
+const craftModes = [
+  { id: "craft", label: "Craft", desc: "主动完成编码任务", icon: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" },
+  { id: "ask", label: "Ask", desc: "只读不修改，回答问题", icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" },
+  { id: "plan", label: "Plan", desc: "规划任务，不执行", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
+] as const
+
+const craftActions = [
+  { id: "auto", label: "Auto", desc: "自动选择最优工具" },
+  { id: "manual", label: "Manual", desc: "手动确认每步" },
+] as const
+
+interface Attachment {
+  name: string
+  size: number
+  kind: "file" | "image"
+}
 
 const messages = ref<Message[]>([])
 const inputText = ref("")
 const isLoading = ref(false)
 const mc = ref<HTMLDivElement | null>(null)
-const selectedModel = ref(models[0] ?? { id: 'default', label: '选择模型', desc: '' })
-const selectedMode = ref(modes[0])
+const selectedModel = ref(models[0] ?? { id: 'default', label: '选择模型', desc: '', group: 'local' })
+const selectedCraft = ref(craftModes[0])
+const selectedAction = ref(craftActions[0])
 const showModelMenu = ref(false)
-const showModeMenu = ref(false)
+const showCraftMenu = ref(false)
+const showActionMenu = ref(false)
 const abortController = ref<AbortController | null>(null)
+const attachments = ref<Attachment[]>([])
 
-/** Hermes-style: Sessions */
-const sessions = ref<Session[]>([])
-const activeSessionId = ref<string | null>(null)
-const showSessionSearch = ref(false)
-const sessionSearchQuery = ref('')
+/** Sessions — 通过 AgentTabsStore 统一管理 */
+const agentTabsStore = useAgentTabsStore()
+const activeAgentTab = computed(() => agentTabsStore.activeTab)
 
-const hasMessages = computed(() => messages.value.length > 0)
+/** Tab 操作 */
+function createAgentTab(): void {
+  agentTabsStore.createTab()
+  // 切换后清空当前消息让用户重新开始
+  messages.value = []
+  inputText.value = ""
+}
 
-/** Hermes-enhanced: Pinned first, then recent */
-const sortedSessions = computed(() => {
-  const items = [...sessions.value]
-  items.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1
-    if (!a.pinned && b.pinned) return 1
-    return b.timestamp - a.timestamp
-  })
-  return items
-})
-
-const filteredSessions = computed(() => {
-  const items = sortedSessions.value.filter(s => !s.archived)
-  if (!sessionSearchQuery.value.trim()) return items
-  const q = sessionSearchQuery.value.toLowerCase()
-  return items.filter(s =>
-    s.title.toLowerCase().includes(q) || s.lastMessage.toLowerCase().includes(q)
-  )
-})
-
-const pinnedSessions = computed(() => sortedSessions.value.filter(s => s.pinned && !s.archived))
-const unpinnedSessions = computed(() => sortedSessions.value.filter(s => !s.pinned && !s.archived))
-
-/** Batch delete */
-const batchDeleteMode = ref(false)
-const selectedSessions = ref<Set<string>>(new Set())
-
-/** Context menu */
-const contextMenuSession = ref<string | null>(null)
-const contextMenuPos = ref({ x: 0, y: 0 })
-
-/** Rename */
-const renameSessionId = ref<string | null>(null)
-const renameText = ref('')
-
-/** New Chat Drawer */
-const showNewChatDrawer = ref(false)
-const newChatAgent = ref('hermes')
-const newChatMode = ref('global')
-const newChatApiMode = ref('default')
-const newChatModel = ref('')
-const newChatWorkspace = ref('')
-
-/** Chat Tool Panel (Files / Terminal) */
-const showToolPanel = ref(false)
-const toolPanelTab = ref<'files' | 'terminal'>('files')
-
-/** Session 26: Chat Outline Panel */
-const showOutline = ref(false)
-
-function handleOutlineScrollTo(elementId: string): void {
-  const container = mc.value
-  if (!container) return
-  const el = container.querySelector(`#${elementId}`)
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "start" })
-    // 短暂高亮
-    el.classList.add("outline-highlight")
-    setTimeout(() => el.classList.remove("outline-highlight"), 2000)
+function switchToAgentTab(tabId: string): void {
+  // 先保存当前消息
+  if (activeAgentTab.value) {
+    saveCurrentMessages()
+  }
+  agentTabsStore.switchToTab(tabId)
+  // 加载目标 Tab 的消息
+  const stored = localStorage.getItem(`agent_msgs_${tabId}`)
+  try {
+    messages.value = stored ? JSON.parse(stored) : []
+  } catch {
+    messages.value = []
   }
 }
 
-function loadSessions() {
-  try {
-    const stored = localStorage.getItem('chat_sessions')
-    if (stored) sessions.value = JSON.parse(stored)
-  } catch {}
+function closeAgentTab(tabId: string): void {
+  // 先保存
+  if (activeAgentTab.value?.id === tabId) {
+    saveCurrentMessages()
+  }
+  agentTabsStore.removeTab(tabId)
+  // 加载新 active tab 的消息
+  if (activeAgentTab.value) {
+    const newTabId = activeAgentTab.value.id
+    const stored = localStorage.getItem(`agent_msgs_${newTabId}`)
+    try {
+      messages.value = stored ? JSON.parse(stored) : []
+    } catch {
+      messages.value = []
+    }
+  } else {
+    messages.value = []
+  }
 }
 
-function saveSessions() {
+/** 兼容旧版 localStorage 键名迁移 */
+function loadMessagesForTab(tabId: string): void {
+  const stored = localStorage.getItem(`agent_msgs_${tabId}`)
   try {
-    localStorage.setItem('chat_sessions', JSON.stringify(sessions.value))
-  } catch {}
+    messages.value = stored ? JSON.parse(stored) : []
+  } catch {
+    messages.value = []
+  }
 }
 
-/** Session 25: Markdown → HTML 渲染（支持 Mermaid/KaTeX/代码高亮）
- *  Session 26: 添加 headingPrefix 用于对话大纲跳转 */
+const hasMessages = computed(() => messages.value.length > 0)
+
+/** Chat History Panel — 默认收起，用户点击顶部按钮才打开 (VSCode 一致) */
+const showHistory = ref(false)
+
+/** 历史面板回调 */
+function handleHistorySwitchTab(tabId: string): void {
+  if (activeAgentTab.value) saveCurrentMessages()
+  switchToAgentTab(tabId)
+}
+
+function handleHistoryCreateTab(): void {
+  createAgentTab()
+}
+
+function handleHistoryDeleteTab(tabId: string): void {
+  closeAgentTab(tabId)
+}
+
+function handleHistoryRenameTab(tabId: string, title: string): void {
+  agentTabsStore.renameTab(tabId, title)
+}
+
+function handleHistoryTogglePin(tabId: string): void {
+  agentTabsStore.togglePin(tabId)
+}
+
 function renderMessageHtml(content: string, msgIndex: number): string {
   return renderMarkdownToHtml(content, `chat-h-${msgIndex}`)
 }
 
-function newSession() {
-  const id = `sess_${Date.now()}`
-  activeSessionId.value = id
-  messages.value = []
-  sessions.value.unshift({
-    id, title: '新对话', lastMessage: '', timestamp: Date.now(), messageCount: 0
-  })
-  saveSessions()
-}
-
-function switchSession(id: string) {
-  activeSessionId.value = id
-  showSessionSearch.value = false
-  const stored = localStorage.getItem(`chat_msgs_${id}`)
-  try { messages.value = stored ? JSON.parse(stored) : [] } catch { messages.value = [] }
-}
-
-function deleteSession(id: string) {
-  sessions.value = sessions.value.filter(s => s.id !== id)
-  localStorage.removeItem(`chat_msgs_${id}`)
-  if (activeSessionId.value === id) {
-    activeSessionId.value = null
-    messages.value = []
-  }
-  saveSessions()
-}
-
 function saveCurrentMessages() {
-  if (activeSessionId.value) {
-    localStorage.setItem(`chat_msgs_${activeSessionId.value}`, JSON.stringify(messages.value))
-    const session = sessions.value.find(s => s.id === activeSessionId.value)
-    if (session) {
-      const lastUser = [...messages.value].reverse().find(m => m.role === 'user')
-      session.lastMessage = lastUser?.content?.slice(0, 60) || ''
-      session.timestamp = Date.now()
-      session.messageCount = messages.value.length
-      if (session.title === '新对话' && lastUser) {
-        session.title = lastUser.content.slice(0, 30) + (lastUser.content.length > 30 ? '...' : '')
-      }
+  const tab = activeAgentTab.value
+  if (!tab) return
+  localStorage.setItem(`agent_msgs_${tab.id}`, JSON.stringify(messages.value))
+  // 自动重命名 Tab 为首条用户消息
+  if (messages.value.length > 0 && tab.title === '新对话') {
+    const firstUser = messages.value.find(m => m.role === 'user')
+    if (firstUser) {
+      agentTabsStore.renameTab(tab.id, firstUser.content.slice(0, 30))
     }
-    saveSessions()
   }
-}
-
-/** Toggle pin */
-function togglePinSession(id: string, e?: MouseEvent) {
-  e?.stopPropagation()
-  const session = sessions.value.find(s => s.id === id)
-  if (session) {
-    session.pinned = !session.pinned
-    saveSessions()
-  }
-}
-
-/** Toggle archive */
-function toggleArchiveSession(id: string) {
-  const session = sessions.value.find(s => s.id === id)
-  if (session) {
-    session.archived = !session.archived
-    saveSessions()
-  }
-}
-
-/** Rename */
-function startRename(id: string, currentTitle: string) {
-  renameSessionId.value = id
-  renameText.value = currentTitle
-  nextTick(() => {
-    const input = document.querySelector(`[data-rename-input="${id}"]`) as HTMLInputElement
-    input?.focus()
-    input?.select()
-  })
-}
-
-function commitRename(id: string) {
-  const session = sessions.value.find(s => s.id === id)
-  if (session && renameText.value.trim()) {
-    session.title = renameText.value.trim()
-    saveSessions()
-  }
-  renameSessionId.value = null
-  renameText.value = ''
-}
-
-function cancelRename() {
-  renameSessionId.value = null
-  renameText.value = ''
-}
-
-/** Batch delete */
-function toggleBatchDeleteMode() {
-  batchDeleteMode.value = !batchDeleteMode.value
-  selectedSessions.value.clear()
-}
-
-function toggleSessionSelection(id: string) {
-  if (selectedSessions.value.has(id)) {
-    selectedSessions.value.delete(id)
-  } else {
-    selectedSessions.value.add(id)
-  }
-}
-
-function batchDeleteSelected() {
-  const ids = Array.from(selectedSessions.value)
-  ids.forEach(id => {
-    sessions.value = sessions.value.filter(s => s.id !== id)
-    localStorage.removeItem(`chat_msgs_${id}`)
-    if (activeSessionId.value === id) {
-      activeSessionId.value = null
-      messages.value = []
-    }
-  })
-  selectedSessions.value.clear()
-  batchDeleteMode.value = false
-  saveSessions()
-}
-
-/** Context menu */
-function openContextMenu(e: MouseEvent, id: string) {
-  e.preventDefault()
-  e.stopPropagation()
-  contextMenuSession.value = id
-  contextMenuPos.value = { x: e.clientX, y: e.clientY }
-}
-
-function closeContextMenu() {
-  contextMenuSession.value = null
+  // 同步给 store 的 messagesJson（用于跨 Tab 读取）
+  agentTabsStore.saveMessages(tab.id, messages.value as any)
 }
 
 function closeAllMenus() {
-  contextMenuSession.value = null
   showModelMenu.value = false
-  showModeMenu.value = false
-}
-
-/** Export session as markdown */
-function exportSession(id: string) {
-  const session = sessions.value.find(s => s.id === id)
-  if (!session) return
-  const msgs = JSON.parse(localStorage.getItem(`chat_msgs_${id}`) || '[]') as Message[]
-  let md = `# ${session.title}\n\n> ${new Date(session.timestamp).toLocaleString()}\n\n---\n\n`
-  msgs.forEach(m => {
-    md += `### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'} — ${new Date(m.timestamp).toLocaleTimeString()}\n\n${m.content}\n\n`
-    if (m.toolCalls?.length) {
-      md += `**Tools Used:**\n${m.toolCalls.map(t => `- \`${t.name}\`: ${t.status}`).join('\n')}\n\n`
-    }
-    md += '---\n\n'
-  })
-  const blob = new Blob([md], { type: 'text/markdown' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${session.title.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_')}.md`
-  a.click()
-  URL.revokeObjectURL(url)
-  closeContextMenu()
-}
-
-/** Copy session ID */
-function copySessionId(id: string) {
-  navigator.clipboard.writeText(id)
-  closeContextMenu()
-}
-
-/** New Chat Drawer */
-function openNewChatDrawer() {
-  showNewChatDrawer.value = true
-  // Default to current model
-  newChatModel.value = selectedModel.value.id
-}
-
-function createFromDrawer() {
-  const id = `sess_${Date.now()}`
-  activeSessionId.value = id
-  messages.value = []
-  sessions.value.unshift({
-    id,
-    title: '新对话',
-    lastMessage: '',
-    timestamp: Date.now(),
-    messageCount: 0,
-    workspace: newChatWorkspace.value || undefined,
-    model: newChatModel.value || undefined,
-    agentMode: newChatAgent.value || undefined,
-  })
-  saveSessions()
-  showNewChatDrawer.value = false
+  showCraftMenu.value = false
+  showActionMenu.value = false
 }
 
 function sb(): void {
@@ -345,15 +188,33 @@ function formatTime(ts: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
-/** Hermes-style: Streaming chat with tool traces */
+/** 快捷命令填入输入框，等待用户确认发送 */
+function fillPrompt(prompt: string) {
+  inputText.value = prompt
+}
+
 async function sendMessage(): Promise<void> {
   const text = inputText.value.trim()
-  if (!text || isLoading.value) return
+  const hasAttachments = attachments.value.length > 0
+  if ((!text && !hasAttachments) || isLoading.value) return
 
-  if (!activeSessionId.value) newSession()
+  // 若无 active Tab，自动创建
+  if (!activeAgentTab.value) {
+    createAgentTab()
+  }
 
-  messages.value.push({ role: "user", content: text, timestamp: Date.now() })
+  // 构建用户消息内容（文本 + 附件描述）
+  let userContent = text
+  if (hasAttachments) {
+    const attLines = attachments.value.map(a => `[附件: ${a.name} (${a.kind === 'image' ? '图片' : '文件'}, ${(a.size / 1024).toFixed(1)}KB)]`)
+    userContent = text ? text + '\n\n' + attLines.join('\n') : attLines.join('\n')
+  }
+
+  messages.value.push({ role: "user", content: userContent, timestamp: Date.now() })
   inputText.value = ""
+  // 快照当前附件列表后清空
+  const sentAttachments = [...attachments.value]
+  attachments.value = []
   isLoading.value = true
   abortController.value = new AbortController()
   sb()
@@ -369,18 +230,20 @@ async function sendMessage(): Promise<void> {
 
   try {
     const resp = await apiClient.post("/agent/chat/simple", {
-      message: text,
+      message: userContent,
       tools: ["calculate", "datetime_now", "get_weather", "web_search", "file_read", "codebase_search"],
       preferred_model: selectedModel.value.id,
+      craft_mode: selectedCraft.value.id,
+      action_mode: selectedAction.value.id,
+      attachments: sentAttachments.map(a => ({ name: a.name, size: a.size, kind: a.kind })),
       max_turns: 10,
       stream: true,
     }, {
       signal: abortController.value.signal,
       onDownloadProgress: (progressEvent: any) => {
-        // Handle SSE streaming response
-        const text = progressEvent.event?.target?.responseText || progressEvent.currentTarget?.responseText
-        if (text) {
-          const lines = text.split('\n')
+        const txt = progressEvent.event?.target?.responseText || progressEvent.currentTarget?.responseText
+        if (txt) {
+          const lines = txt.split('\n')
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
@@ -407,7 +270,6 @@ async function sendMessage(): Promise<void> {
         }
       },
     })
-    // Fallback: non-streaming response
     if (!am.content && resp.data) {
       am.content = resp.data.answer || resp.data.content || JSON.stringify(resp.data)
       am.modelUsed = resp.data.model_used
@@ -432,23 +294,92 @@ function stopGeneration() {
   abortController.value?.abort()
 }
 
+/** 工具栏交互 — 完整逻辑（非占位） */
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const isRecording = ref(false)
+let mediaRecorder: MediaRecorder | null = null
+
+function handleAttach(): void {
+  fileInputRef.value?.click()
+}
+
+function handleImage(): void {
+  imageInputRef.value?.click()
+}
+
+async function handleVoice(): Promise<void> {
+  if (isRecording.value) {
+    // 停止录音
+    try { mediaRecorder?.stop() } catch {}
+    isRecording.value = false
+    return
+  }
+  // 检查浏览器支持
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    alert('当前环境不支持语音输入')
+    return
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const recorder = new MediaRecorder(stream)
+    mediaRecorder = recorder
+    isRecording.value = true
+    const chunks: BlobPart[] = []
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' })
+      stream.getTracks().forEach(t => t.stop())
+      isRecording.value = false
+      // 生成 attachment chip，与文件/图片保持一致的交互体验
+      attachments.value.push({ name: `语音录音 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.webm`, size: blob.size, kind: "file" })
+    }
+    recorder.start()
+  } catch (e: any) {
+    isRecording.value = false
+    alert('无法访问麦克风：' + (e?.message || '权限被拒绝'))
+  }
+}
+
+function onFilePicked(e: Event): void {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  attachments.value.push({ name: file.name, size: file.size, kind: "file" })
+  input.value = ''
+}
+
+function onImagePicked(e: Event): void {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  attachments.value.push({ name: file.name, size: file.size, kind: "image" })
+  input.value = ''
+}
+
+function removeAttachment(idx: number): void {
+  attachments.value.splice(idx, 1)
+}
+
 function clearMessages() {
   messages.value = []
-  if (activeSessionId.value) {
-    localStorage.removeItem(`chat_msgs_${activeSessionId.value}`)
-    saveSessions()
+  const tab = activeAgentTab.value
+  if (tab) {
+    localStorage.removeItem(`agent_msgs_${tab.id}`)
+    agentTabsStore.saveMessages(tab.id, [])
   }
 }
 
 onMounted(() => {
-  loadSessions()
+  // 加载当前 active Tab 的消息
+  if (activeAgentTab.value) {
+    loadMessagesForTab(activeAgentTab.value.id)
+  }
   document.addEventListener('click', closeAllMenus)
 })
 
-/** Session 25: 渲染 Mermaid/KaTeX 图表 */
 let mdRenderTimer: ReturnType<typeof setTimeout> | null = null
 onUpdated(() => {
-  // 延迟渲染图表（等 v-html 更新 DOM）
   if (mdRenderTimer) clearTimeout(mdRenderTimer)
   mdRenderTimer = setTimeout(() => {
     const containers = document.querySelectorAll('.markdown-body')
@@ -463,286 +394,82 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-[var(--color-ide-surface)]">
-    <!-- ── Header ───────────────────────────────────── -->
-    <header class="flex items-center justify-between px-3 py-2 border-b border-[var(--color-ide-border)] shrink-0">
-      <div class="flex items-center gap-2">
-        <!-- Session switcher -->
-        <button class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium hover:bg-[var(--color-ide-surface-hover)] transition-colors text-[var(--color-ide-text)]"
-          @click="showSessionSearch = !showSessionSearch">
-          <History :size="13" class="text-[var(--color-ide-text-dim)]" />
-          <span class="max-w-[120px] truncate">{{ sessions.find(s => s.id === activeSessionId)?.title || '新对话' }}</span>
-          <ChevronDown :size="10" class="text-[var(--color-ide-text-dim)]" />
+  <div class="chat-panel h-full flex bg-[var(--color-ide-surface)]">
+    <!-- ═══ 左侧：历史对话侧栏 ═══ -->
+    <ChatHistoryPanel
+      v-model="showHistory"
+      :current-tab-id="activeAgentTab?.id ?? ''"
+      @switch-tab="handleHistorySwitchTab"
+      @create-tab="handleHistoryCreateTab"
+      @delete-tab="handleHistoryDeleteTab"
+      @rename-tab="handleHistoryRenameTab"
+      @toggle-pin="handleHistoryTogglePin"
+    />
+
+    <!-- ═══ 右侧：对话主区域 ═══ -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- 顶部精简标题栏 (35px) -->
+      <header
+        class="flex items-center gap-1.5 px-2 shrink-0"
+        style="height: 35px; border-bottom: 1px solid var(--color-ide-border); background: var(--color-ide-bg-secondary);"
+      >
+        <!-- 切换历史面板 -->
+        <button
+          class="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--color-ide-surface-hover)] shrink-0"
+          :style="showHistory ? 'color: var(--color-ide-accent);' : 'color: var(--color-ide-text-dim);'"
+          :title="showHistory ? '隐藏历史' : '显示历史'"
+          @click="showHistory = !showHistory"
+        >
+          <PanelLeftClose v-if="showHistory" :size="14" />
+          <PanelLeft v-else :size="14" />
         </button>
-        <!-- New Chat Drawer button -->
-        <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="新建对话（Agent/模型/工作区）" @click="openNewChatDrawer">
-          <Sparkles :size="13" />
+
+        <!-- 当前对话标题 (无 Tab 时不显示, 避免与左侧 ActivityBar 的 AI 入口标题重复) -->
+        <span v-if="activeAgentTab" class="flex-1 text-[11px] truncate font-medium" style="color: var(--color-ide-text);">
+          {{ activeAgentTab.title || '新对话' }}
+        </span>
+        <span v-else class="flex-1" />
+
+        <!-- 清空当前对话 -->
+        <button
+          v-if="hasMessages"
+          class="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--color-ide-surface-hover)] shrink-0"
+          style="color: var(--color-ide-text-dim);"
+          title="清空对话"
+          @click="clearMessages"
+        >
+          <Trash2 :size="12" />
         </button>
-        <!-- Toggle tool panel -->
-        <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)]" :class="showToolPanel ? 'text-[var(--color-ide-accent)]' : 'text-[var(--color-ide-text-dim)]'"
-          title="工具面板" @click="showToolPanel = !showToolPanel; showOutline = false">
-          <PanelRight :size="13" />
-        </button>
-        <!-- Session 26: Toggle outline panel -->
-        <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)]" :class="showOutline ? 'text-[var(--color-ide-accent)]' : 'text-[var(--color-ide-text-dim)]'"
-          title="对话大纲" @click="showOutline = !showOutline; showToolPanel = false">
-          <ListTree :size="13" />
-        </button>
-      </div>
-      <div class="flex items-center gap-0.5">
-        <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="清空对话" @click="clearMessages" v-if="hasMessages">
-          <Trash2 :size="13" />
-        </button>
-      </div>
-    </header>
+      </header>
 
-    <!-- Session search overlay (enhanced) -->
-    <div v-if="showSessionSearch" class="absolute top-10 left-3 right-3 z-50 bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-xl max-h-80 overflow-y-auto" style="margin-top: -2px;">
-      <!-- Search + Actions bar -->
-      <div class="p-2 border-b border-[var(--color-ide-border)] space-y-1.5">
-        <input v-model="sessionSearchQuery" type="text" placeholder="搜索对话..." class="w-full bg-[var(--color-ide-bg)] border border-[var(--color-ide-border)] rounded px-2 py-1 text-[12px] text-[var(--color-ide-text)] outline-none" autofocus />
-        <div class="flex items-center gap-1">
-          <button class="w-full text-left px-2 py-1 text-[11px] text-[var(--color-ide-accent)] hover:bg-[var(--color-ide-surface-hover)] rounded" @click="newSession();showSessionSearch=false">
-            + 新建对话
-          </button>
-          <button class="px-2 py-1 text-[11px] rounded hover:bg-[var(--color-ide-surface-hover)] transition-colors"
-            :class="batchDeleteMode ? 'text-red-400' : 'text-[var(--color-ide-text-dim)]'"
-            @click="toggleBatchDeleteMode" title="批量管理">
-            <Check :size="12" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Batch delete action bar -->
-      <div v-if="batchDeleteMode" class="px-2 py-1.5 border-b border-red-500/20 bg-red-500/5 flex items-center justify-between">
-        <span class="text-[10px] text-red-400">已选 {{ selectedSessions.size }} 个</span>
-        <button class="px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30"
-          :disabled="selectedSessions.size === 0" @click="batchDeleteSelected">删除选中</button>
-      </div>
-
-      <!-- Pinned sessions -->
-      <div v-if="pinnedSessions.length > 0 && !batchDeleteMode">
-        <div class="px-3 py-1 text-[9px] font-semibold text-[var(--color-ide-text-dim)]/60 uppercase tracking-wider">已固定</div>
-        <button v-for="s in pinnedSessions" :key="s.id"
-          class="w-full text-left px-3 py-2 hover:bg-[var(--color-ide-surface-hover)] border-b border-[var(--color-ide-border)]/20 flex items-center justify-between group"
-          :class="{ 'bg-[var(--color-ide-accent)]/5': s.id === activeSessionId }"
-          @click="switchSession(s.id)" @contextmenu="openContextMenu($event, s.id)">
-          <div class="flex items-center gap-1.5 min-w-0 flex-1">
-            <Pin :size="10" class="text-[var(--color-ide-accent)] shrink-0" />
-            <!-- Rename inline -->
-            <template v-if="renameSessionId === s.id">
-              <input :data-rename-input="s.id" v-model="renameText" type="text"
-                class="bg-[var(--color-ide-bg)] border border-[var(--color-ide-accent)] rounded px-1 py-0 text-[11px] text-[var(--color-ide-text)] outline-none flex-1 min-w-0"
-                @keydown.enter="commitRename(s.id)" @keydown.escape="cancelRename" @blur="commitRename(s.id)" @click.stop />
-            </template>
-            <template v-else>
-              <div class="text-[12px] font-medium text-[var(--color-ide-text)] truncate">{{ s.title }}</div>
-            </template>
-          </div>
-          <div class="flex items-center gap-0.5 shrink-0 ml-2">
-            <span class="text-[9px] text-[var(--color-ide-text-dim)]">{{ s.messageCount }}</span>
-            <button class="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-accent)] transition-all" @click.stop="togglePinSession(s.id, $event)" title="取消固定">
-              <Pin :size="10" />
-            </button>
-          </div>
-        </button>
-      </div>
-
-      <!-- Recent sessions -->
-      <div v-if="unpinnedSessions.length > 0 || batchDeleteMode">
-        <div v-if="!batchDeleteMode" class="px-3 py-1 text-[9px] font-semibold text-[var(--color-ide-text-dim)]/60 uppercase tracking-wider">最近</div>
-        <template v-for="s in (batchDeleteMode ? sortedSessions.filter(s => !s.archived) : unpinnedSessions)" :key="s.id">
-          <div class="w-full flex items-center border-b border-[var(--color-ide-border)]/20 group"
-            :class="{ 'bg-[var(--color-ide-accent)]/5': s.id === activeSessionId }">
-            <!-- Batch select checkbox -->
-            <button v-if="batchDeleteMode" class="px-2 py-2 text-[var(--color-ide-text-dim)]" @click.stop="toggleSessionSelection(s.id)">
-              <Square v-if="!selectedSessions.has(s.id)" :size="12" />
-              <Check v-else :size="12" class="text-red-400" />
-            </button>
-            <button v-else class="flex-1 text-left px-3 py-2 hover:bg-[var(--color-ide-surface-hover)] flex items-center justify-between min-w-0"
-              @click="switchSession(s.id)" @contextmenu="openContextMenu($event, s.id)">
-              <div class="min-w-0 flex-1">
-                <template v-if="renameSessionId === s.id">
-                  <input :data-rename-input="s.id" v-model="renameText" type="text"
-                    class="bg-[var(--color-ide-bg)] border border-[var(--color-ide-accent)] rounded px-1 py-0 text-[11px] text-[var(--color-ide-text)] outline-none w-full"
-                    @keydown.enter="commitRename(s.id)" @keydown.escape="cancelRename" @blur="commitRename(s.id)" @click.stop />
-                </template>
-                <template v-else>
-                  <div class="text-[12px] font-medium text-[var(--color-ide-text)] truncate">{{ s.title }}</div>
-                  <div class="text-[10px] text-[var(--color-ide-text-dim)] truncate mt-0.5 flex items-center gap-1">
-                    <span v-if="s.model" class="px-1 py-0 rounded text-[9px] bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-accent)]/70">{{ s.model }}</span>
-                    {{ s.lastMessage || '空对话' }}
-                  </div>
-                </template>
-              </div>
-              <div class="flex items-center gap-1 shrink-0 ml-2">
-                <Pin v-if="s.pinned" :size="10" class="text-[var(--color-ide-accent)]" />
-                <span class="text-[9px] text-[var(--color-ide-text-dim)]">{{ formatTime(s.timestamp) }}</span>
-                <button class="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-accent)] transition-all"
-                  @click.stop="togglePinSession(s.id, $event)" title="固定">
-                  <Pin :size="10" />
-                </button>
-                <MoreHorizontal v-if="!batchDeleteMode" :size="11" class="opacity-0 group-hover:opacity-100 text-[var(--color-ide-text-dim)]" @click.stop="openContextMenu($event, s.id)" />
-              </div>
-            </button>
-          </div>
-        </template>
-      </div>
-
-      <div v-if="filteredSessions.length === 0 && sessions.length === 0" class="px-3 py-4 text-center text-[11px] text-[var(--color-ide-text-dim)]">暂无对话记录</div>
-      <div v-else-if="filteredSessions.length === 0" class="px-3 py-4 text-center text-[11px] text-[var(--color-ide-text-dim)]">无匹配对话</div>
-    </div>
-
-    <!-- Context menu (positioned absolute) -->
-    <Teleport to="body">
-      <div v-if="contextMenuSession"
-        class="fixed z-[9999] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl py-1 min-w-[160px]"
-        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-        @click.stop>
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2"
-          @click="togglePinSession(contextMenuSession!);closeContextMenu()">
-          <Pin :size="11" /> {{ sessions.find(s => s.id === contextMenuSession)?.pinned ? '取消固定' : '固定到顶部' }}
-        </button>
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2"
-          @click="startRename(contextMenuSession!, sessions.find(s => s.id === contextMenuSession)?.title || '');closeContextMenu()">
-          <FileText :size="11" /> 重命名
-        </button>
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2"
-          @click="toggleArchiveSession(contextMenuSession!);closeContextMenu()">
-          <Archive :size="11" /> {{ sessions.find(s => s.id === contextMenuSession)?.archived ? '取消归档' : '归档' }}
-        </button>
-        <div class="border-t border-[var(--color-ide-border)]/30 my-0.5" />
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2"
-          @click="exportSession(contextMenuSession!)">
-          <Download :size="11" /> 导出 Markdown
-        </button>
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2"
-          @click="copySessionId(contextMenuSession!)">
-          <Copy :size="11" /> 复制会话 ID
-        </button>
-        <div class="border-t border-[var(--color-ide-border)]/30 my-0.5" />
-        <button class="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 flex items-center gap-2"
-          @click="deleteSession(contextMenuSession!);closeContextMenu()">
-          <Trash2 :size="11" /> 删除
-        </button>
-      </div>
-    </Teleport>
-
-    <!-- New Chat Drawer (slide-in from right) -->
-    <Teleport to="body">
-      <Transition name="drawer-slide">
-        <div v-if="showNewChatDrawer" class="fixed inset-0 z-[9998] flex">
-          <!-- Backdrop -->
-          <div class="absolute inset-0 bg-black/30" @click="showNewChatDrawer = false" />
-          <!-- Drawer -->
-          <div class="ml-auto w-80 h-full bg-[var(--color-ide-surface)] border-l border-[var(--color-ide-border)] shadow-2xl flex flex-col z-10 overflow-y-auto">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-ide-border)] shrink-0">
-              <h3 class="text-[13px] font-semibold text-[var(--color-ide-text)]">新建对话</h3>
-              <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" @click="showNewChatDrawer = false">
-                <X :size="14" />
-              </button>
-            </div>
-
-            <div class="flex-1 p-4 space-y-5">
-              <!-- Agent Selection -->
-              <div>
-                <label class="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ide-text-dim)]/60 mb-2 block">Agent</label>
-                <div class="space-y-1">
-                  <button v-for="agent in [{id:'hermes',label:'Hermes',desc:'全能AI助手'},{id:'claude-code',label:'Claude Code',desc:'代码专家'},{id:'codex',label:'Codex',desc:'快速代码生成'}]" :key="agent.id"
-                    @click="newChatAgent = agent.id"
-                    class="w-full text-left px-3 py-2 rounded-lg border transition-all"
-                    :class="newChatAgent === agent.id ? 'border-[var(--color-ide-accent)] bg-[var(--color-ide-accent)]/5' : 'border-[var(--color-ide-border)] hover:border-[var(--color-ide-accent)]/30'">
-                    <div class="text-[12px] font-medium text-[var(--color-ide-text)]">{{ agent.label }}</div>
-                    <div class="text-[10px] text-[var(--color-ide-text-dim)]">{{ agent.desc }}</div>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Agent Mode -->
-              <div>
-                <label class="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ide-text-dim)]/60 mb-2 block">Agent 模式</label>
-                <div class="flex gap-2">
-                  <button v-for="mode in [{id:'global',label:'全局'},{id:'scoped',label:'区域'}]" :key="mode.id"
-                    @click="newChatMode = mode.id"
-                    class="flex-1 px-3 py-1.5 rounded-md text-[11px] text-center transition-all border"
-                    :class="newChatMode === mode.id ? 'border-[var(--color-ide-accent)] bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-text)]' : 'border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-accent)]/30'">
-                    {{ mode.label }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Model Selection -->
-              <div>
-                <label class="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ide-text-dim)]/60 mb-2 block">模型</label>
-                <div class="space-y-1">
-                  <div class="text-[9px] uppercase tracking-wider text-[var(--color-ide-text-dim)]/40 px-1 mb-1">本地模型</div>
-                  <button v-for="m in models.filter(m => m.id.includes(':') || m.id.includes('local'))" :key="m.id"
-                    @click="newChatModel = m.id"
-                    class="w-full text-left px-3 py-1.5 rounded-md text-[11px] transition-all border flex items-center justify-between"
-                    :class="newChatModel === m.id ? 'border-[var(--color-ide-accent)] bg-[var(--color-ide-accent)]/5 text-[var(--color-ide-text)]' : 'border-transparent text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]'">
-                    <span>{{ m.label }}</span>
-                    <span class="text-[9px] opacity-50">{{ m.desc }}</span>
-                  </button>
-                  <div class="text-[9px] uppercase tracking-wider text-[var(--color-ide-text-dim)]/40 px-1 mb-1 mt-2">API 模型</div>
-                  <button v-for="m in models.filter(m => !m.id.includes(':') && !m.id.includes('local'))" :key="m.id"
-                    @click="newChatModel = m.id"
-                    class="w-full text-left px-3 py-1.5 rounded-md text-[11px] transition-all border flex items-center justify-between"
-                    :class="newChatModel === m.id ? 'border-[var(--color-ide-accent)] bg-[var(--color-ide-accent)]/5 text-[var(--color-ide-text)]' : 'border-transparent text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]'">
-                    <span>{{ m.label }}</span>
-                    <span class="text-[9px] opacity-50">{{ m.desc }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Workspace -->
-              <div>
-                <label class="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ide-text-dim)]/60 mb-2 block">工作区目录</label>
-                <div class="flex items-center gap-2">
-                  <input v-model="newChatWorkspace" type="text" placeholder="可选，输入目录路径..."
-                    class="flex-1 bg-[var(--color-ide-bg)] border border-[var(--color-ide-border)] rounded-md px-2 py-1.5 text-[11px] text-[var(--color-ide-text)] outline-none focus:border-[var(--color-ide-accent)]" />
-                  <button class="p-1.5 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="选择目录">
-                    <FolderOpen :size="14" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Drawer Footer -->
-            <div class="px-4 py-3 border-t border-[var(--color-ide-border)] flex items-center gap-2">
-              <button class="flex-1 px-3 py-2 rounded-lg text-[12px] font-semibold bg-[var(--color-ide-accent)] text-white hover:brightness-110 transition-all"
-                @click="createFromDrawer">
-                开始对话
-              </button>
-              <button class="px-3 py-2 rounded-lg text-[12px] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] transition-all"
-                @click="showNewChatDrawer = false">
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- ── Messages + Tool Panel Split ──────────────── -->
-    <div class="flex-1 flex min-h-0">
-      <!-- Messages Area -->
-      <div ref="mc" class="flex-1 overflow-y-auto px-4 py-3 space-y-3" :class="{ 'border-r border-[var(--color-ide-border)]': showToolPanel || showOutline }">
+      <!-- Messages 区域 -->
+      <div
+        ref="mc"
+        class="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+      >
         <!-- Welcome State -->
         <div v-if="!hasMessages && !isLoading" class="h-full flex flex-col items-center justify-center select-none">
-          <div class="mb-4 w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[rgba(192,193,255,0.08)] to-transparent border border-solid border-[rgba(192,193,255,0.15)]">
-            <Sparkles :size="28" class="text-[var(--color-ide-accent)]" />
+          <div
+            class="mb-4 w-14 h-14 rounded-2xl flex items-center justify-center border shadow-sm"
+            style="background: var(--chat-welcome-icon-bg); border-color: var(--chat-welcome-icon-border);"
+          >
+            <Sparkles :size="28" style="color: var(--color-ide-accent);" />
           </div>
-          <p class="text-sm font-semibold mb-1 text-[var(--color-ide-text-bright)]">AI 编程助手</p>
-          <p class="text-xs mb-5 text-[var(--color-ide-text-dim)]">有什么可以帮你的？</p>
-          <div class="w-full space-y-1.5 max-w-[260px]">
-            <button v-for="action in [
-              {text:'分析代码性能',prompt:'帮我分析当前组件的性能'},
-              {text:'生成 Vue 组件',prompt:'生成一个 Vue 组件'},
-              {text:'解释项目架构',prompt:'解释这个项目的架构'},
-              {text:'调试报错',prompt:'帮我调试这段代码中的错误'}
-            ]" :key="action.text"
-              @click="inputText=action.prompt; sendMessage()"
-              class="quick-action-btn w-full text-left text-[12px] px-3 py-2 rounded-lg border border-solid transition-colors duration-150 border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] hover:border-[var(--color-ide-accent)]/30 hover:bg-[rgba(192,193,255,0.04)] hover:text-[var(--color-ide-text)]">
+          <p class="text-[14px] mb-5" style="color: var(--color-ide-text-dim);">输入你的需求，比如「帮我分析项目结构」</p>
+
+          <div class="w-full space-y-2.5 max-w-[400px]">
+            <button
+              v-for="action in [
+                {text:'分析代码性能',prompt:'帮我分析当前组件的性能'},
+                {text:'生成 Vue 组件',prompt:'生成一个 Vue 组件'},
+                {text:'解释项目架构',prompt:'解释这个项目的架构'},
+                {text:'调试报错',prompt:'帮我调试这段代码中的错误'}
+              ]"
+              :key="action.text"
+              @click="fillPrompt(action.prompt)"
+              class="w-full text-left text-[14px] px-5 py-3 rounded-xl border transition-all duration-150 hover:border-[var(--color-ide-accent)] hover:text-[var(--color-ide-text)] hover:shadow-sm"
+              style="border-color: var(--color-ide-border); color: var(--color-ide-text-dim);"
+            >
               {{ action.text }}
             </button>
           </div>
@@ -750,324 +477,411 @@ onUnmounted(() => {
 
         <!-- Messages List -->
         <template v-else>
-          <div v-for="(msg, idx) in messages" :key="idx" class="flex gap-2 items-start" :class="{ 'flex-row-reverse': msg.role === 'user' }">
-            <!-- AI Message Bubble -->
+          <div
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            class="flex gap-2 items-start"
+            :class="{ 'flex-row-reverse': msg.role === 'user' }"
+          >
             <template v-if="msg.role === 'assistant'">
-              <div class="ai-bubble max-w-[88%] rounded-xl px-3 py-2.5 border-l-[3px] border-l-[var(--color-chat-ai-border)] bg-[var(--color-chat-ai-bg)] shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-                <!-- Loading dots -->
-                <div v-if="isLoading && !msg.content && (!msg.toolCalls || msg.toolCalls.length === 0)" class="flex items-center gap-2 py-1 text-[var(--color-ide-text-dim)]">
+              <div
+                class="max-w-[88%] rounded-xl px-3 py-2.5 border-l-[3px] shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+                style="border-left-color: var(--color-chat-ai-border); background: var(--color-chat-ai-bg);"
+              >
+                <div v-if="isLoading && !msg.content && (!msg.toolCalls || msg.toolCalls.length === 0)" class="flex items-center gap-2 py-1" style="color: var(--color-ide-text-dim);">
                   <span class="flex gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:0ms"/>
-                    <span class="w-1.5 h-1.5 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:150ms"/>
-                    <span class="w-1.5 h-1.5 rounded-full animate-bounce bg-[var(--color-ide-accent)]" style="animation-delay:300ms"/>
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--color-ide-accent); animation-delay: 0ms;" />
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--color-ide-accent); animation-delay: 150ms;" />
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce" style="background: var(--color-ide-accent); animation-delay: 300ms;" />
                   </span>
                   <span class="text-[12px]">正在思考...</span>
                 </div>
 
-                <!-- Tool Calls -->
                 <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="mb-2 space-y-1">
-                  <div v-for="tc in msg.toolCalls" :key="tc.name"
-                    class="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md bg-[rgba(0,0,0,0.2)] border border-[var(--color-ide-border)]/30">
-                    <Wrench :size="10" class="shrink-0" :class="tc.status === 'running' ? 'text-yellow-400 animate-pulse' : tc.status === 'error' ? 'text-red-400' : 'text-green-400'" />
-                    <span class="text-[var(--color-ide-text-dim)] font-medium">{{ tc.name }}</span>
+                  <div
+                    v-for="tc in msg.toolCalls"
+                    :key="tc.name"
+                    class="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md border"
+                    style="background: var(--chat-toolcall-bg); border-color: var(--chat-toolcall-border);"
+                  >
+                    <Wrench
+                      :size="10"
+                      class="shrink-0"
+                      :class="tc.status === 'running' ? 'text-yellow-400 animate-pulse' : tc.status === 'error' ? 'text-red-400' : 'text-green-400'"
+                    />
+                    <span class="font-medium" style="color: var(--color-ide-text-dim);">{{ tc.name }}</span>
                     <span v-if="tc.status === 'running'" class="text-yellow-400 ml-auto">执行中...</span>
                     <span v-else-if="tc.status === 'error'" class="text-red-400 ml-auto">失败</span>
-                    <span v-else class="text-green-400/60 ml-auto">✓</span>
+                    <span v-else class="ml-auto text-green-400/60">✓</span>
                   </div>
                 </div>
 
-                <!-- Content — Markdown 渲染 (Session 25) -->
-                <div v-if="msg.content" ref="mdMessageRef" class="text-[12px] leading-relaxed break-words text-[var(--color-ide-text)] markdown-body"
-                  v-html="renderMessageHtml(msg.content, idx)" />
+                <div
+                  v-if="msg.content"
+                  class="text-[12px] leading-relaxed break-words markdown-body"
+                  style="color: var(--color-ide-text);"
+                  v-html="renderMessageHtml(msg.content, idx)"
+                />
               </div>
-              <span class="text-[9px] mt-auto ml-1.5 whitespace-nowrap text-[var(--color-ide-text-dim)] tabular-nums flex flex-col items-center gap-0.5">
+              <span class="text-[9px] mt-auto ml-1.5 whitespace-nowrap flex flex-col items-center gap-0.5" style="color: var(--color-ide-text-dim);">
                 {{ formatTime(msg.timestamp) }}
-                <span class="text-[8px] opacity-50" v-if="msg.modelUsed">{{ msg.modelUsed?.split('-')[0] }}</span>
+                <span v-if="msg.modelUsed" class="text-[8px] opacity-50">{{ msg.modelUsed?.split('-')[0] }}</span>
               </span>
             </template>
 
-            <!-- User Message Bubble -->
             <template v-else-if="msg.role === 'user'">
-              <div class="user-bubble rounded-xl px-3 py-2 max-w-[80%] bg-[var(--color-chat-user-bg)] border border-solid border-[var(--color-chat-user-border)]">
-                <div class="text-[12px] leading-relaxed break-words text-[var(--color-ide-text)] markdown-body"
-                  v-html="renderMessageHtml(msg.content, idx)" />
+              <div
+                class="rounded-xl px-3 py-2 max-w-[80%] border"
+                style="background: var(--color-chat-user-bg); border-color: var(--color-chat-user-border);"
+              >
+                <div
+                  class="text-[12px] leading-relaxed break-words markdown-body"
+                  style="color: var(--color-ide-text);"
+                  v-html="renderMessageHtml(msg.content, idx)"
+                />
               </div>
-              <span class="text-[9px] mt-auto ml-1.5 whitespace-nowrap text-[var(--color-ide-text-dim)] tabular-nums">你</span>
+              <span class="text-[9px] mt-auto ml-1.5 whitespace-nowrap" style="color: var(--color-ide-text-dim);">你</span>
             </template>
           </div>
         </template>
       </div>
 
-      <!-- Session 26: Chat Outline Panel -->
-      <ChatOutlinePanel
-        :messages="messages"
-        :visible="showOutline"
-        @close="showOutline = false"
-        @scroll-to="handleOutlineScrollTo"
-      />
-
-      <!-- Chat Tool Panel (Files / Terminal tabs) -->
-      <div v-if="showToolPanel" class="w-60 shrink-0 flex flex-col bg-[var(--color-ide-bg-secondary)] border-l border-[var(--color-ide-border)]" style="resize: horizontal; overflow: auto; min-width: 180px; max-width: 400px;">
-        <!-- Tab bar -->
-        <div class="flex items-center border-b border-[var(--color-ide-border)] shrink-0">
-          <button class="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-[10px] font-medium transition-colors border-b-2"
-            :class="toolPanelTab === 'files' ? 'border-[var(--color-ide-accent)] text-[var(--color-ide-text)]' : 'border-transparent text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'"
-            @click="toolPanelTab = 'files'">
-            <FolderOpen :size="11" /> 文件
-          </button>
-          <button class="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-[10px] font-medium transition-colors border-b-2"
-            :class="toolPanelTab === 'terminal' ? 'border-[var(--color-ide-accent)] text-[var(--color-ide-text)]' : 'border-transparent text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]'"
-            @click="toolPanelTab = 'terminal'">
-            <Terminal :size="11" /> 终端
-          </button>
-          <button class="px-2 py-2 text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)]" @click="showToolPanel = false">
-            <X :size="11" />
-          </button>
-        </div>
-
-        <!-- Files panel -->
-        <div v-if="toolPanelTab === 'files'" class="flex-1 overflow-y-auto p-2">
-          <div class="text-[10px] text-[var(--color-ide-text-dim)]/60 uppercase tracking-wider px-2 py-1 mb-1">项目文件</div>
-          <div class="text-[11px] text-[var(--color-ide-text-dim)] px-2 py-4 text-center">选择工作区目录后可浏览文件</div>
-          <!-- File tree placeholder - will be populated when workspace is set -->
-          <div class="space-y-0.5">
-            <div v-if="newChatWorkspace" class="text-[10px] text-[var(--color-ide-text)]/50 px-2">
-              工作区: {{ newChatWorkspace }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Terminal panel (read-only preview) -->
-        <div v-if="toolPanelTab === 'terminal'" class="flex-1 overflow-y-auto p-2">
-          <div class="text-[10px] text-[var(--color-ide-text-dim)]/60 uppercase tracking-wider px-2 py-1 mb-1">命令输出</div>
-          <div class="bg-[var(--color-ide-bg)] rounded-md p-2 font-mono text-[10px] text-[var(--color-ide-text)]/70 leading-relaxed min-h-[100px] max-h-full overflow-y-auto">
-            <span class="text-[var(--color-ide-text-dim)]">$ </span>等待命令执行...
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Bottom Input Panel (Hermes-style) ────────── -->
-    <div class="shrink-0 border-t border-[var(--color-ide-border)] px-3 pt-2 pb-2 space-y-2 bg-[var(--color-ide-bg-secondary)]">
-      <!-- Model & Mode Selectors Row -->
-      <div class="flex items-center gap-1.5">
-        <!-- Model Selector -->
-        <div class="relative">
-          <button @click="showModelMenu = !showModelMenu"
-            class="flex items-center gap-1 h-6 pl-2 pr-1.5 rounded-md text-[10px] font-semibold transition-all duration-150 border border-solid bg-[var(--color-editor-bg)] border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/50">
-            <span>{{ selectedModel.label }}</span>
-            <ChevronDown :size="10" class="text-[var(--color-ide-text-dim)]" />
-          </button>
-          <Transition name="fade">
-            <div v-if="showModelMenu" class="absolute bottom-full left-0 mb-1 min-w-[180px] z-50 py-1 rounded-md bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] shadow-xl">
-              <button v-for="m in models" :key="m.id"
-                @click="selectedModel=m;showModelMenu=false"
-                class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center justify-between gap-2">
-                <span>{{ m.label }} <span class="text-[var(--color-ide-text-dim)] font-normal italic text-[10px]">{{ m.desc }}</span></span>
-                <svg v-if="m.id===selectedModel.id" width="10" height="8" viewBox="0 0 12 9" fill="none"><path d="M1 3l4 4 6-6" stroke="var(--color-ide-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <!-- 底部输入面板 (Craft 风格：Craft/Auto 双下拉 + 工具按钮 + 圆形发送) -->
+      <div
+        class="shrink-0 pt-2 pb-3 px-3"
+        style="background: var(--color-ide-bg-secondary);"
+      >
+        <!-- 单一容器：附件 chips + 输入框 + 工具栏 -->
+        <div
+          class="relative rounded-2xl transition-all duration-200 focus-within:shadow-lg"
+          style="background: var(--color-chat-input-bg); border: 1px solid var(--color-ide-border); box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
+        >
+          <!-- 附件 chip 列表 (有附件时显示) -->
+          <div
+            v-if="attachments.length > 0"
+            class="flex flex-wrap items-center gap-1.5 px-4 pt-3"
+          >
+            <div
+              v-for="(att, idx) in attachments"
+              :key="idx"
+              class="flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md text-[11px] font-medium"
+              style="background: var(--chat-craft-badge-bg); color: var(--color-ide-accent); border: 1px solid var(--chat-craft-badge-border);"
+            >
+              <Paperclip v-if="att.kind === 'file'" :size="11" class="opacity-80" />
+              <ImagePlus v-else :size="11" class="opacity-80" />
+              <span class="truncate max-w-[120px]">{{ att.name }}</span>
+              <span class="opacity-60 text-[10px]">{{ (att.size / 1024).toFixed(1) }}KB</span>
+              <button
+                @click="removeAttachment(idx)"
+                class="w-4 h-4 flex items-center justify-center rounded hover:bg-black/20 transition-colors"
+                title="移除"
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
-          </Transition>
-        </div>
-        <div class="w-px h-3 bg-[var(--color-ide-border)]" />
-        <!-- Mode Selector -->
-        <div class="relative">
-          <button @click="showModeMenu = !showModeMenu"
-            class="flex items-center gap-1 h-6 pl-2 pr-1.5 rounded-md text-[10px] font-medium transition-all duration-150 border border-solid bg-[var(--color-editor-bg)] border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:border-[var(--color-ide-accent)]/50">
-            <span>{{ selectedMode.label }}</span>
-            <ChevronDown :size="10" class="text-[var(--color-ide-text-dim)]" />
-          </button>
-          <Transition name="fade">
-            <div v-if="showModeMenu" class="absolute bottom-full left-0 mb-1 min-w-[110px] z-50 py-1 rounded-md bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] shadow-xl">
-              <button v-for="m in modes" :key="m.id"
-                @click="selectedMode=m;showModeMenu=false"
-                class="w-full text-left px-3 py-1.5 text-[11px] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] flex items-center justify-between">
-                <span>{{ m.label }}</span>
-                <svg v-if="m.id===selectedMode.id" width="10" height="8" viewBox="0 0 12 9" fill="none"><path d="M1 3l4 4 6-6" stroke="var(--color-ide-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
+          </div>
+
+          <!-- 输入框 -->
+          <textarea
+            v-model="inputText"
+            rows="3"
+            placeholder="提问或输入“/”快捷命令"
+            class="w-full resize-none outline-none text-[13px] leading-relaxed bg-transparent px-4 pt-3 pb-2"
+            :class="attachments.length > 0 ? 'pt-2' : 'pt-3.5'"
+            style="color: var(--color-ide-text); min-height: 64px; border: none; border-radius: 0;"
+            @keydown.enter.exact.prevent="sendMessage"
+            @keydown.shift.enter.prevent="inputText += '\n'"
+          />
+
+          <!-- 工具按钮行 (附件/图片/语音) -->
+          <div class="flex items-center gap-0.5 px-3 pb-1.5">
+            <button
+              @click="handleAttach"
+              class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+              style="color: var(--color-ide-text-dim);"
+              title="附件"
+            >
+              <Paperclip :size="14" />
+            </button>
+            <button
+              @click="handleImage"
+              class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+              style="color: var(--color-ide-text-dim);"
+              title="图片"
+            >
+              <ImagePlus :size="14" />
+            </button>
+            <button
+              @click="handleVoice"
+              class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--color-ide-surface-hover)] transition-colors relative"
+              :style="isRecording ? 'color: var(--color-ide-accent); background: var(--chat-recording-bg);' : 'color: var(--color-ide-text-dim);'"
+              :title="isRecording ? '点击停止录音' : '语音输入'"
+            >
+              <Mic :size="14" />
+              <span v-if="isRecording" class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            </button>
+          </div>
+
+          <!-- 底部分隔 -->
+          <div class="h-px mx-3" style="background: var(--color-ide-border); opacity: 0.5;" />
+
+          <!-- 底部选择器 + 发送按钮 -->
+          <div class="flex items-center justify-between gap-2 px-2.5 pb-2.5 pt-1.5">
+            <!-- 左侧：Craft + Auto 双下拉 -->
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+              <!-- Craft Selector (主模式) -->
+              <div class="relative shrink-0" @click.stop>
+                <button
+                  @click="showCraftMenu = !showCraftMenu; showModelMenu = false; showActionMenu = false"
+                  class="flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-lg text-[12px] font-semibold transition-all hover:bg-[var(--color-ide-surface-hover)]"
+                  :class="showCraftMenu ? 'bg-[var(--color-ide-surface-hover)]' : ''"
+                  style="color: var(--color-ide-text);"
+                  :aria-expanded="showCraftMenu"
+                  :aria-haspopup="true"
+                >
+                  <!-- Craft 图标 -->
+                  <div
+                    class="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                    style="background: var(--color-ide-accent); color: white;"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                    </svg>
+                  </div>
+                  <span>{{ selectedCraft.label }}</span>
+                  <ChevronDown :size="11" class="shrink-0 opacity-60 transition-transform" :class="showCraftMenu ? 'rotate-180' : ''" />
+                </button>
+                <Transition name="fade">
+                  <div
+                    v-if="showCraftMenu"
+                    class="absolute bottom-full left-0 mb-2 w-[240px] z-50 py-1.5 rounded-2xl border overflow-hidden"
+                    style="background: var(--color-ide-surface); border-color: var(--color-ide-border); box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15);"
+                  >
+                    <div class="px-3.5 py-2 flex items-center justify-between" style="background: var(--chat-popover-header-bg);">
+                      <span class="text-[11px] font-semibold" style="color: var(--color-ide-text);">选择工作模式</span>
+                    </div>
+                    <div class="h-px" style="background: var(--color-ide-border);" />
+                    <div class="py-1.5">
+                      <button
+                        v-for="m in craftModes"
+                        :key="m.id"
+                        @click="selectedCraft=m;showCraftMenu=false"
+                        class="w-full text-left mx-1.5 px-2.5 py-2 rounded-lg text-[12px] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2.5 transition-all"
+                        :class="m.id===selectedCraft.id ? 'shadow-sm' : ''"
+                        :style="m.id===selectedCraft.id ? 'background: var(--chat-item-selected-bg); color: var(--color-ide-text);' : 'color: var(--color-ide-text);'"
+                      >
+                        <div
+                          class="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                          :style="m.id===selectedCraft.id ? 'background: var(--color-ide-accent); color: white;' : 'background: var(--color-ide-bg); color: var(--color-ide-text-dim);'"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path :d="m.icon" />
+                          </svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="font-semibold truncate" :class="m.id===selectedCraft.id ? 'text-[var(--color-ide-accent)]' : ''">{{ m.label }}</div>
+                          <div class="text-[10.5px] truncate font-normal" style="color: var(--color-ide-text-dim);">{{ m.desc }}</div>
+                        </div>
+                        <!-- 右侧 ⓘ 图标 -->
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 opacity-40">
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="h-px" style="background: var(--color-ide-border);" />
+                    <button
+                      class="w-full text-left mx-1.5 my-1 px-2.5 py-1.5 rounded-lg text-[12px] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-1.5 transition-colors"
+                      style="color: var(--color-ide-text-dim);"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14"/>
+                      </svg>
+                      <span>创建 Agent</span>
+                    </button>
+                  </div>
+                </Transition>
+              </div>
+
+              <!-- Model Selector (更紧凑, icon-only chip) -->
+              <div class="relative shrink-0" @click.stop>
+                <button
+                  @click="showModelMenu = !showModelMenu; showCraftMenu = false; showActionMenu = false"
+                  class="flex items-center gap-1 h-8 pl-2 pr-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+                  :class="showModelMenu ? 'bg-[var(--color-ide-surface-hover)]' : ''"
+                  style="color: var(--color-ide-text-dim);"
+                  :aria-expanded="showModelMenu"
+                  :aria-haspopup="true"
+                  :title="selectedModel.label + ' · ' + selectedModel.desc"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 opacity-70">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 1v6m0 10v6M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m10 0h6M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/>
+                  </svg>
+                  <span class="truncate max-w-[80px]">{{ selectedModel.label }}</span>
+                  <ChevronDown :size="11" class="shrink-0 opacity-60 transition-transform" :class="showModelMenu ? 'rotate-180' : ''" />
+                </button>
+                <Transition name="fade">
+                  <div
+                    v-if="showModelMenu"
+                    class="absolute bottom-full left-0 mb-2 w-[300px] z-50 rounded-2xl border overflow-hidden"
+                    style="background: var(--color-ide-surface); border-color: var(--color-ide-border); box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15);"
+                  >
+                    <div class="px-3.5 py-2.5 flex items-center justify-between" style="background: var(--chat-popover-header-bg);">
+                      <span class="text-[11px] font-semibold" style="color: var(--color-ide-text);">选择模型</span>
+                      <span class="text-[10px]" style="color: var(--color-ide-text-dim);">{{ models.length }} 个可用</span>
+                    </div>
+                    <div class="h-px" style="background: var(--color-ide-border);" />
+                    <div class="max-h-[360px] overflow-y-auto py-1.5">
+                      <div v-for="group in modelGroups" :key="group.id">
+                        <div class="px-3.5 pt-2 pb-1 flex items-center gap-1.5">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-ide-text-dim);">
+                            <path :d="group.icon" />
+                          </svg>
+                          <span class="text-[10px] font-semibold uppercase tracking-wider" style="color: var(--color-ide-text-dim);">{{ group.label }}</span>
+                        </div>
+                        <button
+                          v-for="m in models.filter(x => x.group === group.id)"
+                          :key="m.id"
+                          @click="selectedModel=m;showModelMenu=false"
+                          class="w-full text-left mx-1.5 px-2.5 py-1.5 rounded-lg text-[12px] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2.5 transition-all"
+                          :class="m.id===selectedModel.id ? 'shadow-sm' : ''"
+                          :style="m.id===selectedModel.id ? 'background: var(--chat-item-selected-bg); color: var(--color-ide-text);' : 'color: var(--color-ide-text);'"
+                        >
+                          <div
+                            class="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                            :style="m.id===selectedModel.id ? 'background: var(--color-ide-accent); color: white;' : 'background: var(--color-ide-bg); color: var(--color-ide-text-dim);'"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3v.5A2.5 2.5 0 0 0 2.5 13v6A2.5 2.5 0 0 0 5 21.5h14a2.5 2.5 0 0 0 2.5-2.5v-6A2.5 2.5 0 0 0 19 10.5V10a3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z" />
+                              <circle cx="9" cy="16" r="1" fill="currentColor"/>
+                              <circle cx="15" cy="16" r="1" fill="currentColor"/>
+                            </svg>
+                          </div>
+                          <div class="min-w-0 flex-1">
+                            <div class="font-semibold truncate" :class="m.id===selectedModel.id ? 'text-[var(--color-ide-accent)]' : ''">{{ m.label }}</div>
+                            <div class="text-[10.5px] truncate font-normal" style="color: var(--color-ide-text-dim);">{{ m.desc }}</div>
+                          </div>
+                          <svg v-if="m.id===selectedModel.id" class="shrink-0" width="13" height="11" viewBox="0 0 12 9" fill="none">
+                            <path d="M1 3l4 4 6-6" stroke="var(--color-ide-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </Transition>
+              </div>
+
+              <!-- Action Selector (Auto/Manual) -->
+              <div class="relative shrink-0" @click.stop>
+                <button
+                  @click="showActionMenu = !showActionMenu; showCraftMenu = false; showModelMenu = false"
+                  class="flex items-center gap-1 h-8 pl-2 pr-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+                  :class="showActionMenu ? 'bg-[var(--color-ide-surface-hover)]' : ''"
+                  style="color: var(--color-ide-text-dim);"
+                  :aria-expanded="showActionMenu"
+                  :aria-haspopup="true"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 opacity-70">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                  <span>{{ selectedAction.label }}</span>
+                  <ChevronDown :size="11" class="shrink-0 opacity-60 transition-transform" :class="showActionMenu ? 'rotate-180' : ''" />
+                </button>
+                <Transition name="fade">
+                  <div
+                    v-if="showActionMenu"
+                    class="absolute bottom-full left-0 mb-2 w-[200px] z-50 py-1.5 rounded-2xl border overflow-hidden"
+                    style="background: var(--color-ide-surface); border-color: var(--color-ide-border); box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15);"
+                  >
+                    <div class="px-3.5 py-2" style="background: var(--chat-popover-header-bg);">
+                      <span class="text-[11px] font-semibold" style="color: var(--color-ide-text);">执行方式</span>
+                    </div>
+                    <div class="h-px" style="background: var(--color-ide-border);" />
+                    <div class="py-1.5">
+                      <button
+                        v-for="a in craftActions"
+                        :key="a.id"
+                        @click="selectedAction=a;showActionMenu=false"
+                        class="w-full text-left mx-1.5 px-2.5 py-2 rounded-lg text-[12px] hover:bg-[var(--color-ide-surface-hover)] flex items-center gap-2.5 transition-all"
+                        :class="a.id===selectedAction.id ? 'shadow-sm' : ''"
+                        :style="a.id===selectedAction.id ? 'background: var(--chat-item-selected-bg); color: var(--color-ide-text);' : 'color: var(--color-ide-text);'"
+                      >
+                        <div class="min-w-0 flex-1">
+                          <div class="font-semibold truncate" :class="a.id===selectedAction.id ? 'text-[var(--color-ide-accent)]' : ''">{{ a.label }}</div>
+                          <div class="text-[10.5px] truncate font-normal" style="color: var(--color-ide-text-dim);">{{ a.desc }}</div>
+                        </div>
+                        <svg v-if="a.id===selectedAction.id" class="shrink-0" width="13" height="11" viewBox="0 0 12 9" fill="none">
+                          <path d="M1 3l4 4 6-6" stroke="var(--color-ide-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </Transition>
+              </div>
             </div>
-          </Transition>
-        </div>
-      </div>
 
-      <!-- Input Box -->
-      <div class="input-box relative rounded-lg border border-solid border-[var(--color-ide-border)] bg-[var(--color-chat-input-bg)] transition-all duration-150 focus-within:border-[var(--color-ide-border-focus)]">
-        <textarea v-model="inputText" rows="1"
-          placeholder="输入指令或提问 (Enter 发送)"
-          class="w-full resize-none outline-none text-[12px] bg-transparent px-3 pt-2 pb-7 leading-relaxed text-[var(--color-ide-text)] placeholder:text-[rgba(144,143,160,0.45)]"
-          @keydown.enter.exact.prevent="sendMessage"
-          @keydown.shift.enter.prevent="inputText += '\n'" />
-
-        <div class="absolute bottom-1.5 left-2 flex items-center gap-0.5">
-          <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="附件">
-            <Paperclip :size="12" />
-          </button>
-          <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="图片">
-            <ImagePlus :size="12" />
-          </button>
-          <button class="p-1 rounded-md hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" title="语音输入">
-            <Mic :size="12" />
-          </button>
-        </div>
-
-        <div class="absolute bottom-1.5 right-1.5 flex items-center gap-1">
-          <button v-if="isLoading" class="stop-btn flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-            @click="stopGeneration">
-            <StopCircle :size="11" /> 停止
-          </button>
-          <button v-else class="send-btn flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all duration-150 bg-[var(--color-ide-accent)] text-white hover:brightness-110 active:scale-[0.97]"
-            :class="{ 'opacity-35 cursor-not-allowed pointer-events-none': !inputText.trim() || isLoading }"
-            :disabled="!inputText.trim() || isLoading"
-            @click="sendMessage">
-            发送 <Send :size="10" />
-          </button>
+            <!-- 右侧：发送 / 停止 按钮 (圆形图标按钮，紫色高亮) -->
+            <button
+              v-if="!isLoading"
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all duration-150 active:scale-90"
+              :class="(inputText.trim() || attachments.length > 0)
+                ? 'opacity-100 hover:scale-105 cursor-pointer shadow-md'
+                : 'opacity-30 cursor-not-allowed'"
+              :style="(inputText.trim() || attachments.length > 0)
+                ? 'background: var(--color-ide-accent); color: white;'
+                : 'background: var(--color-ide-text-dim); color: var(--color-ide-bg-secondary);'"
+              :disabled="!inputText.trim() && attachments.length === 0"
+              @click="sendMessage"
+              title="发送 (Enter)"
+            >
+              <Send :size="15" :stroke-width="2.5" />
+            </button>
+            <button
+              v-else
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all duration-150 hover:scale-105 active:scale-90 cursor-pointer shadow-md"
+              style="background: #ef4444; color: white;"
+              @click="stopGeneration"
+              title="停止生成"
+            >
+              <StopCircle :size="15" :stroke-width="2.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 隐藏的原生文件输入 (供附件/图片按钮触发) -->
+  <input ref="fileInputRef" type="file" class="hidden" @change="onFilePicked" />
+  <input ref="imageInputRef" type="file" accept="image/*" class="hidden" @change="onImagePicked" />
 </template>
 
 <style scoped>
-.quick-action-btn { background: transparent; cursor: pointer; }
-.ai-bubble { box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.1); }
-.user-bubble { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.12s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* New Chat Drawer slide-in animation */
-.drawer-slide-enter-active { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-.drawer-slide-leave-active { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-.drawer-slide-enter-from,
-.drawer-slide-leave-to {
+/* ═══ 聊天面板主题渐变（组件级 CSS 变量） ═══ */
+.chat-panel {
+  --chat-welcome-icon-bg: linear-gradient(135deg, rgba(192, 193, 255, 0.12), transparent);
+  --chat-welcome-icon-border: rgba(192, 193, 255, 0.2);
+  --chat-toolcall-bg: rgba(0, 0, 0, 0.2);
+  --chat-toolcall-border: rgba(255, 255, 255, 0.05);
+  --chat-craft-badge-bg: rgba(192, 193, 255, 0.14);
+  --chat-craft-badge-border: rgba(192, 193, 255, 0.25);
+  --chat-recording-bg: rgba(192, 193, 255, 0.12);
+  --chat-popover-header-bg: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent);
+  --chat-item-selected-bg: rgba(192, 193, 255, 0.12);
+}
+.fade-enter-active {
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fade-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-}
-.drawer-slide-enter-from :deep(> div:last-child),
-.drawer-slide-leave-to :deep(> div:last-child) {
-  transform: translateX(100%);
-}
-.drawer-slide-enter-active :deep(> div:last-child),
-.drawer-slide-leave-active :deep(> div:last-child) {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ── Session 25: Markdown 渲染样式 ── */
-.markdown-body :deep(.md-h1) { font-size: 18px; font-weight: 700; margin: 12px 0 6px; color: var(--color-ide-text); border-bottom: 1px solid var(--color-ide-border); padding-bottom: 4px; }
-.markdown-body :deep(.md-h2) { font-size: 15px; font-weight: 700; margin: 10px 0 5px; color: var(--color-ide-text); border-bottom: 1px solid var(--color-ide-border); padding-bottom: 3px; }
-.markdown-body :deep(.md-h3) { font-size: 14px; font-weight: 600; margin: 8px 0 4px; color: var(--color-ide-text); }
-.markdown-body :deep(.md-h4) { font-size: 13px; font-weight: 600; margin: 6px 0 3px; color: var(--color-ide-text); }
-.markdown-body :deep(.md-h5),
-.markdown-body :deep(.md-h6) { font-size: 12px; font-weight: 600; margin: 4px 0 2px; color: var(--color-ide-text-dim); }
-.markdown-body :deep(.md-p) { margin: 4px 0; line-height: 1.6; }
-.markdown-body :deep(strong) { font-weight: 700; color: var(--color-ide-text); }
-.markdown-body :deep(em) { font-style: italic; }
-.markdown-body :deep(del) { text-decoration: line-through; opacity: 0.6; }
-.markdown-body :deep(.md-link) { color: var(--color-ide-accent); text-decoration: underline; text-underline-offset: 2px; }
-.markdown-body :deep(.md-link:hover) { opacity: 0.8; }
-.markdown-body :deep(.md-inline-code) {
-  background: var(--color-ide-surface-active);
-  color: var(--color-ide-accent);
-  padding: 1px 5px; border-radius: 3px;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  font-size: 11px;
-}
-.markdown-body :deep(.md-blockquote) {
-  border-left: 3px solid var(--color-ide-accent);
-  padding: 4px 12px; margin: 6px 0;
-  background: var(--color-ide-surface);
-  border-radius: 0 4px 4px 0;
-  opacity: 0.85;
-}
-.markdown-body :deep(.md-ul),
-.markdown-body :deep(.md-ol) { margin: 4px 0; padding-left: 20px; }
-.markdown-body :deep(.md-ul li),
-.markdown-body :deep(.md-ol li) { margin: 2px 0; line-height: 1.5; }
-.markdown-body :deep(.md-hr) {
-  border: none; border-top: 1px solid var(--color-ide-border);
-  margin: 12px 0; opacity: 0.5;
-}
-.markdown-body :deep(.md-image) { max-width: 100%; height: auto; margin: 4px 0; }
-
-/* Code Block */
-.markdown-body :deep(.md-code-block) {
-  margin: 6px 0; border-radius: 6px; overflow: hidden;
-  border: 1px solid var(--color-ide-border);
-  background: var(--color-terminal-bg);
-}
-.markdown-body :deep(.md-code-header) {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 3px 10px; font-size: 10px;
-  background: var(--color-ide-surface);
-  border-bottom: 1px solid var(--color-ide-border);
-}
-.markdown-body :deep(.md-code-lang) {
-  color: var(--color-ide-text-dim); text-transform: uppercase; font-weight: 600;
-  letter-spacing: 0.5px;
-}
-.markdown-body :deep(.md-code-copy) {
-  padding: 2px 4px; border-radius: 3px; cursor: pointer;
-  color: var(--color-ide-text-dim); background: transparent; border: none;
-  display: flex; align-items: center;
-}
-.markdown-body :deep(.md-code-copy:hover) {
-  background: var(--color-ide-surface-hover); color: var(--color-ide-text);
-}
-.markdown-body :deep(.md-code-content) {
-  display: block; padding: 8px 10px; overflow-x: auto;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  font-size: 11px; line-height: 1.6; color: var(--color-ide-text-dim);
-  white-space: pre; tab-size: 2;
-}
-/* 代码高亮 */
-.markdown-body :deep(.md-kw) { color: #C678DD; font-weight: 600; }
-.markdown-body :deep(.md-str) { color: #98C379; }
-.markdown-body :deep(.md-cmt) { color: #5C6370; font-style: italic; }
-.markdown-body :deep(.md-num) { color: #D19A66; }
-
-/* Mermaid */
-.markdown-body :deep(.md-mermaid-block) {
-  margin: 6px 0; border-radius: 6px; overflow: hidden;
-  border: 1px solid var(--color-ide-border);
-  background: #fff;
-}
-.markdown-body :deep(.md-mermaid-render) {
-  padding: 12px; display: flex; justify-content: center;
-  overflow-x: auto;
-}
-.markdown-body :deep(.md-mermaid-render svg) {
-  max-width: 100%; height: auto;
-}
-
-/* KaTeX */
-.markdown-body :deep(.md-katex-block) {
-  margin: 6px 0; padding: 8px 0;
-  display: flex; justify-content: center;
-  overflow-x: auto;
-}
-.markdown-body :deep(.katex-inline) {
-  color: var(--color-ide-accent);
-}
-
-/* Table */
-.markdown-body :deep(.md-table) {
-  border-collapse: collapse; margin: 6px 0; width: 100%;
-  font-size: 11px;
-}
-.markdown-body :deep(.md-table th),
-.markdown-body :deep(.md-table td) {
-  border: 1px solid var(--color-ide-border);
-  padding: 4px 8px; text-align: left;
-}
-.markdown-body :deep(.md-table th) {
-  background: var(--color-ide-surface);
-  font-weight: 600; color: var(--color-ide-text);
-}
-
-/* Session 26: 大纲跳转高亮动画 */
-.outline-highlight {
-  animation: outline-flash 2s ease-out;
-}
-@keyframes outline-flash {
-  0% { background: rgba(192, 193, 255, 0.15); }
-  100% { background: transparent; }
+  transform: translateY(6px) scale(0.97);
+  transform-origin: bottom left;
 }
 </style>

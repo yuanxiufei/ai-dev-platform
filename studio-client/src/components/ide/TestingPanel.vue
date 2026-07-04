@@ -377,13 +377,17 @@ function selectTestCase(tc: TestCase): void {
           <FileText :size="12" style="color: var(--color-ide-text-dim); opacity: 0.6;" />
           <span class="text-[12px] font-medium truncate flex-1">{{ file.name }}</span>
           <!-- 🔥 运行单个文件 -->
-          <button
+          <span
             class="shrink-0 w-5 h-5 flex items-center justify-center rounded-[3px] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--color-ide-surface-active)]"
+            role="button"
+            tabindex="0"
             @click.stop="runFile(file)"
+            @keydown.enter.stop="runFile(file)"
+            @keydown.space.prevent.stop="runFile(file)"
             title="运行此文件中的测试"
           >
             <Play :size="10" style="color: var(--color-ide-text-dim);" />
-          </button>
+          </span>
         </button>
 
         <!-- 🔥 Suite & Test Cases -->

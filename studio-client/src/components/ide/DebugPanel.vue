@@ -274,6 +274,13 @@ const SURFACE_HOVER = "var(--color-ide-surface-hover)"
 const ERROR = "var(--color-ide-error)"
 const WARNING = "var(--color-ide-warning)"
 const INFO = "var(--color-ide-info)"
+// getBtnStyle 需要 rgb 格式做 alpha 操作（不可直接用 CSS 变量）
+const GREEN_RGB = "rgb(78, 201, 176)"
+const YELLOW_RGB = "rgb(204, 167, 0)"
+// 调试面板 token 颜色（VSCode 语法高亮语义 → CSS 变量，主题自适应）
+const DEBUG_VAR_NAME = "var(--color-debug-variable)"   // #9CDCFE
+const DEBUG_VAR_VALUE = "var(--color-debug-value)"     // #CE9178
+const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
 </script>
 
 <template>
@@ -294,7 +301,7 @@ const INFO = "var(--color-ide-info)"
       </button>
       <button v-else-if="!isRunning"
         class="debug-action-btn"
-        :style="getBtnStyle('#4EC9B0', '10%')"
+        :style="getBtnStyle(GREEN_RGB, '10%')"
         title="启动调试 (F5)"
         @click="startDebug"
       >
@@ -302,7 +309,7 @@ const INFO = "var(--color-ide-info)"
       </button>
       <button v-else
         class="debug-action-btn"
-        :style="getBtnStyle('#CCA700', '10%')"
+        :style="getBtnStyle(YELLOW_RGB, '10%')"
         title="暂停 (F6)"
         @click="pauseDebug"
       >
@@ -359,12 +366,12 @@ const INFO = "var(--color-ide-info)"
 
       <!-- 当前调试状态 -->
       <span v-if="isPaused" class="text-[11px] font-medium"
-        :style="{ color: '#CCA700' }"
+        :style="{ color: WARNING }"
       >
         已在断点处暂停
       </span>
       <span v-else-if="isRunning" class="text-[11px]"
-        :style="{ color: '#4EC9B0' }"
+        :style="{ color: 'var(--color-terminal-green)' }"
       >
         调试中...
       </span>
@@ -435,12 +442,12 @@ const INFO = "var(--color-ide-info)"
                 </span>
                 <span v-else class="shrink-0" :style="{ width: '14px' }" />
                 <!-- 变量名 -->
-                <span class="font-medium" :style="{ color: '#9CDCFE' }">{{ v.name }}</span>
+                <span class="font-medium" :style="{ color: DEBUG_VAR_NAME }">{{ v.name }}</span>
                 <span class="mx-1" :style="{ color: TEXT_DIM }">:</span>
                 <!-- 类型 -->
                 <span class="text-[11px] opacity-50 mr-1" :style="{ color: TEXT_DIM }">{{ v.type }}</span>
                 <!-- 值 -->
-                <span class="flex-1 truncate" :style="{ color: '#CE9178' }">= {{ v.value }}</span>
+                <span class="flex-1 truncate" :style="{ color: DEBUG_VAR_VALUE }">= {{ v.value }}</span>
               </button>
               <!-- 子变量 -->
               <div v-if="v.children && v.expanded" class="ml-2 border-l" :style="{ borderColor: BORDER, marginLeft: '24px' }">
@@ -448,10 +455,10 @@ const INFO = "var(--color-ide-info)"
                   :style="{ color: TEXT, fontSize: '12px', lineHeight: '22px' }"
                 >
                   <span class="shrink-0" :style="{ width: '14px' }" />
-                  <span :style="{ color: '#9CDCFE' }">{{ child.name }}</span>
+                  <span :style="{ color: DEBUG_VAR_NAME }">{{ child.name }}</span>
                   <span :style="{ color: TEXT_DIM }">:</span>
                   <span class="opacity-50 text-[11px]" :style="{ color: TEXT_DIM }">{{ child.type }}</span>
-                  <span :style="{ color: '#CE9178' }">= {{ child.value }}</span>
+                  <span :style="{ color: DEBUG_VAR_VALUE }">= {{ child.value }}</span>
                 </div>
               </div>
             </div>
@@ -493,7 +500,7 @@ const INFO = "var(--color-ide-info)"
               class="flex-1 bg-transparent border-none outline-none text-[12px] px-1.5 py-0.5 rounded-sm"
               :style="{
                 color: TEXT,
-                background: 'rgba(255,255,255,0.05)',
+                background: 'var(--color-debug-input-bg)',
               }"
               placeholder="添加监视表达式..."
               @keydown.enter="addWatch"
@@ -515,10 +522,10 @@ const INFO = "var(--color-ide-info)"
               :style="{ lineHeight: '22px' }"
             >
               <Eye :size="12" :style="{ color: TEXT_DIM }" />
-              <span class="font-medium" :style="{ color: '#9CDCFE' }">{{ w.expression }}</span>
+              <span class="font-medium" :style="{ color: DEBUG_VAR_NAME }">{{ w.expression }}</span>
               <span v-if="w.value" class="ml-1">
                 <span class="mx-1" :style="{ color: TEXT_DIM }">=</span>
-                <span :style="{ color: '#CE9178' }">{{ w.value }}</span>
+                <span :style="{ color: DEBUG_VAR_VALUE }">{{ w.value }}</span>
               </span>
               <button class="ml-auto opacity-0 group-hover:opacity-60 hover:opacity-100 p-0.5"
                 title="移除监视"
@@ -564,7 +571,7 @@ const INFO = "var(--color-ide-info)"
           <div v-else>
             <!-- 线程信息 -->
             <div class="px-3 py-1 flex items-center gap-1.5 text-[11px]" :style="{ color: TEXT_DIM, borderBottom: `1px solid ${BORDER}` }">
-              <CircleDot :size="9" :style="{ color: '#4EC9B0' }" />
+              <CircleDot :size="9" :style="{ color: 'var(--color-terminal-green)' }" />
               主线程 (Thread 1)
             </div>
             <!-- 栈帧列表 -->
@@ -591,7 +598,7 @@ const INFO = "var(--color-ide-info)"
               />
               <span v-else class="shrink-0" :style="{ width: '10px' }" />
               <div class="min-w-0">
-                <div class="font-medium truncate" :style="{ color: '#DCDCAA' }">{{ frame.name }}</div>
+                <div class="font-medium truncate" :style="{ color: DEBUG_FUNC_NAME }">{{ frame.name }}</div>
                 <div class="text-[10px] opacity-60 truncate">
                   {{ shortPath(frame.file) }}:{{ frame.line }}
                 </div>
@@ -686,7 +693,7 @@ const INFO = "var(--color-ide-info)"
                 <!-- 条件标签 -->
                 <span v-if="bp.condition"
                   class="px-1 py-0 rounded text-[9px]"
-                  :style="{ background: 'rgba(251,191,36,0.15)', color: WARNING }"
+                  :style="{ background: 'var(--color-debug-badge-bg)', color: WARNING }"
                 >
                   {{ bp.condition }}
                 </span>
@@ -718,8 +725,8 @@ const INFO = "var(--color-ide-info)"
       <span>
         {{ breakpoints.filter(b => b.enabled).length }}/{{ breakpoints.length }} 个断点已启用
       </span>
-      <span v-if="isPaused" :style="{ color: '#CCA700' }">⚠ 已暂停</span>
-      <span v-if="isRunning && !isPaused" :style="{ color: '#4EC9B0' }">▶ 运行中</span>
+      <span v-if="isPaused" :style="{ color: WARNING }">⚠ 已暂停</span>
+      <span v-if="isRunning && !isPaused" :style="{ color: 'var(--color-terminal-green)' }">▶ 运行中</span>
     </div>
   </div>
 </template>
@@ -749,8 +756,16 @@ function getBtnStyle(color?: string, bgAlpha?: string) {
 </script>
 
 <style scoped>
+/* ═══ DebugPanel 语义色变量（主题自适应） ═══ */
+.debug-panel {
+  --color-debug-variable: #9CDCFE;
+  --color-debug-value: #CE9178;
+  --color-debug-function: #DCDCAA;
+  --color-debug-input-bg: rgba(255, 255, 255, 0.05);
+  --color-debug-badge-bg: rgba(251, 191, 36, 0.15);
+}
 .debug-action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--color-ide-surface-hover) !important;
   color: var(--color-ide-text) !important;
 }
 .debug-action-btn:disabled {

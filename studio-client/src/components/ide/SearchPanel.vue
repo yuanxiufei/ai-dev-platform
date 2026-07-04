@@ -458,6 +458,10 @@ function clearHistory(): void {
 </template>
 
 <style scoped>
+/* ═══ 搜索面板主题变量（组件级 CSS 变量） ═══ */
+.search-panel {
+  --search-option-active-bg: rgba(0, 122, 204, 0.1);
+}
 /* ═══ 搜索选项按钮 ═══ */
 .search-option-btn {
   width: 24px;
@@ -480,7 +484,7 @@ function clearHistory(): void {
 .search-option-btn.active {
   opacity: 1;
   color: var(--color-ide-accent);
-  background: rgba(0, 122, 204, 0.1);
+  background: var(--search-option-active-bg);
 }
 
 /* ═══ 搜索文件头 ═══ */

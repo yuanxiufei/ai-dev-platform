@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * MonacoDiffEditor.vue — Monaco 原生 DiffEditor 集成
  *
@@ -265,7 +265,7 @@ async function initDiffEditor() {
           { token: "delimiter.html", foreground: "908FA0" },
         ],
         colors: {
-          "editor.background": "#0F131D", "editor.foreground": "#DFE2F1",
+          "editor.background": "#1E1E1E", "editor.foreground": "#DFE2F1",
           "editor.lineHighlightBackground": "#1C1F2A20",
           "editorLineNumber.foreground": "#4B5563",
           "editorLineNumber.activeForeground": "#C0C1FF",
@@ -495,21 +495,21 @@ onBeforeUnmount(() => {
 <style scoped>
 /* AI diff accept/reject decorations */
 :deep(.ai-diff-accepted) {
-  background: linear-gradient(90deg, rgba(46, 160, 67, 0.12) 0%, transparent 100%) !important;
-  border-left: 3px solid #2ea043 !important;
+  background: linear-gradient(90deg, var(--diff-accepted-bg) 0%, transparent 100%) !important;
+  border-left: 3px solid var(--diff-accepted-border) !important;
 }
 :deep(.ai-diff-rejected) {
-  background: linear-gradient(90deg, rgba(248, 81, 73, 0.08) 0%, transparent 100%) !important;
-  border-left: 3px solid #f85149 !important;
+  background: linear-gradient(90deg, var(--diff-rejected-bg) 0%, transparent 100%) !important;
+  border-left: 3px solid var(--diff-rejected-border) !important;
   opacity: 0.55;
 }
 :deep(.ai-glyph-accept) {
-  background: #2ea043;
+  background: var(--diff-accepted-border);
   width: 6px !important;
   margin-left: 3px;
 }
 :deep(.ai-glyph-reject) {
-  background: #f85149;
+  background: var(--diff-rejected-border);
   width: 6px !important;
   margin-left: 3px;
 }

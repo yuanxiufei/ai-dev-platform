@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="kanban-page">
     <div class="kanban-header">
       <h2 class="page-title">Kanban 看板</h2>
@@ -106,11 +106,11 @@ interface Task {
 }
 
 const columns = [
-  { key: 'backlog', label: '待规划', color: '#858585' },
-  { key: 'todo', label: '待处理', color: '#3794FF' },
-  { key: 'in-progress', label: '进行中', color: '#CCA700' },
-  { key: 'review', label: '评审中', color: '#C586C0' },
-  { key: 'done', label: '已完成', color: '#4EC9B0' },
+  { key: 'backlog', label: '待规划', color: 'var(--kanban-backlog-color)' },
+  { key: 'todo', label: '待处理', color: 'var(--kanban-todo-color)' },
+  { key: 'in-progress', label: '进行中', color: 'var(--kanban-in-progress-color)' },
+  { key: 'review', label: '评审中', color: 'var(--kanban-review-color)' },
+  { key: 'done', label: '已完成', color: 'var(--kanban-done-color)' },
 ]
 
 const tasks = ref<Task[]>([
@@ -208,7 +208,9 @@ function formatDate(d: string) {
 
 <style scoped>
 .kanban-page {
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   background: var(--color-ide-bg);
@@ -290,10 +292,10 @@ function formatDate(d: string) {
   width: 8px; height: 8px; border-radius: 50%;
   margin-top: 5px; flex-shrink: 0;
 }
-.p-low { background: #4EC9B0; }
-.p-medium { background: #CCA700; }
-.p-high { background: #F48771; }
-.p-urgent { background: #F44747; }
+.p-low { background: var(--pri-low); }
+.p-medium { background: var(--pri-medium); }
+.p-high { background: var(--pri-high); }
+.p-urgent { background: var(--pri-urgent); }
 .task-title {
   font-size: 12.5px; font-weight: 600;
   color: var(--color-ide-text); line-height: 1.4;

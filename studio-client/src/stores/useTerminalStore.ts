@@ -1,132 +1,153 @@
 // ============================================
-// Terminal Store — terminal sessions & output (Session 10: ANSI auto-parse)
+// Terminal Store — real Tauri shell integration
 // ============================================
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { OutputChannel, TerminalSession } from '@/types/ide'
 import { hasAnsi, parseAnsi } from '@/utils/ansi'
-import { uid } from './shared'
+import { isTauriEnv, uid } from './shared'
+import { useFileTreeStore } from './useFileTreeStore'
 
 export const useTerminalStore = defineStore('terminal', () => {
-  const terminalSessions = ref<TerminalSession[]>([
-    {
-      id: uid(),
-      title: '终端',
-      shellType: 'powershell',
-      lines: [
-        {
-          id: uid(),
-          text: '\n  ➜ ~/projects/ai-app',
-          type: 'input',
-          timestamp: Date.now(),
-        },
-        {
-          id: uid(),
-          text: 'npm run dev',
-          type: 'input',
-          timestamp: Date.now(),
-        },
-        { id: '', text: '', type: 'output', timestamp: Date.now() },
-        {
-          id: uid(),
-          text: '> ai-app@1.0.0 dev\n> vite',
-          type: 'output',
-          timestamp: Date.now(),
-        },
-        {
-          id: uid(),
-          text: 'VITE v5.0.0 ready in 420 ms',
-          type: 'success',
-          timestamp: Date.now(),
-        },
-        {
-          id: '',
-          text: '➜ Local: http://localhost:5173/\n➜ Network: use --host to expose\n➜ press h + enter to show help',
-          type: 'output',
-          timestamp: Date.now(),
-        },
-      ],
-      active: true,
-      cwd: '~/projects/ai-app',
-    },
-  ])
-
+  const terminalSessions = ref<TerminalSession[]>([])
   const activeTerminalId = computed(() => terminalSessions.value.find((t) => t.active)?.id ?? null)
 
-  /** 🔥 创建新终端会话 */
-  function createTerminal(shellType: TerminalSession["shellType"] = "bash"): string {
+  let _unlisteners: (() => void)[] = []
+
+  /** Register Tauri terminal events (once) */
+  async function _ensureTauriEvents(): Promise<void> {
+    if (_unlisteners.length > 0) return
+    if (!isTauriEnv()) return
+    const { listen } = await import('@tauri-apps/api/event')
+    _unlisteners.push(
+      await listen<TerminalTauriOutput>('terminal-output', (event) => {
+        const { pid, data, isError } = event.payload
+        const term = terminalSessions.value.find(t => t.processId === pid)
+        if (!term) return
+        const lineType = isError ? 'error' : 'output'
+        _pushLine(term, data, lineType)
+      }),
+      await listen<{ pid: number }>('terminal-exit', (event) => {
+        const term = terminalSessions.value.find(t => t.processId === event.payload.pid)
+        if (term) {
+          _pushLine(term, '\n  ➜ 进程已退出\r\n', 'info')
+          term.processId = 0
+        }
+      }),
+    )
+  }
+
+  function _pushLine(term: TerminalSession, text: string, type: TerminalSession['lines'][0]['type']): void {
+    const line: TerminalSession['lines'][0] = { id: uid(), text, type, timestamp: Date.now() }
+    if (hasAnsi(text)) line.segments = parseAnsi(text)
+    term.lines.push(line)
+  }
+
+  /** Create a real Tauri terminal */
+  async function createTerminal(
+    shellType: TerminalSession['shellType'] = 'powershell',
+  ): Promise<string> {
+    await _ensureTauriEvents()
+
     // Deactivate all
-    terminalSessions.value.forEach(t => t.active = false)
+    terminalSessions.value.forEach(t => (t.active = false))
+
     const id = uid()
-    terminalSessions.value.push({
+    const cwd = useFileTreeStore().workspaceRoot || '.'
+
+    if (isTauriEnv()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const info: any = await invoke('spawn_shell', {
+          config: { shell: shellType === 'bash' ? 'bash' : 'powershell.exe', cwd },
+        })
+        const term: TerminalSession = {
+          id,
+          title: `终端 (${terminalSessions.value.length + 1})`,
+          shellType,
+          lines: [{ id: uid(), text: `\n  ➜ ${cwd}\r\n`, type: 'info', timestamp: Date.now() }],
+          active: true,
+          cwd,
+          processId: info.id,
+          _shellConfig: { shell: shellType === 'bash' ? 'bash' : 'powershell.exe', cwd },
+        }
+        terminalSessions.value.push(term)
+        return id
+      } catch (e) {
+        console.warn('[Terminal] spawn failed, using mock:', e)
+      }
+    }
+
+    // Fallback: mock terminal
+    const term: TerminalSession = {
       id,
       title: `终端 (${terminalSessions.value.length + 1})`,
       shellType,
-      lines: [{ id: uid(), text: `\n  ➜ ${id === terminalSessions.value[0]?.id ? '~/projects/ai-app' : '~'}`, type: 'info', timestamp: Date.now() }],
+      lines: [{ id: uid(), text: `\n  ➜ ${cwd} (仿真模式)\r\n`, type: 'info', timestamp: Date.now() }],
       active: true,
-      cwd: "~",
-    })
+      cwd,
+    }
+    terminalSessions.value.push(term)
     return id
   }
 
-  /** 🔥 关闭/杀死终端会话 */
-  function closeTerminal(id: string): void {
+  /** Close/kill terminal */
+  async function closeTerminal(id: string): Promise<void> {
     const idx = terminalSessions.value.findIndex(t => t.id === id)
     if (idx === -1) return
-    const wasActive = terminalSessions.value[idx].active
+    const term = terminalSessions.value[idx]
+    const wasActive = term.active
+
+    // Kill process
+    if (term.processId && term.processId > 0 && isTauriEnv()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('kill_process', { pid: term.processId })
+      } catch { /* ignore */ }
+    }
+
     terminalSessions.value.splice(idx, 1)
-    // 如果关闭了当前活动终端，激活前一个
     if (wasActive && terminalSessions.value.length > 0) {
       const newActive = terminalSessions.value[Math.min(idx, terminalSessions.value.length - 1)]
       newActive.active = true
     }
   }
 
-  /** 🔥 切换到指定终端 */
+  /** Switch active terminal */
   function switchToTerminal(id: string): void {
-    terminalSessions.value.forEach(t => t.active = t.id === id)
+    terminalSessions.value.forEach(t => (t.active = t.id === id))
   }
 
-  /** 🔥 复制当前终端 */
-  function duplicateTerminal(): string {
+  /** Duplicate terminal (spawns new real shell with same cwd) */
+  async function duplicateTerminal(): Promise<string> {
     const term = terminalSessions.value.find(t => t.active)
     if (!term) return createTerminal()
-    const id = uid()
-    terminalSessions.value.forEach(t => t.active = false)
-    terminalSessions.value.push({
-      id,
-      title: `终端 (${terminalSessions.value.length + 1})`,
-      shellType: term.shellType,
-      lines: [{ id: uid(), text: `\n  ➜ ${term.cwd}`, type: 'info', timestamp: Date.now() }],
-      active: true,
-      cwd: term.cwd,
-    })
-    return id
+    return createTerminal(term.shellType)
   }
 
-  /** 🔥 重命名终端 */
   function renameTerminal(id: string, name: string): void {
     const term = terminalSessions.value.find(t => t.id === id)
     if (term) term.title = name
   }
 
-  function addTerminalLine(
+  async function addTerminalLine(
     text: string,
     type: TerminalSession['lines'][0]['type'] = 'output',
-  ): void {
+  ): Promise<void> {
     const term = terminalSessions.value.find((t) => t.active)
     if (!term) return
-    const line: TerminalSession['lines'][0] = {
-      id: uid(),
-      text,
-      type,
-      timestamp: Date.now(),
+
+    // Send to real process if available
+    if (term.processId && term.processId > 0 && isTauriEnv() && type !== 'info') {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('write_to_pty', { pid: term.processId, data: `${text}\r\n` })
+      } catch {
+        console.warn('[Terminal] write_to_pty failed')
+      }
     }
-    // Session 10: auto-detect ANSI and pre-parse segments
-    if (hasAnsi(text)) {
-      line.segments = parseAnsi(text)
-    }
-    term.lines.push(line)
+
+    _pushLine(term, text, type)
   }
 
   const outputChannels = ref<OutputChannel[]>([
@@ -141,6 +162,57 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (ch) ch.lines.push(msg)
   }
 
+  /** Execute command in terminal (TasksPanel) */
+  async function executeCommandInTerminal(
+    command: string,
+    title: string = command.slice(0, 20),
+    cwd: string = useFileTreeStore().workspaceRoot || '.',
+    shellType: TerminalSession['shellType'] = 'powershell',
+  ): Promise<string> {
+    terminalSessions.value.forEach(t => (t.active = false))
+    const id = uid()
+
+    if (isTauriEnv()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const info: any = await invoke('spawn_shell', {
+          config: { shell: shellType === 'bash' ? 'bash' : 'powershell.exe', cwd },
+        })
+        // Send the command
+        await invoke('write_to_pty', { pid: info.id, data: `${command}\r\n` })
+        const term: TerminalSession = {
+          id,
+          title: `任务: ${title}`,
+          shellType,
+          lines: [
+            { id: uid(), text: `\n  执行: ${command}\r\n`, type: 'info', timestamp: Date.now() },
+          ],
+          active: true,
+          cwd,
+          processId: info.id,
+        }
+        terminalSessions.value.push(term)
+        return id
+      } catch (e) {
+        console.warn('[Terminal] executeCommand failed:', e)
+      }
+    }
+
+    // Fallback
+    const term: TerminalSession = {
+      id,
+      title: `任务: ${title}`,
+      shellType,
+      lines: [
+        { id: uid(), text: `\n  执行: ${command} (仿真模式)\r\n`, type: 'info', timestamp: Date.now() },
+      ],
+      active: true,
+      cwd,
+    }
+    terminalSessions.value.push(term)
+    return id
+  }
+
   return {
     terminalSessions,
     activeTerminalId,
@@ -153,5 +225,13 @@ export const useTerminalStore = defineStore('terminal', () => {
     outputChannels,
     activeOutputChannel,
     addOutputLine,
+    executeCommandInTerminal,
   }
 })
+
+interface TerminalTauriOutput {
+  pid: number
+  data: string
+  isError: boolean
+  timestamp: number
+}

@@ -306,6 +306,7 @@ fn save_registry() -> Result<(), String> {
 }
 
 /// 从磁盘加载插件注册表
+#[allow(dead_code)]
 pub fn load_registry() -> Result<(), String> {
     let plugins_dir = get_plugins_dir();
     let registry_path = plugins_dir.join("registry.json");
@@ -375,7 +376,7 @@ pub async fn install_plugin(source: String) -> Result<PluginInfo, String> {
 #[tauri::command]
 pub async fn uninstall_plugin(plugin_id: String) -> Result<(), String> {
     let mut registry = PLUGIN_REGISTRY.write().map_err(|e| e.to_string())?;
-    if let Some(plugin) = registry.remove(&plugin_id) {
+    if let Some(_plugin) = registry.remove(&plugin_id) {
         // 删除插件文件
         let plugins_dir = get_plugins_dir();
         let plugin_dir = plugins_dir.join(&plugin_id);

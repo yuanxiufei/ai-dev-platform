@@ -10,10 +10,12 @@ pub fn init(_app: &AppHandle) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub struct PluginContext {
     pub app: AppHandle,
 }
 
+#[allow(dead_code)]
 impl PluginContext {
     pub fn new(app: AppHandle) -> Self {
         Self { app }

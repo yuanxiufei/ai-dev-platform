@@ -16,7 +16,7 @@ import {
   ChevronRight, CheckCircle2, XCircle, Clock, Code2, Package, Cog, Bug, TestTube2
 } from "lucide-vue-next"
 import { useIDEStore } from "@/stores/useIDEStore"
-
+import type { TerminalSession } from "@/types/ide"
 const store = useIDEStore()
 
 // ── 任务类型 ──
@@ -180,27 +180,32 @@ async function runTask(task: Task): Promise<void> {
   task.status = "running"
   runningTasks.value.add(task.id)
 
-  // 输出到输出面板
-  store.addOutputLine(`[任务] 开始: ${task.name}`)
-  store.addOutputLine(`[任务] 命令: ${task.command}`)
-  store.addOutputLine("")
+  // 🔥 VSCode 方式：创建终端并在其中执行命令
+  const shellType: TerminalSession['shellType'] =
+    task.type === 'npm' ? 'powershell' :
+    task.type === 'shell' ? (navigator.platform.includes('Win') ? 'powershell' : 'bash') :
+    'powershell'
 
-  // 模拟执行
-  await new Promise(r => setTimeout(r, 800 + Math.random() * 1200))
-  store.addOutputLine(`> ${task.command}`)
-  store.addOutputLine(`✓ ${task.name} 完成 (${Math.floor(Math.random() * 2000 + 300)}ms)`)
-  task.status = Math.random() > 0.85 ? "failed" : "success"
-  if (task.status === "failed") {
-    store.addOutputLine(`✗ ${task.name} 失败: 错误代码 1`)
-  }
-  store.addOutputLine("")
-  runningTasks.value.delete(task.id)
+  store.executeCommandInTerminal(task.command, task.name, task.cwd || undefined, shellType)
+
+  // 切换到终端面板
+  store.bottomPanelView = 'terminal'
+  store.layout.bottomPanelVisible = true
+
+  // 任务状态由终端进程退出时回调更新（WebSocket onclose → 检查退出码）
+  // 暂时标记为 running，后续可监听 terminal 退出事件
+  setTimeout(() => {
+    if (runningTasks.value.has(task.id)) {
+      // 超时或手工停止
+      runningTasks.value.delete(task.id)
+    }
+  }, 600000) // 10分钟超时
 }
 
 function stopTask(task: Task): void {
+  // 命令已在终端中执行，通过终端的 Ctrl+C 或 WebSocket shutdown 来停止
   task.status = "idle"
   runningTasks.value.delete(task.id)
-  store.addOutputLine(`[任务] 终止: ${task.name}`)
 }
 
 function toggleGroup(key: string): void {

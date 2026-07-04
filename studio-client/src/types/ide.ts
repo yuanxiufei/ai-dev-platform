@@ -50,6 +50,12 @@ export interface TerminalSession {
   lines: TerminalLine[]
   active: boolean
   cwd: string
+  /** 待发送的命令（任务面板注入，WS 连接后就发送） */
+  pendingCommand?: string
+  /** Tauri process ID (0 = mock/仿真) */
+  processId?: number
+  /** Shell config used for spawn (only used internally) */
+  _shellConfig?: { shell: string; cwd: string }
 }
 
 /** Single terminal output line */
@@ -105,8 +111,11 @@ export interface SearchState {
   currentResultIndex: number
 }
 
-/** Right panel view mode */
-export type RightPanelView = "output" | "terminal" | "tasks" | "debug" | "chat" | "memory" | "skills" | "mcp"
+/** Right panel view mode — 侧边辅助面板（AI助手/聊天/记忆等） */
+export type RightPanelView = "chat" | "memory" | "skills" | "mcp"
+
+/** Bottom panel view mode — 底部面板（终端/输出/问题/调试控制台）*/
+export type BottomPanelView = "terminal" | "output" | "problems" | "tasks" | "debug-console"
 
 /** Sidebar / Activity bar icon entry */
 export interface ActivityItem {
@@ -114,6 +123,10 @@ export interface ActivityItem {
   icon: string
   label: string
   badge?: number | string
+  /** 点击后导航到的路由（设为路由路径时自动切 activeActivityItem='projects'） */
+  route?: string
+  /** 点击行为: 'sidebar'=展示 Sidebar 面板, 'route'=路由导航, 'chat'=打开右侧 AI 对话 */
+  action?: 'sidebar' | 'route' | 'chat'
 }
 
 /** Menu bar structure */

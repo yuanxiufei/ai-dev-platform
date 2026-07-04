@@ -206,9 +206,20 @@ export interface AIDecoration {
 }
 
 async function initMonaco(): Promise<void> {
-  if (!containerRef.value) return
+  // Wait for DOM to be mounted, especially in group mode where
+  // CodeEditor instances may be created/destroyed rapidly
+  if (!containerRef.value) {
+    await nextTick()
+    if (!containerRef.value) {
+      console.warn("[CodeBuddy] initMonaco: container not ready")
+      return
+    }
+  }
   try {
-    const monaco = (await import("monaco-editor")).default
+    // Monaco 0.52+ uses named exports, not default
+    // The import returns the namespace directly
+    const monacoModule: any = await import("monaco-editor")
+    const monaco: typeof monacoNs = (monacoModule.default ?? monacoModule) as typeof monacoNs
     monacoRaw = monaco
     monacoInstance.value = monaco
     monaco.editor.defineTheme("codebuddy-dark", {
@@ -233,7 +244,7 @@ async function initMonaco(): Promise<void> {
         { token: "ai-modified", background: "d2992233", foreground: "e3b341" },
       ],
       colors: {
-        "editor.background": "#0F131D",
+        "editor.background": "#1E1E1E",
         "editor.foreground": "#DFE2F1",
         "editor.lineHighlightBackground": "#1C1F2A20",
         "editor.lineHighlightBorder": "#2A2D3A10",
@@ -261,14 +272,14 @@ async function initMonaco(): Promise<void> {
       // Session 10: sync with global theme
       theme: themeStore.definition.monacoTheme,
       automaticLayout: true,
-      fontSize: 13,
+      fontSize: 14,
       fontFamily:
-        "'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
+        "'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace",
       fontLigatures: true,
-      lineHeight: 21,
-      padding: { top: 8, bottom: 8 },
+      lineHeight: 22,
+      padding: { top: 0, bottom: 0 },
       minimap: { enabled: true, maxColumn: 120, scale: 1 },
-      scrollBeyondLastLine: false,
+      scrollBeyondLastLine: true,
       smoothScrolling: true,
       cursorBlinking: "smooth",
       cursorSmoothCaretAnimation: "on",
@@ -283,11 +294,11 @@ async function initMonaco(): Promise<void> {
       overviewRulerLanes: 3,
       /** Session 25: 鼠标悬停时显示折叠控件 */
       showFoldingControls: "mouseover",
-      wordWrap: "on",
+      wordWrap: "off",
       folding: true,
       foldingStrategy: "indentation",
       lineNumbers: "on",
-      lineNumbersMinChars: 4,
+      lineNumbersMinChars: 5,
       links: true,
       glyphMargin: true,
       // Session 10: enhanced editor features
@@ -337,7 +348,8 @@ async function initMonaco(): Promise<void> {
       if (quickDiffWatcher) clearTimeout(quickDiffWatcher)
       quickDiffWatcher = setTimeout(() => applyQuickDiff(), 300)
     })
-    editor.onCursorPositionChanged(() => {
+    // Monaco 0.50+ renamed onCursorPositionChanged -> onDidChangeCursorPosition
+    const cursorHandler = () => {
       const pos = editor.getPosition(),
         model = editor.getModel()
       emit("update-cursor", {
@@ -347,7 +359,12 @@ async function initMonaco(): Promise<void> {
         selectedChars: editor.getSelection()?.toString().length ?? 0,
         languageId: model?.getLanguageId() ?? "plaintext",
       })
-    })
+    }
+    if (typeof (editor as any).onDidChangeCursorPosition === "function") {
+      (editor as any).onDidChangeCursorPosition(cursorHandler)
+    } else if (typeof (editor as any).onCursorPositionChanged === "function") {
+      (editor as any).onCursorPositionChanged(cursorHandler)
+    }
 
     // 🆕 FIM 补全: 按键触发 + Tab/Esc 拦截
     editor.onKeyDown((e) => {
@@ -576,6 +593,16 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+/* ═══ 编辑器 Git 行标记 + Gutter 颜色（全局 CSS 变量，穿透 Shadow DOM） ═══ */
+:root {
+  --editor-glyph-deleted: #f85149;
+  --editor-modified-line-bg: rgba(210, 153, 34, 0.08);
+  --editor-modified-line-border: rgba(210, 153, 34, 0.4);
+  --editor-added-line-bg: rgba(46, 160, 67, 0.08);
+  --editor-added-line-border: rgba(46, 160, 67, 0.4);
+  --editor-deleted-line-bg: rgba(248, 81, 73, 0.08);
+  --editor-deleted-line-border: rgba(248, 81, 73, 0.4);
+}
 /* 🆕 FIM 幽灵文本样式（借鉴 Tabby inline completion + Cursor ghost text）
  * 必须使用全局选择器，因为 Monaco 内部使用 shadow DOM 渲染 */
 .fim-ghost-text {
@@ -602,13 +629,13 @@ onBeforeUnmount(() => {
 }
 /* Gutter 标记: 删除(红色三角) — 简化版显示为色条 */
 .qd-glyph-deleted {
-  background: #f85149 !important;
+  background: var(--editor-glyph-deleted) !important;
   width: 3px !important;
   margin-left: 3px;
   border-radius: 1px;
 }
 /* 行背景标记 */
-.qd-modified-line { background: rgba(210, 153, 34, 0.08) !important; border-left: 2px solid rgba(210, 153, 34, 0.4) !important; }
-.qd-added-line { background: rgba(46, 160, 67, 0.08) !important; border-left: 2px solid rgba(46, 160, 67, 0.4) !important; }
-.qd-deleted-line { background: rgba(248, 81, 73, 0.08) !important; border-left: 2px solid rgba(248, 81, 73, 0.4) !important; text-decoration: line-through; opacity: 0.5; }
+.qd-modified-line { background: var(--editor-modified-line-bg) !important; border-left: 2px solid var(--editor-modified-line-border) !important; }
+.qd-added-line { background: var(--editor-added-line-bg) !important; border-left: 2px solid var(--editor-added-line-border) !important; }
+.qd-deleted-line { background: var(--editor-deleted-line-bg) !important; border-left: 2px solid var(--editor-deleted-line-border) !important; text-decoration: line-through; opacity: 0.5; }
 </style>

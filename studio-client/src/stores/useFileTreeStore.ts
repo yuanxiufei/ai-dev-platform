@@ -28,58 +28,49 @@ function fileInfoToEntry(info: {
 }
 
 function buildDemoFileTree(): FileEntry[] {
+  // ✅ 模拟 Tauri 端真实 src-tauri 结构 — 用于浏览器无 Tauri 时的可视化测试
   return [
     {
-      name: 'my-ai-app',
-      path: '',
+      name: 'src-tauri',
+      path: 'src-tauri',
       isDir: true,
       expanded: true,
       children: [
-        {
-          name: 'src',
-          path: 'src',
-          isDir: true,
-          expanded: true,
+        { name: 'gen', path: 'src-tauri/gen', isDir: true, expanded: true,
           children: [
-            {
-              name: 'App.vue',
-              path: 'src/App.vue',
-              isDir: false,
-              language: 'html',
-            },
-            {
-              name: 'main.ts',
-              path: 'src/main.ts',
-              isDir: false,
-              language: 'typescript',
-            },
-            {
-              name: 'style.css',
-              path: 'src/style.css',
-              isDir: false,
-              language: 'css',
-            },
-            {
-              name: 'components',
-              path: 'src/components',
-              isDir: true,
-              expanded: false,
-              children: [],
-            },
-          ],
-        },
-        {
-          name: 'package.json',
-          path: 'package.json',
-          isDir: false,
-          language: 'json',
-        },
-        {
-          name: 'README.md',
-          path: 'README.md',
-          isDir: false,
-          language: 'markdown',
-        },
+            { name: 'schemas', path: 'src-tauri/gen/schemas', isDir: true, expanded: false, children: [] },
+          ] },
+        { name: 'icons', path: 'src-tauri/icons', isDir: true, expanded: false, children: [
+            { name: '128x128.png', path: 'src-tauri/icons/128x128.png', isDir: false, language: 'plaintext' },
+            { name: '128x128@2x.png', path: 'src-tauri/icons/128x128@2x.png', isDir: false, language: 'plaintext' },
+            { name: '32x32.png', path: 'src-tauri/icons/32x32.png', isDir: false, language: 'plaintext' },
+            { name: 'icon.icns', path: 'src-tauri/icons/icon.icns', isDir: false, language: 'plaintext' },
+            { name: 'icon.ico', path: 'src-tauri/icons/icon.ico', isDir: false, language: 'plaintext' },
+            { name: 'icon.png', path: 'src-tauri/icons/icon.png', isDir: false, language: 'plaintext' },
+          ] },
+        { name: 'src', path: 'src-tauri/src', isDir: true, expanded: false, children: [
+            { name: 'commands', path: 'src-tauri/src/commands', isDir: true, expanded: false, children: [
+              { name: 'fs.rs', path: 'src-tauri/src/commands/fs.rs', isDir: false, language: 'rust' },
+              { name: 'git.rs', path: 'src-tauri/src/commands/git.rs', isDir: false, language: 'rust' },
+            ] },
+            { name: 'file_watcher.rs', path: 'src-tauri/src/file_watcher.rs', isDir: false, language: 'rust' },
+            { name: 'git.rs', path: 'src-tauri/src/git.rs', isDir: false, language: 'rust' },
+            { name: 'main.rs', path: 'src-tauri/src/main.rs', isDir: false, language: 'rust' },
+            { name: 'plugins.rs', path: 'src-tauri/src/plugins.rs', isDir: false, language: 'rust' },
+            { name: 'settings.rs', path: 'src-tauri/src/settings.rs', isDir: false, language: 'rust' },
+            { name: 'shortcuts.rs', path: 'src-tauri/src/shortcuts.rs', isDir: false, language: 'rust' },
+            { name: 'terminal.rs', path: 'src-tauri/src/terminal.rs', isDir: false, language: 'rust' },
+          ] },
+        { name: 'target', path: 'src-tauri/target', isDir: true, expanded: false, children: [
+            { name: '.rustc_info.json', path: 'src-tauri/target/.rustc_info.json', isDir: false, language: 'json' },
+            { name: 'CACHEDIR.TAG', path: 'src-tauri/target/CACHEDIR.TAG', isDir: false, language: 'plaintext' },
+            { name: 'debug', path: 'src-tauri/target/debug', isDir: true, expanded: false, children: [] },
+          ] },
+        { name: 'build.rs', path: 'src-tauri/build.rs', isDir: false, language: 'rust' },
+        { name: 'Cargo.lock', path: 'src-tauri/Cargo.lock', isDir: false, language: 'toml' },
+        { name: 'Cargo.toml', path: 'src-tauri/Cargo.toml', isDir: false, language: 'toml' },
+        { name: 'tauri.conf.json', path: 'src-tauri/tauri.conf.json', isDir: false, language: 'json' },
+        { name: 'welcome.html', path: 'src-tauri/welcome.html', isDir: false, language: 'html' },
       ],
     },
   ]
@@ -105,8 +96,10 @@ export const useFileTreeStore = defineStore('fileTree', () => {
   }
 
   async function initFileTree(rootPath?: string): Promise<void> {
+    console.log('[fileTree] initFileTree called, isTauriEnv:', isTauriEnv(), 'rootPath:', rootPath, 'currentLength:', fileTree.value.length)
     if (!isTauriEnv()) {
       fileTree.value = buildDemoFileTree()
+      console.log('[fileTree] set demo tree, new length:', fileTree.value.length)
       return
     }
     try {
@@ -160,14 +153,27 @@ export const useFileTreeStore = defineStore('fileTree', () => {
   }
 
   async function createFileEntry(parentDir: string, fileName: string): Promise<FileEntry | null> {
-    const filePath = `${parentDir.replace(/[\\/]$/, '')}/${fileName}`
-    try {
-      const { invoke } = await import('@tauri-apps/api/core')
-      const info = await invoke<any>('create_file', { path: filePath })
-      return fileInfoToEntry(info)
-    } catch (e) {
-      console.warn(`[IDE] Failed to create file: ${filePath}`, e)
-      return null
+    // 处理空 parentDir: 避免生成 /filename 这样带前缀斜杠的路径
+    const cleanParent = parentDir.replace(/[\\/]$/, '')
+    const filePath = cleanParent ? `${cleanParent}/${fileName}` : fileName
+    if (isTauriEnv()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const info = await invoke<any>('create_file', { path: filePath })
+        return fileInfoToEntry(info)
+      } catch (e) {
+        console.warn(`[IDE] Failed to create file: ${filePath}`, e)
+        return null
+      }
+    }
+    // Browser/demo mode: create entry in-memory
+    const ext = fileName.split('.').pop()?.toLowerCase() ?? ''
+    return {
+      name: fileName,
+      path: filePath,
+      isDir: false,
+      language: ext ? (extToLang[ext] ?? 'plaintext') : 'plaintext',
+      size: 0,
     }
   }
 
@@ -175,14 +181,26 @@ export const useFileTreeStore = defineStore('fileTree', () => {
     parentDir: string,
     folderName: string,
   ): Promise<FileEntry | null> {
-    const dirPath = `${parentDir.replace(/[\\/]$/, '')}/${folderName}`
-    try {
-      const { invoke } = await import('@tauri-apps/api/core')
-      const info = await invoke<any>('create_directory', { path: dirPath })
-      return fileInfoToEntry(info)
-    } catch (e) {
-      console.warn(`[IDE] Failed to create directory: ${dirPath}`, e)
-      return null
+    const cleanParent = parentDir.replace(/[\\/]$/, '')
+    const dirPath = cleanParent ? `${cleanParent}/${folderName}` : folderName
+    if (isTauriEnv()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const info = await invoke<any>('create_directory', { path: dirPath })
+        return fileInfoToEntry(info)
+      } catch (e) {
+        console.warn(`[IDE] Failed to create directory: ${dirPath}`, e)
+        return null
+      }
+    }
+    // Browser/demo mode: create entry in-memory
+    return {
+      name: folderName,
+      path: dirPath,
+      isDir: true,
+      children: [],
+      expanded: false,
+      size: 0,
     }
   }
 

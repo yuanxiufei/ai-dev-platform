@@ -598,10 +598,12 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | 文档 | 说明 |
 |------|------|
-| [PROGRESS.md](./PROGRESS.md) | **开发进度记录** — 每次会话详情、技术决策、已知问题与待办 |
-| [development.md](./development.md) | 本地开发指南 |
-| [deployment.md](./deployment.md) | 生产部署指南 |
-| [release-notes.md](./release-notes.md) | 版本更新记录 |
+| [开发进度记录](docs/changelog/开发进度.md) | 每次会话详情、技术决策、已知问题与待办 |
+| [本地开发指南](docs/development/开发指南.md) | 环境搭建、前后端启动、模型管理、API 调试 |
+| [生产部署指南（基础篇）](docs/deployment/部署概览.md) | 镜像来源、Docker Compose、Traefik、CI/CD、监控栈 |
+| [Windows 部署实操](docs/deployment/Windows部署.md) | WSL2 + Docker Desktop 上部署 9 容器全栈 AI 平台 |
+| [Linux 部署实操](docs/deployment/Linux部署.md) | 原生 Linux 上部署 9 容器全栈 AI 平台 |
+| [版本更新记录](docs/changelog/版本记录.md) | 各版本 release notes |
 | [standalone-tools/README.md](./standalone-tools/README.md) | 远程唤醒 (WOL) + DDNS 配置教程 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南 |
 

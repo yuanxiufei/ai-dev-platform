@@ -67,12 +67,16 @@ function getFileIcon(tab: EditorTab) {
   if (["png","jpg","jpeg","svg","gif","webp"].includes(ext)) return FileImage
   return FileCode
 }
-const iconColors: Record<string, string> = { vue:"#41B883", ts:"#519aba", tsx:"#519aba", js:"#F0DB4F", jsx:"#61DAFB", json:"#F5A623", md:"#519aba", py:"#3776AB", css:"#42A5F5", html:"#E44D26" }
-function getColor(l: string): string { return iconColors[l.split(".").pop()?.toLowerCase() ?? ""] ?? "#CCCCCC" }
+const iconColors: Record<string, string> = {
+  vue: "var(--icon-vue)", ts: "var(--icon-ts)", tsx: "var(--icon-tsx)",
+  js: "var(--icon-js)", jsx: "var(--icon-jsx)", json: "var(--icon-json)",
+  md: "var(--icon-md)", py: "var(--icon-py)", css: "var(--icon-css)", html: "var(--icon-html)",
+}
+function getColor(l: string): string { return iconColors[l.split(".").pop()?.toLowerCase() ?? ""] ?? "var(--icon-default)" }
 </script>
 
 <template>
-  <div class="flex items-stretch shrink-0 overflow-hidden select-none"
+  <div class="tab-bar flex items-stretch shrink-0 overflow-hidden select-none"
     style="height: var(--tabbar-height); background: var(--color-ide-bg-secondary); border-bottom: 1px solid var(--color-ide-border);"
     @dragover="onDragOver">
     <div class="shrink-0 h-full flex items-center border-r border-[var(--color-tab-border)]" style="background: var(--color-editor-bg);">
@@ -111,14 +115,14 @@ function getColor(l: string): string { return iconColors[l.split(".").pop()?.toL
             </span>
             <!-- Modified dot -->
             <span v-if="tab.modified" class="dirty-dot shrink-0 rounded-full"
-              :style="{width:'8px', height:'8px', background: tab.id===store.activeTabId?'#FBBF24':'rgba(204,204,204,0.4)'}" />
+              :style="{width:'8px', height:'8px', background: tab.id===store.activeTabId?'var(--tab-dirty-active)':'var(--tab-dirty-inactive)'}" />
           </div>
           <!-- Close btn -->
           <button class="shrink-0 flex items-center justify-center rounded-sm transition-opacity"
             :class="tab.id===store.activeTabId ? 'opacity-70 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-70'"
             style="width:28px; height:28px;" @click="onCloseTab($event, tab.id)">
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none"
-              :stroke="tab.id===store.activeTabId ? '#CCCCCC' : '#858585'"
+              :stroke="tab.id===store.activeTabId ? 'var(--color-ide-text)' : 'var(--color-ide-text-dim)'"
               stroke-width="2" stroke-linecap="round">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -199,5 +203,14 @@ function getColor(l: string): string { return iconColors[l.split(".").pop()?.toL
 </template>
 
 <style scoped>
+/* ═══ 文件图标颜色 + 修改标记颜色（组件级 CSS 变量） ═══ */
+.tab-bar {
+  --icon-vue: #41B883;   --icon-ts: #519aba;   --icon-tsx: #519aba;
+  --icon-js: #F0DB4F;    --icon-jsx: #61DAFB;  --icon-json: #F5A623;
+  --icon-md: #519aba;    --icon-py: #3776AB;   --icon-css: #42A5F5;
+  --icon-html: #E44D26;  --icon-default: #CCCCCC;
+  --tab-dirty-active: #FBBF24;
+  --tab-dirty-inactive: rgba(204, 204, 204, 0.4);
+}
 .dirty-dot { margin-top: 2px; }
 </style>
