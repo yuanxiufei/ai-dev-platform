@@ -14,9 +14,9 @@ D:\app\Docker\
 │   │       ├── ai-fullstack-platform_app-db-data/   → PostgreSQL
 │   │       ├── ai-fullstack-platform_redis-data/    → Redis
 │   │       └── ai-fullstack-platform_qdrant-data/   → Qdrant
-│   ├── grafana/              ← 监控面板（预留）
-│   ├── open-webui/           ← AI 对话（预留）
-│   └── prometheus/           ← 指标采集（预留）
+│   ├── grafana/              ← 监控面板
+│   ├── open-webui/           ← AI 对话界面
+│   └── prometheus/           ← 指标采集
 │
 ├── overlay2/    ← 废弃（WSL data-root 已迁入 .img）
 ├── containers/  ← 废弃
@@ -77,15 +77,31 @@ docker compose -f compose.yml -f compose.override.yml up -d
 ## 切换系统注意事项
 
 1. **退出前必须 `docker compose down`**，否则下次另一个系统启动时容器状态不一致
-2. **两系统共用 `compose.override.yml`**（已包含 Qdrant 健康检查修复、端口映射等本地开发配置）
-3. **`.env` 通用**——Docker Compose 会覆盖容器内 `POSTGRES_SERVER=db` 等变量，同一份 `.env` 兼容两种启动方式
+2. **两系统共用 `compose.yml` + `compose.override.yml`**（端口映射、健康检查修复、prestart 跳过）
+3. **`.env` 通用**——`POSTGRES_SERVER=db` / `REDIS_URL=redis://redis:6379/0` / `QDRANT_HOST=qdrant`（Docker 服务名），compose.yml 的 `environment:` 块自动覆盖容器内变量
 4. **镜像切换后可能需要重新 `docker pull`**——如果镜像层在切换系统时不兼容（overlay2 驱动版本差异），重新拉取即可，数据不受影响
+
+## 全部服务清单
+
+| 服务 | 镜像 | 端口 | 网络 |
+|---|---|---|---|
+| **backend** | `ai-platform-backend:latest` | 18000:8000 | backend |
+| **celery-worker** | `ai-platform-backend:latest` | — | backend |
+| db | `postgres:16-alpine` | 5432 | backend |
+| redis | `redis:7-alpine` | 6379 | backend |
+| qdrant | `qdrant/qdrant:latest` | 6333/6334 | backend |
+| adminer | `adminer` | 18080:8080 | backend |
+| proxy | `traefik:3.6` | 80, 18090 | backend |
+| grafana | `grafana/grafana:latest` | 9091:3000 | backend |
+| prometheus | `prom/prometheus:latest` | 9090 | backend |
+| alertmanager | `prom/alertmanager:latest` | 9093 | backend |
+| ollama | `ollama/ollama:latest` | 11434 | llm-net |
+
+> **已废弃**：`start-backend.bat`（Windows 本地启动脚本，Docker 化后不再需要）。
 
 ---
 
 ## 服务验证
-
-三容器全部 healthy 即表示可正常使用。
 
 ### 快速验证（一命令）
 
@@ -93,13 +109,13 @@ docker compose -f compose.yml -f compose.override.yml up -d
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 ```
 
-预期输出：
+预期至少 `db` / `redis` / `qdrant` / `backend` 显示 `healthy`。
 
-```
-NAMES                            STATUS
-ai-fullstack-platform-db-1       Up X minutes (healthy)
-ai-fullstack-platform-redis-1    Up X minutes (healthy)
-ai-fullstack-platform-qdrant-1   Up X minutes (healthy)
+### Backend API 验证
+
+```bash
+curl http://localhost:18000/api/v1/system/health
+# 预期：{"status":"healthy"}
 ```
 
 ### 逐服务深度验证
@@ -145,7 +161,7 @@ docker exec ai-fullstack-platform-qdrant-1 bash -c 'timeout 3 bash -c "echo > /d
 
 ### 宿主机直连验证
 
-确保 `.env` 中 `POSTGRES_SERVER=localhost`、`REDIS_URL=redis://localhost:6379/0`、`QDRANT_HOST=localhost`：
+容器内走 Docker 网络时使用 `POSTGRES_SERVER=db`，但宿主机直连仍然用 `localhost`：
 
 ```bash
 # PostgreSQL（需安装 psql 客户端）
@@ -202,6 +218,8 @@ docker info --format 'DockerRootDir={{.DockerRootDir}}'
 | 文件 | 用途 |
 |------|------|
 | `compose.yml` | 主配置（两系统通用，不动） |
-| `compose.override.yml` | 本地开发覆盖（端口映射、健康检查修复） |
-| `.env` | 环境变量（两系统通用） |
+| `compose.override.yml` | 本地开发覆盖（端口映射、健康检查修复、prestart 跳过） |
+| `.env` | 环境变量（Docker 服务名配置，两系统通用） |
+| `backend/Dockerfile` | Backend 镜像构建定义（GPU 版） |
+| `deploy/daemon.json` | Docker daemon 配置参考（镜像源 + NVIDIA runtime） |
 | `D:\app\Docker\docker-volumes.img` | ext4 共享数据镜像 |

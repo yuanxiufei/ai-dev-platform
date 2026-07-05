@@ -4,7 +4,9 @@
 
 后端 Docker 镜像需要同时支持 **RAG 语义搜索**（sentence-transformers）和 **GPU 模型推理**（torch/transformers/diffusers），依赖总量 ~3.5GB（185 个包，含 37 个 nvidia-* 包）。
 
-本文档记录了从 CPU index 切回 GPU 版 torch 的全过程及踩坑经验。
+本文档记录了从 CPU index → GPU版 torch 的最终方案及踩坑经验。
+
+> 📄 **最终决策**：保留 GPU 版 torch（不用 CPU index）。镜像体积 ~3.5GB，首次构建 ~30 分钟（清华镜像 + nvidia-* 大包下载慢），后续增量构建 ~30 秒（Docker 层缓存命中）。
 
 ---
 
@@ -162,6 +164,20 @@ docker build -t ai-platform-backend:latest -f backend/Dockerfile .
 # 后续构建（~30秒，依赖层缓存命中）
 docker build -t ai-platform-backend:latest -f backend/Dockerfile .
 ```
+
+> 💡 **国内加速**：Docker daemon 已配置 3 个镜像源（DaoCloud + Timeweb + 腾讯云），但拉取 Python 基础镜像时生效。PyPI 包下载走 Dockerfile 中的 `UV_INDEX_URL`（清华镜像），不经过 Docker registry mirrors。
+
+### 构建后部署
+
+```bash
+# 首次部署需手动执行数据库迁移
+docker compose -f compose.yml -f compose.override.yml run --rm prestart
+
+# 启动全部服务
+docker compose -f compose.yml -f compose.override.yml up -d
+```
+
+> ⚠️ `compose.override.yml` 默认跳过 backend/celery 的 prestart 依赖，首次部署或重置 DB 后必须手动执行 `docker compose run --rm prestart`。
 
 ---
 

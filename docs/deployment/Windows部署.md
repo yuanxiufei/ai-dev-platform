@@ -1,6 +1,6 @@
 # 全栈 AI 平台部署指南 —— Windows
 
-> 在 Windows 上部署 9 容器全栈 AI 平台（PostgreSQL + Redis + Qdrant + Ollama + vLLM + Open WebUI + 监控栈），离线镜像一键导入。
+> 在 Windows 上部署 11 容器全栈 AI 平台（Backend API + PostgreSQL + Redis + Qdrant + Celery + Ollama + vLLM + Open WebUI + 监控栈），全 Docker 化一键启动。
 >
 > **📄 镜像来源与基础方案**：本文使用的所有 Docker 镜像及通用部署架构定义在 [`部署概览.md`](部署概览.md)（基础篇），请先阅读了解镜像清单和 Traefik/CI/CD/监控栈概览。
 
@@ -84,6 +84,11 @@ sudo nvidia-ctk --version   # 1.19.x
 ```json
 {
   "data-root": "/var/lib/docker",
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerhub.timeweb.cloud",
+    "https://mirror.ccs.tencentyun.com"
+  ],
   "runtimes": {
     "nvidia": {
       "path": "nvidia-container-runtime",
@@ -104,6 +109,8 @@ sudo rm -f /var/run/docker.pid
 sudo dockerd &> /tmp/dockerd.log &
 ```
 
+> 💡 **镜像加速源说明**：按优先级依次为 DaoCloud → Timeweb Cloud → 腾讯云。国内网络下优先命中 DaoCloud，海外兜底 Timeweb。配置参考：`deploy/daemon.json`。
+
 ---
 
 ## 二、快速部署（WSL2）
@@ -112,26 +119,27 @@ sudo dockerd &> /tmp/dockerd.log &
 # 1. 进入 WSL
 wsl -d Ubuntu-24.04
 
-# 2. 启动 Docker（每次重启 WSL 后执行一次）
+# 2. 挂载 ext4 数据镜像（如果用了多系统共享架构）
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
+
+# 3. 启动 Docker（每次重启 WSL 后执行一次）
 sudo dockerd &> /tmp/dockerd.log &
 
-# 3. 进入项目目录（代码在 D 盘，WSL 内通过 /mnt/d 访问）
+# 4. 进入项目目录（代码在 D 盘，WSL 内通过 /mnt/d 访问）
 cd /mnt/d/code/ai-fullstack-platform
 
-# 4. 加载离线镜像（如有）
-docker load -i deploy/infra-images-latest.tar          # PG + Redis + Qdrant
-docker load -i deploy/monitoring-images-latest.tar     # Prometheus + Alertmanager + Grafana
-docker load -i deploy/ollama-latest.tar
-docker load -i deploy/vllm-openai-latest.tar           # 可选
-docker load -i deploy/open-webui-main.tar
+# 5. 构建 Backend 镜像（首次需 ~30 分钟，后续秒级）
+docker build -t ai-platform-backend:latest -f backend/Dockerfile .
 
-# 5. 创建网络 + 启动
-docker network create backend 2>/dev/null
-docker network create llm-net 2>/dev/null
-docker compose up -d
+# 6. 首次部署执行数据库迁移
+docker compose -f compose.yml -f compose.override.yml run --rm prestart
 
-# 6. 验证
+# 7. 启动全部服务
+docker compose -f compose.yml -f compose.override.yml up -d
+
+# 8. 验证
 docker ps
+curl http://localhost:18000/api/v1/system/health
 ```
 
 ---
@@ -143,26 +151,40 @@ docker ps
 │                     Windows 宿主机                       │
 │  代码: D:\code\ai-fullstack-platform                    │
 │  WSL存储: D:\app\Docker\Ubuntu-24.04\ext4.vhdx          │
+│  ext4数据: D:\app\Docker\docker-volumes.img (70GB)      │
 │                                                        │
-│  :3090(WebUI) :11434(Ollama) :3080(vLLM)               │
+│  :18000(Backend API) :3090(WebUI) :11434(Ollama)       │
 │  :5432(PG) :6379(Redis) :6333(Qdrant) :9091(Grafana)  │
+│  :18080(Adminer) :18090(Traefik Dashboard)              │
 │                                                        │
 │  ┌─────── llm-net ───────┐  ┌─────── backend ────────┐ │
-│  │ ollama :11434         │  │ postgres :5432         │ │
-│  │ vllm   :3080          │  │ redis    :6379         │ │
-│  │ open-webui :8080      │  │ qdrant   :6333/4       │ │
-│  └───────────────────────┘  │ prometheus :9090       │ │
+│  │ ollama :11434         │  │ backend :8000          │ │
+│  │ vllm   :3080          │  │ celery-worker          │ │
+│  │ open-webui :8080      │  │ postgres :5432         │ │
+│  └───────────────────────┘  │ redis    :6379         │ │
+│                              │ qdrant   :6333/4       │ │
+│                              │ prometheus :9090       │ │
 │                              │ alertmanager :9093     │ │
 │                              │ grafana :3000          │ │
+│                              │ adminer :8080          │ │
 │                              └────────────────────────┘ │
 └────────────────────────────────────────────────────────┘
 ```
 
-**网络隔离**：`llm-net`（AI 推理互访）+ `backend`（基础设施 + 监控）。
+**网络隔离**：`llm-net`（AI 推理互访）+ `backend`（基础设施 + 监控 + 应用 API）。
 
 ---
 
 ## 四、全部容器清单
+
+### 应用服务（`backend` 网络）
+
+| 服务 | 镜像 | 端口 | 默认凭证 | 用途 |
+|---|---|---|---|---|
+| **Backend API** | `ai-platform-backend:latest` | 18000:8000 | admin@example.com/changethis | 全栈AI平台核心API |
+| **Celery Worker** | `ai-platform-backend:latest` | — | — | 异步任务队列 |
+| Adminer | `adminer` | 18080:8080 | — | 数据库管理面板 |
+| Traefik | `traefik:3.6` | 80, 18090 | — | 反向代理/路由 |
 
 ### 基础设施（`backend` 网络）
 
@@ -191,10 +213,13 @@ docker ps
 ### 地址速查
 
 ```
+Backend API    → http://localhost:18000/api/v1/system/health
 Open WebUI     → http://localhost:3090
 Ollama API     → http://localhost:11434
 vLLM API       → http://localhost:3080/v1
 Grafana        → http://localhost:9091    (admin/admin)
+Traefik        → http://localhost:18090   (Dashboard)
+Adminer        → http://localhost:18080
 PostgreSQL     → localhost:5432           (admin/admin123/studio)
 Redis          → localhost:6379
 Qdrant HTTP    → http://localhost:6334
@@ -203,9 +228,35 @@ Prometheus     → http://localhost:9090
 
 ---
 
-## 五、基础设施部署
+## 五、应用服务部署
 
-### 5.1 PostgreSQL 16
+### 5.0 Backend API（项目核心）
+
+Backend 镜像通过 `backend/Dockerfile` 构建，包含 FastAPI + torch GPU 版 + RAG 依赖。
+
+**首次部署必须执行数据库迁移**：
+
+```bash
+# 若 compose.yml 中 prestart 服务被 compose.override.yml 跳过
+docker compose -f compose.yml -f compose.override.yml run --rm prestart
+```
+
+> ⚠️ `compose.override.yml` 默认跳过 prestart 依赖（本地开发已迁移过），首次部署或重置 DB 后必须手动执行上述命令创建表结构。
+
+**构建镜像**（仅首次，~30分钟）：
+
+```bash
+cd /mnt/d/code/ai-fullstack-platform
+docker build -t ai-platform-backend:latest -f backend/Dockerfile .
+```
+
+详细构建指南见 [`GPU版Docker构建指南.md`](../development/GPU版Docker构建指南.md)。
+
+---
+
+## 六、基础设施部署
+
+### 6.1 PostgreSQL 16
 
 ```yaml
 postgres:
@@ -234,7 +285,7 @@ docker exec -i postgres psql -U admin -d studio < backup.sql   # 恢复
 
 > ⚠️ 生产必改密码，数据在 volume `pgdata` 中，删容器不丢数据。
 
-### 5.2 Redis 7
+### 6.2 Redis 7
 
 ```yaml
 redis:
@@ -253,7 +304,7 @@ redis:
 
 > ⚠️ 默认无密码，公网暴露前加 `command: redis-server --requirepass 密码`。
 
-### 5.3 Qdrant 向量数据库
+### 6.3 Qdrant 向量数据库
 
 ```yaml
 qdrant:
@@ -285,11 +336,34 @@ volumes:
   grafanadata:
 ```
 
+### 6.5 关键配置文件
+
+#### `.env` — 全 Docker 化配置
+
+Backend/Celery 与其他服务运行在同一 Docker 网络中，`.env` 中数据库/缓存地址使用 **Docker 服务名**：
+
+```bash
+POSTGRES_SERVER=db              # 不能用 localhost
+REDIS_URL=redis://redis:6379/0  # 不能用 localhost
+QDRANT_HOST=qdrant              # 不能用 localhost
+QDRANT_PORT=6333
+```
+
+> 💡 compose.yml 的 `environment:` 块会覆盖容器内这些变量，即使 `.env` 写 `localhost` 也不影响容器运行。但保持一致可避免混淆。
+
+#### `compose.override.yml` — 本地开发覆盖
+
+本地开发覆盖文件提供了：
+
+- **端口映射**：Backend `18000:8000`、Adminer `18080`、Traefik `18090`
+- **Qdrant 健康检查修复**：原镜像不含 `curl`，改为 bash TCP 检测
+- **prestart 跳过**：日常开发中后端/celery 不依赖 prestart，首次部署需手动执行
+
 ---
 
-## 六、监控部署
+## 七、监控部署
 
-### 6.1 Prometheus
+### 7.1 Prometheus
 
 ```yaml
 prometheus:
@@ -304,7 +378,7 @@ prometheus:
     - backend
 ```
 
-### 6.2 Alertmanager
+### 7.2 Alertmanager
 
 ```yaml
 alertmanager:
@@ -319,7 +393,7 @@ alertmanager:
     - backend
 ```
 
-### 6.3 Grafana
+### 7.3 Grafana
 
 ```yaml
 grafana:
@@ -343,9 +417,9 @@ grafana:
 
 ---
 
-## 七、AI 服务部署
+## 八、AI 服务部署
 
-### 7.1 Ollama ⭐（主力后端）
+### 8.1 Ollama ⭐（主力后端）
 
 多模型并存，API 按名称切模型无需重启，空闲 5 分钟自动释放显存。
 
@@ -394,7 +468,7 @@ docker cp /tmp/Modelfile ollama:/tmp/Modelfile
 docker exec ollama ollama create qwen2-local:1.5b -f /tmp/Modelfile
 ```
 
-### 7.2 vLLM（可选）
+### 8.2 vLLM（可选）
 
 > 💡 仅高并发(100+ QPS)场景需要。WSL2 需 `vllm_entrypoint.sh` 补丁（见 [附录 B](#附录-bvllm-完整配置-wsl2)）。
 
@@ -404,7 +478,7 @@ curl http://localhost:3080/health          # 200 OK
 curl http://localhost:3080/v1/models
 ```
 
-### 7.3 Open WebUI
+### 8.3 Open WebUI
 
 ```yaml
 open-webui:
@@ -426,7 +500,7 @@ open-webui:
 
 ---
 
-## 八、vLLM vs Ollama 选型
+## 九、vLLM vs Ollama 选型
 
 | 维度 | Ollama ⭐ | vLLM |
 |---|---|---|
@@ -438,7 +512,7 @@ open-webui:
 
 ---
 
-## 九、对外映射
+## 十、对外映射
 
 | 方案 | 适用 | 要点 |
 |---|---|---|
@@ -459,7 +533,7 @@ response = client.chat.completions.create(
 
 ---
 
-## 十、常用操作
+## 十一、常用操作
 
 ```bash
 docker ps                                    # 查看状态
@@ -475,7 +549,7 @@ sudo pkill dockerd                            # 停止 Docker
 
 ---
 
-## 十一、踩坑索引（Windows 特有问题）
+## 十二、踩坑索引（Windows 特有问题）
 
 ### Docker 通用
 
@@ -503,6 +577,15 @@ sudo pkill dockerd                            # 停止 Docker
 | PostgreSQL | 密码忘记 | 进容器 `psql -U admin` 执行 ALTER |
 | Redis | 外部连不上 | `bind 0.0.0.0` |
 | Grafana | 登录失败 | 默认 admin/admin |
+
+### Backend API
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| `relation "xxx" does not exist` | 未执行 prestart 迁移 | `docker compose run --rm prestart` |
+| Alembic `down_revision` 冲突 | 迁移链断裂（docstring 改了但变量没改） | 检查 `.py` 中 `down_revision` 变量值 |
+| 18000 端口冲突 | Windows 本地残余 python.exe | `taskkill /PID xxx /F` 后重启容器 |
+| `--group gpu` 报错 | gpu 组定义在 ai_models，有限定范围 | 去掉 `--package app` 限定 |
 
 ---
 
