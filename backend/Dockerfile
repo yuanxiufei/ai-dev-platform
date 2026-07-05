@@ -4,10 +4,11 @@ ENV PYTHONUNBUFFERED=1
 
 # ── 下载加速 ──
 # PyPI 镜像源，可通过 --build-arg UV_INDEX_URL=... 切换
-# 国内可选: https://mirrors.aliyun.com/pypi/simple/
+# 阿里云（已测试通过）: https://mirrors.aliyun.com/pypi/simple/
+# 腾讯云（备选）: https://mirrors.cloud.tencent.com/pypi/simple/
 # 清华（nvidia大包慢）: https://pypi.tuna.tsinghua.edu.cn/simple
 # 官方（nvidia直连CDN）: https://pypi.org/simple/
-ARG UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple/
+ARG UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 ENV UV_INDEX_URL=${UV_INDEX_URL}
 ENV UV_HTTP_TIMEOUT=600
 ENV UV_CONCURRENT_DOWNLOADS=8

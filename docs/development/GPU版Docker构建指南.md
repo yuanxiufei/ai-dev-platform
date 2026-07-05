@@ -6,7 +6,7 @@
 
 本文档记录了从 CPU index → GPU版 torch 的最终方案及踩坑经验。
 
-> 📄 **最终决策**：保留 GPU 版 torch（不用 CPU index）。镜像体积 ~3.5GB，首次构建 ~30 分钟（nvidia-* 大包下载慢），后续增量构建 ~30 秒（Docker 层缓存命中）。PyPI 镜像源使用腾讯云 `mirrors.cloud.tencent.com`。
+> 📄 **最终决策**：保留 GPU 版 torch（不用 CPU index）。镜像体积 ~3.5GB，首次构建 ~30 分钟（nvidia-* 大包下载慢），后续增量构建 ~30 秒（Docker 层缓存命中）。PyPI 镜像源使用阿里云 `mirrors.aliyun.com`。
 
 ---
 
@@ -89,7 +89,7 @@ RUN uv sync --frozen --package app
 
 **原因分析**：国内 PyPI 镜像（清华/阿里云/腾讯云 等）对大文件（torch 507MB、nvidia-cublas 403MB 等）通常没有本地缓存，实际在透传 NVIDIA 海外 CDN，受跨境带宽限制。小文件（普通 Python 包）走镜像缓存秒下，大文件走海外直连速度骤降。
 
-**最终选择**：使用腾讯云镜像 `mirrors.cloud.tencent.com`（`ARG` 方式，可通过 `--build-arg` 切换）。清华镜像对 nvidia 大包同样没有本地缓存，且腾讯云网络链路更稳定。
+**最终选择**：使用阿里云镜像 `mirrors.aliyun.com`（`ARG` 方式，可通过 `--build-arg` 切换）。当前运行容器实测阿里云可用。
 
 **缓解措施**：
 - `UV_HTTP_TIMEOUT=600` — 防止大包下载超时中断
@@ -121,10 +121,11 @@ ENV PYTHONUNBUFFERED=1
 
 # ── 下载加速 ──
 # PyPI 镜像源，可通过 --build-arg UV_INDEX_URL=... 切换
-# 国内可选: https://mirrors.aliyun.com/pypi/simple/
+# 阿里云（已测试通过）: https://mirrors.aliyun.com/pypi/simple/
+# 腾讯云（备选）: https://mirrors.cloud.tencent.com/pypi/simple/
 # 清华（nvidia大包慢）: https://pypi.tuna.tsinghua.edu.cn/simple
 # 官方（nvidia直连CDN）: https://pypi.org/simple/
-ARG UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple/
+ARG UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 ENV UV_INDEX_URL=${UV_INDEX_URL}
 ENV UV_HTTP_TIMEOUT=600
 ENV UV_CONCURRENT_DOWNLOADS=8
@@ -172,7 +173,7 @@ docker build -t ai-platform-backend:latest -f backend/Dockerfile .
 docker build -t ai-platform-backend:latest -f backend/Dockerfile .
 ```
 
-> 💡 **国内加速**：Docker daemon 已配置 3 个镜像源（DaoCloud + Timeweb + 腾讯云），但仅对拉取 Python 基础镜像生效。PyPI 包下载走 Dockerfile 中的 `UV_INDEX_URL`（默认**腾讯云镜像** `mirrors.cloud.tencent.com`），不经过 Docker registry mirrors。可通过 `--build-arg UV_INDEX_URL=...` 切换。
+> 💡 **国内加速**：Docker daemon 已配置 3 个镜像源（DaoCloud + Timeweb + 腾讯云），但仅对拉取 Python 基础镜像生效。PyPI 包下载走 Dockerfile 中的 `UV_INDEX_URL`（默认**阿里云镜像** `mirrors.aliyun.com`），不经过 Docker registry mirrors。可通过 `--build-arg UV_INDEX_URL=...` 切换。
 
 ### 构建后部署
 
@@ -226,7 +227,7 @@ docker run --rm --gpus all ai-platform-backend:latest \
 
 | 变量 | 值 | 作用 |
 |------|------|------|
-| `UV_INDEX_URL` | `https://mirrors.cloud.tencent.com/pypi/simple/` | 腾讯云 PyPI 镜像加速（可通过 `--build-arg` 切换） |
+| `UV_INDEX_URL` | `https://mirrors.aliyun.com/pypi/simple/` | 阿里云 PyPI 镜像加速（可通过 `--build-arg` 切换） |
 | `UV_HTTP_TIMEOUT` | `600` | 防止大包下载超时 |
 | `UV_CONCURRENT_DOWNLOADS` | `8` | 并行下载数 |
 | `UV_COMPILE_BYTECODE` | `1` | 预编译 .pyc 加速启动 |
