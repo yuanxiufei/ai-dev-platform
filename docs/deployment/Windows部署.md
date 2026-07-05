@@ -128,18 +128,21 @@ sudo dockerd &> /tmp/dockerd.log &
 # 4. 进入项目目录（代码在 D 盘，WSL 内通过 /mnt/d 访问）
 cd /mnt/d/code/ai-fullstack-platform
 
-# 5. 构建 Backend 镜像（首次需 ~30 分钟，后续秒级）
-docker build -t ai-platform-backend:latest -f backend/Dockerfile .
+# 5. 构建所有镜像（首次 ~30 分钟，后续秒级）
+docker compose build
 
 # 6. 首次部署执行数据库迁移
-docker compose -f compose.yml -f compose.override.yml run --rm prestart
+docker compose run --rm prestart
 
-# 7. 启动全部服务
-docker compose -f compose.yml -f compose.override.yml up -d
+# 7. 启动全部服务（compose.yml + compose.override.yml 自动合并）
+docker compose up -d
 
 # 8. 验证
 docker ps
 curl http://localhost:18000/api/v1/system/health
+```
+
+> 💡 更详细的 compose 文件说明和端口速查 → [`Docker快速启动.md`](Docker快速启动.md)
 ```
 
 ---
@@ -153,15 +156,18 @@ curl http://localhost:18000/api/v1/system/health
 │  WSL存储: D:\app\Docker\Ubuntu-24.04\ext4.vhdx          │
 │  ext4数据: D:\app\Docker\docker-volumes.img (70GB)      │
 │                                                        │
-│  :18000(Backend API) :3090(WebUI) :11434(Ollama)       │
+│  :18000(Backend API) :5175(Studio Admin) :5174(Video C) │
+│  :5176(Video Admin) :18090(Traefik) :18080(Adminer)    │
 │  :5432(PG) :6379(Redis) :6333(Qdrant) :9091(Grafana)  │
-│  :18080(Adminer) :18090(Traefik Dashboard)              │
 │                                                        │
 │  ┌─────── llm-net ───────┐  ┌─────── backend ────────┐ │
 │  │ ollama :11434         │  │ backend :8000          │ │
 │  │ vllm   :3080          │  │ celery-worker          │ │
-│  │ open-webui :8080      │  │ postgres :5432         │ │
-│  └───────────────────────┘  │ redis    :6379         │ │
+│  │ open-webui :8080      │  │ video-client :80       │ │
+│  └───────────────────────┘  │ video-admin :80        │ │
+│                              │ studio-admin :80       │ │
+│                              │ postgres :5432         │ │
+│                              │ redis    :6379         │ │
 │                              │ qdrant   :6333/4       │ │
 │                              │ prometheus :9090       │ │
 │                              │ alertmanager :9093     │ │
@@ -171,7 +177,7 @@ curl http://localhost:18000/api/v1/system/health
 └────────────────────────────────────────────────────────┘
 ```
 
-**网络隔离**：`llm-net`（AI 推理互访）+ `backend`（基础设施 + 监控 + 应用 API）。
+> 📦 compose.yml 定义全部服务，`docker compose up -d` 一键启动。完整清单见 [`Docker快速启动.md`](Docker快速启动.md)。
 
 ---
 
@@ -183,6 +189,9 @@ curl http://localhost:18000/api/v1/system/health
 |---|---|---|---|---|
 | **Backend API** | `ai-platform-backend:latest` | 18000:8000 | admin@example.com/changethis | 全栈AI平台核心API |
 | **Celery Worker** | `ai-platform-backend:latest` | — | — | 异步任务队列 |
+| **video-client** | `ai-platform-video-client:latest` | 5174:80 | — | Vue 3 视频浏览 C 端 |
+| **video-admin** | `ai-platform-video-admin:latest` | 5176:80 | — | React 19 视频管理后台 |
+| **studio-admin** | `ai-platform-studio-admin:latest` | 5175:80 | — | Vue 3 项目管理后台 |
 | Adminer | `adminer` | 18080:8080 | — | 数据库管理面板 |
 | Traefik | `traefik:3.6` | 80, 18090 | — | 反向代理/路由 |
 
@@ -214,13 +223,16 @@ curl http://localhost:18000/api/v1/system/health
 
 ```
 Backend API    → http://localhost:18000/api/v1/system/health
+Studio Admin   → http://localhost:5175             (Vue 3 管理端)
+Video Client   → http://localhost:5174             (Vue 3 C 端)
+Video Admin    → http://localhost:5176             (React 19 管理端)
 Open WebUI     → http://localhost:3090
 Ollama API     → http://localhost:11434
 vLLM API       → http://localhost:3080/v1
-Grafana        → http://localhost:9091    (admin/admin)
-Traefik        → http://localhost:18090   (Dashboard)
+Grafana        → http://localhost:9091             (admin/admin)
+Traefik        → http://localhost:18090            (Dashboard)
 Adminer        → http://localhost:18080
-PostgreSQL     → localhost:5432           (admin/admin123/studio)
+PostgreSQL     → localhost:5432                    (admin/admin123/studio)
 Redis          → localhost:6379
 Qdrant HTTP    → http://localhost:6334
 Prometheus     → http://localhost:9090
@@ -247,8 +259,13 @@ docker compose -f compose.yml -f compose.override.yml run --rm prestart
 
 ```bash
 cd /mnt/d/code/ai-fullstack-platform
-docker build -t ai-platform-backend:latest -f backend/Dockerfile .
+# 构建所有服务镜像（backend + 3 个前端）
+docker compose build
+# 仅构建后端
+docker compose build backend
 ```
+
+> 📦 `docker compose build` 会读取 `compose.yml` 中所有 `build:` 定义，一次性构建 backend + video-client + video-admin + studio-admin 四个镜像。前端镜像 ~93MB 每个（nginx:alpine），后端 ~2-5GB（含 torch GPU 依赖）。
 
 详细构建指南见 [`GPU版Docker构建指南.md`](../development/GPU版Docker构建指南.md)。
 
@@ -353,11 +370,16 @@ QDRANT_PORT=6333
 
 #### `compose.override.yml` — 本地开发覆盖
 
-本地开发覆盖文件提供了：
+Docker Compose 会自动合并 `compose.yml` + `compose.override.yml`（无需显式 `-f` 指定）。
 
-- **端口映射**：Backend `18000:8000`、Adminer `18080`、Traefik `18090`
-- **Qdrant 健康检查修复**：原镜像不含 `curl`，改为 bash TCP 检测
-- **prestart 跳过**：日常开发中后端/celery 不依赖 prestart，首次部署需手动执行
+本地开发覆盖文件提供了：
+- **端口映射**：backend `18000:8000`、Adminer `18080`、Traefik `18090`
+- **前端端口**：video-client `5174`、video-admin `5176`、studio-admin `5175`
+- **热重载**：backend 开启 `--reload`，代码修改自动生效
+- **Qdrant 健康检查修复**：原镜像不含 curl，改为 bash TCP 检测
+- **prestart 跳过**：日常开发不依赖 prestart，首次部署需手动 `docker compose run --rm prestart`
+
+> 📖 完整 compose 文件说明见 [`Docker快速启动.md`](Docker快速启动.md)。
 
 ---
 

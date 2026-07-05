@@ -1,5 +1,7 @@
 # 部署指南
 
+> 📖 更详细的快速启动步骤 → [`docs/deployment/Docker快速启动.md`](deployment/Docker快速启动.md)
+
 ## 架构总览
 
 ```
@@ -7,7 +9,7 @@
 │              NTFS 共享分区 (Software/D:)           │
 │                                                  │
 │  app/Docker/docker-volumes.img (70GB ext4)       │
-│    └─→ mount /data/docker-volumes                │
+│    └─→ mount /mnt/dockervol                      │
 │        ├── docker/         ← Docker data-root    │
 │        ├── postgres/       ← 数据库 (47MB)        │
 │        ├── redis/          ← 缓存                │
@@ -30,11 +32,17 @@
 ## 快速启动
 
 ```bash
-cd ai-fullstack-platform
-bash setup.sh
-```
+# WSL2
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
+sudo dockerd &> /tmp/dockerd.log &
+cd /mnt/d/code/ai-fullstack-platform
+docker compose up -d
 
-脚本自动识别 Linux / WSL2，挂载 ext4、配置 Docker、启动全部服务。
+# 双系统 Linux
+sudo mount -o loop /media/.../docker-volumes.img /mnt/dockervol
+cd /path/to/ai-fullstack-platform
+docker compose up -d
+```
 
 ---
 
@@ -44,12 +52,12 @@ bash setup.sh
 
 **Linux** (`/etc/fstab`):
 ```
-/run/media/reginyuan/Software/app/Docker/docker-volumes.img /data/docker-volumes ext4 loop,defaults 0 0
+/run/media/reginyuan/Software/app/Docker/docker-volumes.img /mnt/dockervol ext4 loop,defaults 0 0
 ```
 
-**WSL2** (启动时手动挂载，`setup.sh` 执行):
+**WSL2** (启动时手动挂载):
 ```bash
-sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /data/docker-volumes
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
 ```
 
 ### 2. Docker daemon.json
@@ -57,7 +65,7 @@ sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /data/docker-volumes
 **Linux** (`/etc/docker/daemon.json`):
 ```json
 {
-    "data-root": "/data/docker-volumes/docker",
+    "data-root": "/mnt/dockervol/docker",
     "default-runtime": "nvidia",
     "registry-mirrors": [
         "https://docker.m.daocloud.io"
@@ -74,7 +82,7 @@ sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /data/docker-volumes
 **WSL2** (`/etc/docker/daemon.json`):
 ```json
 {
-    "data-root": "/data/docker-volumes/docker",
+    "data-root": "/mnt/dockervol/docker",
     "runtimes": {
         "nvidia": {
             "path": "nvidia-container-runtime",
@@ -162,12 +170,12 @@ sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /data/docker-volumes
 
 | 数据 | 大小 | 位置 |
 |------|------|------|
-| PostgreSQL | 47MB | `/data/docker-volumes/postgres/` |
-| Redis | 8KB | `/data/docker-volumes/redis/` |
-| Qdrant | 20KB | `/data/docker-volumes/qdrant/` |
-| Open WebUI | 844KB | `/data/docker-volumes/open-webui/` |
-| Grafana | 50MB | `/data/docker-volumes/grafana/` |
-| Prometheus | 400KB | `/data/docker-volumes/prometheus/` |
+| PostgreSQL | 47MB | `/mnt/dockervol/postgres/` |
+| Redis | 8KB | `/mnt/dockervol/redis/` |
+| Qdrant | 20KB | `/mnt/dockervol/qdrant/` |
+| Open WebUI | 844KB | `/mnt/dockervol/open-webui/` |
+| Grafana | 50MB | `/mnt/dockervol/grafana/` |
+| Prometheus | 400KB | `/mnt/dockervol/prometheus/` |
 
 ---
 
@@ -189,13 +197,15 @@ CELERY_POOL=solo             # 仅 WSL2
 
 ---
 
-## compose.shared.yml 结构
+## compose.yml 结构
+
+项目提供 3 个 compose 文件，本地开发时自动合并 `compose.yml` + `compose.override.yml`：
 
 共 **16 个服务**（10 基础服务 + 6 应用层服务），studio-client 为桌面端跨端应用，不在 Docker 中部署。
 
 ```yaml
 services:
-  postgres:        # PostgreSQL 16, 端口 5432
+  db:              # PostgreSQL 16, 端口 5432
   redis:           # Redis 7, 端口 6379
   qdrant:          # Qdrant 向量库, 端口 6333/6334
   ollama:          # Ollama LLM, 端口 11434 (GPU)
@@ -204,22 +214,23 @@ services:
   prometheus:      # 监控采集, 端口 9090
   alertmanager:    # 告警路由, 端口 9093
   grafana:         # 仪表盘, 端口 9091
-  prestart:        # 数据库迁移 (需构建)
+  prestart:        # 数据库迁移 (一次性)
   backend:         # FastAPI 后端 (需构建)
   celery-worker:   # 异步任务 (WSL2 需 --pool=solo)
   adminer:         # 数据库管理, 端口 18080
-  studio-admin:    # 项目管理前端 (需构建)
-  video-client:    # 视频 C 端 (需构建)
-  video-admin:     # 视频管理端 (需构建)
-  (studio-client 为桌面端跨端应用，不在 Docker 中部署)
+  studio-admin:    # Studio 管理端 (需构建，端口 5175)
+  video-client:    # Video C 端 (需构建，端口 5174)
+  video-admin:     # Video 管理端 (需构建，端口 5176)
+  # 开发额外: proxy(traefik), mailcatcher, playwright (来自 compose.override.yml)
+  # studio-client 为桌面端跨端应用，不在 Docker 中部署
 
-volumes: (全部使用 bind mount 到 /data/docker-volumes/)
-networks: ai-platform-net (bridge)
+volumes: (全部使用 Docker volumes 存储到 ext4 数据盘)
+networks: default, traefik-public
 ```
 
 ---
 
-## compose.shared.yml 各服务详细配置
+## compose.yml 各服务详细配置
 
 ### PostgreSQL
 - **镜像**: `postgres:16-alpine`
@@ -229,20 +240,20 @@ networks: ai-platform-net (bridge)
   - `POSTGRES_PASSWORD=admin123`
   - `POSTGRES_DB=studio`
   - `PGDATA=/var/lib/postgresql/data/pgdata`
-- **数据卷**: `/data/docker-volumes/postgres:/var/lib/postgresql/data`
+- **数据卷**: `/mnt/dockervol/postgres:/var/lib/postgresql/data`
 - **健康检查**: `pg_isready -U admin -d studio`
 
 ### Redis
 - **镜像**: `redis:7-alpine`
 - **端口**: `6379:6379`
-- **数据卷**: `/data/docker-volumes/redis:/data`
+- **数据卷**: `/mnt/dockervol/redis:/data`
 - **健康检查**: `redis-cli ping`
 - **认证**: 无密码
 
 ### Qdrant
 - **镜像**: `qdrant/qdrant:latest`
 - **端口**: `6333:6333` (gRPC), `6334:6334` (HTTP)
-- **数据卷**: `/data/docker-volumes/qdrant:/qdrant/storage`
+- **数据卷**: `/mnt/dockervol/qdrant:/qdrant/storage`
 - **健康检查**: `bash -c 'echo >/dev/tcp/localhost/6333'` (容器无 curl，用 bash 内置 TCP 检测)
 
 ### Ollama
@@ -265,24 +276,24 @@ networks: ai-platform-net (bridge)
 - **端口**: `3090:8080`
 - **依赖**: ollama
 - **环境**: `OLLAMA_BASE_URL=http://ollama:11434`, `OPENAI_API_BASE_URLS=http://vllm:3080/v1`, `RAG_EMBEDDING_ENGINE=ollama`
-- **数据卷**: `/data/docker-volumes/open-webui:/app/backend/data`
+- **数据卷**: `/mnt/dockervol/open-webui:/app/backend/data`
 
 ### Prometheus
 - **镜像**: `prom/prometheus:latest`
 - **端口**: `9090:9090`
-- **数据卷**: `/data/docker-volumes/prometheus:/prometheus`
+- **数据卷**: `/mnt/dockervol/prometheus:/prometheus`
 
 ### Alertmanager
 - **镜像**: `prom/alertmanager:latest`
 - **端口**: `9093:9093`
-- **数据卷**: `/data/docker-volumes/alertmanager:/alertmanager`
+- **数据卷**: `/mnt/dockervol/alertmanager:/alertmanager`
 
 ### Grafana
 - **镜像**: `grafana/grafana:latest`
 - **端口**: `9091:3000`
 - **凭据**: `admin / admin`
 - **依赖**: prometheus
-- **数据卷**: `/data/docker-volumes/grafana:/var/lib/grafana`
+- **数据卷**: `/mnt/dockervol/grafana:/var/lib/grafana`
 
 ---
 
@@ -304,19 +315,22 @@ networks: ai-platform-net (bridge)
 
 ## 日常使用：切换系统
 
-两个系统共享同一份 ext4 数据，切换时只需启动 Docker 和执行 `setup.sh`：
+两个系统共享同一份 ext4 数据，切换时只需挂载数据盘并启动服务：
 
 ```bash
-# 任意系统重启后
-cd ai-fullstack-platform
-bash setup.sh
-```
+# WSL2
+wsl -d Ubuntu-24.04
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
+sudo dockerd &> /tmp/dockerd.log &
+cd /mnt/d/code/ai-fullstack-platform
+docker compose up -d
 
-`setup.sh` 会自动：
-1. 检测 Linux / WSL2 环境
-2. 挂载 ext4 卷（如未挂载）
-3. 配置 Docker daemon.json（适配当前系统）
-4. 启动所有基础服务
+# 双系统 Linux
+sudo mount -o loop /media/用户名/Software/app/Docker/docker-volumes.img /mnt/dockervol
+sudo systemctl start docker
+cd /media/用户名/Software/code/ai-fullstack-platform
+docker compose up -d
+```
 
 > 切换系统后数据无感知 — 数据库、缓存、模型、监控历史完全一致。
 
@@ -330,13 +344,15 @@ bash setup.sh
 # 2. 创建 ext4 卷 (首次)
 sudo dd if=/dev/zero of=/run/media/reginyuan/Software/app/Docker/docker-volumes.img bs=1M count=71680
 sudo mkfs.ext4 -F /run/media/reginyuan/Software/app/Docker/docker-volumes.img
-sudo mkdir -p /data/docker-volumes
-sudo echo "/run/media/reginyuan/Software/app/Docker/docker-volumes.img /data/docker-volumes ext4 loop,defaults 0 0" | sudo tee -a /etc/fstab
-sudo mount /data/docker-volumes
+sudo mkdir -p /mnt/dockervol
+sudo echo "/run/media/reginyuan/Software/app/Docker/docker-volumes.img /mnt/dockervol ext4 loop,defaults 0 0" | sudo tee -a /etc/fstab
+sudo mount /mnt/dockervol
 
-# 3. 启动
+# 3. 构建并启动所有服务
 cd /run/media/reginyuan/Software/code/ai-fullstack-platform
-bash setup.sh
+docker compose build
+docker compose run --rm prestart
+docker compose up -d
 ```
 
 ### Windows WSL2
@@ -348,12 +364,16 @@ bash setup.sh
 # 2. 启动 WSL2
 wsl -d Ubuntu-24.04
 
-# 3. 挂载 ext4 卷并启动全部服务（setup.sh 自动处理）
+# 3. 挂载 ext4 卷、构建并启动全部服务
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
+sudo dockerd &> /tmp/dockerd.log &
 cd /mnt/d/code/ai-fullstack-platform
-bash setup.sh
+docker compose build
+docker compose run --rm prestart
+docker compose up -d
 ```
 
-> WSL2 启动后所有 Docker 数据（镜像层、数据库、缓存）与 Linux 共享同一份 ext4 卷，切换系统无需重新拉取镜像或导入数据。
+> 📖 完整快速启动步骤 → [`docs/deployment/Docker快速启动.md`](deployment/Docker快速启动.md)
 
 ---
 

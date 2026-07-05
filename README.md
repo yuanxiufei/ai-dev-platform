@@ -98,27 +98,45 @@
 
 | 工具 | 用途 |
 |------|------|
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | 数据库 / Redis / 容器化 |
+| [Docker](https://docs.docker.com/engine/install/) | WSL2 用 `apt install docker.io`，Linux 用官方脚本，Mac 用 Docker Desktop |
 | [pnpm](https://pnpm.io/) | 前端包管理 |
 | [uv](https://docs.astral.sh/uv/) | Python 包管理 |
 
-### 方式一：Docker Compose（一键启动）
+### 方式一：Docker Compose（全服务一键启动）
+
+**Windows (WSL2) / Linux 双系统通用**，三个 compose 文件自动合并：
+
+> `compose.yml`（生产配置）+ `compose.override.yml`（本地开发覆盖）→ 自动合并
 
 ```bash
-docker compose watch
+# 1. 进入项目目录
+cd /mnt/d/code/ai-fullstack-platform   # WSL2
+# cd /path/to/ai-fullstack-platform    # Linux
+
+# 2. 构建所有镜像（首次 ~10 分钟，后续秒级）
+docker compose build
+
+# 3. 首次部署执行数据库迁移（仅一次）
+docker compose run --rm prestart
+
+# 4. 一键启动所有服务
+docker compose up -d
 ```
 
 启动后访问：
 
-| 服务 | 地址 |
-|------|------|
-| Studio Client（C 端） | http://localhost:5173 |
-| Video Client（C 端） | http://localhost:5174 |
-| Studio Admin（管理端） | http://localhost:5175 |
-| Video Admin（管理端） | http://localhost:5176 |
-| API 文档 | http://localhost:18000/docs |
-| 数据库管理 | http://localhost:18080 |
-| Traefik 面板 | http://localhost:8090 |
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| Backend API 文档 | http://localhost:18000/docs | Swagger UI |
+| Studio Admin | http://localhost:5175 | 项目管理 & 模板管理 |
+| Video Client | http://localhost:5174 | 视频浏览 & 生成 |
+| Video Admin | http://localhost:5176 | 视频管理 & 审核 |
+| Adminer（DB 面板） | http://localhost:18080 | 数据库可视化管理 |
+| Traefik 面板 | http://localhost:18090 | 反向代理仪表盘 |
+
+> ⚠️ `studio-client`（端口 5173）是桌面端 AI 编辑器（Tauri），Docker 不部署。
+>
+> 📖 完整说明见 [`docs/deployment/Docker快速启动.md`](./docs/deployment/Docker快速启动.md)
 
 ### 方式二：本地开发（推荐）
 
@@ -266,10 +284,10 @@ ai-fullstack-platform/
 ├── studio-client/                   # Vue 3 C 端 — AI 编辑器（含 Tauri）
 ├── studio-admin/                    # Vue 3 管理端 — 项目管理 & 模板
 │
-├── compose.yml                      # Docker Compose 编排
-├── compose.override.yml             # 本地开发覆盖配置
-├── compose.traefik.yml              # Traefik 反向代理
-├── .env                             # 环境变量
+├── compose.yml                      # 生产环境 Docker Compose 编排（10 个 service）
+├── compose.override.yml             # 本地开发覆盖（自动合并 → 开端口 + 热重载）
+├── compose.traefik.yml              # 生产 Traefik 网关（独立部署，先于 compose.yml）
+├── .env                             # 环境变量（Docker 服务名配置，两系统通用）
 ├── .env.standalone                  # Standalone 模式配置
 ├── standalone.py                    # Standalone 入口
 ├── start-standalone.bat             # Windows 一键启动
@@ -600,9 +618,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 |------|------|
 | [开发进度记录](docs/changelog/开发进度.md) | 每次会话详情、技术决策、已知问题与待办 |
 | [本地开发指南](docs/development/开发指南.md) | 环境搭建、前后端启动、模型管理、API 调试 |
+| [Docker 快速启动](docs/deployment/Docker快速启动.md) | 🆕 compose 文件说明 + WSL/Linux 双系统一键启动 |
+| [双系统共享 Docker 架构](docs/development/多系统共享Docker架构.md) | WSL 与 Linux 共享同一份 Docker 数据 |
 | [生产部署指南（基础篇）](docs/deployment/部署概览.md) | 镜像来源、Docker Compose、Traefik、CI/CD、监控栈 |
-| [Windows 部署实操](docs/deployment/Windows部署.md) | WSL2 + Docker Desktop 上部署 9 容器全栈 AI 平台 |
-| [Linux 部署实操](docs/deployment/Linux部署.md) | 原生 Linux 上部署 9 容器全栈 AI 平台 |
+| [Windows 部署实操](docs/deployment/Windows部署.md) | WSL2 + Docker Desktop 上部署全栈 AI 平台 |
+| [Linux 部署实操](docs/deployment/Linux部署.md) | 原生 Linux 上部署全栈 AI 平台 |
 | [版本更新记录](docs/changelog/版本记录.md) | 各版本 release notes |
 | [standalone-tools/README.md](./standalone-tools/README.md) | 远程唤醒 (WOL) + DDNS 配置教程 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南 |
@@ -613,11 +633,9 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 |------|------|
 | WSL 存储 | `D:\app\Docker\Ubuntu-24.04\ext4.vhdx` (51.4 GB，已从 C 盘迁移) |
 | 项目代码 | `D:\code\ai-fullstack-platform` |
-| 运行容器 | 9 个（vLLM/Ollama/Open-WebUI/PG/Redis/Qdrant/Prometheus/Grafana/Alertmanager） |
+| 运行容器 | 10+ 个（backend + celery + 3 前端 + PG/Redis/Qdrant + Ollama/vLLM/Open-WebUI + 监控栈） |
 | Docker 引擎 | 29.1.3（WSL 内 Ubuntu-24.04） |
-| 待部署 | MinIO / Nginx / FastAPI Gateway / LangGraph / Loki |
-
-> 详见 [AI编程平台_Linux生产版架构.txt](../AI编程平台_Linux生产版架构.txt) 第十七节。
+| 镜像化完成 | backend + studio-admin + video-client + video-admin（studio-client 为桌面端不部署） |
 
 ## 许可证
 
