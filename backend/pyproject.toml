@@ -63,7 +63,6 @@ dev = [
     "prek>=0.2.24,<1.0.0",
     "coverage<8.0.0,>=7.4.3",
 ]
-
 [tool.uv.sources]
 ai-models = { workspace = true }
 

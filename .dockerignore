@@ -8,3 +8,23 @@
 .env
 .env.local
 .env.*.local
+# SQLite files (local dev, permission issues)
+*.db
+*.db-shm
+*.db-wal
+# Non-build directories
+.codebase-memory/
+.data/
+.codebuddy/
+models/
+# Frontend (not needed for backend build)
+studio-admin/
+studio-client/
+src/
+# Docs & deploy
+docs/
+deploy/
+tests/
+img/
+skills/
+standalone-tools/

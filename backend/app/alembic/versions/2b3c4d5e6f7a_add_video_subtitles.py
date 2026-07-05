@@ -1,7 +1,7 @@
 """add video_subtitles and subtitle_cues
 
 Revision ID: 2b3c4d5e6f7a
-Revises: fe56fa70289e
+Revises: 4d5e6f7a8b9c
 Create Date: 2025-07-01 06:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2b3c4d5e6f7a"
-down_revision = "fe56fa70289e"
+down_revision = "4d5e6f7a8b9c"
 branch_labels = None
 depends_on = None
 

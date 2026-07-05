@@ -1,7 +1,7 @@
 """add tenant table and tenant_id on user
 
 Revision ID: 3c4d5e6f7a8b
-Revises: 2b3c4d5e6f7a
+Revises: fe56fa70289e
 Create Date: 2025-07-01 06:10:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers
 revision = "3c4d5e6f7a8b"
-down_revision = "2b3c4d5e6f7a"
+down_revision = "fe56fa70289e"
 branch_labels = None
 depends_on = None
 

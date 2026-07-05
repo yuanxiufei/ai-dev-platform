@@ -2,40 +2,36 @@ FROM python:3.12
 
 ENV PYTHONUNBUFFERED=1
 
-# Install uv
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
-
-# Compile bytecode
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#compiling-bytecode
+# ── 下载加速 ──
+# PyPI 镜像源，可通过 --build-arg UV_INDEX_URL=... 切换
+# 国内可选: https://mirrors.aliyun.com/pypi/simple/
+# 清华（nvidia大包慢）: https://pypi.tuna.tsinghua.edu.cn/simple
+# 官方（nvidia直连CDN）: https://pypi.org/simple/
+ARG UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple/
+ENV UV_INDEX_URL=${UV_INDEX_URL}
+ENV UV_HTTP_TIMEOUT=600
+ENV UV_CONCURRENT_DOWNLOADS=8
 ENV UV_COMPILE_BYTECODE=1
-
-# uv Cache
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#caching
 ENV UV_LINK_MODE=copy
 
-WORKDIR /app/
+RUN pip install uv -i ${UV_INDEX_URL}
 
-# Place executables in the environment at the front of the path
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
+WORKDIR /app/
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Install dependencies
-# Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
+# Install dependencies (layer 1: deps only, Docker 层缓存)
 COPY ./pyproject.toml /app/
 COPY ./ai_models /app/ai_models
 COPY ./backend/pyproject.toml ./backend/alembic.ini /app/backend/
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    uv sync --frozen --no-install-workspace --package app
+COPY ./uv.lock /app/uv.lock
+RUN uv sync --frozen --no-install-workspace --group gpu
 
+# Copy source code (layer 2: frequent changes)
 COPY ./backend/scripts /app/backend/scripts
 COPY ./backend/app /app/backend/app
 
-# Sync the project
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    uv sync --frozen --package app
+# Sync the project（依赖已在 layer1 装完，这里只安装 app 包）
+RUN uv sync --frozen --package app
 
 WORKDIR /app/backend/
 

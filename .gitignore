@@ -34,6 +34,10 @@ trajectories/
 workspace/
 storage/
 data/
+.data/
+*.db
+*.db-shm
+*.db-wal
 
 # CodebaseMemory runtime artifacts
 .codebase-memory/

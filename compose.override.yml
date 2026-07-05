@@ -58,6 +58,15 @@ services:
     ports:
       - "18080:18080"
 
+  qdrant:
+    restart: "no"
+    # Qdrant 镜像无 curl，使用 bash TCP 重定向检测健康
+    healthcheck:
+      test: ["CMD", "bash", "-c", "timeout 3 bash -c 'echo > /dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      retries: 5
+      start_period: 15s
+
   redis:
     restart: "no"
     ports:
@@ -65,14 +74,21 @@ services:
 
   celery-worker:
     restart: "no"
+    # 跳过 prestart（首次部署需手动执行 docker compose run --rm prestart）
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
 
   backend:
     restart: "no"
     ports:
       - "18000:8000"
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    # 跳过 prestart（首次部署需手动执行 docker compose run --rm prestart）
+    depends_on:
+      db:
+        condition: service_healthy
     # command: sleep infinity  # Infinite loop to keep container alive doing nothing
     command:
       - fastapi
