@@ -284,21 +284,7 @@ services:
       - ai-platform-net
 
   # ══════════════════ 前端 (Nginx) ══════════════════
-  studio-client:
-    build:
-      context: ..
-      dockerfile: studio-client/Dockerfile
-      args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:18000}
-        - NODE_ENV=production
-    image: ${DOCKER_IMAGE_STUDIO_CLIENT:-ai-platform-studio-client}:${TAG:-latest}
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - "5173:80"
-    networks:
-      - ai-platform-net
+  # studio-client 为桌面端，不在此部署
 
   studio-admin:
     build:

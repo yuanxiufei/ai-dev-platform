@@ -8,7 +8,7 @@ import { ref, computed } from "vue"
 import { useSnippetsStore, type Snippet } from "@/stores/useSnippetsStore"
 import {
   Plus, Trash2, Pencil, FileJson, Upload, Download,
-  Search, X, Code2, Copy, Check, Sparkles, Insert,
+  Search, X, Code2, Copy, Check, Sparkles, ClipboardPaste,
 } from "lucide-vue-next"
 
 const store = useSnippetsStore()
@@ -175,7 +175,7 @@ const insertableSnippets = computed(() => {
         @click="showInsertDialog = true"
         title="插入片段到编辑器 (Ctrl+Shift+J)"
       >
-        <Insert :size="12" /> 插入
+        <ClipboardPaste :size="12" /> 插入
       </button>
       <button
         class="flex items-center gap-1 px-2 h-6 rounded-[3px] text-[11px] transition-colors hover:bg-[var(--color-ide-surface-hover)]"
@@ -371,7 +371,7 @@ const insertableSnippets = computed(() => {
               </div>
               <div class="text-[10px] truncate mt-0.5" style="color: var(--color-ide-text-dim);">{{ s.description || s.body.slice(0, 60) }}</div>
             </div>
-            <Insert :size="12" class="shrink-0" style="color: var(--color-ide-text-dim);" />
+            <ClipboardPaste :size="12" class="shrink-0" style="color: var(--color-ide-text-dim);" />
           </button>
         </div>
       </div>
