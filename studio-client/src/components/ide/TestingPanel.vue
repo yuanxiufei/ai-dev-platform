@@ -158,7 +158,7 @@ async function discoverTests(): Promise<void> {
             line: c.line || 0,
           })),
         })),
-      })))
+      }))
     }
   } catch { /* 静默 */ }
   finally { discovering.value = false }

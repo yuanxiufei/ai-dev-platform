@@ -7,7 +7,7 @@ import { useVideoStore } from '../../stores/videoStore'
 const route = useRoute()
 const router = useRouter()
 const store = useVideoStore()
-const video = computed(() => store.videos.find(v => v.id === route.params.id))
+const video = computed(() => store.videos.find(v => v.taskId === route.params.id))
 const isLiked = ref(false)
 function goBack() { router.back() }
 </script>

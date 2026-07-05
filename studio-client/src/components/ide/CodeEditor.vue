@@ -1549,7 +1549,6 @@ async function initMonaco(): Promise<void> {
       /** Session 27: VSCode CodeLens + 语义高亮 */
       codeLens: true,
       "semanticHighlighting.enabled": true,
-      tabCompletion: "on",
       autoClosingBrackets: "always",
       autoClosingQuotes: "always",
       /** Session 23: 禁用 Monaco 内置右键菜单，使用自定义 VSCode 风格菜单 */

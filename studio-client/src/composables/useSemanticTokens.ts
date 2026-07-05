@@ -107,7 +107,7 @@ export function useSemanticTokens(
       if (endCol <= startCol) continue
 
       decorations.push({
-        range: new (window as any).monaco?.Range
+        range: (window as any).monaco
           ? new (window as any).monaco.Range(tok.line + 1, startCol, tok.line + 1, endCol)
           : { startLineNumber: tok.line + 1, startColumn: startCol, endLineNumber: tok.line + 1, endColumn: endCol },
         options: {

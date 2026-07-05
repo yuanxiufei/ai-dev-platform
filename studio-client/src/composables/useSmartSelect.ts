@@ -6,7 +6,7 @@
  * Session 55: 对接后端 /system/lsp/selection-ranges API
  */
 import { ref, readonly } from "vue"
-import { apiClient } from "@/api/client"
+import apiClient from "@/api/client"
 
 export interface Range {
   start_line: number

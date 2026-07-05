@@ -79,6 +79,7 @@ export interface WsProgressMessage {
   progress: number
   output_path?: string | null
   thumbnail_path?: string | null
+  error?: string | null
   error_message?: string | null
   done?: boolean
 }

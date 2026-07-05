@@ -145,8 +145,6 @@ function findSiblingEntries(entry: FileEntry): { name: string; path: string; isD
   const siblings = findIn(entries.value, entry.path)
   return siblings ?? [{ name: entry.name, path: entry.path, isDir: false }]
 }
-  }
-}
 
 /** 双击文件: 重命名 (在 VSCode 中 F2 才重命名, 双击仅打开; 我们保留 F2) */
 function handleKeydown(ev: KeyboardEvent, entry: FileEntry): void {

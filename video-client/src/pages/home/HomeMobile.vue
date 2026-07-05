@@ -25,23 +25,23 @@ const isSubmitting = ref(false)
 async function handleGenerate() {
   if (!prompt.value.trim() || isSubmitting.value) return
   isSubmitting.value = true
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  const taskId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
   store.addVideo({
-    id, title: prompt.value.slice(0, 40), prompt: prompt.value,
+    taskId, title: prompt.value.slice(0, 40), prompt: prompt.value,
     status: 'generating', progress: 0, duration: duration.value,
     style: selectedStyle.value, createdAt: new Date().toISOString(),
   })
   const timer = setInterval(() => {
-    const v = store.videos.find(v => v.id === id)
+    const v = store.videos.find(v => v.taskId === taskId)
     if (!v) { clearInterval(timer); return }
     if (v.progress >= 100) {
       clearInterval(timer)
-      store.updateVideo(id, { status: 'completed', videoUrl: `https://example.com/video/${id}.mp4`, thumbnailUrl: `https://picsum.photos/seed/${id}/480/854` })
-      store.setGenerating(false); isSubmitting.value = false; return
+      store.updateVideo(taskId, { status: 'completed', videoUrl: `https://example.com/video/${taskId}.mp4`, thumbnailUrl: `https://picsum.photos/seed/${taskId}/480/854` })
+      store.isGenerating = false; isSubmitting.value = false; return
     }
-    store.updateVideo(id, { progress: v.progress + Math.random() * 15 + 3 })
+    store.updateVideo(taskId, { progress: v.progress + Math.random() * 15 + 3 })
   }, 500)
-  store.setGenerating(true)
+  store.isGenerating = true
 }
 
 const hasResult = computed(() => store.videos.filter(v => v.status === 'completed').length > 0)
@@ -95,7 +95,7 @@ const hasResult = computed(() => store.videos.filter(v => v.status === 'complete
     <!-- 生成中 -->
     <section v-if="store.isGenerating" class="mb-12">
       <h2 class="text-base font-semibold text-gray-300 mb-3">当前任务</h2>
-      <div v-for="v in store.videos.filter(v => v.status === 'generating')" :key="v.id" class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 backdrop-blur-xl animate-fade-in-up">
+      <div v-for="v in store.videos.filter(v => v.status === 'generating')" :key="v.taskId" class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 backdrop-blur-xl animate-fade-in-up">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0"><Loader2 class="w-5 h-5 text-violet-400 animate-spin" /></div>
           <div class="flex-1 min-w-0"><p class="font-medium text-white text-sm truncate">{{ v.title }}</p><p class="text-xs text-gray-500">{{ v.style }} · {{ v.duration }}s</p></div>
@@ -109,7 +109,7 @@ const hasResult = computed(() => store.videos.filter(v => v.status === 'complete
     <section v-if="hasResult" class="mb-12">
       <h2 class="text-base font-semibold text-gray-300 mb-3">最近作品 <RouterLink to="/gallery" class="text-sm text-violet-400 ml-2 font-normal">查看全部 →</RouterLink></h2>
       <div class="grid grid-cols-2 gap-3">
-        <div v-for="v in store.videos.filter(v => v.status === 'completed').slice(0, 6)" :key="v.id" @click="router.push(`/play/${v.id}`)" class="relative bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden active:scale-[0.98] transition-all">
+        <div v-for="v in store.videos.filter(v => v.status === 'completed').slice(0, 6)" :key="v.taskId" @click="router.push(`/play/${v.taskId}`)" class="relative bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden active:scale-[0.98] transition-all">
           <div class="aspect-[9/16] bg-gray-800 flex items-center justify-center relative">
             <Image v-if="!v.thumbnailUrl" class="w-10 h-10 text-gray-600" />
             <img v-else :src="v.thumbnailUrl" :alt="v.title" class="w-full h-full object-cover" loading="lazy" />

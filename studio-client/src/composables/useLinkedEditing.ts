@@ -6,7 +6,7 @@
  * Session 55: 对接后端 /system/lsp/linked-editing API
  */
 import { ref, readonly } from "vue"
-import { apiClient } from "@/api/client"
+import apiClient from "@/api/client"
 
 export interface LinkedRange {
   start_line: number
