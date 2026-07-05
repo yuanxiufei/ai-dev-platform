@@ -288,7 +288,7 @@ networks: ai-platform-net (bridge)
 sudo dd if=/dev/zero of=/run/media/reginyuan/Software/app/Docker/docker-volumes.img bs=1M count=71680
 sudo mkfs.ext4 -F /run/media/reginyuan/Software/app/Docker/docker-volumes.img
 sudo mkdir -p /data/docker-volumes
-sudo echo "/run/media/reginyuan/Software/app/Docker/docker-volumes.img /data/docker-volumes ext4 loop,defaults 0 0" >> /etc/fstab
+sudo echo "/run/media/reginyuan/Software/app/Docker/docker-volumes.img /data/docker-volumes ext4 loop,defaults 0 0" | sudo tee -a /etc/fstab
 sudo mount /data/docker-volumes
 
 # 3. 启动
