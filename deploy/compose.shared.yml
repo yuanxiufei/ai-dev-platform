@@ -284,7 +284,7 @@ services:
       - ai-platform-net
 
   # ══════════════════ 前端 (Nginx) ══════════════════
-  # studio-client 为桌面端，不在此部署
+  # studio-client 为桌面端跨端应用，不在此部署
 
   studio-admin:
     build:
@@ -299,6 +299,22 @@ services:
       - backend
     ports:
       - "5175:80"
+    networks:
+      - ai-platform-net
+
+  video-client:
+    build:
+      context: ..
+      dockerfile: video-client/Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:18000}
+        - NODE_ENV=production
+    image: ${DOCKER_IMAGE_VIDEO_CLIENT:-ai-platform-video-client}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
     networks:
       - ai-platform-net
 

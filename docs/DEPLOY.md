@@ -168,7 +168,7 @@ CELERY_POOL=solo             # 仅 WSL2
 
 ## compose.shared.yml 结构
 
-共 **15 个服务**（10 基础服务 + 5 应用层服务），studio-client 和 video-client 为桌面端应用，不在 Docker 中部署。
+共 **16 个服务**（10 基础服务 + 6 应用层服务），studio-client 为桌面端跨端应用，不在 Docker 中部署。
 
 ```yaml
 services:
@@ -186,7 +186,9 @@ services:
   celery-worker:   # 异步任务 (WSL2 需 --pool=solo)
   adminer:         # 数据库管理, 端口 18080
   studio-admin:    # 项目管理前端 (需构建)
+  video-client:    # 视频 C 端 (需构建)
   video-admin:     # 视频管理端 (需构建)
+  (studio-client 为桌面端跨端应用，不在 Docker 中部署)
   (studio-client 和 video-client 为桌面端应用，不在 Docker 中部署)
 
 volumes: (全部使用 bind mount 到 /data/docker-volumes/)
