@@ -143,7 +143,7 @@ PY_CLASS_PATTERN = re.compile(
 
 JS_TS_DEF_PATTERN = re.compile(
     r'(?:function\s+(\w+)|(?:class|interface)\s+(\w+)|'
-    r'(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\('
+    r'(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\()'
 )
 JS_CALL_PATTERN = re.compile(r'(?:(?:await\s+)?(\w+(?:\.\w+)*)\s*\()')
 
