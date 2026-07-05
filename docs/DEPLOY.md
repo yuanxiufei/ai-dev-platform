@@ -212,7 +212,6 @@ services:
   video-client:    # 视频 C 端 (需构建)
   video-admin:     # 视频管理端 (需构建)
   (studio-client 为桌面端跨端应用，不在 Docker 中部署)
-  (studio-client 和 video-client 为桌面端应用，不在 Docker 中部署)
 
 volumes: (全部使用 bind mount 到 /data/docker-volumes/)
 networks: ai-platform-net (bridge)
@@ -303,6 +302,26 @@ networks: ai-platform-net (bridge)
 
 ---
 
+## 日常使用：切换系统
+
+两个系统共享同一份 ext4 数据，切换时只需启动 Docker 和执行 `setup.sh`：
+
+```bash
+# 任意系统重启后
+cd ai-fullstack-platform
+bash setup.sh
+```
+
+`setup.sh` 会自动：
+1. 检测 Linux / WSL2 环境
+2. 挂载 ext4 卷（如未挂载）
+3. 配置 Docker daemon.json（适配当前系统）
+4. 启动所有基础服务
+
+> 切换系统后数据无感知 — 数据库、缓存、模型、监控历史完全一致。
+
+---
+
 ## 从零部署（首次）
 
 ### Linux
@@ -321,10 +340,40 @@ bash setup.sh
 ```
 
 ### Windows WSL2
+
+前提：ext4 卷已在 Linux 端创建（仅需创建一次，两个系统共享同一个 .img 文件）。
+
 ```bash
 # 1. 安装 WSL2 + Docker + nvidia-container-toolkit
-# 2. 启动
+# 2. 启动 WSL2
 wsl -d Ubuntu-24.04
+
+# 3. 挂载 ext4 卷并启动全部服务（setup.sh 自动处理）
 cd /mnt/d/code/ai-fullstack-platform
 bash setup.sh
 ```
+
+> WSL2 启动后所有 Docker 数据（镜像层、数据库、缓存）与 Linux 共享同一份 ext4 卷，切换系统无需重新拉取镜像或导入数据。
+
+---
+
+## 验证部署
+
+```bash
+# 查看所有容器状态
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# 逐一验证服务可达
+docker exec postgres pg_isready -U admin -d studio  # PostgreSQL
+docker exec redis redis-cli ping                     # Redis
+curl -s http://localhost:6333/telemetry              # Qdrant
+curl -s http://localhost:11434/api/tags              # Ollama
+curl -s http://localhost:3080/v1/models              # vLLM
+curl -s http://localhost:3090/                       # Open WebUI
+curl -s http://localhost:9090/-/healthy              # Prometheus
+curl -s http://localhost:9091/api/health             # Grafana
+curl -s http://localhost:9093/-/healthy              # Alertmanager
+curl -s http://localhost:18080/                      # Adminer
+```
+
+> 无论 Linux 还是 WSL2 启动，以上验证结果应完全一致。
