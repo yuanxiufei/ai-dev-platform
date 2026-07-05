@@ -105,20 +105,43 @@ sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /data/docker-volumes
 
 ## 服务参数
 
-### 镜像（9 个，全部 linux/amd64）
+### 镜像（13 个）
 
-| 镜像 | 大小 | 用途 |
-|------|------|------|
-| `postgres:16-alpine` | 420MB | 关系数据库 |
-| `redis:7-alpine` | 58MB | 缓存 / 消息队列 |
-| `qdrant/qdrant:latest` | 270MB | 向量数据库 (RAG) |
-| `ollama/ollama:latest` | 8.0GB | LLM 推理 (GPU) |
-| `vllm/vllm-openai:latest` | 29.8GB | 高性能推理 (GPU) |
-| `ghcr.io/open-webui/open-webui:main` | 6.7GB | AI 对话面板 |
-| `prom/prometheus:latest` | 359MB | 指标采集 |
-| `prom/alertmanager:latest` | 121MB | 告警路由 |
-| `grafana/grafana:latest` | 1.6GB | 可视化仪表盘 |
-| **总计** | **47.4GB** | |
+#### 公共镜像（9 个，从 Docker Hub 拉取）
+
+| 镜像 | 大小 | 用途 | 提供方 |
+|------|------|------|--------|
+| `postgres:16-alpine` | 420MB | 关系数据库 | PostgreSQL 官方 |
+| `redis:7-alpine` | 58MB | 缓存 / 消息队列 | Redis 官方 |
+| `qdrant/qdrant:latest` | 270MB | 向量数据库 (RAG) | Qdrant 官方 |
+| `ollama/ollama:latest` | 8.0GB | LLM 推理 (GPU) | Ollama 官方 |
+| `vllm/vllm-openai:latest` | 29.8GB | 高性能推理 (GPU) | vLLM 官方 |
+| `ghcr.io/open-webui/open-webui:main` | 6.7GB | AI 对话面板 | Open WebUI 社区 |
+| `prom/prometheus:latest` | 359MB | 指标采集 | Prometheus 官方 |
+| `prom/alertmanager:latest` | 121MB | 告警路由 | Prometheus 官方 |
+| `grafana/grafana:latest` | 1.6GB | 可视化仪表盘 | Grafana 官方 |
+| **公共镜像小计** | **47.4GB** | | |
+
+#### 项目构建镜像（4 个，本地 `docker compose build`）
+
+| 镜像 | 大小 | 用途 | Dockerfile |
+|------|------|------|------------|
+| `ai-platform-backend:latest` | 19.7GB | FastAPI 后端 (模型路由+Agent+闭环) | `backend/Dockerfile` |
+| `ai-platform-studio-admin:latest` | 93MB | AI 编程项目管理端 (Nginx SPA) | `studio-admin/Dockerfile` |
+| `ai-platform-video-client:latest` | 93MB | 视频生成 C 端 (Nginx SPA) | `video-client/Dockerfile` |
+| `ai-platform-video-admin:latest` | 93MB | 视频生成管理端 (Nginx SPA) | `video-admin/Dockerfile` |
+| **项目镜像小计** | **~20GB** | | |
+
+> studio-client 为桌面端跨端应用，不在此处构建镜像。
+
+#### 补充镜像
+
+| 镜像 | 大小 | 用途 | 提供方 |
+|------|------|------|--------|
+| `adminer:latest` | 170MB | 数据库 Web 管理面板 | Adminer 官方 |
+
+> 以上全部镜像通过 `docker compose` 从 Docker Hub 拉取或 `docker compose build` 本地构建，存储在 ext4 卷内。
+> **Linux 和 WSL2 共享同一份文件**，包含镜像层、数据库、缓存、监控等全部数据。
 
 ### 服务端口与凭证
 
