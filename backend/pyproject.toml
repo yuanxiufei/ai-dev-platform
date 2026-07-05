@@ -23,13 +23,6 @@ dependencies = [
     "pwdlib[argon2,bcrypt]>=0.3.0",
     "celery[redis]>=5.4.0",
     "ai-models",
-    # ── RAG 检索增强生成 ──
-    "faiss-cpu>=1.8.0",
-    "sentence-transformers>=3.0.0",
-    "jieba>=0.42.1",
-    "rank-bm25>=0.2.2",
-    "pypdf>=5.0.0",
-    "markitdown>=0.0.1a3",
     # ── 本地 GGUF 模型推理（可选，需 MSVC/gcc 编译）
     # "llama-cpp-python>=0.3.0",
     # ── Cron 定时任务 ──
@@ -62,6 +55,14 @@ dev = [
     "ruff<1.0.0,>=0.2.2",
     "prek>=0.2.24,<1.0.0",
     "coverage<8.0.0,>=7.4.3",
+]
+rag = [
+    "faiss-cpu>=1.8.0",
+    "sentence-transformers>=3.0.0",
+    "jieba>=0.42.1",
+    "rank-bm25>=0.2.2",
+    "pypdf>=5.0.0",
+    "markitdown>=0.0.1a3",
 ]
 [tool.uv.sources]
 ai-models = { workspace = true }

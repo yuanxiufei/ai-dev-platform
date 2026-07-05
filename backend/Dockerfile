@@ -25,7 +25,7 @@ COPY ./pyproject.toml /app/
 COPY ./ai_models /app/ai_models
 COPY ./backend/pyproject.toml ./backend/alembic.ini /app/backend/
 COPY ./uv.lock /app/uv.lock
-RUN uv sync --frozen --no-install-workspace --group gpu
+RUN uv sync --frozen --no-install-workspace --group rag
 
 # Copy source code (layer 2: frequent changes)
 COPY ./backend/scripts /app/backend/scripts
