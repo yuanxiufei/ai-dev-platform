@@ -17,10 +17,10 @@
 .data/
 .codebuddy/
 models/
-# Frontend (not needed for backend build)
-studio-admin/
-studio-client/
-src/
+# Frontend build artifacts (covered by **/node_modules/ and **/dist/ above)
+# ── Do NOT exclude frontend source directories ──
+# studio-client/studio-admin/video-client/video-admin Dockerfiles need them.
+# node_modules and dist are filtered by **/ wildcards above.
 # Docs & deploy
 docs/
 deploy/
