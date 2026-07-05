@@ -443,7 +443,7 @@ open-webui:
     - llm-net
 ```
 
-> ⚠️ 容器可能显示 "unhealthy"（jq 脚本误判），**不影响使用**。
+> Open WebUI 已配置 `RAG_EMBEDDING_ENGINE=ollama`，无需额外配置即可启动。
 
 ---
 
@@ -518,7 +518,6 @@ sudo systemctl restart docker                 # 重启 Docker
 | Ollama 下载慢 | 国内网络 | 配代理或本地导入 |
 | Ollama 显存不足 | 同时加载太多 | 缩短 `keepalive` |
 | WebUI 看不到新模型 | 未刷新 | `docker compose restart open-webui` |
-| WebUI unhealthy | jq 误判 | 不影响使用 |
 
 ### 基础设施
 

@@ -495,7 +495,6 @@ sudo pkill dockerd                            # 停止 Docker
 | vLLM 模型加载失败 | 9P 符号链接失效 | 用实体文件目录 |
 | vLLM `Loading safetensors` 卡住 | 9P 读大文件慢 | 正常，约 20 秒 |
 | Ollama 下载慢 | 国内网络 | 配代理或本地导入 |
-| WebUI unhealthy | jq 脚本误判 | 不影响使用 |
 
 ### 基础设施
 

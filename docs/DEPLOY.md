@@ -220,7 +220,7 @@ networks: ai-platform-net (bridge)
 - **镜像**: `qdrant/qdrant:latest`
 - **端口**: `6333:6333` (gRPC), `6334:6334` (HTTP)
 - **数据卷**: `/data/docker-volumes/qdrant:/qdrant/storage`
-- **健康检查**: `curl http://localhost:6333/health`
+- **健康检查**: `bash -c 'echo >/dev/tcp/localhost/6333'` (容器无 curl，用 bash 内置 TCP 检测)
 
 ### Ollama
 - **镜像**: `ollama/ollama:latest`
@@ -241,7 +241,7 @@ networks: ai-platform-net (bridge)
 - **镜像**: `ghcr.io/open-webui/open-webui:main`
 - **端口**: `3090:8080`
 - **依赖**: ollama
-- **环境**: `OLLAMA_BASE_URL=http://ollama:11434`, `OPENAI_API_BASE_URLS=http://vllm:3080/v1`
+- **环境**: `OLLAMA_BASE_URL=http://ollama:11434`, `OPENAI_API_BASE_URLS=http://vllm:3080/v1`, `RAG_EMBEDDING_ENGINE=ollama`
 - **数据卷**: `/data/docker-volumes/open-webui:/app/backend/data`
 
 ### Prometheus
