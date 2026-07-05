@@ -178,6 +178,11 @@ const router = createRouter({
       component: () => import("@/pages/KeybindingsPage.vue"),
     },
     {
+      path: "/snippets",
+      name: "snippets",
+      component: () => import("@/components/ide/SnippetsPanel.vue"),
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/projects",
     },

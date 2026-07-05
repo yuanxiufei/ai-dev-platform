@@ -11,6 +11,8 @@ import { useFileTreeStore } from './useFileTreeStore'
 export const useTerminalStore = defineStore('terminal', () => {
   const terminalSessions = ref<TerminalSession[]>([])
   const activeTerminalId = computed(() => terminalSessions.value.find((t) => t.active)?.id ?? null)
+  /** Whether we're in browser simulation mode (no real PTY) */
+  const isSimulated = computed(() => !isTauriEnv())
 
   let _unlisteners: (() => void)[] = []
 
@@ -78,12 +80,16 @@ export const useTerminalStore = defineStore('terminal', () => {
       }
     }
 
-    // Fallback: mock terminal
+    // Fallback: simulated terminal (browser mode)
+    _warnSimulated('终端')
     const term: TerminalSession = {
       id,
       title: `终端 (${terminalSessions.value.length + 1})`,
       shellType,
-      lines: [{ id: uid(), text: `\n  ➜ ${cwd} (仿真模式)\r\n`, type: 'info', timestamp: Date.now() }],
+      lines: [
+        { id: uid(), text: `\n  ⚠ 终端仿真模式 — 需要桌面版应用才能执行真实命令\r\n`, type: 'warning', timestamp: Date.now() },
+        { id: uid(), text: `  ➜ ${cwd} (仅可视化预览)\r\n`, type: 'info', timestamp: Date.now() },
+      ],
       active: true,
       cwd,
     }
@@ -198,13 +204,15 @@ export const useTerminalStore = defineStore('terminal', () => {
       }
     }
 
-    // Fallback
+    // Fallback: simulated terminal
+    _warnSimulated('命令执行')
     const term: TerminalSession = {
       id,
       title: `任务: ${title}`,
       shellType,
       lines: [
-        { id: uid(), text: `\n  执行: ${command} (仿真模式)\r\n`, type: 'info', timestamp: Date.now() },
+        { id: uid(), text: `\n  ⚠ 终端仿真模式 — 需要桌面版应用才能执行真实命令\r\n`, type: 'warning', timestamp: Date.now() },
+        { id: uid(), text: `  命令: ${command} (未执行)\r\n`, type: 'info', timestamp: Date.now() },
       ],
       active: true,
       cwd,
@@ -213,9 +221,47 @@ export const useTerminalStore = defineStore('terminal', () => {
     return id
   }
 
+  /** Resize PTY window dimensions (Tauri-only) */
+  async function resizePty(pid: number, cols: number, rows: number): Promise<void> {
+    if (!isTauriEnv()) return
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('resize_pty', { pid, cols, rows })
+    } catch (e) {
+      console.warn('[Terminal] resize_pty failed:', e)
+    }
+  }
+
+  /** List running processes (Tauri-only) */
+  async function listProcesses(): Promise<Array<{ id: number; command: string; cwd: string; status: string }>> {
+    if (!isTauriEnv()) {
+      _warnSimulated('进程列表')
+      return []
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return await invoke<any[]>('list_processes')
+    } catch (e) {
+      console.warn('[Terminal] list_processes failed:', e)
+      return []
+    }
+  }
+
+  /** Lazily warn about simulated mode */
+  async function _warnSimulated(feature: string): Promise<void> {
+    try {
+      const { useNotificationStore } = await import('./useNotificationStore')
+      useNotificationStore().warn(
+        `「${feature}」功能需要桌面版应用才可用，当前为仿真模式。`,
+        { source: 'Terminal', autoDismiss: 6000 }
+      )
+    } catch { /* notification store not available */ }
+  }
+
   return {
     terminalSessions,
     activeTerminalId,
+    isSimulated,
     createTerminal,
     closeTerminal,
     switchToTerminal,
@@ -226,6 +272,8 @@ export const useTerminalStore = defineStore('terminal', () => {
     activeOutputChannel,
     addOutputLine,
     executeCommandInTerminal,
+    resizePty,
+    listProcesses,
   }
 })
 

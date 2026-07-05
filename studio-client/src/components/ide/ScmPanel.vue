@@ -6,10 +6,11 @@
 import { computed, ref, watch } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
 import { useGitStore, type GitFileChange } from '@/stores/useGitStore'
+import MergeEditor from './MergeEditor.vue'
 import {
   GitBranch, GitCommit, RefreshCw, Plus, Minus, Check, X,
   ArrowUp, ArrowDown, Trash2, FileDiff, FileCode,
-  ChevronRight, Disc, Upload, Download, Package, Layers, GitFork, StretchHorizontal
+  ChevronRight, Disc, Upload, Download, Package, Layers, GitFork, StretchHorizontal, GitMerge
 } from 'lucide-vue-next'
 
 const store = useIDEStore()
@@ -75,6 +76,30 @@ function dropStash(id: string): void {
 const selectedFile = ref<string | null>(null)
 const diffContent = ref('')
 const showDiff = ref(false)
+
+// 🔥 Merge Editor 集成 (Session 39)
+const showMergeEditor = ref(false)
+const mergeFilePath = ref<string | null>(null)
+const mergeCurrentContent = ref('')
+const mergeIncomingContent = ref('')
+const mergeBaseContent = ref('')
+
+function openMergeEditor(filePath: string, current: string, incoming: string, base?: string) {
+  mergeFilePath.value = filePath
+  mergeCurrentContent.value = current
+  mergeIncomingContent.value = incoming
+  mergeBaseContent.value = base || ''
+  showMergeEditor.value = true
+}
+
+function handleMergeResolve(resolvedContent: string) {
+  // Write resolved content to file
+  if (mergeFilePath.value && resolvedContent) {
+    // In a real implementation, this would write to disk
+    console.log('[ScmPanel] Merge resolved:', mergeFilePath.value, resolvedContent.length)
+  }
+  showMergeEditor.value = false
+}
 
 function toggleSection(key: string) { expandedSections.value[key] = !expandedSections.value[key] }
 
@@ -143,6 +168,11 @@ watch(() => store.activeActivityItem, (v) => {
         源代码管理
       </span>
       <div class="flex items-center gap-0.5">
+        <!-- Session 42: 多文件差异按钮 -->
+        <button class="w-6 h-6 flex items-center justify-center rounded-[3px] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] hover:text-[var(--color-ide-text)]"
+          title="查看所有差异" @click="store.activeActivityItem = 'multidiff'">
+          <FileDiff :size="13" />
+        </button>
         <button class="w-6 h-6 flex items-center justify-center rounded-[3px] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] hover:text-[var(--color-ide-text)]" title="刷新"
           :disabled="git.isRefreshing"
           @click="store.workspaceRoot && git.refreshGitStatus(store.workspaceRoot)">
@@ -252,6 +282,19 @@ watch(() => store.activeActivityItem, (v) => {
           <pre class="whitespace-pre-wrap">{{ diffContent || '无法加载差异视图' }}</pre>
         </div>
       </div>
+
+      <!-- 🔥 Merge Editor Section (Session 39: 3-way merge conflicts) -->
+      <MergeEditor
+        :visible="showMergeEditor"
+        :file-path="mergeFilePath || undefined"
+        :current-content="mergeCurrentContent"
+        :incoming-content="mergeIncomingContent"
+        :base-content="mergeBaseContent"
+        @close="showMergeEditor = false"
+        @resolve="handleMergeResolve"
+        @accept-current="showMergeEditor = false"
+        @accept-incoming="showMergeEditor = false"
+      />
     </div>
 
     <!-- ── Commit Area (VSCode style: always visible input) ── -->

@@ -22,6 +22,8 @@ export type ThemeId =
   | "nord"
   | "tokyo-night"
 
+export type IconThemeId = "material" | "seti" | "vscode-icons" | "minimal"
+
 export interface ThemeDefinition {
   id: ThemeId
   label: string
@@ -30,6 +32,19 @@ export interface ThemeDefinition {
   monacoTheme: string
   /** Category for grouping in UI */
   category: "builtin" | "dark" | "light"
+}
+
+export interface IconThemeDefinition {
+  id: IconThemeId
+  label: string
+  labelZh: string
+  /** Icon mapping: file extension → lucide icon name */
+  fileIcons: Record<string, string>
+  /** Default file icon */
+  defaultFileIcon: string
+  /** Default folder icons */
+  folderOpenIcon: string
+  folderClosedIcon: string
 }
 
 const THEMES: ThemeDefinition[] = [
@@ -50,7 +65,75 @@ const THEMES: ThemeDefinition[] = [
 const THEME_MAP: Record<string, ThemeDefinition> = {}
 THEMES.forEach(t => (THEME_MAP[t.id] = t))
 
+/** Session 35: File Icon Theme Definitions */
+const ICON_THEMES: IconThemeDefinition[] = [
+  {
+    id: "material",
+    label: "Material Icon Theme",
+    labelZh: "Material 图标主题",
+    fileIcons: {
+      ".ts": "FileCode", ".tsx": "FileCode", ".js": "FileCode", ".jsx": "FileCode",
+      ".vue": "FileCode", ".rs": "FileCode", ".py": "FileCode", ".go": "FileCode",
+      ".java": "FileCode", ".cpp": "FileCode", ".c": "FileCode", ".h": "FileCode",
+      ".css": "FileCode", ".scss": "FileCode", ".less": "FileCode",
+      ".html": "FileCode", ".htm": "FileCode", ".xml": "FileCode",
+      ".json": "FileJson", ".jsonc": "FileJson", ".yaml": "FileJson", ".yml": "FileJson",
+      ".md": "FileText", ".txt": "FileText", ".log": "FileText",
+      ".png": "FileImage", ".jpg": "FileImage", ".jpeg": "FileImage", ".gif": "FileImage",
+      ".svg": "FileImage", ".ico": "FileImage", ".webp": "FileImage",
+      ".zip": "Archive", ".tar": "Archive", ".gz": "Archive", ".rar": "Archive", ".7z": "Archive",
+      ".toml": "FileJson", ".lock": "FileJson",
+      ".env": "FileText", ".gitignore": "FileText", ".dockerignore": "FileText",
+    },
+    defaultFileIcon: "File",
+    folderOpenIcon: "FolderOpen",
+    folderClosedIcon: "FolderClosed",
+  },
+  {
+    id: "seti",
+    label: "Seti",
+    labelZh: "Seti 图标主题",
+    fileIcons: {
+      ".ts": "FileType2", ".tsx": "FileType2", ".js": "FileType2", ".jsx": "FileType2",
+      ".vue": "FileType", ".py": "FileType", ".go": "FileType",
+      ".json": "FileJson", ".md": "FileText",
+      ".css": "FileCode", ".scss": "FileCode",
+      ".html": "FileCode",
+    },
+    defaultFileIcon: "File",
+    folderOpenIcon: "FolderOpen",
+    folderClosedIcon: "FolderClosed",
+  },
+  {
+    id: "vscode-icons",
+    label: "VSCode Icons",
+    labelZh: "VSCode 图标主题",
+    fileIcons: {
+      ".ts": "FileCode2", ".tsx": "FileCode2", ".js": "FileCode2", ".jsx": "FileCode2",
+      ".vue": "FileCode2", ".py": "FileCode2", ".go": "FileCode2",
+      ".json": "FileJson2", ".md": "FileText",
+      ".css": "FileCode2", ".html": "FileCode2",
+    },
+    defaultFileIcon: "File",
+    folderOpenIcon: "FolderOpen",
+    folderClosedIcon: "FolderClosed",
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    labelZh: "极简图标",
+    fileIcons: {},
+    defaultFileIcon: "File",
+    folderOpenIcon: "Folder",
+    folderClosedIcon: "Folder",
+  },
+]
+
+const ICON_THEME_MAP: Record<string, IconThemeDefinition> = {}
+ICON_THEMES.forEach(t => (ICON_THEME_MAP[t.id] = t))
+
 const STORAGE_KEY = "codebuddy_theme"
+const ICON_STORAGE_KEY = "codebuddy_icon_theme"
 const VALID_IDS = new Set(THEMES.map(t => t.id))
 
 function loadTheme(): ThemeId {
@@ -107,6 +190,11 @@ function applyHtmlClass(def: ThemeDefinition, actualThemeId: "dark" | "light" | 
 export const useThemeStore = defineStore("theme", () => {
   const active = ref<ThemeId>(loadTheme())
   const appliedType = ref<"dark" | "light" | "high-contrast">(resolveAppliedId(active.value))
+
+  // Session 35: Icon theme state
+  const activeIconTheme = ref<IconThemeId>(loadIconTheme())
+  const iconDefinition = computed(() => ICON_THEME_MAP[activeIconTheme.value])
+  const allIconThemes = computed(() => ICON_THEMES)
 
   const definition = computed(() => THEME_MAP[active.value])
   const allThemes = computed(() => THEMES)
@@ -176,6 +264,22 @@ export const useThemeStore = defineStore("theme", () => {
     return appliedType.value === "dark" || (active.value === "system" && osPrefersDark())
   }
 
+  // Session 35: Icon theme functions
+  function loadIconTheme(): IconThemeId {
+    try {
+      const raw = localStorage.getItem(ICON_STORAGE_KEY)
+      if (raw && ICON_THEME_MAP[raw]) return raw as IconThemeId
+    } catch { /* ignore */ }
+    return "material"
+  }
+
+  function setIconTheme(id: IconThemeId): void {
+    if (ICON_THEME_MAP[id]) {
+      activeIconTheme.value = id
+      try { localStorage.setItem(ICON_STORAGE_KEY, id) } catch { /* ignore */ }
+    }
+  }
+
   return {
     active,
     appliedType,
@@ -187,5 +291,10 @@ export const useThemeStore = defineStore("theme", () => {
     setTheme,
     cycleTheme,
     isDark,
+    // Icon themes
+    activeIconTheme,
+    iconDefinition,
+    allIconThemes,
+    setIconTheme,
   }
 })

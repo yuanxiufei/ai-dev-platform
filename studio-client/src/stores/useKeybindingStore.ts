@@ -152,12 +152,34 @@ const DEFAULT_BINDINGS: Keybinding[] = [
   { key: "Ctrl+J", action: () => toggleBottomPanel(), when: "global", priority: 9 },
   { key: "Ctrl+Shift+F", action: () => toggleGlobalSearch(), when: "global", priority: 10 },
   { key: "Ctrl+N", action: () => newUntitledFile(), when: "global", priority: 9 },
+  // Session 48: 工作区符号搜索 (VSCode Ctrl+T)
+  { key: "Ctrl+T", action: () => toggleSymbolSearch(), when: "global", priority: 10 },
+  // Markdown 预览
+  { key: "Ctrl+Shift+V", action: () => markdownPreview(), when: "editor", priority: 10 },
+  { key: "Ctrl+K V", action: () => markdownPreview(), when: "editor", priority: 10 },
+  // Session 39: 新面板快捷键
+  { key: "Ctrl+Shift+T", action: () => focusCallHierarchy(), when: "global", priority: 8 },
+  { key: "Ctrl+Shift+Y", action: () => focusLocalHistory(), when: "global", priority: 8 },
+  { key: "Ctrl+K Ctrl+H", action: () => focusTypeHierarchy(), when: "editor", priority: 8 },
+  { key: "Ctrl+Shift+C", action: () => focusComments(), when: "global", priority: 8 },
+  { key: "Ctrl+Shift+M", action: () => focusMergeConflicts(), when: "global", priority: 8 },
+  // Session 40: Blame 切换 (Ctrl+Shift+Alt+B，避免与 VSCode Ctrl+Shift+B Run Build Task 冲突)
+  { key: "Ctrl+Shift+Alt+B", action: () => toggleBlame(), when: "editor", priority: 9 },
+  // Session 43: 任务面板 (Ctrl+Shift+B = VSCode "Run Build Task")
+  { key: "Ctrl+Shift+B", action: () => focusTasks(), when: "global", priority: 10 },
+  // Session 42: Inline Chat + Search Editor + MultiDiff
+  { key: "Ctrl+I", action: () => toggleInlineChat(), when: "editor", priority: 10 },
+  { key: "Ctrl+Shift+U", action: () => openSearchEditor(), when: "global", priority: 8 },
+  { key: "Ctrl+Shift+D", action: () => openMultiDiff(), when: "global", priority: 8 },
+  // Session 58: 同步滚动 (VSCode: workbench.action.toggleLockedScrolling)
+  { key: "Ctrl+Shift+Alt+L", action: () => toggleSyncScroll(), when: "global", priority: 8 },
 ]
 
 // ── 对外回调（由组件注册） ──
 
 let _toggleCommandPalette: () => void = () => {}
 let _toggleQuickOpen: () => void = () => {}
+let _toggleSymbolSearch: () => void = () => {}
 let _saveFile: () => void = () => {}
 let _closeActiveTab: () => void = () => {}
 let _splitEditorRight: () => void = () => {}
@@ -169,9 +191,22 @@ let _toggleGlobalSearch: () => void = () => {}
 let _newUntitledFile: () => void = () => {}
 let _focusTesting: () => void = () => {}
 let _focusExtensions: () => void = () => {}
+let _markdownPreview: () => void = () => {}
+let _focusCallHierarchy: () => void = () => {}
+let _focusLocalHistory: () => void = () => {}
+let _focusTypeHierarchy: () => void = () => {}
+let _focusComments: () => void = () => {}
+let _focusMergeConflicts: () => void = () => {}
+let _toggleBlame: () => void = () => {}
+let _toggleInlineChat: () => void = () => {}
+let _openSearchEditor: () => void = () => {}
+let _openMultiDiff: () => void = () => {}
+let _focusTasks: () => void = () => {}
+let _toggleSyncScroll: () => void = () => {}
 
 function toggleCommandPalette() { _toggleCommandPalette() }
 function toggleQuickOpen() { _toggleQuickOpen() }
+function toggleSymbolSearch() { _toggleSymbolSearch() }
 function saveFile() { _saveFile() }
 function closeActiveTab() { _closeActiveTab() }
 function splitEditorRight() { _splitEditorRight() }
@@ -181,9 +216,20 @@ function toggleSidebar() { _toggleSidebar() }
 function toggleBottomPanel() { _toggleBottomPanel() }
 function toggleGlobalSearch() { _toggleGlobalSearch() }
 function newUntitledFile() { _newUntitledFile() }
-// focusTesting/focusExtensions: callbacks registered via registerCallbacks(), wrapper preserved for future default bindings
 function focusTesting() { _focusTesting() }
 function focusExtensions() { _focusExtensions() }
+function markdownPreview() { _markdownPreview() }
+function focusCallHierarchy() { _focusCallHierarchy() }
+function focusLocalHistory() { _focusLocalHistory() }
+function focusTypeHierarchy() { _focusTypeHierarchy() }
+function focusComments() { _focusComments() }
+function focusMergeConflicts() { _focusMergeConflicts() }
+function toggleBlame() { _toggleBlame() }
+function toggleInlineChat() { _toggleInlineChat() }
+function openSearchEditor() { _openSearchEditor() }
+function openMultiDiff() { _openMultiDiff() }
+function focusTasks() { _focusTasks() }
+function toggleSyncScroll() { _toggleSyncScroll() }
 
 /** 检测当前上下文是否匹配 when 条件 */
 function contextMatches(actual: string, expected: string): boolean {
@@ -343,6 +389,7 @@ function popContext(): void {
 interface KeybindingCallbacks {
   toggleCommandPalette: () => void
   toggleQuickOpen: () => void
+  toggleSymbolSearch: () => void
   saveFile: () => void
   closeActiveTab: () => void
   splitEditorRight: () => void
@@ -354,12 +401,25 @@ interface KeybindingCallbacks {
   newUntitledFile: () => void
   focusTesting: () => void
   focusExtensions: () => void
+  markdownPreview: () => void
+  focusCallHierarchy?: () => void
+  focusLocalHistory?: () => void
+  focusTypeHierarchy?: () => void
+  focusComments?: () => void
+  focusMergeConflicts?: () => void
+  toggleBlame?: () => void
+  toggleInlineChat?: () => void
+  openSearchEditor?: () => void
+  openMultiDiff?: () => void
+  focusTasks?: () => void
+  toggleSyncScroll?: () => void
 }
 
 /** 注册预定义快捷键的回调 */
 function registerCallbacks(cbs: Partial<KeybindingCallbacks>): void {
   if (cbs.toggleCommandPalette) _toggleCommandPalette = cbs.toggleCommandPalette
   if (cbs.toggleQuickOpen) _toggleQuickOpen = cbs.toggleQuickOpen
+  if (cbs.toggleSymbolSearch) _toggleSymbolSearch = cbs.toggleSymbolSearch
   if (cbs.saveFile) _saveFile = cbs.saveFile
   if (cbs.closeActiveTab) _closeActiveTab = cbs.closeActiveTab
   if (cbs.splitEditorRight) _splitEditorRight = cbs.splitEditorRight
@@ -371,6 +431,18 @@ function registerCallbacks(cbs: Partial<KeybindingCallbacks>): void {
   if (cbs.newUntitledFile) _newUntitledFile = cbs.newUntitledFile
   if (cbs.focusTesting) _focusTesting = cbs.focusTesting
   if (cbs.focusExtensions) _focusExtensions = cbs.focusExtensions
+  if (cbs.markdownPreview) _markdownPreview = cbs.markdownPreview
+  if (cbs.focusCallHierarchy) _focusCallHierarchy = cbs.focusCallHierarchy
+  if (cbs.focusLocalHistory) _focusLocalHistory = cbs.focusLocalHistory
+  if (cbs.focusTypeHierarchy) _focusTypeHierarchy = cbs.focusTypeHierarchy
+  if (cbs.focusComments) _focusComments = cbs.focusComments
+  if (cbs.focusMergeConflicts) _focusMergeConflicts = cbs.focusMergeConflicts
+  if (cbs.toggleBlame) _toggleBlame = cbs.toggleBlame
+  if (cbs.toggleInlineChat) _toggleInlineChat = cbs.toggleInlineChat
+  if (cbs.openSearchEditor) _openSearchEditor = cbs.openSearchEditor
+  if (cbs.openMultiDiff) _openMultiDiff = cbs.openMultiDiff
+  if (cbs.focusTasks) _focusTasks = cbs.focusTasks
+  if (cbs.toggleSyncScroll) _toggleSyncScroll = cbs.toggleSyncScroll
 }
 
 // ── Composable ──

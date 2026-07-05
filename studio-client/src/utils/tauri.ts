@@ -62,6 +62,29 @@ export interface PluginInfo {
   hasSettingsUI: boolean
   commands: any[]
 }
+export interface SystemInfo {
+  os: string
+  osVersion: string
+  arch: string
+  hostname: string
+  totalMemory: number
+  availableMemory: number
+  cpuCount: number
+  cpuName: string
+}
+export interface MemoryUsage {
+  total: number
+  used: number
+  free: number
+  usagePercent: number
+}
+export interface CPUInfo {
+  name: string
+  vendorId: string
+  cores: number
+  frequencyMhz: number
+  usage: number
+}
 export interface IDESettings {
   editor: any
   appearance: any
@@ -91,6 +114,12 @@ const fs = {
   searchInFile: (params: any) =>
     invoke<SearchResult[]>("search_in_file", { request: params }),
   getFileInfo: (path: string) => invoke<FileInfo>("get_file_info", { path }),
+  /** 单文件精确替换 (path + search + replace + 可选 line) */
+  replaceInFile: (path: string, search: string, replace: string, line?: number) =>
+    invoke<{ replaced: boolean; line: number; before: string; after: string }>(
+      "replace_in_file",
+      { path, search, replace, line },
+    ),
 }
 
 const terminal = {
@@ -133,11 +162,23 @@ const settings = {
   get: () => invoke<IDESettings>("get_settings"),
   save: (s: IDESettings) => invoke<void>("save_settings", { settings: s }),
   reset: () => invoke<IDESettings>("reset_settings"),
+  /** O2: Export settings to file */
+  export: (dest: string) => invoke<void>("export_settings", { destination: dest }),
+  /** O2: Import settings from file */
+  import: (src: string) => invoke<IDESettings>("import_settings", { source: src }),
 }
 
 const events = {
   onFileWatchEvent: (cb: (e: any) => void): Promise<UnlistenFn> =>
     listen("file-watch-event", cb),
+}
+
+/** System information */
+const system = {
+  getInfo: () => invoke<SystemInfo>("get_system_info"),
+  getMemory: () => invoke<MemoryUsage>("get_memory_usage"),
+  getCpu: () => invoke<CPUInfo>("get_cpu_info"),
+  getWorkspaceDir: () => invoke<string>("get_workspace_dir"),
 }
 
 export const TauriAPI = {
@@ -149,9 +190,35 @@ export const TauriAPI = {
       getCurrentWindow().then((w) =>
         invoke<void>("toggle_fullscreen", { window: w }),
       ),
+    /** E2: Zoom in (scale up) */
+    zoomIn: () =>
+      getCurrentWindow().then((w) =>
+        invoke<void>("zoom_in", { window: w }),
+      ),
+    /** E2: Zoom out (scale down) */
+    zoomOut: () =>
+      getCurrentWindow().then((w) =>
+        invoke<void>("zoom_out", { window: w }),
+      ),
+    /** E2: Reset zoom to 100% */
+    resetZoom: () =>
+      getCurrentWindow().then((w) =>
+        invoke<void>("reset_zoom", { window: w }),
+      ),
+    /** E2: Open DevTools */
+    openDevtools: () =>
+      getCurrentWindow().then((w) =>
+        invoke<void>("open_devtools", { window: w }),
+      ),
+    /** E2: Focus the window */
+    focusWindow: () =>
+      getCurrentWindow().then((w) =>
+        invoke<void>("focus_window", { window: w }),
+      ),
   },
   plugins,
   settings,
+  system,
   events,
   invoke,
 }

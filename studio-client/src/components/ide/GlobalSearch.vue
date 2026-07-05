@@ -1,7 +1,7 @@
 <script setup lang="ts">/** IDE — Global Search & Replace (VSCode-style full implementation) */
 import { ref, computed, watch, nextTick } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
-import { Search, ArrowUpDown, X, RefreshCw, Replace, CaseSensitive, WholeWord, Regex, Filter, ChevronDown, ChevronRight, FileText, Hash } from 'lucide-vue-next'
+import { Search, ArrowUpDown, X, RefreshCw, Replace, CaseSensitive, WholeWord, Regex, Filter, ChevronDown, ChevronRight, FileText, Hash, AlertTriangle, Check } from 'lucide-vue-next'
 
 defineProps<{ visible: boolean }>()
 const emit = defineEmits<(e:'close')=>void>()
@@ -109,32 +109,11 @@ function goToNext(): void {
     store.searchState.currentResultIndex = (store.searchState.currentResultIndex + 1) % store.searchState.results.length
 }
 
-/** Execute replace on all search results */
+/** Execute replace on all search results (with confirmation) */
 async function replaceAll(): Promise<void> {
   if (!rq.value || !query.value || store.searchState.results.length === 0) return
-  const files = new Set(store.searchState.results.map(r => r.file))
-
-  for (const filePath of files) {
-    try {
-      if (isTauri()) {
-        const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('replace_in_file', {
-          path: filePath,
-          search: query.value,
-          replace: rq.value,
-        })
-      }
-    } catch (e) {
-      console.warn(`[Search] Replace failed for ${filePath}:`, e)
-    }
-  }
-
-  // Re-search to show updated results
-  store.searchState.replaceQuery = rq.value
-  await doSearch()
-  // Show toast notification
-  const count = store.searchState.results.length
-  emit('close')
+  // 显示替换预览确认对话框
+  showReplaceConfirm.value = true
 }
 
 /** Replace current result only */
@@ -206,6 +185,100 @@ function flatIndexOf(file: string, result: typeof store.searchState.results[0]):
     idx++
   }
   return -1
+}
+
+// ── Session 37: 替换预览 + 确认对话框 ──
+
+/** 替换确认对话框 */
+const showReplaceConfirm = ref(false)
+/** 预览每个匹配项在替换后的内容 */
+const replacePreviewItems = computed(() => {
+  if (!rq.value) return []
+  return store.searchState.results.map(r => {
+    let preview = r.lineText
+    let flags = 'g'
+    if (!caseSensitive.value) flags += 'i'
+    try {
+      const re = useRegex.value
+        ? new RegExp(query.value, flags)
+        : new RegExp(escapeForRegex(query.value), flags)
+      preview = r.lineText.replace(re, rq.value)
+    } catch { /* 正则解析失败，保持原文 */ }
+    return {
+      ...r,
+      preview,
+      changed: preview !== r.lineText,
+    }
+  })
+})
+
+/** 获取每个文件的替换统计 */
+const fileReplaceStats = computed(() => {
+  const map = new Map<string, { total: number; changed: number }>()
+  for (const item of replacePreviewItems.value) {
+    if (!map.has(item.file)) map.set(item.file, { total: 0, changed: 0 })
+    const s = map.get(item.file)!
+    s.total++
+    if (item.changed) s.changed++
+  }
+  return map
+})
+
+/** 确认并执行全部替换 */
+async function confirmReplaceAll(): Promise<void> {
+  showReplaceConfirm.value = false
+  const files = new Set(store.searchState.results.map(r => r.file))
+  for (const fp of files) {
+    try {
+      if (isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('replace_in_file', { path: fp, search: query.value, replace: rq.value })
+      }
+    } catch (e) { console.warn(`[Search] Replace failed for ${fp}:`, e) }
+  }
+  store.searchState.replaceQuery = rq.value
+  await doSearch()
+  emit('close')
+}
+
+/** 正则特殊字符转义 */
+function escapeForRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 格式化预览 diff 用颜色标记的 HTML */
+function previewDiffHTML(original: string, preview: string): string {
+  if (original === preview) return original
+  // 简化：删除线标记待删除内容，高亮标记新增内容
+  let result = ''
+  let i = 0, j = 0
+  // 使用简单的 LCS 思想：找到变化点
+  while (i < original.length && j < preview.length) {
+    if (original[i] === preview[j]) {
+      result += original[i]
+      i++; j++
+    } else {
+      // 检测删除
+      let delEnd = i
+      while (delEnd < original.length && (preview[j] === undefined || original[delEnd] !== preview[j])) delEnd++
+      if (delEnd > i) {
+        result += `<del class="search-del">${original.slice(i, delEnd)}</del>`
+        i = delEnd
+      }
+      // 检测插入
+      if (j < preview.length && (i >= original.length || original[i] !== preview[j])) {
+        let insEnd = j
+        while (insEnd < preview.length && (original[i] === undefined || original[i] !== preview[insEnd])) insEnd++
+        if (insEnd > j) {
+          result += `<ins class="search-ins">${preview.slice(j, insEnd)}</ins>`
+          j = insEnd
+        }
+      }
+    }
+  }
+  if (i < original.length) result += `<del class="search-del">${original.slice(i)}</del>`
+  if (j < preview.length) result += `<ins class="search-ins">${preview.slice(j)}</ins>`
+  return result
 }
 </script>
 
@@ -304,6 +377,53 @@ function flatIndexOf(file: string, result: typeof store.searchState.results[0]):
             <div class="flex gap-1"><button class="px-2 py-0.5 rounded hover:bg-[var(--color-ide-surface-hover)]" @click="goToPrev">↑</button><button class="px-2 py-0.5 rounded hover:bg-[var(--color-ide-surface-hover)]" @click="goToNext">↓</button></div>
           </div>
         </div>
+
+        <!-- ═══ Session 37: 替换确认对话框 ═══ -->
+        <div v-if="showReplaceConfirm" class="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+          <div class="w-[560px] max-h-[480px] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+            <!-- 标题 -->
+            <div class="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-ide-border)]">
+              <AlertTriangle :size="16" class="text-[var(--color-terminal-yellow)] shrink-0" />
+              <span class="text-[13px] font-semibold text-[var(--color-ide-text)]">确认全部替换</span>
+              <span class="text-[11px] text-[var(--color-ide-text-dim)]">此操作无法撤销</span>
+              <div class="flex-1" />
+              <button class="p-1 rounded hover:bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)]" @click="showReplaceConfirm = false"><X :size="14"/></button>
+            </div>
+
+            <!-- 统计摘要 -->
+            <div class="px-4 py-2 border-b border-[var(--color-ide-border)]/50 bg-[var(--color-ide-bg)]/30">
+              <div class="flex items-center gap-4 text-[11px]">
+                <span class="text-[var(--color-ide-text-dim)]">将 <code class="text-[var(--color-ide-accent)] bg-[var(--color-ide-accent)]/10 px-1 rounded">{{ query }}</code> 替换为 <code class="text-[var(--color-terminal-green)] bg-[var(--color-terminal-green)]/10 px-1 rounded">{{ rq }}</code></span>
+                <span class="text-[var(--color-ide-text-dim)]">—</span>
+                <span class="text-[var(--color-ide-text)]">{{ store.searchState.results.length }} 个匹配项 · {{ fileReplaceStats.size }} 个文件</span>
+              </div>
+            </div>
+
+            <!-- 预览列表 -->
+            <div class="flex-1 overflow-y-auto max-h-[300px] p-2">
+              <div v-for="item in replacePreviewItems.slice(0, 30)" :key="item.file + ':' + item.line"
+                class="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-ide-surface-hover)] text-[11px] font-mono">
+                <Check v-if="item.changed" :size="11" class="mt-0.5 text-[var(--color-terminal-green)] shrink-0" />
+                <div v-else class="w-[11px] shrink-0" />
+                <span class="text-[var(--color-ide-text-dim)]/60 shrink-0 w-10 text-right tabular-nums">L{{ item.line }}</span>
+                <span class="flex-1 truncate" v-html="previewDiffHTML(item.lineText, rq ? (item.lineText.replace(new RegExp((useRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&')), caseSensitive ? 'g' : 'gi'), rq)) : item.lineText)" />
+              </div>
+              <div v-if="replacePreviewItems.length > 30" class="text-center text-[10px] text-[var(--color-ide-text-dim)] py-1">
+                ...还有 {{ replacePreviewItems.length - 30 }} 个结果
+              </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-[var(--color-ide-border)] bg-[var(--color-ide-bg)]/30">
+              <button class="px-3 py-1.5 text-[11px] rounded border border-[var(--color-ide-border)] text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+                @click="showReplaceConfirm = false">取消</button>
+              <button class="px-3 py-1.5 text-[11px] rounded bg-[var(--color-ide-accent)] text-white hover:brightness-110 transition-colors"
+                @click="confirmReplaceAll">
+                <Replace :size="11" class="inline mr-1" />确认替换
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </Transition>
   </Teleport>
@@ -314,5 +434,16 @@ function flatIndexOf(file: string, result: typeof store.searchState.results[0]):
 .search-overlay {
   --search-highlight-bg: rgba(234, 179, 8, 0.4);
   --search-highlight-text: #fde68a;
+}
+
+/* ═══ Session 37: 替换预览 diff 样式 ═══ */
+:deep(.search-del) {
+  background: rgba(248, 81, 73, 0.25);
+  text-decoration: line-through;
+  color: #f85149;
+}
+:deep(.search-ins) {
+  background: rgba(46, 160, 67, 0.25);
+  color: #3fb950;
 }
 </style>

@@ -15,7 +15,10 @@ export interface ShortcutDefinition {
 
 export interface CommandPaletteItem extends ShortcutDefinition {
   score?: number
-  keywords: string[]
+  /** 用于模糊搜索的合并关键词字符串 */
+  keywords: string
+  /** Zed 风格: 是否为最近使用命令 (仅用于内部排序, 不暴露给外部) */
+  _recent?: boolean
 }
 
 const defaultCommands: Omit<ShortcutDefinition, "handler">[] = [
@@ -94,6 +97,27 @@ const defaultCommands: Omit<ShortcutDefinition, "handler">[] = [
     category: "视图",
     key: "Ctrl+J",
     icon: "PanelBottomClose",
+  },
+  {
+    id: "view.toggleLockedScrolling",
+    title: "切换锁定滚动",
+    category: "视图",
+    key: "Ctrl+Shift+Alt+L",
+    icon: "Lock",
+  },
+  {
+    id: "view.openImageViewer",
+    title: "打开图片查看器",
+    category: "视图",
+    key: "Ctrl+K V",
+    icon: "Eye",
+  },
+  {
+    id: "preferences.openUriOpenerSettings",
+    title: "外部链接打开设置",
+    category: "偏好设置",
+    key: "",
+    icon: "Globe",
   },
   {
     id: "nav.quickOpen",
@@ -203,7 +227,7 @@ class ShortcutManager {
   on(id: string, handler: ShortcutDefinition["handler"]): void {
     const existing = this.commands.get(id)
     if (existing) existing.handler = handler
-    else this.register({ id, title: id, category: "自定义", handler })
+    else this.register({ id, title: id, category: "自定义", key: "", handler })
   }
 
   async execute(id: string): Promise<void> {
@@ -224,24 +248,26 @@ class ShortcutManager {
 
   getFiltered(query: string, category?: string | null): CommandPaletteItem[] {
     const ql = query.toLowerCase().trim()
-    return this.getAll()
+    const results: CommandPaletteItem[] = this.getAll()
       .filter((item) => !category || item.category === category)
-      .map((item) => ({
+      .map((item): CommandPaletteItem => ({
         ...item,
         keywords: [item.title, item.category, item.id].join(" ").toLowerCase(),
         /** 🆕 Zed 风格: 记录是否为最近使用 */
         _recent: this.recentCommandIds.includes(item.id),
       }))
-      .map((item) => ({
+
+    return results
+      .map((item): CommandPaletteItem => ({
         ...item,
         score: this.calculateFuzzyScore(item, ql),
       }))
-      .filter((item) => ql === "" || item.score > 0)
+      .filter((item) => ql === "" || (item.score ?? 0) > 0)
       .sort((a, b) => {
         // 🆕 最近使用命令优先
         const recentDiff = (b._recent ? 1 : 0) - (a._recent ? 1 : 0)
         if (recentDiff !== 0) return recentDiff
-        return b.score - a.score
+        return (b.score ?? 0) - (a.score ?? 0)
       })
   }
 
@@ -249,10 +275,7 @@ class ShortcutManager {
    * 🆕 Zed 风格模糊匹配评分
    * 子串连续匹配 → 高分; 首字母匹配 → 加分; 最近使用 → 额外加分
    */
-  private calculateFuzzyScore(
-    item: CommandPaletteItem & { _recent?: boolean },
-    query: string,
-  ): number {
+  private calculateFuzzyScore(item: CommandPaletteItem, query: string): number {
     if (!query) return item._recent ? 50 : 1 // 空查询时最近命令优先
     let score = 0
     // 1. 精确子串匹配 (最高优先级)
@@ -328,10 +351,25 @@ class ShortcutManager {
     }
   }
 
+  /** 检测是否为 macOS 平台 (Cmd 键需要映射为 Ctrl) */
+  private static isMac: boolean | null = null
+  private static getIsMac(): boolean {
+    if (ShortcutManager.isMac === null) {
+      ShortcutManager.isMac =
+        (/Mac/i.test(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((navigator as any).userAgentData?.platform as string) || "",
+        )) ||
+        /Mac/i.test(navigator.userAgent)
+    }
+    return ShortcutManager.isMac
+  }
+
   private normalizeKeyEvent(e: KeyboardEvent): string {
     const parts: string[] = []
-    if (e.ctrlKey) parts.push("Ctrl")
-    if (e.metaKey) parts.push("Cmd")
+    // macOS: Cmd 键映射为 Ctrl (快捷键定义统一使用 Ctrl)
+    const ctrlLike = e.ctrlKey || (this.constructor as typeof ShortcutManager).getIsMac() && e.metaKey
+    if (ctrlLike) parts.push("Ctrl")
     if (e.altKey) parts.push("Alt")
     if (e.shiftKey && e.key !== "Shift" && e.key.length === 1)
       parts.push("Shift")

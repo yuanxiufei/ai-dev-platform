@@ -1,434 +1,319 @@
 <script setup lang="ts">
 /**
- * TasksPanel — VS Code Tasks System (任务运行器)
+ * TasksPanel.vue — VSCode Tasks 任务面板
  *
- * 功能对标 VS Code Tasks:
- *   - 自动检测项目任务 (npm/pnpm/yarn/make/pip)
- *   - 手动添加任务
- *   - 运行任务 (输出到输出面板)
- *   - 任务类型标识 (shell/process/npm/gulp)
- *   - 任务状态: idle/running/success/failed
- *   - 问题匹配器提示
+ * 借鉴: VSCode workbench/contrib/tasks/ + problemMatcher.ts
+ * Session 49: 集成 Problem Matchers API — 构建输出 → 结构化诊断
+ * 能力:
+ *   - 分类展示任务 (build/test/watch/clean)
+ *   - 运行/停止任务
+ *   - 终端输出切换 (含问题匹配器解析)
+ *   - 新建/编辑任务
+ *   - Ctrl+Shift+B 运行默认构建任务
  */
-import { ref, computed } from "vue"
+import { ref, computed, onMounted } from "vue"
 import {
-  Play, Square, RotateCw, Terminal, Plus, Trash2, Settings,
-  ChevronRight, CheckCircle2, XCircle, Clock, Code2, Package, Cog, Bug, TestTube2
+  Play, Square, Plus, Settings, Terminal as TerminalIcon,
+  ChevronDown, ChevronRight, Trash2, Hammer, FlaskConical, Eye, Clock, Loader2, CheckCircle2, XCircle, StopCircle,
+  AlertTriangle, AlertCircle, Info, Lightbulb, SearchCode,
 } from "lucide-vue-next"
+import { useTasksStore } from "@/stores/useTasksStore"
 import { useIDEStore } from "@/stores/useIDEStore"
-import type { TerminalSession } from "@/types/ide"
-const store = useIDEStore()
 
-// ── 任务类型 ──
-interface Task {
-  id: string
-  name: string
-  type: "npm" | "shell" | "process" | "gulp" | "make" | "pip"
-  command: string
-  args?: string[]
-  cwd?: string
-  group: "build" | "test" | "dev" | "custom"
-  status: "idle" | "running" | "success" | "failed"
-  problemMatcher?: string
-  isAutoDetected: boolean
-  detail?: string
+const store = useTasksStore()
+const ideStore = useIDEStore()
+
+onMounted(() => store.init())
+
+// ── 分组展开折叠
+const expandedGroup = ref<Set<string>>(new Set(["build", "test", "watch"]))
+function toggleGroup(g: string) { expandedGroup.value.has(g) ? expandedGroup.value.delete(g) : expandedGroup.value.add(g) }
+
+const groups = [
+  { id: "build", label: "构建", icon: Hammer },
+  { id: "test", label: "测试", icon: FlaskConical },
+  { id: "watch", label: "监听", icon: Eye },
+  { id: "clean", label: "清理", icon: Trash2 },
+  { id: "none", label: "其他", icon: Settings },
+]
+
+// ── 新建任务
+const showNewForm = ref(false)
+const newTask = ref({ label: "", type: "shell" as const, command: "", group: "none" as const })
+
+function addNewTask() {
+  if (!newTask.value.label || !newTask.value.command) return
+  store.addTask({ label: newTask.value.label, type: newTask.value.type, command: newTask.value.command, group: newTask.value.group })
+  newTask.value = { label: "", type: "shell", command: "", group: "none" }
+  showNewForm.value = false
 }
 
-// ── 自动检测任务 (模拟) ──
-const tasks = ref<Task[]>([
-  {
-    id: "task-1",
-    name: "dev",
-    type: "npm",
-    command: "npm run dev",
-    group: "dev",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "启动开发服务器 (Vite)",
-  },
-  {
-    id: "task-2",
-    name: "build",
-    type: "npm",
-    command: "npm run build",
-    group: "build",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "构建项目 (Vite + TypeScript)",
-  },
-  {
-    id: "task-3",
-    name: "lint",
-    type: "npm",
-    command: "npm run lint",
-    group: "custom",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "运行 ESLint 代码检查",
-    problemMatcher: "$eslint-stylish",
-  },
-  {
-    id: "task-4",
-    name: "test",
-    type: "npm",
-    command: "npm run test",
-    group: "test",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "运行测试套件 (Vitest)",
-    problemMatcher: "$vite-test",
-  },
-  {
-    id: "task-5",
-    name: "test:coverage",
-    type: "npm",
-    command: "npm run test:coverage",
-    group: "test",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "运行测试并生成覆盖率报告",
-  },
-  {
-    id: "task-6",
-    name: "typecheck",
-    type: "npm",
-    command: "npm run typecheck",
-    group: "build",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "TypeScript 类型检查",
-    problemMatcher: "$tsc",
-  },
-  {
-    id: "task-7",
-    name: "preview",
-    type: "npm",
-    command: "npm run preview",
-    group: "dev",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "预览生产构建",
-  },
-  {
-    id: "task-8",
-    name: "format",
-    type: "npm",
-    command: "npm run format",
-    group: "custom",
-    status: "idle",
-    isAutoDetected: true,
-    detail: "代码格式化 (Prettier)",
-  },
-  {
-    id: "task-9",
-    name: "Backend: run server",
-    type: "shell",
-    command: "cd backend && python -m uvicorn app.main:app --reload",
-    group: "dev",
-    status: "idle",
-    isAutoDetected: false,
-    detail: "启动 FastAPI 后端服务器",
-  },
-  {
-    id: "task-10",
-    name: "Backend: run tests",
-    type: "shell",
-    command: "cd backend && python -m pytest tests/ -v",
-    group: "test",
-    status: "idle",
-    isAutoDetected: false,
-    detail: "运行 Python 后端测试",
-    problemMatcher: "$python",
-  },
-  {
-    id: "task-11",
-    name: "Clean build artifacts",
-    type: "shell",
-    command: "rm -rf dist/ node_modules/.vite",
-    group: "custom",
-    status: "idle",
-    isAutoDetected: false,
-    detail: "清理构建产物",
-  },
-])
+// ── 运行输出切换
+const showOutput = ref(false)
+const currentRun = computed(() => store.runs[0])
+const runningRun = computed(() => store.runs.find(r => r.status === "running"))
 
-// ── 分组 ──
-const groups = computed(() => {
-  const g = new Map<string, Task[]>()
-  for (const t of tasks.value) {
-    if (!g.has(t.group)) g.set(t.group, [])
-    g.get(t.group)!.push(t)
-  }
-  return g
-})
+// Session 49: Problem Matchers — 解析任务输出为结构化诊断
+const diagnostics = ref<any[]>([])
+const diagnosticsLoading = ref(false)
+const parsedRunId = ref<string | null>(null)
+const showDiagnostics = ref(false)
 
-const collapsedGroups = ref<Record<string, boolean>>({})
-const showAddTask = ref(false)
-const newTaskName = ref("")
-const newTaskCmd = ref("")
-const newTaskType = ref<Task["type"]>("shell")
-
-// ── 分组标签 ──
-const groupLabels: Record<string, string> = { build: "构建", test: "测试", dev: "开发", custom: "自定义" }
-const groupIcons: Record<string, any> = { build: Package, test: TestTube2, dev: Play, custom: Cog }
-
-// ── 运行任务 ──
-const runningTasks = ref<Set<string>>(new Set())
-
-async function runTask(task: Task): Promise<void> {
-  if (runningTasks.value.has(task.id)) return
-  task.status = "running"
-  runningTasks.value.add(task.id)
-
-  // 🔥 VSCode 方式：创建终端并在其中执行命令
-  const shellType: TerminalSession['shellType'] =
-    task.type === 'npm' ? 'powershell' :
-    task.type === 'shell' ? (navigator.platform.includes('Win') ? 'powershell' : 'bash') :
-    'powershell'
-
-  store.executeCommandInTerminal(task.command, task.name, task.cwd || undefined, shellType)
-
-  // 切换到终端面板
-  store.bottomPanelView = 'terminal'
-  store.layout.bottomPanelVisible = true
-
-  // 任务状态由终端进程退出时回调更新（WebSocket onclose → 检查退出码）
-  // 暂时标记为 running，后续可监听 terminal 退出事件
-  setTimeout(() => {
-    if (runningTasks.value.has(task.id)) {
-      // 超时或手工停止
-      runningTasks.value.delete(task.id)
+async function parseOutputWithMatcher(run: any): Promise<void> {
+  if (!run.output || run.output.length === 0) return
+  const content = run.output.join("\n")
+  diagnosticsLoading.value = true
+  try {
+    const res = await fetch(`${(window as any).__apiBaseUrl || "/api/v1"}/system/problem-matchers/parse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matcher_id: "auto", content }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      diagnostics.value = data.diagnostics || []
+      parsedRunId.value = run.id
+      if (diagnostics.value.length > 0) showDiagnostics.value = true
     }
-  }, 600000) // 10分钟超时
+  } catch { /* 静默 */ }
+  finally { diagnosticsLoading.value = false }
 }
 
-function stopTask(task: Task): void {
-  // 命令已在终端中执行，通过终端的 Ctrl+C 或 WebSocket shutdown 来停止
-  task.status = "idle"
-  runningTasks.value.delete(task.id)
+function openDiagnostic(diag: any): void {
+  const ideStore = useIDEStore()
+  if (diag.file_path) {
+    ideStore.openFile(diag.file_path)
+    setTimeout(() => {
+      const editor = (window as any).__activeMonacoEditor
+      if (editor && diag.line) {
+        editor.revealLineInCenter(diag.line)
+        editor.setPosition({ lineNumber: diag.line, column: diag.column || 1 })
+        editor.focus()
+      }
+    }, 300)
+  }
 }
 
-function toggleGroup(key: string): void {
-  collapsedGroups.value[key] = !collapsedGroups.value[key]
+function getSeverityIcon(severity: string) {
+  switch (severity) {
+    case "error": return AlertCircle
+    case "warning": return AlertTriangle
+    case "info": return Info
+    case "hint": return Lightbulb
+    default: return AlertCircle
+  }
 }
 
-function addTask(): void {
-  if (!newTaskName.value.trim() || !newTaskCmd.value.trim()) return
-  tasks.value.push({
-    id: `task-custom-${Date.now()}`,
-    name: newTaskName.value.trim(),
-    type: newTaskType.value,
-    command: newTaskCmd.value.trim(),
-    group: "custom",
-    status: "idle",
-    isAutoDetected: false,
-    detail: newTaskCmd.value.trim(),
-  })
-  newTaskName.value = ""
-  newTaskCmd.value = ""
-  showAddTask.value = false
+function getSeverityColor(severity: string) {
+  switch (severity) {
+    case "error": return "#ef4444"
+    case "warning": return "#f59e0b"
+    case "info": return "#3b82f6"
+    case "hint": return "#8b5cf6"
+    default: return "#9ca3af"
+  }
 }
 
-function removeTask(task: Task): void {
-  if (task.isAutoDetected) return
-  tasks.value = tasks.value.filter(t => t.id !== task.id)
+/** 任务完成时自动解析输出 */
+function onRunFinished(run: any): void {
+  if (run.status === "failed") {
+    parseOutputWithMatcher(run)
+  }
 }
 </script>
 
 <template>
-  <div class="tasks-panel flex flex-col h-full text-[13px]"
-    style="color: var(--color-ide-text); background: var(--color-ide-surface);">
-
-    <!-- ═══ Header ═══ -->
-    <div class="shrink-0 flex items-center px-3 h-9" style="border-bottom: 1px solid var(--color-ide-border);">
-      <Cog :size="14" class="mr-2" style="color: var(--color-ide-accent);" />
-      <span class="text-[12px] font-semibold uppercase tracking-wider">任务</span>
-      <div class="flex-1" />
+  <div class="tasks-panel flex flex-col h-full text-[13px]" style="color:var(--color-ide-text); background:var(--color-ide-surface)">
+    <!-- Header -->
+    <div class="shrink-0 flex items-center px-3" style="height:38px;border-bottom:1px solid var(--color-ide-border)">
+      <TerminalIcon :size="14" style="color:var(--color-ide-accent)" class="mr-2" />
+      <span class="text-[12px] font-semibold uppercase tracking-wider flex-1">任务</span>
       <button
-        class="w-6 h-6 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
-        title="添加任务"
-        @click="showAddTask = !showAddTask"
+        class="w-6 h-6 flex items-center justify-center rounded-[3px] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]"
+        title="运行默认构建任务 (Ctrl+Shift+B)" @click="store.startTask(store.tasks[0]?.id ?? '')"
       >
-        <Plus :size="14" style="color: var(--color-ide-text-dim);" />
+        <Play :size="12" />
+      </button>
+      <button class="w-6 h-6 flex items-center justify-center rounded-[3px] text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)]"
+        title="新建任务" @click="showNewForm = !showNewForm">
+        <Plus :size="14" />
       </button>
     </div>
 
-    <!-- ═══ 添加任务表单 ═══ -->
-    <div v-if="showAddTask" class="shrink-0 px-3 py-2 space-y-1.5" style="border-bottom: 1px solid var(--color-ide-border); background: var(--color-ide-bg-secondary);">
-      <input
-        v-model="newTaskName"
-        type="text"
-        class="w-full h-7 bg-[var(--color-chat-input-bg)] border border-[var(--color-ide-border)] rounded-[3px] text-[12px] px-2 outline-none focus:border-[var(--color-ide-border-focus)]"
-        placeholder="任务名称"
-      />
-      <div class="flex gap-1">
-        <select
-          v-model="newTaskType"
-          class="h-7 text-[11px] rounded-[3px] px-2 border border-[var(--color-ide-border)] outline-none"
-          style="background: var(--color-chat-input-bg); color: var(--color-ide-text);"
-        >
-          <option value="npm">npm</option>
-          <option value="shell">shell</option>
-          <option value="process">process</option>
-          <option value="make">make</option>
-          <option value="pip">pip</option>
+    <!-- 新建任务表单 -->
+    <div v-if="showNewForm" class="shrink-0 px-3 py-2 border-b space-y-1.5" style="border-color:var(--color-ide-border);background:var(--color-ide-surface-hover)">
+      <input v-model="newTask.label" class="task-input" placeholder="任务名称" />
+      <div class="flex gap-1.5">
+        <select v-model="newTask.type" class="task-input flex-1">
+          <option value="shell">Shell</option><option value="npm">npm</option>
+          <option value="tsc">TypeScript</option><option value="custom">自定义</option>
         </select>
-        <input
-          v-model="newTaskCmd"
-          type="text"
-          class="flex-1 h-7 bg-[var(--color-chat-input-bg)] border border-[var(--color-ide-border)] rounded-[3px] text-[12px] px-2 outline-none focus:border-[var(--color-ide-border-focus)]"
-          :placeholder="newTaskType === 'npm' ? 'npm run build' : 'echo hello'"
-        />
+        <select v-model="newTask.group" class="task-input flex-1">
+          <option value="build">构建</option><option value="test">测试</option>
+          <option value="watch">监听</option><option value="clean">清理</option>
+          <option value="none">其他</option>
+        </select>
       </div>
-      <div class="flex justify-end gap-1">
-        <button
-          class="px-2.5 h-6 rounded-[3px] text-[11px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
-          style="color: var(--color-ide-text-dim);"
-          @click="showAddTask = false"
-        >取消</button>
-        <button
-          class="px-2.5 h-6 rounded-[3px] text-[11px] font-medium transition-colors"
-          style="background: var(--color-ide-accent); color: #fff;"
-          :disabled="!newTaskName.trim() || !newTaskCmd.trim()"
-          @click="addTask"
-        >添加</button>
+      <input v-model="newTask.command" class="task-input" :placeholder="newTask.type==='npm'?'run build':newTask.type==='tsc'?'tsc -p tsconfig.json':'echo Hello'" />
+      <div class="flex gap-1">
+        <button class="task-btn-primary" @click="addNewTask">创建</button>
+        <button class="task-btn-secondary" @click="showNewForm=false">取消</button>
       </div>
     </div>
 
-    <!-- ═══ 任务列表 (按分组) ═══ -->
-    <div class="flex-1 overflow-y-auto py-0.5">
-      <template v-for="[group, groupTasks] in groups" :key="group">
-        <!-- 分组标题 -->
-        <button
-          class="flex items-center gap-1.5 w-full h-7 px-3 text-left hover:bg-[var(--color-ide-surface-hover)] transition-colors"
-          @click="toggleGroup(group)"
-        >
-          <ChevronRight
-            :size="10"
-            class="transition-transform duration-150"
-            :class="{ 'rotate-90': !collapsedGroups[group] }"
-            style="color: var(--color-ide-text-dim);"
-          />
-          <component :is="groupIcons[group]" :size="12" style="color: var(--color-ide-text-dim); opacity: 0.6;" />
-          <span class="text-[11px] font-semibold uppercase tracking-wider"
-            style="color: var(--color-ide-text-dim);">
-            {{ groupLabels[group] || group }}
-          </span>
-          <span class="text-[10px] opacity-50 ml-auto" style="color: var(--color-ide-text-dim);">
-            {{ groupTasks.length }}
+    <!-- 运行状态栏 -->
+    <div v-if="runningRun" class="shrink-0 flex items-center px-3 h-8 gap-2 text-[11px] border-b" style="border-color:var(--color-ide-border); background: rgba(76,175,80,0.08)">
+      <Loader2 :size="12" class="animate-spin text-green-400" />
+      <span class="truncate flex-1">{{ runningRun.label }}</span>
+      <button class="w-5 h-5 flex items-center justify-center rounded-[2px] hover:bg-red-500/20 text-red-400" title="停止"
+        @click="store.stopTask(runningRun.id)">
+        <Square :size="10" />
+      </button>
+    </div>
+
+    <!-- 任务列表 (分组) -->
+    <div class="flex-1 overflow-y-auto">
+      <div v-for="group in groups" :key="group.id" v-show="store.tasksByGroup[group.id]?.length">
+        <button class="task-group-header" @click="toggleGroup(group.id)">
+          <ChevronRight :size="10" class="transition-transform" :class="{ 'rotate-90': expandedGroup.has(group.id) }" />
+          <component :is="group.icon" :size="12" class="text-[var(--color-ide-text-dim)]" />
+          <span>{{ group.label }}</span>
+          <span class="text-[10px] opacity-50">({{ store.tasksByGroup[group.id]?.length ?? 0 }})</span>
+        </button>
+        <div v-if="expandedGroup.has(group.id)">
+          <div v-for="task in store.tasksByGroup[group.id]" :key="task.id"
+            class="task-item group" @dblclick="store.startTask(task.id)">
+            <div class="flex items-center gap-1.5">
+              <TerminalIcon :size="11" class="shrink-0" style="color:var(--color-ide-accent)" />
+              <span class="flex-1 truncate text-[12px]">{{ task.label }}</span>
+              <span class="text-[10px] opacity-40 shrink-0">{{ task.type }}</span>
+              <button class="task-run-btn" title="运行" @click.stop="store.startTask(task.id)">
+                <Play :size="10" />
+              </button>
+              <button class="task-del-btn" title="删除" @click.stop="store.removeTask(task.id)">
+                <Trash2 :size="10" />
+              </button>
+            </div>
+            <div class="text-[10px] mt-0.5 ml-5 opacity-40">{{ task.command }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="store.tasks.length === 0" class="flex flex-col items-center justify-center py-16 text-[var(--color-ide-text-dim)]">
+        <Settings :size="24" class="mb-2 opacity-20" />
+        <p class="text-[12px]">暂无任务</p>
+        <p class="text-[10px] opacity-50 mt-1">创建构建/测试/监听任务</p>
+      </div>
+    </div>
+
+    <!-- 运行历史 / 输出 -->
+    <div v-if="store.runs.length > 0" class="shrink-0 border-t" style="border-color:var(--color-ide-border)">
+      <button class="task-group-header" @click="showOutput = !showOutput">
+        <ChevronRight :size="10" class="transition-transform" :class="{ 'rotate-90': showOutput }" />
+        <Clock :size="12" />
+        <span>运行历史</span>
+        <span class="text-[10px] opacity-50">({{ store.runs.length }})</span>
+        <button class="ml-auto text-[10px] text-[var(--color-ide-text-dim)] hover:text-red-400" @click.stop="store.clearRuns()">清除</button>
+      </button>
+      <div v-if="showOutput" class="max-h-48 overflow-y-auto font-mono text-[11px] p-2"
+        style="background: var(--color-editor-bg); border-top: 1px solid var(--color-ide-border)">
+        <div v-for="run in store.runs" :key="run.id" class="mb-1">
+          <div class="flex items-center gap-1 mb-0.5 text-[10px]">
+            <CheckCircle2 v-if="run.status==='success'" :size="10" class="text-green-400" />
+            <XCircle v-else-if="run.status==='failed'" :size="10" class="text-red-400" />
+            <StopCircle v-else-if="run.status==='killed'" :size="10" class="text-yellow-400" />
+            <Loader2 v-else :size="10" class="animate-spin text-blue-400" />
+            <span :class="run.status==='failed'?'text-red-400':''">{{ run.label }}</span>
+            <span class="opacity-40 ml-auto">exit: {{ run.exitCode ?? '...' }}</span>
+            <button
+              v-if="run.status === 'failed' && run.id !== parsedRunId"
+              class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-accent)] hover:bg-[var(--color-ide-accent)]/20 transition-colors"
+              @click="parseOutputWithMatcher(run)"
+            >
+              <SearchCode :size="10" class="inline mr-0.5" />解析问题
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session 49: Problem Matchers 解析结果 -->
+      <div v-if="diagnostics.length > 0" class="shrink-0 border-t" style="border-color:var(--color-ide-border)">
+        <button class="task-group-header" @click="showDiagnostics = !showDiagnostics">
+          <ChevronRight :size="10" class="transition-transform" :class="{ 'rotate-90': showDiagnostics }" />
+          <AlertTriangle :size="12" :style="{ color: diagnostics.some((d: any) => d.severity === 'error') ? '#ef4444' : '#f59e0b' }" />
+          <span>问题</span>
+          <span class="text-[10px] opacity-50">
+            ({{ diagnostics.filter((d: any) => d.severity === 'error').length }} 错误, {{ diagnostics.filter((d: any) => d.severity === 'warning').length }} 警告)
           </span>
         </button>
-
-        <!-- 任务项 -->
-        <div v-if="!collapsedGroups[group]">
+        <div v-if="showDiagnostics" class="max-h-64 overflow-y-auto">
           <div
-            v-for="task in groupTasks"
-            :key="task.id"
-            class="task-item flex items-center gap-2 px-5 h-7 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors group"
-            @dblclick="runTask(task)"
+            v-for="(diag, idx) in diagnostics"
+            :key="idx"
+            class="flex items-start gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--color-ide-surface-hover)] transition-colors border-b border-[var(--color-ide-border)]/30"
+            :style="{ borderLeft: `3px solid ${getSeverityColor(diag.severity)}` }"
+            @click="openDiagnostic(diag)"
           >
-            <!-- 状态图标 -->
-            <RotateCw
-              v-if="task.status === 'running'"
-              :size="12" class="animate-spin shrink-0"
-              style="color: var(--color-ide-accent);"
-            />
-            <CheckCircle2
-              v-else-if="task.status === 'success'"
-              :size="12" class="shrink-0"
-              style="color: var(--color-ide-success);"
-            />
-            <XCircle
-              v-else-if="task.status === 'failed'"
-              :size="12" class="shrink-0"
-              style="color: var(--color-ide-error);"
-            />
-            <Play
-              v-else
-              :size="11" class="shrink-0"
-              style="color: var(--color-ide-text-dim); opacity: 0.4;"
-            />
-
-            <!-- 任务名 -->
-            <span class="flex-1 truncate text-[12px]" :style="{ color: task.status === 'running' ? 'var(--color-ide-accent)' : 'var(--color-ide-text)' }">
-              {{ task.name }}
-            </span>
-
-            <!-- 类型标签 -->
-            <span class="shrink-0 text-[9px] px-1.5 py-0 rounded-full font-medium"
-              style="background: var(--color-ide-surface-active); color: var(--color-ide-text-dim);">
-              {{ task.type }}
-            </span>
-
-            <!-- 问题匹配器图标 -->
-            <span v-if="task.problemMatcher" class="shrink-0" title="问题匹配器已配置">
-              <Bug :size="9" style="color: var(--color-ide-warning); opacity: 0.5;" />
-            </span>
-
-            <!-- hover 操作 -->
-            <div class="hidden group-hover:flex items-center gap-0.5 shrink-0">
-              <button
-                v-if="task.status === 'running'"
-                class="w-5 h-5 flex items-center justify-center rounded-[2px] hover:bg-[var(--color-ide-surface-active)]"
-                title="停止"
-                @click.stop="stopTask(task)"
-              >
-                <Square :size="9" style="color: var(--color-ide-error);" />
-              </button>
-              <button
-                v-else
-                class="w-5 h-5 flex items-center justify-center rounded-[2px] hover:bg-[var(--color-ide-surface-active)]"
-                title="运行任务"
-                @click.stop="runTask(task)"
-              >
-                <Play :size="9" style="color: var(--color-ide-text-dim);" />
-              </button>
-              <button
-                v-if="!task.isAutoDetected"
-                class="w-5 h-5 flex items-center justify-center rounded-[2px] hover:bg-[var(--color-ide-surface-active)]"
-                title="删除任务"
-                @click.stop="removeTask(task)"
-              >
-                <Trash2 :size="9" style="color: var(--color-ide-error);" />
-              </button>
+            <component :is="getSeverityIcon(diag.severity)" :size="13" class="mt-0.5 shrink-0" :style="{ color: getSeverityColor(diag.severity) }" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                <span class="text-[12px] font-medium text-[var(--color-ide-text)] truncate">{{ diag.message }}</span>
+                <span v-if="diag.code" class="text-[10px] px-1 py-px rounded bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] shrink-0">{{ diag.code }}</span>
+              </div>
+              <div class="text-[10px] text-[var(--color-ide-text-dim)] opacity-60 mt-0.5">
+                {{ diag.file_path || '(无文件)' }}{{ diag.line ? `:${diag.line}` : '' }}{{ diag.column ? `:${diag.column}` : '' }}
+                <span v-if="diag.source" class="ml-2">[{{ diag.source }}]</span>
+              </div>
             </div>
           </div>
         </div>
-      </template>
-
-      <!-- 空状态 -->
-      <div v-if="tasks.length === 0" class="flex flex-col items-center justify-center py-16 gap-2">
-        <Cog :size="24" style="color: var(--color-ide-text-dim); opacity: 0.2;" />
-        <span class="text-[12px]" style="color: var(--color-ide-text-dim);">
-          未检测到任务
-        </span>
-        <button
-          class="mt-2 px-4 py-1.5 rounded-[3px] text-[12px] font-medium transition-colors"
-          style="background: var(--color-ide-accent); color: #fff;"
-          @click="showAddTask = true"
-        >配置任务</button>
       </div>
-    </div>
 
-    <!-- ═══ 底部操作栏 ═══ -->
-    <div class="shrink-0 flex items-center justify-between px-3 h-7 text-[11px]"
-      style="border-top: 1px solid var(--color-ide-border); background: var(--color-ide-bg-secondary); color: var(--color-ide-text-dim);">
-      <span>{{ tasks.length }} 个任务</span>
-      <button
-        class="flex items-center gap-1 hover:text-[var(--color-ide-text)] transition-colors"
-        title="运行所有构建任务"
-      >
-        <RotateCw :size="10" /> 全部运行
-      </button>
+      <!-- 加载中 -->
+      <div v-if="diagnosticsLoading" class="shrink-0 flex items-center justify-center py-2 text-[11px] text-[var(--color-ide-text-dim)] border-t" style="border-color:var(--color-ide-border)">
+        <Loader2 :size="12" class="animate-spin mr-1.5" /> 解析构建输出...
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.task-input {
+  width: 100%; padding: 3px 6px; font-size: 11px;
+  background: var(--color-editor-bg); border: 1px solid var(--color-ide-border);
+  border-radius: 3px; color: var(--color-ide-text); outline: none;
+}
+.task-input:focus { border-color: var(--color-ide-accent); }
+.task-input::placeholder { color: var(--color-ide-text-dim); opacity: 0.5; }
+.task-btn-primary {
+  padding: 3px 10px; font-size: 11px; border-radius: 3px; background: var(--color-ide-accent);
+  color: white; border: none; cursor: pointer;
+}
+.task-btn-secondary {
+  padding: 3px 10px; font-size: 11px; border-radius: 3px; border: 1px solid var(--color-ide-border);
+  color: var(--color-ide-text-dim); background: transparent; cursor: pointer;
+}
+.task-group-header {
+  display: flex; align-items: center; gap: 4px; width: 100%; height: 26px; padding: 0 8px;
+  font-size: 11px; font-weight: 600; color: var(--color-ide-text-dim); cursor: pointer;
+  border: none; background: transparent;
+}
+.task-group-header:hover { background: var(--color-ide-surface-hover); }
 .task-item {
-  border-left: 2px solid transparent;
+  padding: 4px 8px 4px 20px; cursor: pointer; border-bottom: 1px solid color-mix(in srgb, var(--color-ide-border) 30%, transparent);
+  transition: background 0.1s;
 }
-.task-item:hover {
-  border-left-color: var(--color-ide-accent);
+.task-item:hover { background: var(--color-ide-surface-hover); }
+.task-run-btn {
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  border-radius: 2px; color: var(--color-ide-text-dim); opacity: 0; transition: all 0.1s;
 }
+.task-item:hover .task-run-btn { opacity: 1; }
+.task-run-btn:hover { background: var(--color-ide-accent); color: white; }
+.task-del-btn {
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  border-radius: 2px; color: var(--color-ide-text-dim); opacity: 0; transition: all 0.1s;
+}
+.task-item:hover .task-del-btn { opacity: 1; }
+.task-del-btn:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
 </style>

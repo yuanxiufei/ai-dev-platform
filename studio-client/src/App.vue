@@ -30,7 +30,7 @@
 import { onMounted, onUnmounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { usePlugins } from "@/composables/usePlugins"
-import { useShortcuts } from "@/composables/useShortcuts"
+import { useShortcuts, shortcutManager } from "@/composables/useShortcuts"
 import { useIDEStore } from "@/stores/useIDEStore"
 import { useKeybindingStore } from "@/stores/useKeybindingStore"
 import MenuBar from "@/components/ide/MenuBar.vue"
@@ -49,9 +49,41 @@ import CommandPalette from "@/components/ide/CommandPalette.vue"
 import SettingsPanel from "@/components/ide/SettingsPanel.vue"
 import NotificationToast from "@/components/ide/NotificationToast.vue"
 import InputDialogHost from "@/components/InputDialogHost.vue"
+import { setupWidgetNavigationKeyboard, teardownWidgetNavigationKeyboard } from "@/composables/useWidgetNavigation"
+import { toggleSyncScroll as _toggleSyncScroll } from "@/composables/useSyncScroll"
+import { useWorkspaceFinder } from "@/composables/useWorkspaceFinder"
+import { useNotificationStore } from "@/stores/useNotificationStore"
+import { useImageCarouselStore, isMediaFile } from "@/stores/useImageCarouselStore"
+import ImageCarousel from "@/components/ide/ImageCarousel.vue"
+import ExternalUriOpenerDialog from "@/components/ide/ExternalUriOpenerDialog.vue"
+import { openUrl } from "@/composables/useExternalUriOpener"
 
 const store = useIDEStore()
 const router = useRouter()
+
+// Session 58: Workspace Finder state
+let _workspaceFinder: ReturnType<typeof useWorkspaceFinder> | null = null
+function _onWorkspaceFound(e: CustomEvent) {
+  const { files } = e.detail
+  if (!files || files.length === 0) return
+  const notifStore = useNotificationStore()
+  const names = files.map((f: any) => f.name).join("、")
+  notifStore.info(
+    `检测到工作区文件: ${names}`,
+    {
+      detail: "此文件夹包含 .code-workspace 文件，是否打开？",
+      source: "工作区发现",
+      actions: files.map((f: any) => ({
+        label: `打开 ${f.name}`,
+        action: () => {
+          store.setWorkspaceRoot(f.path)
+          _workspaceFinder?.dismissRoot(store.workspaceRoot.value)
+        },
+      })),
+      autoDismiss: 0,
+    },
+  )
+}
 const {
   isCommandPaletteVisible,
   toggleCommandPalette,
@@ -61,10 +93,24 @@ const { activateAll: activatePlugins } = usePlugins()
 
 // ── VSCode 全局键盘快捷键注册表 (Session 23: useKeybindingStore) ──
 const kb = useKeybindingStore()
+const imageCarStore = useImageCarouselStore()
 kb.registerCallbacks({
   toggleCommandPalette: () => toggleCommandPalette(true),
-  toggleQuickOpen: () => { showQuickOpen.value = true },
-  saveFile: async () => { await store.saveActiveFile() },
+  toggleQuickOpen: () => { quickOpenSymbolMode.value = false; showQuickOpen.value = true },
+  toggleSymbolSearch: () => { quickOpenSymbolMode.value = true; showQuickOpen.value = true },
+  saveFile: async () => {
+    /** Session 47: Format on Save — 保存前先格式化 */
+    try {
+      const raw = localStorage.getItem("ide_editor_settings_v2")
+      const settings = raw ? JSON.parse(raw) : null
+      if (settings?.formatOnSave !== false) {
+        await (window as any).__formatActiveDocument?.()
+        // 等待格式化完成 + content 同步
+        await new Promise(r => setTimeout(r, 50))
+      }
+    } catch { /* 静默处理 - 格式化失败不影响保存 */ }
+    await store.saveActiveFile()
+  },
   closeActiveTab: () => { if (store.activeTabId) store.closeTab(store.activeTabId) },
   splitEditorRight: () => store.splitEditor("right"),
   focusFileExplorer: () => { store.layout.fileTreeVisible = true },
@@ -86,6 +132,12 @@ kb.registerCallbacks({
     store.activeActivityItem = "extensions"
     store.layout.fileTreeVisible = true
   },
+  /** 🔥 Session 35: Markdown Preview (Ctrl+Shift+V) */
+  markdownPreview: () => {
+    store.markdownPreviewVisible = !store.markdownPreviewVisible
+  },
+  /** Session 58: 同步滚动切换 (Ctrl+Shift+Alt+L) */
+  toggleSyncScroll: () => _toggleSyncScroll(),
 })
 
 // Zen Mode: Ctrl+K Z
@@ -100,6 +152,17 @@ onCommand("edit.findInFiles", () => { store.showGlobalSearch = true })
 onCommand("nav.quickOpen", () => { showQuickOpen.value = true })
 onCommand("view.toggleSidebar", () => { store.layout.fileTreeVisible = !store.layout.fileTreeVisible })
 onCommand("view.togglePanel", () => { store.layout.rightPanelVisible = !store.layout.rightPanelVisible })
+onCommand("view.toggleLockedScrolling", () => _toggleSyncScroll())
+onCommand("view.openImageViewer", () => {
+  const activeTab = store.activeTab
+  if (activeTab?.filePath && isMediaFile(activeTab.label)) {
+    imageCarStore.open(activeTab.filePath)
+  } else {
+    // 如果没有打开图片文件，提示用户
+    const notifStore2 = useNotificationStore()
+    notifStore2.info("请先在文件资源管理器中点击一个图片文件", { source: "图片查看器" })
+  }
+})
 onCommand("terminal.toggle", () => {
   store.bottomPanelView = "terminal"
   store.layout.bottomPanelVisible = !store.layout.bottomPanelVisible
@@ -112,6 +175,7 @@ onCommand("view.resetLayout", () => { store.resetLayout() })
 onCommand("view.zenMode", () => { toggleZenMode() })
 onCommand("preferences.openKeybindings", () => { router.push("/keybindings") })
 onCommand("preferences.openSettings", () => { store.showSettingsPanel = true })
+onCommand("preferences.openUriOpenerSettings", () => { store.showSettingsPanel = true })
 
 // Zen Mode 快捷键: Ctrl+K Z
 onCommand("view.exitZenMode", () => { exitZenMode() })
@@ -141,6 +205,8 @@ function onBottomPanelResizeStart(e: MouseEvent): void {
 }
 
 const showQuickOpen = ref(false)
+/** Session 48: QuickOpen 符号搜索模式 */
+const quickOpenSymbolMode = ref(false)
 const zenMode = ref(false)
 
 /** VSCode Zen Mode: 隐藏所有面板，只留编辑器 */
@@ -163,9 +229,13 @@ watch(zenMode, (v) => {
   else window.removeEventListener("keydown", onZenKeydown)
 })
 
+/** 命令面板点击/回车执行命令 — 将 cmdId 路由到对应的 IDE 操作 */
 function onCommandExecute(cmdId: string): void {
+  // 直接路由: 无需通过 shortcutManager 重触发
   if (cmdId === "settings.open") store.showSettingsPanel = true
-  if (cmdId === "view.zenMode") toggleZenMode()
+  else if (cmdId === "view.zenMode") toggleZenMode()
+  // 回退: 走 shortcutManager.execute → 触发 onCommand() 注册的 handler
+  else shortcutManager.execute(cmdId)
 }
 
 onMounted(async () => {
@@ -173,7 +243,24 @@ onMounted(async () => {
   await store.refreshGitStatus()
   store.addOutputLine(`[信息] CodeBuddy IDE v0.1.0 已启动`)
   if (store.workspaceRoot) store.addOutputLine(`[信息] 工作区: ${store.workspaceRoot}`)
+  // Session 57: Widget 导航 (F6/Shift+F6)
+  setupWidgetNavigationKeyboard()
+  // Session 58: 工作区自动发现 (.code-workspace 文件)
+  const workspaceFinder = useWorkspaceFinder(store.workspaceRoot, import.meta.env.VITE_API_BASE)
+  workspaceFinder.start()
+  // 监听 .code-workspace 文件发现事件
+  window.addEventListener("ide:workspace-files-found", _onWorkspaceFound as EventListener)
+  // Session 58: 全局 URL 打开器 (供 HTML/markdown 中的链接使用)
+  ;(window as any).__openUrl = (url: string) => openUrl(url, import.meta.env.VITE_API_BASE)
+  _workspaceFinder = workspaceFinder
+
   console.log("%c[CodeBuddy IDE] Ready", "color:#007ACC;font-weight:bold;font-size:14px")
+})
+
+onUnmounted(() => {
+  teardownWidgetNavigationKeyboard()
+  if (_workspaceFinder) _workspaceFinder.stop()
+  window.removeEventListener("ide:workspace-files-found", _onWorkspaceFound as EventListener)
 })
 </script>
 
@@ -264,7 +351,7 @@ onMounted(async () => {
       Zen 模式 · <kbd class="px-1 py-0.5 rounded text-[10px]" style="background: rgba(255,255,255,0.1);">Esc</kbd> 退出
     </div>
     <GlobalSearch :visible="store.showGlobalSearch" @close="store.showGlobalSearch = false" />
-    <QuickOpen :visible="showQuickOpen" @close="showQuickOpen = false" />
+    <QuickOpen :visible="showQuickOpen" :force-symbol-mode="quickOpenSymbolMode" @close="showQuickOpen = false; quickOpenSymbolMode = false" />
     <CommandPalette
       :visible="isCommandPaletteVisible"
       @update:visible="(v: boolean) => { isCommandPaletteVisible = v; if (!v) toggleCommandPalette(false) }"
@@ -274,6 +361,12 @@ onMounted(async () => {
 
     <!-- Notifications -->
     <NotificationToast />
+
+    <!-- Image Carousel (Session 58: 图片/视频轮播查看器) -->
+    <ImageCarousel />
+
+    <!-- External URI Opener Dialog (Session 58: URL 打开器选择) -->
+    <ExternalUriOpenerDialog />
 
     <!-- 🔥 全局输入对话框 (命令式 API) -->
     <InputDialogHost />

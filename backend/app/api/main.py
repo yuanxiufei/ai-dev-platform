@@ -38,6 +38,37 @@ from app.api.routes.system import (
     model_health_router,
     session_tree_router,
     cli_pipeline_router,
+    diagnostics_router,
+    format_router,
+    terminal_quickfix_router,
+    language_detection_router,
+    code_actions_router,
+    symbols_router,
+    problem_matchers_router,
+    diff_router,
+    hierarchy_router,
+    notebook_router,
+    testing_router,
+    search_router,
+    snippets_router,
+    lsp_bridge_router,
+    filesystem_router,
+    backup_router,
+    sync_router,
+    feature_flags_router,
+    git_router,
+    debug_router,
+    comments_router,
+    tasks_router as system_tasks_router,
+    extensions_router,
+    context_keys_router,
+    config_resolver_router,
+    state_router,
+    logs_router,
+    local_history_router,
+    external_terminal_router,
+    keybindings_export_router,
+    external_uri_opener_router,
 )
 from app.api.routes.system.task_queue import router as task_queue_router
 from app.api.routes.agent import (
@@ -118,6 +149,37 @@ api_router.include_router(cli_history_router)           # /system/cli-history �
 api_router.include_router(model_health_router)          # /system/model-health — 模型健康检查 (Session 05)
 api_router.include_router(session_tree_router)          # /system/session-tree — Session 树+检查点 (Session 06)
 api_router.include_router(cli_pipeline_router)          # /system/cli-pipeline — CLI 流水线组合 (Session 06)
+api_router.include_router(diagnostics_router)           # /system/diagnostics — 代码诊断分析 (Session 45)
+api_router.include_router(format_router)                # /system/format — 代码格式化 (Session 47)
+api_router.include_router(terminal_quickfix_router)     # /system/terminal/quickfix — 终端快速修复 (Session 47)
+api_router.include_router(language_detection_router)    # /system/language — 语言检测 (Session 48)
+api_router.include_router(code_actions_router)          # /system/code-actions — 代码操作/QuickFix (Session 48)
+api_router.include_router(symbols_router)               # /system/symbols — 工作区符号搜索 (Session 48)
+api_router.include_router(problem_matchers_router)     # /system/problem-matchers — 构建输出解析 (Session 49)
+api_router.include_router(diff_router)                 # /system/diff — 差异计算 (Session 49)
+api_router.include_router(hierarchy_router)           # /system/hierarchy — 调用层次+类型层次 (Session 50)
+api_router.include_router(notebook_router)            # /system/notebook — 多语言Kernel执行 (Session 50)
+api_router.include_router(testing_router)             # /system/testing — 测试发现+执行 (Session 50)
+api_router.include_router(search_router)             # /system/search — 全文本搜索+替换 (Session 51)
+api_router.include_router(snippets_router)           # /system/snippets — 代码片段CRUD (Session 51)
+api_router.include_router(lsp_bridge_router)         # /system/lsp — LSP适配桥接 (Session 51)
+api_router.include_router(filesystem_router)         # /system/filesystem — 文件系统CRUD (Session 51)
+api_router.include_router(backup_router)            # /system/backup — 全量备份导出/导入 (Session 52)
+api_router.include_router(sync_router)              # /system/sync — 用户数据跨设备同步 (Session 52)
+api_router.include_router(feature_flags_router)     # /system/feature-flags — 特性开关/实验分组 (Session 52)
+api_router.include_router(git_router)               # /system/git — Git/SCM 版本控制 (Session 53)
+api_router.include_router(debug_router)             # /system/debug — DAP 调试协议 (Session 53)
+api_router.include_router(comments_router)          # /system/comments — 代码评审评论 (Session 53)
+api_router.include_router(system_tasks_router)      # /system/tasks — 构建任务执行 (Session 53)
+api_router.include_router(extensions_router)        # /system/extensions — 扩展市场管理 (Session 53)
+api_router.include_router(context_keys_router)      # /system/context-keys — when 条件评估 (Session 55)
+api_router.include_router(config_resolver_router)    # /system/config-resolver — 变量解析 (Session 55)
+api_router.include_router(state_router)             # /system/state — 状态持久化 (Session 55)
+api_router.include_router(logs_router)              # /system/logs — 日志通道管理 (Session 55)
+api_router.include_router(local_history_router)     # /system/local-history + indent (Session 55)
+api_router.include_router(external_terminal_router)  # /system/external-terminal (Session 57)
+api_router.include_router(keybindings_export_router)  # /system/keybindings (Session 58)
+api_router.include_router(external_uri_opener_router)  # /system/external-uri-openers (Session 58)
 
 # ===== video-admin 后台 =====
 api_router.include_router(items.router)        # 模板占位，后续替换

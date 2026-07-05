@@ -90,6 +90,57 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  /** O2: Export IDE settings to a JSON file */
+  async function exportIDESettings(destination: string): Promise<boolean> {
+    if (!isTauriEnv()) return false
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('export_settings', { destination })
+      return true
+    } catch (e) {
+      console.warn('[Settings] Export failed:', e)
+      return false
+    }
+  }
+
+  /** Reset IDE settings to factory defaults */
+  async function resetIDESettings(): Promise<any> {
+    if (!isTauriEnv()) return null
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const defaults: any = await invoke('reset_settings')
+      if (defaults?.appearance) {
+        display.theme = ((defaults.appearance as any).theme as DisplaySettings['theme']) || display.theme
+      }
+      if (defaults?.ai) {
+        agent.toolEnforcement = ((defaults.ai as any).toolEnforcement as AgentSettings['toolEnforcement']) || agent.toolEnforcement
+      }
+      return defaults
+    } catch (e) {
+      console.warn('[Settings] Reset failed:', e)
+      return null
+    }
+  }
+
+  /** O2: Import IDE settings from a JSON file */
+  async function importIDESettings(source: string): Promise<boolean> {
+    if (!isTauriEnv()) return false
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const imported: any = await invoke('import_settings', { source })
+      if (imported?.appearance?.theme) {
+        display.theme = imported.appearance.theme
+      }
+      if (imported?.ai) {
+        agent.toolEnforcement = imported.ai.toolEnforcement || agent.toolEnforcement
+      }
+      return true
+    } catch (e) {
+      console.warn('[Settings] Import failed:', e)
+      return false
+    }
+  }
+
   // ── HTTP API (providers, runtime config) ──
 
   async function fetchSettings(): Promise<void> {
@@ -157,6 +208,7 @@ export const useSettingsStore = defineStore('settings', () => {
     display, agent, memory, providers,
     fetchSettings, fetchProviders,
     loadIDESettings, saveIDESettings,
+    exportIDESettings, importIDESettings, resetIDESettings,
     updateLocal, saveSection, saveProviderKey,
   }
 })

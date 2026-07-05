@@ -205,6 +205,11 @@ export const useFileTreeStore = defineStore('fileTree', () => {
   }
 
   async function deleteFileEntry(filePath: string): Promise<boolean> {
+    if (!isTauriEnv()) {
+      console.warn('[IDE] Delete is not available in browser mode — requires desktop app')
+      _notifyDesktopRequired('删除文件')
+      return false
+    }
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       await invoke('delete_path', { path: filePath, recursive: true })
@@ -216,6 +221,11 @@ export const useFileTreeStore = defineStore('fileTree', () => {
   }
 
   async function renameFileEntry(oldPath: string, newName: string): Promise<FileEntry | null> {
+    if (!isTauriEnv()) {
+      console.warn('[IDE] Rename is not available in browser mode — requires desktop app')
+      _notifyDesktopRequired('重命名')
+      return null
+    }
     const parent = oldPath.replace(/[\\/][^\\/]+$/, '')
     const newPath = `${parent}/${newName}`
     try {
@@ -228,6 +238,81 @@ export const useFileTreeStore = defineStore('fileTree', () => {
     } catch (e) {
       console.warn(`[IDE] Failed to rename: ${oldPath} -> ${newPath}`, e)
       return null
+    }
+  }
+
+  /** Lazily imported notification helper — avoids circular deps */
+  async function _notifyDesktopRequired(feature: string): Promise<void> {
+    try {
+      const { useNotificationStore } = await import('./useNotificationStore')
+      useNotificationStore().warn(
+        `「${feature}」功能需要桌面版应用支持，Web 模式下不可用。`,
+        { source: 'FileTree', autoDismiss: 6000 }
+      )
+    } catch { /* notification store not available */ }
+  }
+
+  /** Copy a file or directory to a new location */
+  async function copyFileEntry(src: string, dst: string): Promise<boolean> {
+    if (!isTauriEnv()) {
+      _notifyDesktopRequired('复制文件/文件夹')
+      return false
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('copy_path', { src, dst })
+      return true
+    } catch (e) {
+      console.warn(`[IDE] Failed to copy: ${src} -> ${dst}`, e)
+      return false
+    }
+  }
+
+  /** Move a file or directory to a new location */
+  async function moveFileEntry(src: string, dst: string): Promise<boolean> {
+    if (!isTauriEnv()) {
+      _notifyDesktopRequired('移动文件/文件夹')
+      return false
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('move_path', { src, dst })
+      return true
+    } catch (e) {
+      console.warn(`[IDE] Failed to move: ${src} -> ${dst}`, e)
+      return false
+    }
+  }
+
+  /** Get detailed file/directory metadata */
+  async function getFileInfo(filePath: string): Promise<FileEntry | null> {
+    if (!isTauriEnv()) {
+      _notifyDesktopRequired('获取文件信息')
+      return null
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const info = await invoke<any>('get_file_info', { path: filePath })
+      return fileInfoToEntry(info)
+    } catch (e) {
+      console.warn(`[IDE] Failed to get file info: ${filePath}`, e)
+      return null
+    }
+  }
+
+  /** Get recently accessed files from OS */
+  async function getRecentFiles(limit?: number): Promise<FileEntry[]> {
+    if (!isTauriEnv()) {
+      _notifyDesktopRequired('最近文件')
+      return []
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const files = await invoke<any[]>('get_recent_files', { limit: limit ?? 20 })
+      return files.map(fileInfoToEntry)
+    } catch (e) {
+      console.warn('[IDE] Failed to get recent files:', e)
+      return []
     }
   }
 
@@ -263,6 +348,10 @@ export const useFileTreeStore = defineStore('fileTree', () => {
     createFolderEntry,
     deleteFileEntry,
     renameFileEntry,
+    copyFileEntry,
+    moveFileEntry,
+    getFileInfo,
+    getRecentFiles,
     expandToPath,
   }
 })

@@ -412,6 +412,23 @@ export function usePlugins() {
     }
   }
 
+  /**
+   * Call a plugin's custom command via Tauri backend
+   * (maps to call_plugin_command in Rust)
+   */
+  async function callPluginCommand(pluginId: string, command: string, args?: any): Promise<any> {
+    try {
+      if (!(window as any).__TAURI__) return null
+      const { invoke } = await import('@tauri-apps/api/core')
+      return await invoke('call_plugin_command', {
+        request: { pluginId, command, args },
+      })
+    } catch (e) {
+      console.warn(`[Plugins] call_plugin_command failed for ${pluginId}/${command}:`, e)
+      return null
+    }
+  }
+
   return {
     installedPlugins,
     enabledPlugins,
@@ -426,6 +443,7 @@ export function usePlugins() {
     disable: (id: string) => pluginManager.disable(id),
     uninstall: (id: string) => pluginManager.uninstall(id),
     get: (id: string) => pluginManager.get(id),
+    callPluginCommand,
     on: (e: string, cb: (...a: any[]) => void) => pluginManager.on(e, cb),
     emit: (e: string, ...args: any[]) => pluginManager.emit(e, ...args),
   }

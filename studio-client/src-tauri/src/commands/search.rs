@@ -199,6 +199,54 @@ pub async fn replace_in_files(request: GlobalSearchRequest) -> Result<ReplaceRes
     global_replace(request).await
 }
 
+/// Replace in a single file — simpler API for inline replacement (per-line or whole file)
+#[tauri::command]
+pub async fn replace_in_file(
+    path: String,
+    search: String,
+    replace: String,
+    line: Option<u32>,
+) -> Result<ReplaceResult, String> {
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    let mut total_replacements: usize = 0;
+    let new_content = if let Some(line_num) = line {
+        // Replace only on the specified line
+        let mut lines: Vec<String> = content.lines().map(String::from).collect();
+        let idx = (line_num as usize).saturating_sub(1);
+        if idx < lines.len() {
+            let old = &lines[idx];
+            let new_line = old.replace(&search, &replace);
+            if *old != new_line {
+                total_replacements = 1;
+                lines[idx] = new_line;
+            }
+        }
+        let trailing = if content.ends_with('\n') { "\n" } else { "" };
+        lines.join("\n") + trailing
+    } else {
+        // Replace all occurrences in the file
+        let result = content.replace(&search, &replace);
+        total_replacements = content.matches(&search).count();
+        result
+    };
+
+    if total_replacements > 0 {
+        fs::write(&path, &new_content)
+            .map_err(|e| format!("Failed to write file: {}", e))?;
+    }
+
+    Ok(ReplaceResult {
+        files_modified: if total_replacements > 0 {
+            vec![path]
+        } else {
+            vec![]
+        },
+        total_replacements,
+    })
+}
+
 fn is_match_pattern(name: &str, pattern: &str) -> bool {
     let cleaned = pattern.trim_start_matches('*').trim_start_matches('.');
     if pattern.starts_with('*') && pattern.contains('.') {

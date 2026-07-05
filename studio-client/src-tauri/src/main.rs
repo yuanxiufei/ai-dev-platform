@@ -152,6 +152,7 @@ fn main() {
             commands::search::global_replace,
             commands::search::find_in_files,
             commands::search::replace_in_files,
+            commands::search::replace_in_file,
             
             // System Info
             commands::system::get_system_info,

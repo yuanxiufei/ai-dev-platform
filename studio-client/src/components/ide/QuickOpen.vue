@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * Quick Open (Ctrl+P) — VSCode-style file picker
- * Fuzzy-match workspace files with instant preview
+ * Quick Open (Ctrl+P) — VSCode-style file picker + symbol search
+ * - Ctrl+P → file picker
+ * - # prefix → workspace symbol search (like VSCode Ctrl+T)
+ * - > prefix → command palette (handled by CommandPalette.vue)
  */
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useIDEStore } from '@/stores/useIDEStore'
-import { FileSearch, File, Folder, CornerDownLeft } from 'lucide-vue-next'
+import { FileSearch, File, Folder, CornerDownLeft, Hash, Box, FunctionSquare, Container } from 'lucide-vue-next'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean; forceSymbolMode?: boolean }>()
 const emit = defineEmits<(e: 'close') => void>()
 
 const store = useIDEStore()
@@ -15,6 +17,12 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLDivElement | null>(null)
 const query = ref('')
 const selectedIdx = ref(0)
+
+/** Session 48: Symbol search state */
+const isSymbolMode = ref(false)
+const symbolResults = ref<any[]>([])
+const symbolLoading = ref(false)
+const symbolSearchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 /** Collect all files from file tree (recursive) */
 function collectFiles(nodes: any[], prefix = ''): { name: string; path: string; isDir: boolean }[] {
@@ -72,21 +80,103 @@ const filteredFiles = computed(() => {
   return scored
 })
 
-watch(() => query.value, () => { selectedIdx.value = 0 })
+watch(() => query.value, () => { 
+  selectedIdx.value = 0
+  // Session 48: Detect # prefix for symbol search
+  if (query.value.startsWith('#')) {
+    isSymbolMode.value = true
+    debouncedSymbolSearch(query.value.slice(1))
+  } else {
+    isSymbolMode.value = false
+    symbolResults.value = []
+  }
+})
+
+/** Session 48: Debounced workspace symbol search via backend API */
+function debouncedSymbolSearch(q: string) {
+  if (symbolSearchTimer.value) clearTimeout(symbolSearchTimer.value)
+  if (!q.trim()) {
+    symbolResults.value = []
+    return
+  }
+  symbolLoading.value = true
+  symbolSearchTimer.value = setTimeout(async () => {
+    try {
+      const baseUrl = (window as any).__apiBaseUrl || '/api/v1'
+      const res = await fetch(`${baseUrl}/system/symbols/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q.trim(), max_results: 20 }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        symbolResults.value = data.symbols || []
+      } else {
+        symbolResults.value = []
+      }
+    } catch {
+      symbolResults.value = []
+    } finally {
+      symbolLoading.value = false
+    }
+  }, 250)
+}
 
 function openFile(path: string) {
   store.openFile(path)
   emit('close')
 }
 
+/** Session 48: Navigate to symbol location */
+function openSymbol(sym: any) {
+  if (sym.file_path) {
+    store.openFile(sym.file_path)
+    // Jump to line after a short delay
+    setTimeout(() => {
+      // Try to reveal line in the editor
+      const editor = (window as any).__activeMonacoEditor
+      if (editor && sym.line) {
+        editor.revealLineInCenter(sym.line)
+        editor.setPosition({ lineNumber: sym.line, column: sym.column || 1 })
+        editor.focus()
+      }
+    }, 300)
+  }
+  emit('close')
+}
+
+/** Session 48: Symbol icon by kind */
+function getSymbolIcon(kind: string) {
+  switch (kind) {
+    case 'function': case 'method': return FunctionSquare
+    case 'class': case 'struct': case 'interface': case 'trait': return Box
+    case 'variable': case 'module': case 'enum': return Container
+    default: return Hash
+  }
+}
+
+function getSymbolKindLabel(kind: string) {
+  const labels: Record<string, string> = {
+    function: '🔧', method: '🔧', class: '📦', struct: '📦',
+    interface: '🔌', trait: '🔌', enum: '📋', variable: '📝',
+    module: '📁', type: '🏷️',
+  }
+  return labels[kind] || '●'
+}
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.preventDefault(); emit('close') }
-  else if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx.value = Math.min(selectedIdx.value + 1, filteredFiles.value.length - 1); scrollToSelected() }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx.value = Math.min(selectedIdx.value + 1, (isSymbolMode.value ? symbolResults.value.length : filteredFiles.value.length) - 1); scrollToSelected() }
   else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx.value = Math.max(selectedIdx.value - 1, 0); scrollToSelected() }
   else if (e.key === 'Enter') {
     e.preventDefault()
-    if (filteredFiles.value[selectedIdx.value]) {
-      openFile(filteredFiles.value[selectedIdx.value].path)
+    if (isSymbolMode.value) {
+      const sym = symbolResults.value[selectedIdx.value]
+      if (sym) openSymbol(sym)
+    } else {
+      if (filteredFiles.value[selectedIdx.value]) {
+        openFile(filteredFiles.value[selectedIdx.value].path)
+      }
     }
   }
 }
@@ -116,11 +206,19 @@ function getFileIcon(name: string, isDir: boolean) {
 }
 
 // Auto-focus on show
-watch(() => (arguments as any)[0]?.visible ?? false, (v: boolean) => {
+watch(() => props.visible, (v: boolean) => {
   if (v) {
     query.value = ''
     selectedIdx.value = 0
-    nextTick(() => inputRef.value?.focus())
+    nextTick(() => {
+      if (props.forceSymbolMode) {
+        query.value = '#'
+        isSymbolMode.value = true
+      } else {
+        isSymbolMode.value = false
+      }
+      inputRef.value?.focus()
+    })
   }
 })
 
@@ -132,11 +230,30 @@ onUnmounted(() => {
 })
 
 function globalKeyHandler(e: KeyboardEvent) {
-  if (((e.ctrlKey || e.metaKey) && e.key === 'p') && !e.shiftKey) {
+  // Ctrl+P → file picker
+  if (((e.ctrlKey || e.metaKey) && e.key === 'p' && !e.shiftKey)) {
     e.preventDefault()
     query.value = ''
+    isSymbolMode.value = false
     selectedIdx.value = 0
     nextTick(() => inputRef.value?.focus())
+  }
+  // Session 48: Ctrl+T → workspace symbol search (VSCode Go to Symbol)
+  if (((e.ctrlKey || e.metaKey) && e.key === 't' && !e.shiftKey)) {
+    e.preventDefault()
+    query.value = '#'
+    isSymbolMode.value = true
+    selectedIdx.value = 0
+    nextTick(() => {
+      inputRef.value?.focus()
+      // Place cursor after #
+      setTimeout(() => {
+        if (inputRef.value) {
+          inputRef.value.selectionStart = 1
+          inputRef.value.selectionEnd = 1
+        }
+      }, 10)
+    })
   }
 }
 </script>
@@ -149,20 +266,57 @@ function globalKeyHandler(e: KeyboardEvent) {
         <div class="mx-auto mt-[15vh] w-[600px] max-w-[92vw] bg-[var(--color-ide-surface)] border border-[var(--color-ide-border)] rounded-lg shadow-2xl flex flex-col overflow-hidden z-10">
           <!-- Search input -->
           <div class="flex items-center gap-2 px-3 py-3 border-b border-[var(--color-ide-border)]">
-            <FileSearch :size="18" class="text-[var(--color-ide-accent)] shrink-0" />
+            <Hash v-if="isSymbolMode" :size="18" class="text-[var(--color-ide-accent)] shrink-0" />
+            <FileSearch v-else :size="18" class="text-[var(--color-ide-accent)] shrink-0" />
             <input
               ref="inputRef"
               v-model="query"
               type="text"
-              placeholder="输入文件名以快速打开..."
+              :placeholder="isSymbolMode ? '输入符号名称搜索... (如 #functionName)' : '输入文件名以快速打开...'"
               class="flex-1 bg-transparent outline-none text-[14px] text-[var(--color-ide-text)] placeholder:text-[var(--color-ide-text-dim)] font-medium"
               @keydown="onKeydown"
             />
             <kbd class="px-1.5 py-0.5 text-[10px] bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] rounded font-mono border border-[var(--color-ide-border)]">Esc</kbd>
           </div>
 
-          <!-- File list -->
+          <!-- File list / Symbol list -->
           <div ref="listRef" class="flex-1 overflow-y-auto max-h-[340px]">
+            <!-- Session 48: Symbol search mode -->
+            <template v-if="isSymbolMode">
+              <div v-if="symbolLoading" class="flex items-center justify-center py-10 text-[var(--color-ide-text-dim)] text-[12px]">
+                <span class="animate-pulse">搜索符号中...</span>
+              </div>
+              <div v-else-if="symbolResults.length === 0 && query.length > 1" class="flex flex-col items-center justify-center py-10 text-[var(--color-ide-text-dim)] text-[12px]">
+                <Hash :size="24" class="mb-2 opacity-30" />
+                <p>找不到匹配的符号</p>
+              </div>
+              <div v-else>
+                <div
+                  v-for="(sym, idx) in symbolResults"
+                  :key="`${sym.file_path}:${sym.line}:${sym.name}`"
+                  class="quick-open-item flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors"
+                  :class="{ selected: idx === selectedIdx }"
+                  :style="{
+                    background: idx === selectedIdx ? 'var(--color-ide-surface-active)' : 'transparent',
+                    borderLeft: idx === selectedIdx ? '2px solid var(--color-ide-accent)' : '2px solid transparent',
+                  }"
+                  @click="openSymbol(sym)"
+                  @mouseenter="selectedIdx = idx"
+                >
+                  <span class="text-[12px] w-5 text-center shrink-0">{{ getSymbolKindLabel(sym.kind) }}</span>
+                  <div class="flex-1 min-w-0 flex flex-col">
+                    <span class="text-[13px] font-medium text-[var(--color-ide-text)] truncate">{{ sym.name }}</span>
+                    <span class="text-[10px] text-[var(--color-ide-text-dim)] opacity-50 truncate">
+                      {{ sym.container_name ? `${sym.container_name} › ` : '' }}{{ sym.file_path }}:{{ sym.line }}
+                    </span>
+                  </div>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-ide-surface-hover)] text-[var(--color-ide-text-dim)] shrink-0">{{ sym.kind }}</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- File picker mode -->
+            <template v-else>
             <div v-if="filteredFiles.length === 0 && query" class="flex flex-col items-center justify-center py-10 text-[var(--color-ide-text-dim)] text-[12px]">
               <File :size="24" class="mb-2 opacity-30" />
               <p>找不到匹配的文件</p>
@@ -204,12 +358,15 @@ function globalKeyHandler(e: KeyboardEvent) {
                 <span v-if="(file as any).recent" class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-accent)] shrink-0">最近</span>
               </div>
             </div>
+            </template>
           </div>
 
           <!-- Footer hint -->
           <div class="flex items-center gap-4 px-3 py-2 border-t border-[var(--color-ide-border)] text-[10px] text-[var(--color-ide-text-dim)] bg-[var(--color-ide-bg)]/50">
             <span class="flex items-center gap-1"><CornerDownLeft :size="10"/> 打开</span>
             <span>↑↓ 导航</span>
+            <span v-if="!isSymbolMode"># 搜索符号</span>
+            <span v-else>Ctrl+P 搜索文件</span>
             <span>Esc 关闭</span>
           </div>
         </div>

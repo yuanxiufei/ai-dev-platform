@@ -9,91 +9,29 @@
  *   - breakpointsView: 全部断点列表 (文件+行号+条件)
  *
  * Session 24: 独立 DebugPanel 组件，注册到底部面板
+ * Session 36: 迁移到 useDebugStore 共享状态，与 FloatingDebugToolbar 联动
  */
-import { computed, ref, watch, onMounted, onUnmounted, type Ref } from "vue"
+import { computed, ref } from "vue"
 import {
   Play, Pause, SkipForward, ArrowDownToLine,
   ArrowUpFromLine, RotateCcw, Square,
   CircleDot, X, Plus, Trash2, Eye, Triangle,
 } from "lucide-vue-next"
 import { useIDEStore } from "@/stores/useIDEStore"
-import type { EditorTab } from "@/types/ide"
+import { useDebugStore, type Breakpoint, type DebugVariable } from "@/stores/useDebugStore"
 
 const store = useIDEStore()
-
-// ── 断点类型定义 ──
-interface Breakpoint {
-  id: string
-  file: string
-  line: number
-  /** 断点是否启用 */
-  enabled: boolean
-  /** 条件断点 (可选) */
-  condition?: string
-  /** 命中计数 (可选) */
-  hitCount?: number
-}
-
-interface StackFrame {
-  id: number
-  name: string
-  file: string
-  line: number
-  column: number
-  /** 是否为外部库 */
-  isExternal?: boolean
-}
-
-interface WatchExpression {
-  id: string
-  expression: string
-  value?: string
-  type?: string
-}
-
-interface Variable {
-  name: string
-  value: string
-  type: string
-  children?: Variable[]
-  expanded?: boolean
-}
-
-// ── 调试状态 ──
-const isRunning = ref(false)
-const isPaused = ref(false)
-const breakpoints: Ref<Breakpoint[]> = ref([])
-const stackFrames: Ref<StackFrame[]> = ref([])
-const variables: Ref<Variable[]> = ref([])
-const watchExpressions: Ref<WatchExpression[]> = ref([])
-const activeStackFrame = ref<number | null>(null)
-
-// ── 折叠状态 ──
-const variablesExpanded = ref(true)
-const watchExpanded = ref(true)
-const callStackExpanded = ref(true)
-const breakpointsExpanded = ref(true)
+const debug = useDebugStore()
 
 // ── 新增监视 ──
 const newWatchExpr = ref("")
 function addWatch() {
   const expr = newWatchExpr.value.trim()
   if (!expr) return
-  watchExpressions.value.push({
-    id: `watch-${Date.now()}`,
-    expression: expr,
-    value: undefined,
-    type: undefined,
-  })
+  debug.addWatch(expr)
   newWatchExpr.value = ""
-  evaluateWatch()
-}
-function removeWatch(id: string) {
-  watchExpressions.value = watchExpressions.value.filter(w => w.id !== id)
-}
-function evaluateWatch() {
-  // TODO: 实际评估需要连接到调试器后端
-  for (const w of watchExpressions.value) {
+  // 评估监视表达式
+  for (const w of debug.watchExpressions) {
     if (!w.value) {
       w.value = "<未在调试会话中>"
       w.type = "string"
@@ -101,112 +39,13 @@ function evaluateWatch() {
   }
 }
 
-// ── 变量树展开 ──
-function toggleVariable(v: Variable) {
-  v.expanded = !v.expanded
-}
-
-// ── 断点管理 ──
-function addBreakpoint(file: string, line: number, condition?: string): void {
-  const id = `bp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  breakpoints.value.push({ id, file, line, enabled: true, condition, hitCount: 0 })
-}
-
-function removeBreakpoint(id: string): void {
-  breakpoints.value = breakpoints.value.filter(bp => bp.id !== id)
-}
-
-function toggleBreakpoint(id: string): void {
-  const bp = breakpoints.value.find(b => b.id === id)
-  if (bp) bp.enabled = !bp.enabled
-}
-
-function removeAllBreakpoints(): void {
-  breakpoints.value = []
-}
-
-function toggleAllBreakpoints(): void {
-  const allEnabled = breakpoints.value.every(b => b.enabled)
-  breakpoints.value.forEach(b => { b.enabled = !allEnabled })
+function removeWatch(id: string) {
+  debug.removeWatch(id)
 }
 
 // ── 跳转到断点文件 ──
 function gotoBreakpointLocation(bp: Breakpoint) {
   store.openFile(bp.file)
-  // TODO: scroll to line
-}
-
-// ── 调试控制动作 ──
-function startDebug() {
-  isRunning.value = true
-  isPaused.value = false
-  // 模拟断点命中
-  setTimeout(() => {
-    pauseDebug()
-  }, 2000)
-}
-function pauseDebug() {
-  isRunning.value = true
-  isPaused.value = true
-  // 模拟调用栈
-  stackFrames.value = [
-    { id: 0, name: "handleClick", file: "src/App.vue", line: 42, column: 15 },
-    { id: 1, name: "onClick", file: "src/components/Button.vue", line: 128, column: 5 },
-    { id: 2, name: "invokeGuardedCallback", file: "node_modules/react-dom/cjs/...", line: 405, column: 1, isExternal: true },
-  ]
-  activeStackFrame.value = 0
-  variables.value = [
-    { name: "event", value: "MouseEvent {...}", type: "MouseEvent", children: [
-      { name: "clientX", value: "320", type: "number" },
-      { name: "clientY", value: "180", type: "number" },
-      { name: "target", value: "button.btn-primary", type: "HTMLElement" },
-    ]},
-    { name: "props", value: "{ title: 'Submit', disabled: false }", type: "object" },
-    { name: "this", value: "Component {...}", type: "object" },
-  ]
-}
-function resumeDebug() {
-  isPaused.value = false
-  stackFrames.value = []
-  variables.value = []
-  activeStackFrame.value = null
-}
-function stepOver() {
-  if (!isPaused.value) return
-  // 模拟单步跳过到下一行
-  if (stackFrames.value.length > 0) {
-    stackFrames.value[0].line += 1
-  }
-}
-function stepInto() {
-  if (!isPaused.value) return
-  // 模拟进入函数
-  const frame = stackFrames.value[0]
-  if (frame) {
-    stackFrames.value.unshift({
-      id: stackFrames.value.length,
-      name: "innerFunction",
-      file: frame.file,
-      line: 1,
-      column: 1,
-    })
-  }
-}
-function stepOut() {
-  if (!isPaused.value || stackFrames.value.length <= 1) return
-  stackFrames.value.shift()
-  activeStackFrame.value = 0
-}
-function stopDebug() {
-  isRunning.value = false
-  isPaused.value = false
-  stackFrames.value = []
-  variables.value = []
-  activeStackFrame.value = null
-}
-function restartDebug() {
-  stopDebug()
-  setTimeout(() => startDebug(), 100)
 }
 
 // ── 从当前编辑器文件添加断点 ──
@@ -214,12 +53,7 @@ function addBreakpointAtCurrentLine() {
   const tab = store.activeTab
   if (!tab?.filePath) return
   const line = store.cursorPosition.line
-  const exists = breakpoints.value.some(bp => bp.file === tab.filePath && bp.line === line)
-  if (exists) {
-    breakpoints.value = breakpoints.value.filter(bp => !(bp.file === tab.filePath && bp.line === line))
-  } else {
-    addBreakpoint(tab.filePath, line)
-  }
+  debug.addBreakpointAtLine(tab.filePath, line)
 }
 
 // ── 文件路径缩略 ──
@@ -229,38 +63,18 @@ function shortPath(p: string): string {
   return parts.slice(-2).join("/")
 }
 
-// ── 排序: 启用的在前，按文件→行号 ──
-const sortedBreakpoints = computed(() =>
-  [...breakpoints.value].sort((a, b) => {
-    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
-    if (a.file !== b.file) return a.file.localeCompare(b.file)
-    return a.line - b.line
-  }),
-)
-
-// ── 按文件分组的断点 ──
-const breakpointGroups = computed(() => {
-  const map = new Map<string, Breakpoint[]>()
-  for (const bp of sortedBreakpoints.value) {
-    if (!map.has(bp.file)) map.set(bp.file, [])
-    map.get(bp.file)!.push(bp)
-  }
-  return Array.from(map.entries())
-})
-
-// 监听 Ctrl+Shift+D 快捷键(在外部处理)
 // 暴露 API 给外部
 defineExpose({
-  addBreakpoint,
-  removeBreakpoint,
-  removeAllBreakpoints,
-  toggleAllBreakpoints,
+  addBreakpoint: debug.addBreakpoint,
+  removeBreakpoint: debug.removeBreakpoint,
+  removeAllBreakpoints: debug.removeAllBreakpoints,
+  toggleAllBreakpoints: debug.toggleAllBreakpoints,
   addBreakpointAtCurrentLine,
-  startDebug,
-  stopDebug,
-  breakpoints,
-  isRunning,
-  isPaused,
+  startDebug: debug.startDebug,
+  stopDebug: debug.stopDebug,
+  breakpoints: debug.breakpoints,
+  isRunning: debug.isRunning,
+  isPaused: debug.isPaused,
 })
 
 // ── 样式常量 ──
@@ -291,19 +105,19 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       :style="{ height: '36px', background: BG_SECONDARY, borderBottom: `1px solid ${BORDER}`, gap: '2px' }"
     >
       <!-- 继续 / 暂停 -->
-      <button v-if="isPaused"
+      <button v-if="debug.isPaused"
         class="debug-action-btn"
         :style="getBtnStyle(ACCENT, '10%')"
         title="继续 (F5)"
-        @click="resumeDebug"
+        @click="debug.resumeDebug()"
       >
         <Play :size="14" />
       </button>
-      <button v-else-if="!isRunning"
+      <button v-else-if="!debug.isRunning"
         class="debug-action-btn"
         :style="getBtnStyle(GREEN_RGB, '10%')"
         title="启动调试 (F5)"
-        @click="startDebug"
+        @click="debug.startDebug()"
       >
         <Play :size="14" />
       </button>
@@ -311,7 +125,7 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
         class="debug-action-btn"
         :style="getBtnStyle(YELLOW_RGB, '10%')"
         title="暂停 (F6)"
-        @click="pauseDebug"
+        @click="debug.pauseDebug()"
       >
         <Pause :size="14" />
       </button>
@@ -319,8 +133,8 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <!-- Step Over -->
       <button class="debug-action-btn" :style="getBtnStyle()"
         title="单步跳过 (F10)"
-        :disabled="!isPaused"
-        @click="stepOver"
+        :disabled="!debug.isPaused"
+        @click="debug.stepOver()"
       >
         <SkipForward :size="14" />
       </button>
@@ -328,8 +142,8 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <!-- Step Into -->
       <button class="debug-action-btn" :style="getBtnStyle()"
         title="单步进入 (F11)"
-        :disabled="!isPaused"
-        @click="stepInto"
+        :disabled="!debug.isPaused"
+        @click="debug.stepInto()"
       >
         <ArrowDownToLine :size="14" />
       </button>
@@ -337,8 +151,8 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <!-- Step Out -->
       <button class="debug-action-btn" :style="getBtnStyle()"
         title="单步跳出 (Shift+F11)"
-        :disabled="!isPaused"
-        @click="stepOut"
+        :disabled="!debug.isPaused"
+        @click="debug.stepOut()"
       >
         <ArrowUpFromLine :size="14" />
       </button>
@@ -346,8 +160,8 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <!-- Restart -->
       <button class="debug-action-btn" :style="getBtnStyle()"
         title="重新启动 (Ctrl+Shift+F5)"
-        :disabled="!isRunning"
-        @click="restartDebug"
+        :disabled="!debug.isRunning"
+        @click="debug.restartDebug()"
       >
         <RotateCcw :size="14" />
       </button>
@@ -356,8 +170,8 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <button class="debug-action-btn"
         :style="getBtnStyle(ERROR, '10%')"
         title="停止 (Shift+F5)"
-        :disabled="!isRunning"
-        @click="stopDebug"
+        :disabled="!debug.isRunning"
+        @click="debug.stopDebug()"
       >
         <Square :size="12" />
       </button>
@@ -365,12 +179,12 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       <div :style="{ width: '1px', height: '18px', background: BORDER, margin: '0 6px' }" />
 
       <!-- 当前调试状态 -->
-      <span v-if="isPaused" class="text-[11px] font-medium"
+      <span v-if="debug.isPaused" class="text-[11px] font-medium"
         :style="{ color: WARNING }"
       >
         已在断点处暂停
       </span>
-      <span v-else-if="isRunning" class="text-[11px]"
+      <span v-else-if="debug.isRunning" class="text-[11px]"
         :style="{ color: 'var(--color-terminal-green)' }"
       >
         调试中...
@@ -393,31 +207,31 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
             letterSpacing: '0.4px',
             borderBottom: `1px solid ${BORDER}`,
           }"
-          @click="variablesExpanded = !variablesExpanded"
+          @click="debug.variablesExpanded = !debug.variablesExpanded"
         >
           <Triangle
             :size="8"
             :style="{
-              transform: variablesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: debug.variablesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
               transition: 'transform 0.15s',
               color: TEXT_DIM,
             }"
           />
           变量
-          <span v-if="variables.length > 0" class="ml-auto text-[10px] opacity-50">
-            {{ variables.length }}
+          <span v-if="debug.variables.length > 0" class="ml-auto text-[10px] opacity-50">
+            {{ debug.variables.length }}
           </span>
         </button>
-        <div v-if="variablesExpanded" class="py-1">
+        <div v-if="debug.variablesExpanded" class="py-1">
           <!-- 本地变量 -->
-          <div v-if="variables.length === 0 && !isPaused" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
+          <div v-if="debug.variables.length === 0 && !debug.isPaused" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
             暂停调试时显示变量
           </div>
-          <div v-else-if="variables.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
+          <div v-else-if="debug.variables.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
             当前作用域无变量
           </div>
           <div v-else>
-            <div v-for="v in variables" :key="v.name" class="variable-row" :style="{ paddingLeft: '16px' }">
+            <div v-for="v in debug.variables" :key="v.name" class="variable-row" :style="{ paddingLeft: '16px' }">
               <button class="variable-item w-full text-left flex items-center gap-1.5 px-2 py-0.5"
                 :style="{
                   color: TEXT,
@@ -426,7 +240,7 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
                   cursor: v.children?.length ? 'pointer' : 'default',
                 }"
                 :class="v.children?.length ? 'hover:bg-white/5 rounded-sm' : ''"
-                @click="v.children?.length && toggleVariable(v)"
+                @click="v.children?.length && debug.toggleVariable(v)"
               >
                 <!-- 展开箭头 -->
                 <span v-if="v.children?.length" class="shrink-0 inline-flex items-center justify-center"
@@ -477,22 +291,22 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
             letterSpacing: '0.4px',
             borderBottom: `1px solid ${BORDER}`,
           }"
-          @click="watchExpanded = !watchExpanded"
+          @click="debug.watchExpanded = !debug.watchExpanded"
         >
           <Triangle
             :size="8"
             :style="{
-              transform: watchExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: debug.watchExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
               transition: 'transform 0.15s',
               color: TEXT_DIM,
             }"
           />
           监视
-          <span v-if="watchExpressions.length > 0" class="ml-auto text-[10px] opacity-50">
-            {{ watchExpressions.length }}
+          <span v-if="debug.watchExpressions.length > 0" class="ml-auto text-[10px] opacity-50">
+            {{ debug.watchExpressions.length }}
           </span>
         </button>
-        <div v-if="watchExpanded">
+        <div v-if="debug.watchExpanded">
           <!-- 新增监视输入框 -->
           <div class="flex items-center gap-1 px-2 py-1" :style="{ borderBottom: `1px solid ${BORDER}` }">
             <input
@@ -513,11 +327,11 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
             </button>
           </div>
           <!-- 监视列表 -->
-          <div v-if="watchExpressions.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
+          <div v-if="debug.watchExpressions.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
             无监视表达式
           </div>
           <div v-else>
-            <div v-for="w in watchExpressions" :key="w.id"
+            <div v-for="w in debug.watchExpressions" :key="w.id"
               class="group flex items-center gap-1.5 px-3 py-0.5 hover:bg-white/5"
               :style="{ lineHeight: '22px' }"
             >
@@ -549,23 +363,23 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
             letterSpacing: '0.4px',
             borderBottom: `1px solid ${BORDER}`,
           }"
-          @click="callStackExpanded = !callStackExpanded"
+          @click="debug.callStackExpanded = !debug.callStackExpanded"
         >
           <Triangle
             :size="8"
             :style="{
-              transform: callStackExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: debug.callStackExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
               transition: 'transform 0.15s',
               color: TEXT_DIM,
             }"
           />
           调用堆栈
-          <span v-if="stackFrames.length > 0" class="ml-auto text-[10px] opacity-50">
-            {{ stackFrames.length }}
+          <span v-if="debug.stackFrames.length > 0" class="ml-auto text-[10px] opacity-50">
+            {{ debug.stackFrames.length }}
           </span>
         </button>
-        <div v-if="callStackExpanded">
-          <div v-if="stackFrames.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
+        <div v-if="debug.callStackExpanded">
+          <div v-if="debug.stackFrames.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
             暂停调试时显示调用堆栈
           </div>
           <div v-else>
@@ -576,22 +390,22 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
             </div>
             <!-- 栈帧列表 -->
             <div
-              v-for="frame in stackFrames"
+              v-for="frame in debug.stackFrames"
               :key="frame.id"
               class="stack-frame-item flex items-start gap-1.5 px-3 py-1 cursor-pointer"
               :style="{
-                color: frame.id === activeStackFrame ? TEXT : TEXT_DIM,
-                background: frame.id === activeStackFrame ? 'var(--color-ide-surface-active)' : 'transparent',
-                borderLeft: frame.id === activeStackFrame ? `2px solid ${ACCENT}` : '2px solid transparent',
+                color: frame.id === debug.activeStackFrame ? TEXT : TEXT_DIM,
+                background: frame.id === debug.activeStackFrame ? 'var(--color-ide-surface-active)' : 'transparent',
+                borderLeft: frame.id === debug.activeStackFrame ? `2px solid ${ACCENT}` : '2px solid transparent',
                 fontSize: '12px',
                 lineHeight: '20px',
                 opacity: frame.isExternal ? 0.5 : 1,
               }"
               :title="`${frame.file}:${frame.line}`"
-              @click="activeStackFrame = frame.id"
+              @click="debug.activeStackFrame = frame.id"
             >
               <Triangle
-                v-if="frame.id === activeStackFrame"
+                v-if="frame.id === debug.activeStackFrame"
                 :size="10"
                 class="shrink-0 mt-1"
                 :style="{ color: ACCENT, transform: 'rotate(90deg)' }"
@@ -621,45 +435,45 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
         >
           <button
             class="flex items-center gap-1 font-semibold uppercase tracking-wide"
-            @click="breakpointsExpanded = !breakpointsExpanded"
+            @click="debug.breakpointsExpanded = !debug.breakpointsExpanded"
           >
             <Triangle
               :size="8"
               :style="{
-                transform: breakpointsExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transform: debug.breakpointsExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
                 transition: 'transform 0.15s',
                 color: TEXT_DIM,
               }"
             />
             断点
           </button>
-          <span class="ml-auto text-[10px] opacity-50">{{ breakpoints.length }}</span>
+          <span class="ml-auto text-[10px] opacity-50">{{ debug.breakpoints.length }}</span>
           <!-- 操作按钮 -->
-          <div class="flex items-center gap-0.5 ml-2" v-if="breakpoints.length > 0">
+          <div class="flex items-center gap-0.5 ml-2" v-if="debug.breakpoints.length > 0">
             <button
               class="px-1.5 py-0.5 rounded-sm text-[10px] hover:bg-white/10"
               :style="{ color: TEXT_DIM }"
               title="全部启用/禁用"
-              @click="toggleAllBreakpoints"
+              @click="debug.toggleAllBreakpoints()"
             >
-              {{ breakpoints.every(b => b.enabled) ? '全部禁用' : '全部启用' }}
+              {{ debug.breakpoints.every(b => b.enabled) ? '全部禁用' : '全部启用' }}
             </button>
             <button
               class="px-1 py-0.5 rounded-sm hover:text-red-400"
               :style="{ color: TEXT_DIM }"
               title="删除所有断点"
-              @click="removeAllBreakpoints"
+              @click="debug.removeAllBreakpoints()"
             >
               <Trash2 :size="11" />
             </button>
           </div>
         </div>
-        <div v-if="breakpointsExpanded">
-          <div v-if="breakpoints.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
+        <div v-if="debug.breakpointsExpanded">
+          <div v-if="debug.breakpoints.length === 0" class="px-5 py-4 text-center" :style="{ color: TEXT_DIM, fontSize: '11px' }">
             未设置断点
           </div>
           <div v-else>
-            <template v-for="[file, bps] in breakpointGroups" :key="file">
+            <template v-for="[file, bps] in debug.breakpointGroups" :key="file">
               <!-- 文件头 -->
               <div class="flex items-center px-3 py-0.5 text-[11px]"
                 :style="{ color: TEXT_DIM, borderBottom: `1px solid ${BORDER}`, opacity: 0.7 }"
@@ -680,7 +494,7 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
                 <!-- 启用/禁用复选框 -->
                 <button
                   class="shrink-0 p-0.5"
-                  @click.stop="toggleBreakpoint(bp.id)"
+                  @click.stop="debug.toggleBreakpoint(bp.id)"
                   :style="{ color: bp.enabled ? ERROR : TEXT_DIM }"
                 >
                   <CircleDot :size="14" v-if="bp.enabled" />
@@ -700,7 +514,7 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
                 <!-- 删除 -->
                 <button
                   class="ml-auto opacity-0 group-hover:opacity-60 hover:opacity-100 p-0.5"
-                  @click.stop="removeBreakpoint(bp.id)"
+                  @click.stop="debug.removeBreakpoint(bp.id)"
                 >
                   <X :size="10" :style="{ color: TEXT_DIM }" />
                 </button>
@@ -723,10 +537,10 @@ const DEBUG_FUNC_NAME = "var(--color-debug-function)"  // #DCDCAA
       }"
     >
       <span>
-        {{ breakpoints.filter(b => b.enabled).length }}/{{ breakpoints.length }} 个断点已启用
+        {{ debug.breakpoints.filter(b => b.enabled).length }}/{{ debug.breakpoints.length }} 个断点已启用
       </span>
-      <span v-if="isPaused" :style="{ color: WARNING }">⚠ 已暂停</span>
-      <span v-if="isRunning && !isPaused" :style="{ color: 'var(--color-terminal-green)' }">▶ 运行中</span>
+      <span v-if="debug.isPaused" :style="{ color: WARNING }">⚠ 已暂停</span>
+      <span v-if="debug.isRunning && !debug.isPaused" :style="{ color: 'var(--color-terminal-green)' }">▶ 运行中</span>
     </div>
   </div>
 </template>

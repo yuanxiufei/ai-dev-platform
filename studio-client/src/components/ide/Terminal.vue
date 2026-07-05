@@ -74,6 +74,127 @@ const renamingTerminal = ref<string | null>(null)
 const renameInput = ref("")
 const renameRef = ref<HTMLInputElement | null>(null)
 
+// ── Session 43: Terminal FindWidget ──
+const showTerminalFind = ref(false)
+const terminalFindQuery = ref("")
+const terminalFindMatchCase = ref(false)
+const terminalFindWholeWord = ref(false)
+const terminalFindRegex = ref(false)
+const terminalFindResults = ref<{ line: number; col: number; text: string }[]>([])
+const terminalFindIndex = ref(0)
+const terminalFindRef = ref<HTMLInputElement | null>(null)
+
+// ── Session 47: Terminal Split Pane (真正的并排终端分屏) ──
+const terminalSplitMode = ref<'none' | 'vertical' | 'horizontal'>('none')
+const terminalSplitRatio = ref(50) // 0-100, 第一个窗格的百分比
+const splitResizeRef = ref<HTMLDivElement | null>(null)
+const splitPane1Ref = ref<HTMLDivElement | null>(null)
+const splitPane2Ref = ref<HTMLDivElement | null>(null)
+
+// ── Session 47: Terminal QuickFix ──
+const showQuickFix = ref(false)
+const quickfixCategories = ref<any[]>([])
+const quickfixLastCommand = ref("")
+const quickfixTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const quickfixBaseUrl = import.meta.env.VITE_API_BASE || "/api/v1"
+
+/** 搜索当前活动终端缓冲区 */
+function searchTerminalBuffer(): void {
+  const activeId = store.activeTerminalId
+  if (!activeId) return
+  const inst = xtermMap.get(activeId)
+  if (!inst) return
+
+  const query = terminalFindQuery.value
+  if (!query.trim()) {
+    terminalFindResults.value = []
+    return
+  }
+
+  const buffer = inst.terminal.buffer.active
+  const results: { line: number; col: number; text: string }[] = []
+
+  let pattern: RegExp
+  try {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const flags = terminalFindMatchCase.value ? "g" : "gi"
+    const source = terminalFindRegex.value ? query : (terminalFindWholeWord.value ? `\\b${escaped}\\b` : escaped)
+    pattern = new RegExp(source, flags)
+  } catch {
+    return
+  }
+
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i)
+    if (!line) continue
+    const text = line.translateToString()
+    let match: RegExpExecArray | null
+    const linePattern = new RegExp(pattern.source, pattern.flags)
+    while ((match = linePattern.exec(text)) !== null) {
+      results.push({ line: i + 1, col: match.index + 1, text: match[0] })
+    }
+  }
+
+  terminalFindResults.value = results
+  if (results.length > 0) {
+    terminalFindIndex.value = 0
+    scrollToTerminalMatch(results[0].line)
+  }
+}
+
+/** 滚动到指定行并高亮 */
+function scrollToTerminalMatch(lineNum: number): void {
+  const activeId = store.activeTerminalId
+  if (!activeId) return
+  const inst = xtermMap.get(activeId)
+  if (!inst) return
+
+  // xterm.scrollToLine (如果可用) 或使用 scrollLines
+  try {
+    inst.terminal.scrollToLine(lineNum - 1)
+  } catch {
+    // 回退方案：计算滚动偏移
+    const buffer = inst.terminal.buffer.active
+    const viewport = buffer.viewportY
+    if (lineNum < viewport || lineNum > viewport + inst.terminal.rows) {
+      const offset = lineNum - Math.floor(inst.terminal.rows / 2)
+      inst.terminal.scrollLines(offset - buffer.viewportY)
+    }
+  }
+}
+
+/** 导航到上一个终端匹配 */
+function terminalFindPrev(): void {
+  if (terminalFindResults.value.length === 0) return
+  terminalFindIndex.value = (terminalFindIndex.value - 1 + terminalFindResults.value.length) % terminalFindResults.value.length
+  scrollToTerminalMatch(terminalFindResults.value[terminalFindIndex.value].line)
+}
+
+/** 导航到下一个终端匹配 */
+function terminalFindNext(): void {
+  if (terminalFindResults.value.length === 0) return
+  terminalFindIndex.value = (terminalFindIndex.value + 1) % terminalFindResults.value.length
+  scrollToTerminalMatch(terminalFindResults.value[terminalFindIndex.value].line)
+}
+
+/** 打开终端查找 */
+function toggleTerminalFind(): void {
+  showTerminalFind.value = !showTerminalFind.value
+  if (showTerminalFind.value) {
+    nextTick(() => terminalFindRef.value?.focus())
+  } else {
+    terminalFindResults.value = []
+    terminalFindQuery.value = ""
+  }
+}
+
+/** 关闭终端查找 */
+function closeTerminalFind(): void {
+  showTerminalFind.value = false
+  terminalFindResults.value = []
+  terminalFindQuery.value = ""
+}
+
 const store = useIDEStore()
 
 // ══════════════════════════════════════════════
@@ -352,7 +473,91 @@ function newTerminal(): void {
 }
 
 function splitTerminal(): void {
-  store.duplicateTerminal()
+  // Session 47: 真正的分屏 — 切换 none → vertical → horizontal → none
+  if (terminalSplitMode.value === 'none') {
+    terminalSplitMode.value = 'vertical'
+    // 确保有至少 2 个终端会话
+    if (store.terminalSessions.length < 2) {
+      store.createTerminal("bash")
+    }
+  } else if (terminalSplitMode.value === 'vertical') {
+    terminalSplitMode.value = 'horizontal'
+  } else {
+    terminalSplitMode.value = 'none'
+  }
+}
+
+/** Session 47: 分屏尺寸拖拽 */
+function onSplitResizeStart(e: MouseEvent): void {
+  e.preventDefault()
+  const isVertical = terminalSplitMode.value === 'vertical'
+  const container = splitPane1Ref.value?.parentElement
+  if (!container) return
+  const startPos = isVertical ? e.clientX : e.clientY
+  const containerSize = isVertical ? container.clientWidth : container.clientHeight
+  const startRatio = terminalSplitRatio.value
+
+  const onMove = (ev: MouseEvent) => {
+    const delta = isVertical ? ev.clientX - startPos : ev.clientY - startPos
+    const deltaPct = (delta / containerSize) * 100
+    terminalSplitRatio.value = Math.min(80, Math.max(20, startRatio + deltaPct))
+  }
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove)
+    document.removeEventListener("mouseup", onUp)
+  }
+  document.addEventListener("mousemove", onMove)
+  document.addEventListener("mouseup", onUp)
+}
+
+/** Session 47: 获取分屏中第二个终端的 session id（当前活动终端之后的那个） */
+function getSplitSecondTerminalId(): string {
+  const activeId = store.activeTerminalId
+  const sessions = store.terminalSessions
+  if (sessions.length >= 2) {
+    const idx = sessions.findIndex(s => s.id === activeId)
+    if (idx >= 0 && idx + 1 < sessions.length) return sessions[idx + 1].id
+    // 如果当前是最后一个，取第一个
+    if (idx === sessions.length - 1) return sessions[0].id
+    // fallback: 取非活动的一个
+    const other = sessions.find(s => s.id !== activeId)
+    if (other) return other.id
+  }
+  return ""
+}
+
+/** Session 47: 终端输出变化时触发 QuickFix 检测 (防抖 2秒) */
+function triggerQuickFixCheck(lastCmd: string): void {
+  quickfixLastCommand.value = lastCmd
+  if (quickfixTimer.value) clearTimeout(quickfixTimer.value)
+  quickfixTimer.value = setTimeout(async () => {
+    const inst = xtermMap.get(store.activeTerminalId || "")
+    if (!inst) return
+    // 读取最后 20 行
+    const buf = inst.terminal.buffer.active
+    const totalLines = buf.length
+    const startLine = Math.max(0, totalLines - 20)
+    const lines: string[] = []
+    for (let i = startLine; i < totalLines; i++) {
+      const line = buf.getLine(i)
+      if (line) lines.push(line.translateToString())
+    }
+    const output = lines.join("\n")
+    try {
+      const res = await fetch(`${quickfixBaseUrl}/system/terminal/quickfix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ output, last_command: lastCmd, working_directory: "" }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.has_issues && data.categories?.length) {
+          quickfixCategories.value = data.categories
+          showQuickFix.value = true
+        }
+      }
+    } catch { /* 网络异常时静默 */ }
+  }, 2000)
 }
 
 function killTerminal(id: string): void {
@@ -442,9 +647,13 @@ watch(
           // 挂载容器到 DOM
           const area = xtermAreaRef.value
           if (area) {
-            area.appendChild(inst.container)
-            // 非当前活动终端隐藏
-            if (!session.active) {
+            // Session 47: 分屏模式下，第二个终端放到 pane2
+            const splitSecondId = terminalSplitMode.value !== 'none' ? getSplitSecondTerminalId() : ""
+            const targetPane = (sid === splitSecondId && splitPane2Ref.value)
+              ? splitPane2Ref.value : (splitPane1Ref.value || area)
+            targetPane.appendChild(inst.container)
+            // 非当前活动终端隐藏（分屏中第二个终端总是可见）
+            if (!session.active && sid !== splitSecondId) {
               inst.container.style.display = "none"
             } else {
               // 活动终端写入启动 prompt
@@ -478,23 +687,26 @@ watch(
 watch(
   () => store.activeTerminalId,
   (newId) => {
-    // 隐藏所有，显示当前
+    const splitSecondId = terminalSplitMode.value !== 'none' ? getSplitSecondTerminalId() : ""
+    // 隐藏所有，显示当前（分屏中第二个终端总是可见）
     xtermMap.forEach((inst, id) => {
-      if (id === newId) {
+      if (id === newId || id === splitSecondId) {
         inst.container.style.display = ""
-        nextTick(() => {
-          inst.fitAddon.fit()
-          inst.terminal.focus()
-          // 如果终端还没有 prompt，写入一个
-          const session = store.terminalSessions.find((s) => s.id === id)
-          if (session) {
-            // 检查 buffer 是否空（粗略判断）
-            const buf = inst.terminal.buffer.active
-            if (buf.length <= 2) {
-              writePrompt(inst.terminal, session)
+        if (id === newId) {
+          nextTick(() => {
+            inst.fitAddon.fit()
+            inst.terminal.focus()
+            // 如果终端还没有 prompt，写入一个
+            const session = store.terminalSessions.find((s) => s.id === id)
+            if (session) {
+              // 检查 buffer 是否空（粗略判断）
+              const buf = inst.terminal.buffer.active
+              if (buf.length <= 2) {
+                writePrompt(inst.terminal, session)
+              }
             }
-          }
-        })
+          })
+        }
       } else {
         inst.container.style.display = "none"
       }
@@ -504,15 +716,20 @@ watch(
 
 // ── 初始挂载 ──
 onMounted(() => {
+  // Session 43: Terminal 键盘查找 (Ctrl+F)
+  const area = xtermAreaRef.value
+  if (area) {
+    area.addEventListener("keydown", handleTerminalKeydown)
+  }
   // 为已有 session 创建 xterm 实例
   nextTick(() => {
     for (const session of store.terminalSessions) {
       if (!xtermMap.has(session.id)) {
         const inst = createXtermInstance(session)
         xtermMap.set(session.id, inst)
-        const area = xtermAreaRef.value
-        if (area) {
-          area.appendChild(inst.container)
+        const xtermArea = xtermAreaRef.value
+        if (xtermArea) {
+          xtermArea.appendChild(inst.container)
           if (!session.active) {
             inst.container.style.display = "none"
           } else {
@@ -524,27 +741,37 @@ onMounted(() => {
       }
     }
   })
+  // ResizeObserver
+  if (area) {
+    resizeObserver = new ResizeObserver(() => {
+      const activeId = store.activeTerminalId
+      if (!activeId) return
+      const inst = xtermMap.get(activeId)
+      if (inst && inst.container.style.display !== "none") {
+        inst.fitAddon.fit()
+      }
+    })
+    resizeObserver.observe(area)
+  }
 })
 
-// ── ResizeObserver：底部面板高度变化时自适应 ──
-let resizeObserver: ResizeObserver | null = null
-
-onMounted(() => {
-  const area = xtermAreaRef.value
-  if (!area) return
-  resizeObserver = new ResizeObserver(() => {
-    const activeId = store.activeTerminalId
-    if (!activeId) return
-    const inst = xtermMap.get(activeId)
-    if (inst && inst.container.style.display !== "none") {
-      inst.fitAddon.fit()
-    }
-  })
-  resizeObserver.observe(area)
-})
+/** Session 43: Terminal 键盘查找 (Ctrl+F) */
+function handleTerminalKeydown(e: KeyboardEvent): void {
+  if (e.ctrlKey && e.key === "f") {
+    e.preventDefault()
+    toggleTerminalFind()
+  } else if (e.key === "Escape" && showTerminalFind.value) {
+    closeTerminalFind()
+  }
+}
 
 // ── 销毁 ──
 onBeforeUnmount(() => {
+  // 移除键盘事件
+  const area = xtermAreaRef.value
+  if (area) {
+    area.removeEventListener("keydown", handleTerminalKeydown)
+  }
   resizeObserver?.disconnect()
   resizeObserver = null
   // 关闭所有 WebSocket 连接
@@ -750,9 +977,150 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- ═══ xterm.js Canvas 渲染区 ═══ -->
-    <div ref="xtermAreaRef" class="flex-1 relative overflow-hidden xterm-area">
-      <!-- xterm 容器由 JS 动态创建注入 -->
+    <!-- ═══ Terminal FindWidget (Session 43) ═══ -->
+    <Transition name="find-slide">
+      <div
+        v-if="showTerminalFind"
+        class="flex items-center gap-2 shrink-0 px-2 py-1.5 border-b border-[var(--color-ide-border)]"
+        style="background:var(--color-ide-bg-secondary)"
+      >
+        <!-- 查找输入 -->
+        <div class="flex items-center gap-1 flex-1">
+          <input
+            ref="terminalFindRef"
+            v-model="terminalFindQuery"
+            type="text"
+            class="flex-1 bg-[var(--color-ide-surface)] text-[12px] text-[var(--color-ide-text)] border border-[var(--color-ide-border)] rounded px-2 py-0.5 outline-none focus:border-[var(--color-ide-border-focus)]"
+            placeholder="查找..."
+            @input="searchTerminalBuffer"
+            @keydown.enter="terminalFindNext"
+            @keydown.shift.enter="terminalFindPrev"
+            @keydown.escape="closeTerminalFind"
+          />
+          <!-- 匹配计数 -->
+          <span v-if="terminalFindResults.length > 0" class="text-[10px] text-[var(--color-ide-text-dim)] shrink-0" style="min-width: 40px; text-align: right;">
+            {{ terminalFindIndex + 1 }}/{{ terminalFindResults.length }}
+          </span>
+          <span v-else-if="terminalFindQuery" class="text-[10px] shrink-0" style="color: var(--color-terminal-red); min-width: 30px; text-align: right;">无结果</span>
+        </div>
+
+        <!-- 导航按钮 -->
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+          :style="{ color: terminalFindResults.length > 0 ? 'var(--color-ide-text-dim)' : 'var(--color-ide-text-dim)' }"
+          title="上一个 (Shift+Enter)"
+          @click="terminalFindPrev"
+        >
+          <ChevronUp :size="13" />
+        </button>
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+          :style="{ color: terminalFindResults.length > 0 ? 'var(--color-ide-text-dim)' : 'var(--color-ide-text-dim)' }"
+          title="下一个 (Enter)"
+          @click="terminalFindNext"
+        >
+          <ChevronDown :size="13" />
+        </button>
+
+        <!-- 选项按钮 -->
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] transition-colors text-[10px] font-bold"
+          :class="terminalFindMatchCase ? 'bg-[var(--color-ide-border-focus)]' : 'hover:bg-[var(--color-ide-surface-hover)]'"
+          :style="{ color: terminalFindMatchCase ? 'var(--color-ide-text)' : 'var(--color-ide-text-dim)' }"
+          title="区分大小写"
+          @click="terminalFindMatchCase = !terminalFindMatchCase; searchTerminalBuffer()"
+        >Aa</button>
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] transition-colors text-[10px] font-bold"
+          :class="terminalFindWholeWord ? 'bg-[var(--color-ide-border-focus)]' : 'hover:bg-[var(--color-ide-surface-hover)]'"
+          :style="{ color: terminalFindWholeWord ? 'var(--color-ide-text)' : 'var(--color-ide-text-dim)' }"
+          title="全字匹配"
+          @click="terminalFindWholeWord = !terminalFindWholeWord; searchTerminalBuffer()"
+        >W</button>
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] transition-colors text-[10px] font-bold"
+          :class="terminalFindRegex ? 'bg-[var(--color-ide-border-focus)]' : 'hover:bg-[var(--color-ide-surface-hover)]'"
+          :style="{ color: terminalFindRegex ? 'var(--color-ide-text)' : 'var(--color-ide-text-dim)' }"
+          title="正则表达式"
+          @click="terminalFindRegex = !terminalFindRegex; searchTerminalBuffer()"
+        >.*</button>
+
+        <!-- 关闭 -->
+        <button
+          class="w-5 h-5 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] transition-colors"
+          title="关闭 (Esc)"
+          style="color: var(--color-ide-text-dim)"
+          @click="closeTerminalFind"
+        >
+          <X :size="12" />
+        </button>
+      </div>
+    </Transition>
+
+    <!-- ═══ Session 47: QuickFix Bar ═══ -->
+    <Transition name="find-slide">
+      <div
+        v-if="showQuickFix && quickfixCategories.length > 0"
+        class="flex items-center gap-1.5 shrink-0 px-2 py-1 border-b border-[var(--color-ide-border)] overflow-x-auto"
+        style="background:var(--color-ide-bg-secondary)"
+      >
+        <span class="text-[10px] font-semibold shrink-0" style="color:var(--term-yellow)">💡</span>
+        <template v-for="cat in quickfixCategories" :key="cat.category">
+          <button
+            v-for="fix in cat.suggestions"
+            :key="fix.id"
+            class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] whitespace-nowrap transition-colors hover:brightness-110 shrink-0"
+            :style="{ background: fix.severity === 'error' ? 'var(--term-red)' : fix.severity === 'warning' ? 'var(--term-yellow)' : 'var(--term-blue)', color: '#fff' }"
+            :title="fix.tooltip"
+            @click="navigator.clipboard.writeText(fix.command).then(() => store.terminalSessions.find(t=>t.active)?.id && sendToPty(store.terminalSessions.find(t=>t.active)!.id, fix.command + String.fromCharCode(13)))"
+          >
+            {{ fix.label }}
+          </button>
+        </template>
+        <button
+          class="shrink-0 w-4 h-4 flex items-center justify-center rounded-[3px] hover:bg-[var(--color-ide-surface-hover)] ml-auto"
+          @click="showQuickFix = false"
+        ><X :size="10" style="color:var(--color-ide-text-dim)" /></button>
+      </div>
+    </Transition>
+
+    <!-- ═══ xterm.js Canvas 渲染区 (Session 47: 分屏支持) ═══ -->
+    <div
+      ref="xtermAreaRef"
+      class="flex-1 relative overflow-hidden xterm-area"
+      :class="{ 'split-horizontal': terminalSplitMode === 'horizontal', 'split-vertical': terminalSplitMode === 'vertical' }"
+      :style="terminalSplitMode !== 'none' ? { display: 'flex', flexDirection: terminalSplitMode === 'vertical' ? 'row' : 'column' } : {}"
+    >
+      <!-- 单窗格模式 -->
+      <template v-if="terminalSplitMode === 'none'">
+        <!-- xterm 容器由 JS 动态创建注入 -->
+      </template>
+
+      <!-- 分屏模式: 窗格 1 -->
+      <template v-if="terminalSplitMode !== 'none'">
+        <div
+          ref="splitPane1Ref"
+          class="flex-1 relative overflow-hidden"
+          :style="{ flexBasis: terminalSplitRatio + '%' }"
+        >
+          <!-- 活动终端在此窗格显示 -->
+        </div>
+        <!-- 分屏拖拽手柄 -->
+        <div
+          ref="splitResizeRef"
+          class="split-resize-handle shrink-0 transition-colors"
+          :class="{ 'handle-vertical': terminalSplitMode === 'vertical', 'handle-horizontal': terminalSplitMode === 'horizontal' }"
+          @mousedown="onSplitResizeStart"
+        />
+        <!-- 分屏模式: 窗格 2 -->
+        <div
+          ref="splitPane2Ref"
+          class="flex-1 relative overflow-hidden"
+          :style="{ flexBasis: (100 - terminalSplitRatio) + '%' }"
+        >
+          <!-- 第二个终端在此窗格显示 -->
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -807,5 +1175,44 @@ onBeforeUnmount(() => {
 .xterm-area :deep(.xterm-helper-textarea) {
   opacity: 0 !important;
   left: -9999em !important;
+}
+
+/* Session 43: Terminal FindWidget 过渡动画 */
+.find-slide-enter-active,
+.find-slide-leave-active {
+  transition: all 0.15s ease;
+}
+.find-slide-enter-from,
+.find-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+.find-slide-enter-to,
+.find-slide-leave-from {
+  opacity: 1;
+  max-height: 36px;
+}
+
+/* Session 47: Terminal Split Pane — 分屏手柄样式 */
+.split-resize-handle {
+  background: var(--color-ide-border);
+  transition: background-color 0.15s;
+}
+.split-resize-handle:hover,
+.split-resize-handle:active {
+  background: var(--color-ide-border-focus);
+}
+.handle-vertical {
+  width: 4px;
+  cursor: col-resize;
+}
+.handle-horizontal {
+  height: 4px;
+  cursor: row-resize;
 }
 </style>

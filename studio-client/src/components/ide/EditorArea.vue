@@ -16,6 +16,8 @@ import TabBar from "./TabBar.vue"
 import CodeEditor from "./CodeEditor.vue"
 import WelcomePage from "./WelcomePage.vue"
 import PeekView from "./PeekView.vue"
+import MarkdownPreview from "./MarkdownPreview.vue"
+import FloatingDebugToolbar from "./FloatingDebugToolbar.vue"
 import type { PeekItem } from "./PeekView.vue"
 
 const store = useIDEStore()
@@ -144,6 +146,20 @@ const currentActiveTab = computed(() => {
   if (store.tabs.length > 0) return store.tabs[0]
   return null
 })
+
+/** Session 35: 是否显示 Markdown 预览 */
+const isMarkdown = computed(() => {
+  const tab = currentActiveTab.value
+  if (!tab) return false
+  return tab.language === "markdown" || tab.filePath?.toLowerCase()?.endsWith(".md") || tab.filePath?.toLowerCase()?.endsWith(".markdown")
+})
+
+/** 当切换 tab 时，如果不是 markdown 文件，关闭预览 */
+watch(() => currentActiveTab.value, () => {
+  if (!isMarkdown.value && store.markdownPreviewVisible) {
+    store.markdownPreviewVisible = false
+  }
+})
 </script>
 
 <template>
@@ -162,6 +178,9 @@ const currentActiveTab = computed(() => {
         @prev="peekPrev"
         @open-full="peekOpenFull"
       />
+
+      <!-- Session 36: 浮动调试工具栏 — 调试时 EditorArea 顶部浮动控制栏 -->
+      <FloatingDebugToolbar />
 
       <!-- VSCode 对标：AI 工具/设置页面作为全屏 overlay 渲染在编辑器上层 -->
       <!-- 不关闭编辑标签页，路由页面始终可覆盖显示 -->
@@ -200,12 +219,47 @@ const currentActiveTab = computed(() => {
           <template v-if="store.groups.length <= 1">
             <div class="flex flex-col flex-1 min-w-0" @mousedown="activateGroup(store.groups[0]?.id ?? '')">
               <TabBar v-if="store.groups[0]" :group-id="store.groups[0].id" />
-              <CodeEditor v-if="currentActiveTab" :key="editorKey" :active-tab="currentActiveTab"
-                @update-content="store.updateActiveTabContent($event)"
-                @update-cursor="store.updateCursorPosition($event)" class="flex-1 min-w-0" />
-              <div v-else class="flex-1 flex items-center justify-center text-[var(--color-ide-text-dim)] text-[12px]">
-                正在准备编辑器…
+              <!-- Session 35: Markdown Preview 分屏 -->
+              <div v-if="store.markdownPreviewVisible && isMarkdown" class="flex-1 flex min-h-0 overflow-hidden">
+                <div class="flex-1 min-w-0">
+                  <CodeEditor v-if="currentActiveTab" :key="editorKey" :active-tab="currentActiveTab"
+                    @update-content="store.updateActiveTabContent($event)"
+                    @update-cursor="store.updateCursorPosition($event)" class="w-full h-full" />
+                </div>
+                <div class="shrink-0 cursor-col-resize group/sash relative z-10"
+                  style="width: 4px; margin-left: -2px; margin-right: -2px;"
+                  @mousedown.prevent="(e: MouseEvent) => {
+                    const container = (e.currentTarget as HTMLElement).parentElement!
+                    const startX = e.clientX
+                    const leftPanel = container.children[0] as HTMLElement
+                    const rightPanel = container.children[2] as HTMLElement
+                    const startLeftW = leftPanel.getBoundingClientRect().width
+                    const totalW = container.clientWidth
+                    const move = (ev: MouseEvent) => {
+                      const dx = ev.clientX - startX
+                      const newLeft = startLeftW + dx
+                      const ratio = Math.max(0.3, Math.min(0.7, newLeft / totalW))
+                      leftPanel.style.flex = `${ratio}`
+                      rightPanel.style.flex = `${1 - ratio}`
+                    }
+                    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up) }
+                    document.addEventListener('mousemove', move)
+                    document.addEventListener('mouseup', up)
+                  }">
+                  <div class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--color-ide-border)] group-hover/sash:w-0.5 group-hover/sash:bg-[var(--color-ide-accent)] transition-all" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <MarkdownPreview :content="currentActiveTab?.content ?? ''" @close="store.markdownPreviewVisible = false" />
+                </div>
               </div>
+              <template v-else>
+                <CodeEditor v-if="currentActiveTab" :key="editorKey" :active-tab="currentActiveTab"
+                  @update-content="store.updateActiveTabContent($event)"
+                  @update-cursor="store.updateCursorPosition($event)" class="flex-1 min-w-0" />
+                <div v-else class="flex-1 flex items-center justify-center text-[var(--color-ide-text-dim)] text-[12px]">
+                  正在准备编辑器…
+                </div>
+              </template>
             </div>
           </template>
           <!-- 多组分屏模式 -->

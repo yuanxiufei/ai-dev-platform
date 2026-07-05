@@ -31,6 +31,20 @@ import TimelinePanel from "./TimelinePanel.vue"
 import SearchPanel from "./SearchPanel.vue"
 import ExtensionsPanel from "./ExtensionsPanel.vue"
 import TestingPanel from "./TestingPanel.vue"
+import CallHierarchyPanel from "./CallHierarchyPanel.vue"
+import LocalHistoryPanel from "./LocalHistoryPanel.vue"
+import NotebookPanel from "./NotebookPanel.vue"
+import TypeHierarchyPanel from "./TypeHierarchyPanel.vue"
+import CommentsPanel from "./CommentsPanel.vue"
+import PortsPanel from "./PortsPanel.vue"
+import MultiDiffPanel from "./MultiDiffPanel.vue"
+import BrowserPreview from "./BrowserPreview.vue"
+import ProcessExplorerPanel from "./ProcessExplorerPanel.vue"
+import SearchEditorTab from "./SearchEditorTab.vue"
+import CustomEditorPanel from "./CustomEditorPanel.vue"
+import EditSessionsPanel from "./EditSessionsPanel.vue"
+import TasksPanel from "./TasksPanel.vue"
+import InteractivePanel from "./InteractivePanel.vue"
 import InputDialog from "@/components/InputDialog.vue"
 
 const store = useIDEStore()
@@ -54,6 +68,19 @@ const sidebarTitle = computed<string>(() => {
   if (store.activeActivityItem === 'debug') return '运行和调试'
   if (store.activeActivityItem === 'testing') return '测试'
   if (store.activeActivityItem === 'extensions') return '扩展'
+  if (store.activeActivityItem === 'callhierarchy') return '调用层次结构'
+  if (store.activeActivityItem === 'localhistory') return '本地历史'
+  if (store.activeActivityItem === 'typehierarchy') return '类型层次结构'
+  if (store.activeActivityItem === 'comments') return '代码评审'
+  if (store.activeActivityItem === 'notebook') return '笔记本'
+  if (store.activeActivityItem === 'ports') return '端口'
+  if (store.activeActivityItem === 'multidiff') return '多文件差异'
+  if (store.activeActivityItem === 'browser') return '浏览器预览'
+  if (store.activeActivityItem === 'processes') return '进程管理'
+  if (store.activeActivityItem === 'customeditors') return '自定义编辑器'
+  if (store.activeActivityItem === 'editsessions') return '编辑会话'
+  if (store.activeActivityItem === 'tasks') return '任务'
+  if (store.activeActivityItem === 'interactive') return '交互窗口'
   if (store.activeActivityItem === 'settings') return '管理'
   return '资源管理器'
 })
@@ -212,6 +239,18 @@ function validateEntryName(parentDir: string, name: string): string | null {
   return null
 }
 
+/** Session 40: 文件对比 — 在两个编辑组中打开两个文件进行对比 */
+async function onCompareFiles(fileA: string, fileB: string): Promise<void> {
+  // 先打开第一个文件 (在主编辑组)
+  await store.openFile(fileA)
+  // 稍作延迟确保第一个文件加载完毕
+  setTimeout(async () => {
+    // 分割编辑区后在右侧打开第二个文件
+    store.splitEditor("right")
+    await store.openFile(fileB)
+  }, 200)
+}
+
 // ── 拖拽调整宽度 ──
 function onDragStart(e: MouseEvent): void {
   e.preventDefault(); isDragging.value = true
@@ -354,7 +393,7 @@ function getFileColor(name: string): string {
             </span>
           </button>
           <div v-if="!collapsedSections['project']" class="flex-1 overflow-hidden min-h-0">
-            <FileTree />
+            <FileTree @compare-files="onCompareFiles" />
           </div>
         </div>
 
@@ -427,6 +466,23 @@ function getFileColor(name: string): string {
 
       <!-- 🔥 Extensions View — 使用完整 ExtensionsPanel -->
       <ExtensionsPanel v-else-if="store.activeActivityItem === 'extensions'" />
+
+      <!-- 🔥 VSCode 高级面板 (Session 39) -->
+      <CallHierarchyPanel v-else-if="store.activeActivityItem === 'callhierarchy'" />
+      <LocalHistoryPanel v-else-if="store.activeActivityItem === 'localhistory'" />
+      <TypeHierarchyPanel v-else-if="store.activeActivityItem === 'typehierarchy'" />
+      <CommentsPanel v-else-if="store.activeActivityItem === 'comments'" />
+      <NotebookPanel v-else-if="store.activeActivityItem === 'notebook'" />
+      <PortsPanel v-else-if="store.activeActivityItem === 'ports'" />
+      <MultiDiffPanel v-else-if="store.activeActivityItem === 'multidiff'" />
+      <BrowserPreview v-else-if="store.activeActivityItem === 'browser'" />
+      <ProcessExplorerPanel v-else-if="store.activeActivityItem === 'processes'" />
+      <CustomEditorPanel v-else-if="store.activeActivityItem === 'customeditors'" />
+      <EditSessionsPanel v-else-if="store.activeActivityItem === 'editsessions'" />
+
+      <!-- 🔥 Session 43: 任务面板 + 交互窗口 -->
+      <TasksPanel v-else-if="store.activeActivityItem === 'tasks'" />
+      <InteractivePanel v-else-if="store.activeActivityItem === 'interactive'" />
 
       <!-- 🔥 AI 工具面板（点 ActivityBar "更多 AI 工具"时展示） -->
       <StudioPanel v-else-if="store.activeActivityItem === 'studio' || store.activeActivityItem === 'ai-more' || store.activeActivityItem === 'ai-studio'" />

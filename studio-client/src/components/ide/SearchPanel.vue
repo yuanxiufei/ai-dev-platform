@@ -114,14 +114,79 @@ function clearSearch(): void {
 }
 
 // ── 替换操作 ──
+/** Session 41: 全部替换确认对话框 */
+const showReplaceConfirm = ref(false)
+const replaceConfirmedCount = ref(0)
+
 function replaceOne(result: SearchResult): void {
-  // 🔥 单个替换 — 实际项目需通过编辑器 API 实现
-  console.log("[Search] Replace one:", result.file, result.line)
+  // 打开文件并定位到该行（实际替换在编辑器中手动完成或通过 Monaco API）
+  store.openFile(result.file)
+  // 尝试通过编辑器内容替换
+  setTimeout(() => {
+    const tab = store.tabs.find((t: any) => t.filePath === result.file)
+    if (tab && replaceQuery.value.trim()) {
+      const lines = (tab.content ?? "").split("\n")
+      const idx = result.line - 1
+      if (idx >= 0 && idx < lines.length) {
+        const queryStr = caseSensitive.value ? query.value : query.value.toLowerCase()
+        const lineContent = caseSensitive.value ? lines[idx] : lines[idx].toLowerCase()
+        if (lineContent.includes(queryStr)) {
+          // 仅替换第一个匹配
+          if (caseSensitive.value) {
+            lines[idx] = lines[idx].replace(query.value, replaceQuery.value)
+          } else {
+            lines[idx] = lines[idx].replace(new RegExp(query.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), replaceQuery.value)
+          }
+          tab.content = lines.join("\n")
+          tab.modified = true
+          replaceConfirmedCount.value++
+        }
+      }
+    }
+  }, 300)
+}
+
+function confirmReplaceAll(): void {
+  showReplaceConfirm.value = true
+  replaceConfirmedCount.value = 0
+}
+
+function executeReplaceAll(): void {
+  if (!replaceQuery.value.trim()) return
+  for (const result of results.value) {
+    // 对每个结果执行替换
+    const tab = store.tabs.find((t: any) => t.filePath === result.file)
+    if (tab) {
+      const lines = (tab.content ?? "").split("\n")
+      const idx = result.line - 1
+      if (idx >= 0 && idx < lines.length) {
+        const queryStr = caseSensitive.value ? query.value : query.value.toLowerCase()
+        const lineContent = caseSensitive.value ? lines[idx] : lines[idx].toLowerCase()
+        if (lineContent.includes(queryStr)) {
+          if (caseSensitive.value) {
+            lines[idx] = lines[idx].replace(query.value, replaceQuery.value)
+          } else {
+            lines[idx] = lines[idx].replace(new RegExp(query.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), replaceQuery.value)
+          }
+          tab.content = lines.join("\n")
+          tab.modified = true
+          replaceConfirmedCount.value++
+        }
+      }
+    }
+  }
+  results.value = []
+  resultStats.value = `已替换 ${replaceConfirmedCount.value} 处匹配`
+  showReplaceConfirm.value = false
+}
+
+function cancelReplaceAll(): void {
+  showReplaceConfirm.value = false
 }
 
 function replaceAll(): void {
-  // 🔥 全部替换 — 实际项目需通过编辑器 API 实现
-  console.log("[Search] Replace all:", totalMatches.value, "matches")
+  if (results.value.length === 0) return
+  confirmReplaceAll()
 }
 
 // ── 点击结果跳转 ──
@@ -454,6 +519,55 @@ function clearHistory(): void {
         </span>
       </div>
     </div>
+
+    <!-- ═══ Session 41: 全部替换确认对话框 ═══ -->
+    <Teleport to="body">
+      <div v-if="showReplaceConfirm" class="fixed inset-0 z-[9999] flex items-center justify-center"
+        style="background: rgba(0,0,0,0.45);">
+        <div class="w-[380px] rounded-[6px] shadow-xl overflow-hidden"
+          style="background: var(--color-ide-surface); border: 1px solid var(--color-ide-border);">
+          <!-- 标题 -->
+          <div class="flex items-center gap-2 px-4 py-3"
+            style="border-bottom: 1px solid var(--color-ide-border);">
+            <Replace :size="16" style="color: var(--color-ide-warning, #dcdcaa);" />
+            <span class="text-[13px] font-semibold" style="color: var(--color-ide-text);">确认全部替换</span>
+          </div>
+          <!-- 内容 -->
+          <div class="px-4 py-3 space-y-2">
+            <p class="text-[12px]" style="color: var(--color-ide-text);">
+              此操作将不可逆地替换 <strong>{{ totalMatches }}</strong> 处匹配，分布在 <strong>{{ totalFiles }}</strong> 个文件中。
+            </p>
+            <p class="text-[11px]" style="color: var(--color-ide-text-dim);">
+              替换: "<code style="color: var(--color-ide-error);">{{ query }}</code>" →
+              "<code style="color: var(--color-ide-success, #4ec9b0);">{{ replaceQuery }}</code>"
+            </p>
+            <p v-if="replaceConfirmedCount > 0" class="text-[11px]" style="color: var(--color-ide-success, #4ec9b0);">
+              ✅ 已替换 {{ replaceConfirmedCount }} 处匹配
+            </p>
+          </div>
+          <!-- 按钮 -->
+          <div class="flex justify-end gap-2 px-4 py-3"
+            style="border-top: 1px solid var(--color-ide-border); background: var(--color-ide-bg-secondary);">
+            <button
+              class="px-4 py-1.5 text-[12px] rounded-[3px] font-medium transition-colors"
+              style="background: transparent; color: var(--color-ide-text);"
+              @click="cancelReplaceAll"
+              @mouseenter="(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-ide-surface-hover)' }"
+              @mouseleave="(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }">
+              取消
+            </button>
+            <button
+              class="px-4 py-1.5 text-[12px] rounded-[3px] font-medium transition-colors"
+              style="background: var(--color-ide-accent); color: #fff;"
+              @click="executeReplaceAll"
+              @mouseenter="(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.85' }"
+              @mouseleave="(e) => { (e.currentTarget as HTMLElement).style.opacity = '1' }">
+              全部替换
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 

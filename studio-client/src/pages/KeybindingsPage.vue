@@ -14,13 +14,145 @@
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import {
   Search, X, Keyboard, RotateCw, AlertTriangle, Pencil, Copy,
-  Undo2, FileJson, SplitSquareVertical
+  Undo2, FileJson, SplitSquareVertical, Download, Upload, Check
 } from "lucide-vue-next"
 import { useIDEStore } from "@/stores/useIDEStore"
 import { useKeybindingStore } from "@/stores/useKeybindingStore"
 
+// ── Session 45: Keymaps 预设方案 ──
+interface PresetKeymap {
+  id: string
+  label: string
+  description: string
+  /** 预设快捷键覆盖：command → key */
+  overrides: Record<string, string>
+}
+const KEYMAP_PRESETS: PresetKeymap[] = [
+  {
+    id: "vscode",
+    label: "VS Code",
+    description: "Visual Studio Code 默认快捷键",
+    overrides: {},
+  },
+  {
+    id: "sublime",
+    label: "Sublime Text",
+    description: "Sublime Text 风格快捷键",
+    overrides: {
+      "workbench.action.showCommands": "Ctrl+Shift+P",
+      "workbench.action.quickOpen": "Ctrl+P",
+      "editor.action.commentLine": "Ctrl+/",
+      "editor.action.blockComment": "Ctrl+Shift+/",
+      "editor.action.addSelectionToNextFindMatch": "Ctrl+D",
+      "editor.action.moveLinesUpAction": "Ctrl+Shift+Up",
+      "editor.action.moveLinesDownAction": "Ctrl+Shift+Down",
+      "editor.action.copyLinesUpAction": "Ctrl+Shift+D",
+      "editor.action.formatDocument": "Ctrl+Alt+F",
+      "editor.action.joinLines": "Ctrl+J",
+      "workbench.action.closeActiveEditor": "Ctrl+W",
+      "workbench.action.splitEditor": "Alt+Shift+2",
+      "workbench.action.gotoSymbol": "Ctrl+R",
+      "editor.action.gotoLine": "Ctrl+G",
+      "actions.find": "Ctrl+F",
+      "editor.action.startFindReplaceAction": "Ctrl+H",
+      "workbench.action.toggleSidebarVisibility": "Ctrl+K Ctrl+B",
+    },
+  },
+  {
+    id: "vim",
+    label: "Vim",
+    description: "Vim 风格的模态编辑快捷键",
+    overrides: {
+      // Vim 模式下大部分快捷键用 vim 键位，这里只覆盖全局快捷键
+      "workbench.action.showCommands": "Ctrl+Shift+P",
+      "workbench.action.quickOpen": "Ctrl+P",
+      "workbench.action.files.save": "Ctrl+S",
+      "editor.action.clipboardCutAction": '""x',
+      "editor.action.clipboardCopyAction": '""y',
+      "editor.action.undo": "u",
+      "editor.action.redo": "Ctrl+R",
+      "editor.action.rename": '""r',
+      "workbench.action.toggleSidebarVisibility": "Ctrl+B",
+      "workbench.action.togglePanel": "Ctrl+J",
+    },
+  },
+  {
+    id: "emacs",
+    label: "Emacs",
+    description: "Emacs 风格的快捷键（Ctrl 前缀为主）",
+    overrides: {
+      "workbench.action.showCommands": "Alt+X",
+      "workbench.action.files.save": "Ctrl+X Ctrl+S",
+      "editor.action.clipboardCutAction": "Ctrl+W",
+      "editor.action.clipboardCopyAction": "Alt+W",
+      "editor.action.clipboardPasteAction": "Ctrl+Y",
+      "editor.action.undo": "Ctrl+/",
+      "editor.action.redo": "Ctrl+G Ctrl+/",
+      "cursorLeft": "Ctrl+B",
+      "cursorRight": "Ctrl+F",
+      "cursorUp": "Ctrl+P",
+      "cursorDown": "Ctrl+N",
+      "cursorHome": "Ctrl+A",
+      "cursorEnd": "Ctrl+E",
+      "deleteRight": "Ctrl+D",
+      "editor.action.gotoLine": "Alt+G G",
+      "actions.find": "Ctrl+S",
+      "editor.action.startFindReplaceAction": "Alt+Shift+5",
+      "editor.action.selectAll": "Ctrl+X H",
+    },
+  },
+]
+
 const store = useIDEStore()
 const kb = useKeybindingStore()
+
+// ── Session 58: 导出快捷键 ──
+const exporting = ref(false)
+const exportPlatform = ref<"win" | "mac" | "linux">("win")
+
+/** 检测当前操作系统 */
+function detectPlatform(): "win" | "mac" | "linux" {
+  if (typeof navigator === "undefined") return "win"
+  const p = navigator.platform?.toLowerCase() || ""
+  if (p.includes("mac")) return "mac"
+  if (p.includes("linux")) return "linux"
+  return "win"
+}
+
+/** 导出快捷键为 JSON 文件 */
+async function exportKeybindings(): Promise<void> {
+  exporting.value = true
+  try {
+    const platform = exportPlatform.value
+    const baseUrl = import.meta.env.VITE_API_BASE || "/api/v1"
+    const resp = await fetch(`${baseUrl}/system/keybindings/export?platform=${platform}`)
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `keybindings.${platform}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error("[Keybindings] 导出失败:", err)
+    // 降级：直接导出前端本地数据
+    const platform = exportPlatform.value
+    const bindings = kb.bindings.map((b) => ({ key: b.key, command: b.key, when: b.when || "global" }))
+    const blob = new Blob([JSON.stringify(bindings, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `keybindings.${platform}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
+}
+
+// 初始化平台检测
+exportPlatform.value = detectPlatform()
 
 // ── 预定义完整快捷键列表 (对标 VS Code Default Keybindings) ──
 interface KeybindingEntry {
@@ -120,6 +252,92 @@ const recordingKey = ref("")
 const selectedCategory = ref<string | null>(null)
 const viewMode = ref<"table" | "json">("table")
 const showConflicts = ref(false)
+const jsonCopied = ref(false)
+/** Session 45: 当前激活的预设方案 */
+const activePreset = ref("vscode")
+
+/** Session 45: 应用预设快捷键方案 */
+function applyPreset(presetId: string): void {
+  const preset = KEYMAP_PRESETS.find(p => p.id === presetId)
+  if (!preset) return
+
+  // 重置所有用户自定义快捷键
+  if (presetId === "vscode") {
+    userBindings.value = []
+  } else {
+    // 根据预设创建用户自定义覆盖
+    const newBindings: KeybindingEntry[] = []
+    for (const [command, key] of Object.entries(preset.overrides)) {
+      const existing = defaultBindings.find(b => b.command === command)
+      if (existing) {
+        newBindings.push({
+          ...existing,
+          key,
+          source: "user",
+          id: `user-preset-${presetId}-${command.replace(/\./g, "-")}`,
+        })
+      }
+    }
+    userBindings.value = newBindings
+  }
+  activePreset.value = presetId
+  saveUserBindings()
+}
+
+// JSON 导入——文件选择器
+const importFileInput = ref<HTMLInputElement | null>(null)
+
+function triggerImportJson(): void {
+  importFileInput.value?.click()
+}
+
+function handleImportJson(e: Event): void {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const data: { key: string; command: string; when?: string }[] = JSON.parse(reader.result as string)
+      let count = 0
+      for (const item of data) {
+        const id = `user-imp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+        userBindings.value.push({
+          id,
+          command: item.command,
+          key: item.key,
+          when: item.when || "global",
+          source: "user",
+          category: "导入",
+          description: item.command,
+        })
+        count++
+      }
+      saveUserBindings()
+      alert(`成功导入 ${count} 个快捷键`)
+    } catch {
+      alert("JSON 格式无效，请检查后重试")
+    }
+  }
+  reader.readAsText(file)
+  input.value = "" // 允许重复选同一文件
+}
+
+function downloadJson(): void {
+  const blob = new Blob([jsonOutput.value], { type: "application/json" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = "keybindings.json"
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function copyJson(): void {
+  navigator.clipboard.writeText(jsonOutput.value)
+  jsonCopied.value = true
+  setTimeout(() => { jsonCopied.value = false }, 2000)
+}
 
 // ── 用户自定义快捷键 (持久化到 localStorage) ──
 const userBindings = ref<KeybindingEntry[]>([])
@@ -300,6 +518,40 @@ const jsonOutput = computed(() => {
 
       <div class="flex-1" />
 
+      <!-- Session 45: 预设快捷键方案选择器 -->
+      <div class="flex items-center gap-0.5 ml-4">
+        <button
+          v-for="preset in KEYMAP_PRESETS"
+          :key="preset.id"
+          class="px-2 h-6 rounded-[3px] text-[10px] font-medium transition-colors"
+          :style="{
+            background: activePreset === preset.id ? 'var(--color-ide-surface-active)' : 'transparent',
+            color: activePreset === preset.id ? 'var(--color-ide-accent)' : 'var(--color-ide-text-dim)',
+          }"
+          :title="preset.description"
+          @click="applyPreset(preset.id)"
+        >
+          {{ preset.label }}
+        </button>
+      </div>
+
+      <!-- Session 58: 导出快捷键按钮 -->
+      <button
+        class="flex items-center gap-1 px-2 h-6 rounded-[3px] text-[10px] font-medium transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+        style="color: var(--color-ide-text-dim);"
+        title="导出为 JSON 文件"
+        :disabled="exporting"
+        @click="exportKeybindings">
+        <Download :size="13" />
+        <span v-if="!exporting">导出</span>
+        <span v-else class="flex items-center gap-1">
+          <span class="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full" />
+          导出中...
+        </span>
+      </button>
+
+      <div class="flex-1" />
+
       <!-- 搜索框 -->
       <div class="flex items-center gap-1 border rounded-[3px] overflow-hidden"
         :style="{ background: 'var(--color-chat-input-bg)', borderColor: searchQuery.trim() ? 'var(--color-ide-border-focus)' : 'transparent' }">
@@ -468,9 +720,44 @@ const jsonOutput = computed(() => {
       </div>
 
       <!-- JSON 视图 -->
-      <div v-else class="h-full p-4 overflow-y-auto">
-        <pre class="text-[11px] font-mono leading-relaxed whitespace-pre"
-          style="color: var(--color-ide-text);">{{ jsonOutput }}</pre>
+      <div v-else class="h-full flex flex-col min-h-0">
+        <!-- JSON 工具栏 -->
+        <div class="flex items-center justify-between px-3 h-8 shrink-0" style="border-bottom: 1px solid var(--color-ide-border);">
+          <span class="text-[11px]" style="color: var(--color-ide-text-dim);">keybindings.json</span>
+          <div class="flex items-center gap-1">
+            <button
+              class="flex items-center gap-1 px-2 h-6 rounded-[3px] text-[11px] transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+              style="color: var(--color-ide-text-dim);"
+              title="导入 JSON 文件"
+              @click="triggerImportJson"
+            >
+              <Upload :size="12" /> 导入
+            </button>
+            <button
+              class="flex items-center gap-1 px-2 h-6 rounded-[3px] text-[11px] transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+              style="color: var(--color-ide-text-dim);"
+              title="下载 JSON 文件"
+              @click="downloadJson"
+            >
+              <Download :size="12" /> 下载
+            </button>
+            <button
+              class="flex items-center gap-1 px-2 h-6 rounded-[3px] text-[11px] transition-colors hover:bg-[var(--color-ide-surface-hover)]"
+              :style="{ color: jsonCopied ? 'var(--color-ide-success)' : 'var(--color-ide-text-dim)' }"
+              title="复制 JSON"
+              @click="copyJson"
+            >
+              <Check v-if="jsonCopied" :size="12" />
+              <Copy v-else :size="12" />
+              {{ jsonCopied ? '已复制' : '复制' }}
+            </button>
+          </div>
+        </div>
+        <!-- JSON 内容 -->
+        <div class="flex-1 overflow-y-auto p-4">
+          <pre class="text-[11px] font-mono leading-relaxed whitespace-pre"
+            style="color: var(--color-ide-text);">{{ jsonOutput }}</pre>
+        </div>
       </div>
     </div>
 
@@ -503,6 +790,9 @@ const jsonOutput = computed(() => {
         <p class="mt-3 text-[10px] opacity-40" style="color: var(--color-ide-text-dim);">Esc 取消</p>
       </div>
     </div>
+
+    <!-- 🔥 隐藏文件选择器 (JSON 导入) -->
+    <input ref="importFileInput" type="file" accept=".json" class="hidden" @change="handleImportJson" />
   </div>
 </template>
 

@@ -5,8 +5,8 @@
  * 仅在真正空闲时显示（无打开文件、无活动面板）
  * 布局: 紧凑居中 + 网格快捷操作 + 底部帮助链接
  */
-import { FilePlus, FolderOpen, GitBranch, Sparkles, TerminalSquare, Code2, Keyboard, BookOpen, Settings, ArrowRight } from "lucide-vue-next"
-import { computed } from "vue"
+import { FilePlus, FolderOpen, GitBranch, Sparkles, TerminalSquare, Code2, Keyboard, BookOpen, Settings, ArrowRight, ChevronRight, CheckCircle2, Play, ClipboardList, PenTool } from "lucide-vue-next"
+import { computed, ref } from "vue"
 import { useRouter } from "vue-router"
 import { useIDEStore } from "@/stores/useIDEStore"
 import { isTauriEnv } from "@/stores/shared"
@@ -105,6 +105,51 @@ const helpLinks = [
   { label: "文档", icon: BookOpen, action: () => store.activeActivityItem = 'explorer' },
   { label: "设置", icon: Settings, action: () => router.push('/settings') },
 ]
+
+// ── Session 42: Walkthrough 向导步骤 ──
+interface WalkthroughStep {
+  id: string
+  title: string
+  description: string
+  icon: any
+  action: () => void
+  actionLabel: string
+}
+const walkthroughSteps = ref<WalkthroughStep[]>([
+  {
+    id: "open-folder",
+    title: "打开项目文件夹",
+    description: "导入你的代码库，开始 AI 辅助开发之旅",
+    icon: FolderOpen,
+    action: () => handleOpenFolder(),
+    actionLabel: "打开文件夹",
+  },
+  {
+    id: "explore-ai",
+    title: "探索 AI 功能",
+    description: "使用 AI 对话、截图转代码、模板市场等强大工具",
+    icon: Sparkles,
+    action: () => {
+      store.rightPanelView = "chat"
+      store.layout.rightPanelVisible = true
+    },
+    actionLabel: "打开 AI 对话",
+  },
+  {
+    id: "customize",
+    title: "自定义工作区",
+    description: "配置主题、快捷键、编辑器设置，打造你的专属 IDE",
+    icon: Settings,
+    action: () => router.push('/settings'),
+    actionLabel: "打开设置",
+  },
+])
+const completedSteps = ref<Set<string>>(new Set())
+function completeStep(id: string) {
+  completedSteps.value.add(id)
+  const s = walkthroughSteps.value.find(w => w.id === id)
+  if (s) s.action()
+}
 </script>
 
 <template>
@@ -177,6 +222,47 @@ const helpLinks = [
         <component :is="link.icon" :size="12" />
         {{ link.label }}
       </button>
+    </div>
+
+    <!-- ═══ Session 42: Getting Started Walkthrough 向导 ═══ -->
+    <div class="mt-8 w-full max-w-[480px]">
+      <div class="flex items-center gap-2 mb-4">
+        <ClipboardList :size="16" style="color: var(--color-ide-accent);" />
+        <span class="text-[13px] font-semibold" style="color: var(--color-ide-text);">入门引导</span>
+        <span class="text-[11px]" style="color: var(--color-ide-text-dim);">
+          {{ completedSteps.size }}/{{ walkthroughSteps.length }}
+        </span>
+      </div>
+      <div class="space-y-2">
+        <div
+          v-for="step in walkthroughSteps"
+          :key="step.id"
+          class="flex items-center gap-3 rounded-lg p-3 transition-colors cursor-pointer border"
+          :style="{
+            background: completedSteps.has(step.id) ? 'var(--color-ide-accent)/5' : 'var(--color-ide-surface)',
+            borderColor: completedSteps.has(step.id) ? 'var(--color-ide-accent)/20' : 'var(--color-ide-border)',
+          }"
+          @click="completeStep(step.id)"
+        >
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            :style="{ background: completedSteps.has(step.id) ? 'var(--color-ide-accent)/15' : 'var(--color-ide-surface-active)' }">
+            <component :is="step.icon" :size="14" :style="{ color: completedSteps.has(step.id) ? 'var(--color-ide-accent)' : 'var(--color-ide-text-dim)' }" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[12px] font-medium" :style="{ color: completedSteps.has(step.id) ? 'var(--color-ide-text-dim)' : 'var(--color-ide-text)' }">
+              {{ step.title }}
+            </div>
+            <div class="text-[10px] mt-0.5" style="color: var(--color-ide-text-dim);">{{ step.description }}</div>
+          </div>
+          <span v-if="completedSteps.has(step.id)" style="color: var(--color-ide-success);">
+            <CheckCircle2 :size="16" />
+          </span>
+          <span v-else class="flex items-center gap-1 text-[11px] px-2 py-1 rounded font-medium shrink-0"
+            style="background: var(--color-ide-accent); color: #fff;">
+            <Play :size="10" /> {{ step.actionLabel }}
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 </template>

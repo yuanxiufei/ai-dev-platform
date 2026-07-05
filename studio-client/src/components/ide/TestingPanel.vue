@@ -10,12 +10,15 @@
  *   - 测试覆盖率统计
  *   - 按状态筛选 (all / failed / passed)
  *   - 测试搜索过滤
+ *
+ * Session 50: 对接 /system/testing/discover + /system/testing/run 后端 API，
+ * 替换硬编码 mock 数据为真实测试发现和执行
  */
-import { ref, computed } from "vue"
+import { ref, computed, onMounted } from "vue"
 import {
   FlaskConical, Play, Bug, RotateCw, ChevronRight, ChevronDown,
   CheckCircle2, XCircle, SkipForward, Circle, Clock, BarChart3,
-  Filter, Search, X, FileText, FolderOpen, TestTube2
+  Filter, Search, X, FileText, FolderOpen, TestTube2, RefreshCw,
 } from "lucide-vue-next"
 
 // ── 测试类型 ──
@@ -46,89 +49,15 @@ interface TestFile {
   collapsed: boolean
 }
 
-// ── 模拟测试数据 ──
-const testFiles = ref<TestFile[]>([
-  {
-    path: "tests/test_closed_loop.py",
-    name: "test_closed_loop.py",
-    collapsed: false,
-    suites: [
-      {
-        id: "suite-cl-1",
-        name: "TestCodebaseMemory",
-        file: "tests/test_closed_loop.py",
-        collapsed: false,
-        status: "passed",
-        cases: [
-          { id: "tc-1", name: "test_graph_node_creation", file: "tests/test_closed_loop.py", status: "passed", duration: 12 },
-          { id: "tc-2", name: "test_graph_save_load", file: "tests/test_closed_loop.py", status: "passed", duration: 35 },
-          { id: "tc-3", name: "test_parser_ast_fallback", file: "tests/test_closed_loop.py", status: "passed", duration: 28 },
-        ],
-      },
-      {
-        id: "suite-cl-2",
-        name: "TestMemoryStore",
-        file: "tests/test_closed_loop.py",
-        collapsed: false,
-        status: "failed",
-        cases: [
-          { id: "tc-4", name: "test_memory_save_retrieve", file: "tests/test_closed_loop.py", status: "passed", duration: 18 },
-          { id: "tc-5", name: "test_memory_decay", file: "tests/test_closed_loop.py", status: "failed", duration: 45, errorMessage: "AssertionError: decay value 0.042 != expected 0.045", errorStack: "  File \"tests/test_closed_loop.py\", line 234\n    assert decay == 0.045\nAssertionError" },
-          { id: "tc-6", name: "test_memory_forget_threshold", file: "tests/test_closed_loop.py", status: "failed", duration: 22, errorMessage: "AssertionError: Expected 3 memories after forget, got 5" },
-        ],
-      },
-    ],
-  },
-  {
-    path: "tests/test_api.py",
-    name: "test_api.py",
-    collapsed: true,
-    suites: [
-      {
-        id: "suite-api-1",
-        name: "TestHealthEndpoint",
-        file: "tests/test_api.py",
-        collapsed: false,
-        status: "passed",
-        cases: [
-          { id: "tc-7", name: "test_health_basic", file: "tests/test_api.py", status: "passed", duration: 8 },
-          { id: "tc-8", name: "test_health_detailed", file: "tests/test_api.py", status: "passed", duration: 15 },
-          { id: "tc-9", name: "test_health_stats", file: "tests/test_api.py", status: "passed", duration: 11 },
-        ],
-      },
-      {
-        id: "suite-api-2",
-        name: "TestStudioRoutes",
-        file: "tests/test_api.py",
-        collapsed: false,
-        status: "skipped",
-        cases: [
-          { id: "tc-10", name: "test_screenshot_to_code", file: "tests/test_api.py", status: "skipped" },
-          { id: "tc-11", name: "test_project_create", file: "tests/test_api.py", status: "skipped" },
-        ],
-      },
-    ],
-  },
-  {
-    path: "tests/test_autocli.py",
-    name: "test_autocli.py",
-    collapsed: true,
-    suites: [
-      {
-        id: "suite-ac-1",
-        name: "TestAutoCLISecurity",
-        file: "tests/test_autocli.py",
-        collapsed: false,
-        status: "passed",
-        cases: [
-          { id: "tc-12", name: "test_safe_commands", file: "tests/test_autocli.py", status: "passed", duration: 22 },
-          { id: "tc-13", name: "test_injection_detection", file: "tests/test_autocli.py", status: "passed", duration: 18 },
-          { id: "tc-14", name: "test_git_subcommands", file: "tests/test_autocli.py", status: "failed", duration: 31, errorMessage: "ValueError: git push --force not allowed", errorStack: "  File \"tests/test_autocli.py\", line 142\n    raise ValueError('git push --force not allowed')\nValueError" },
-        ],
-      },
-    ],
-  },
-])
+// ── API 辅助 ──
+function getApiBase(): string {
+  return (window as any).__apiBaseUrl || '/api/v1'
+}
+
+// ── 测试数据 (Session 50: 由 API 填充) ──
+const testFiles = ref<TestFile[]>([])
+const framework = ref<string>('auto')
+const discovering = ref(false)
 
 // ── 搜索与筛选 ──
 const searchQuery = ref("")
@@ -195,34 +124,70 @@ const filteredFiles = computed(() => {
   return files
 })
 
-// ── 运行测试 ──
+// ── Session 50: 测试发现 ──
+async function discoverTests(): Promise<void> {
+  discovering.value = true
+  try {
+    const baseUrl = getApiBase()
+    const resp = await fetch(`${baseUrl}/system/testing/discover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_path: '.', framework: 'auto' }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      framework.value = data.framework || 'auto'
+      testFiles.value = (data.files || []).map((f: any) => ({
+        path: f.path,
+        name: f.name,
+        collapsed: false,
+        suites: (f.suites || []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          file: s.file_path || f.path,
+          collapsed: true,
+          status: 'idle',
+          cases: (s.cases || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            file: c.file_path || f.path,
+            status: c.status || 'idle',
+            duration: c.duration_ms || 0,
+            errorMessage: c.error_message || '',
+            errorStack: c.error_stack || '',
+            line: c.line || 0,
+          })),
+        })),
+      })))
+    }
+  } catch { /* 静默 */ }
+  finally { discovering.value = false }
+}
+
+onMounted(() => { discoverTests() })
+
+// ── Session 50: 真实测试执行 ──
 async function runAllTests(): Promise<void> {
   running.value = true
-  // 设置所有测试为 running
   for (const f of testFiles.value)
     for (const s of f.suites)
       for (const c of s.cases)
         c.status = "running"
-  // 模拟测试执行
-  await new Promise(r => setTimeout(r, 1500))
-  // 随机一些测试结果
-  for (const f of testFiles.value) {
-    for (const s of f.suites) {
-      for (const c of s.cases) {
-        const r = Math.random()
-        c.status = r > 0.7 ? "failed" : r > 0.5 ? "skipped" : "passed"
-        c.duration = Math.floor(Math.random() * 100) + 5
-        if (c.status === "failed" && !c.errorMessage)
-          c.errorMessage = `AssertionError: Test "${c.name}" failed`
-      }
-      // 更新 suite 状态
-      const allPassed = s.cases.every(c => c.status === "passed")
-      const hasFailed = s.cases.some(c => c.status === "failed")
-      const allSkipped = s.cases.every(c => c.status === "skipped")
-      s.status = hasFailed ? "failed" : allPassed ? "passed" : allSkipped ? "skipped" : "idle"
+
+  try {
+    const baseUrl = getApiBase()
+    const resp = await fetch(`${baseUrl}/system/testing/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_path: '.', framework: framework.value }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      const results: any[] = data.results?.results || []
+      _applyResults(results)
     }
-  }
-  running.value = false
+  } catch { /* 静默 */ }
+  finally { running.value = false }
 }
 
 async function runFile(file: TestFile): Promise<void> {
@@ -230,25 +195,56 @@ async function runFile(file: TestFile): Promise<void> {
   for (const s of file.suites)
     for (const c of s.cases)
       c.status = "running"
-  await new Promise(r => setTimeout(r, 800))
-  for (const s of file.suites) {
-    for (const c of s.cases) {
-      c.status = Math.random() > 0.8 ? "failed" : "passed"
-      c.duration = Math.floor(Math.random() * 50) + 3
+
+  try {
+    const baseUrl = getApiBase()
+    const resp = await fetch(`${baseUrl}/system/testing/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_path: '.', framework: framework.value, file_path: file.path }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      _applyResults(data.results?.results || [])
     }
-    s.status = s.cases.some(c => c.status === "failed") ? "failed" : "passed"
-  }
-  running.value = false
+  } catch { /* 静默 */ }
+  finally { running.value = false }
 }
 
 async function runTest(testCase: TestCase): Promise<void> {
   testCase.status = "running"
-  await new Promise(r => setTimeout(r, 400))
-  testCase.status = Math.random() > 0.8 ? "failed" : "passed"
-  testCase.duration = Math.floor(Math.random() * 40) + 2
-  if (testCase.status === "failed") {
-    testCase.errorMessage = `AssertionError: Expected value differs for "${testCase.name}"`
-    testCase.errorStack = `  File "${testCase.file}", line ${testCase.line || 123}\n    assert actual == expected\nAssertionError`
+  try {
+    const baseUrl = getApiBase()
+    const resp = await fetch(`${baseUrl}/system/testing/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_path: '.', framework: framework.value, test_ids: [testCase.id] }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      _applyResults(data.results?.results || [])
+    }
+  } catch { /* 静默 */ }
+}
+
+function _applyResults(results: any[]): void {
+  for (const r of results) {
+    for (const f of testFiles.value) {
+      for (const s of f.suites) {
+        for (const c of s.cases) {
+          if (c.name === r.name || c.id === r.id) {
+            c.status = r.status
+            c.duration = r.duration_ms || 0
+            c.errorMessage = r.error_message || ''
+            c.errorStack = r.error_stack || ''
+          }
+        }
+        // 更新 suite 状态
+        s.status = s.cases.some(c => c.status === 'failed') ? 'failed'
+          : s.cases.every(c => c.status === 'passed') ? 'passed'
+          : s.cases.some(c => c.status === 'skipped') ? 'skipped' : 'idle'
+      }
+    }
   }
 }
 

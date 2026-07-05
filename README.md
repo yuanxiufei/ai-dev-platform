@@ -607,6 +607,18 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 | [standalone-tools/README.md](./standalone-tools/README.md) | 远程唤醒 (WOL) + DDNS 配置教程 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南 |
 
+### 当前部署状态 (2026-07-05)
+
+| 环境 | 详情 |
+|------|------|
+| WSL 存储 | `D:\app\Docker\Ubuntu-24.04\ext4.vhdx` (51.4 GB，已从 C 盘迁移) |
+| 项目代码 | `D:\code\ai-fullstack-platform` |
+| 运行容器 | 9 个（vLLM/Ollama/Open-WebUI/PG/Redis/Qdrant/Prometheus/Grafana/Alertmanager） |
+| Docker 引擎 | 29.1.3（WSL 内 Ubuntu-24.04） |
+| 待部署 | MinIO / Nginx / FastAPI Gateway / LangGraph / Loki |
+
+> 详见 [AI编程平台_Linux生产版架构.txt](../AI编程平台_Linux生产版架构.txt) 第十七节。
+
 ## 许可证
 
 MIT License — 详见 [LICENSE](./LICENSE) 文件。

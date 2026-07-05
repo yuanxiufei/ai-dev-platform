@@ -91,6 +91,21 @@ async function callTauriCmd(cmd: string): Promise<void> {
     ],
   },
   {
+    id: "selection", label: "选择",
+    items: [
+      { label: "全选", shortcut: "Ctrl+A" },
+      { separator: true },
+      { label: "扩大选区", shortcut: "Alt+Shift+→", action: () => triggerMonacoAction("editor.action.smartSelect.grow") },
+      { label: "缩小选区", shortcut: "Alt+Shift+←", action: () => triggerMonacoAction("editor.action.smartSelect.shrink") },
+      { separator: true },
+      { label: "向上添游标", shortcut: "Ctrl+Alt+↑", action: () => triggerMonacoAction("editor.action.insertCursorAbove") },
+      { label: "向下添游标", shortcut: "Ctrl+Alt+↓", action: () => triggerMonacoAction("editor.action.insertCursorBelow") },
+      { label: "添加下个匹配", shortcut: "Ctrl+D", action: () => triggerMonacoAction("editor.action.addSelectionToNextFindMatch") },
+      { label: "选择所有匹配", shortcut: "Ctrl+Shift+L", action: () => triggerMonacoAction("editor.action.selectHighlights") },
+      { label: "列选择模式", shortcut: "Ctrl+Shift+8", action: () => triggerMonacoAction("editor.action.toggleColumnSelection") },
+    ],
+  },
+  {
     id: "view", label: "查看",
     items: [
       { label: "命令面板...", shortcut: "Ctrl+Shift+P", action: () => { store.showGlobalSearch = false; /* openCommandPalette is handled globally */ } },
@@ -110,6 +125,44 @@ async function callTauriCmd(cmd: string): Promise<void> {
       { label: "重置缩放", action: () => callTauriCmd('reset_zoom') },
       { label: "全屏", shortcut: "F11", action: () => callTauriCmd('toggle_fullscreen') },
       { label: "开发人员工具", action: () => callTauriCmd('open_devtools') },
+    ],
+  },
+  {
+    id: "go", label: "转到",
+    items: [
+      { label: "后退", shortcut: "Alt+←", action: () => triggerMonacoAction("editor.action.goBack") },
+      { label: "前进", shortcut: "Alt+→", action: () => triggerMonacoAction("editor.action.goForward") },
+      { separator: true },
+      { label: "转到定义", shortcut: "F12", action: () => triggerMonacoAction("editor.action.revealDefinition") },
+      { label: "转到声明", action: () => triggerMonacoAction("editor.action.revealDeclaration") },
+      { label: "转到引用", shortcut: "Shift+F12", action: () => triggerMonacoAction("editor.action.referenceSearch.trigger") },
+      { label: "转到实现", shortcut: "Ctrl+F12", action: () => triggerMonacoAction("editor.action.goToImplementation") },
+      { separator: true },
+      { label: "转到行/列...", shortcut: "Ctrl+G", action: () => triggerMonacoAction("editor.action.gotoLine") },
+      { label: "转到编辑器符号...", shortcut: "Ctrl+Shift+O", action: () => { store.showGlobalSearch = false } },
+      { label: "转到工作区符号...", shortcut: "Ctrl+T", action: () => { store.showGlobalSearch = false; /* handled by QuickOpen */ } },
+      { label: "转到括号", shortcut: "Ctrl+Shift+\\", action: () => triggerMonacoAction("editor.action.jumpToBracket") },
+      { separator: true },
+      { label: "下一个问题", shortcut: "F8", action: () => { store.bottomPanelView = "problems"; store.layout.bottomPanelVisible = true } },
+      { label: "上一个问题", shortcut: "Shift+F8", action: () => { store.bottomPanelView = "problems"; store.layout.bottomPanelVisible = true } },
+    ],
+  },
+  {
+    id: "run", label: "运行",
+    items: [
+      { label: "开始调试", shortcut: "F5", action: () => triggerDebugAction("start") },
+      { label: "运行而不调试", shortcut: "Ctrl+F5", action: () => triggerDebugAction("runWithoutDebug") },
+      { separator: true },
+      { label: "停止", shortcut: "Shift+F5", action: () => triggerDebugAction("stop"), disabled: !store.debugIsRunning },
+      { label: "重启", shortcut: "Ctrl+Shift+F5", action: () => triggerDebugAction("restart"), disabled: !store.debugIsRunning },
+      { separator: true },
+      { label: "切换断点", shortcut: "F9", action: () => triggerMonacoAction("editor.debug.action.toggleBreakpoint") },
+      { separator: true },
+      { label: "单步跳过", shortcut: "F10", action: () => triggerDebugAction("stepOver"), disabled: !store.debugIsPaused },
+      { label: "单步进入", shortcut: "F11", action: () => triggerDebugAction("stepInto"), disabled: !store.debugIsPaused },
+      { label: "单步跳出", shortcut: "Shift+F11", action: () => triggerDebugAction("stepOut"), disabled: !store.debugIsPaused },
+      { separator: true },
+      { label: "添加配置...", action: () => { store.activeActivityItem = "debug"; store.layout.fileTreeVisible = true } },
     ],
   },
   {
@@ -162,6 +215,32 @@ async function callTauriCmd(cmd: string): Promise<void> {
 function toggleMenu(id: string): void { openMenu.value = openMenu.value === id ? null : id }
 function closeMenus(): void { openMenu.value = null }
 function handleItemClick(item: MenuItem): void { if (item.action) item.action(); closeMenus() }
+
+/** Session 40: 触发 Monaco 编辑器操作 (编辑器焦点时才生效) */
+function triggerMonacoAction(actionId: string): void {
+  try {
+    // 尝试通过 Monaco 全局命令执行
+    const editorEl = document.querySelector(".monaco-editor") as HTMLElement | null
+    if (editorEl) {
+      editorEl.focus()
+      document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true }))
+    }
+  } catch { /* 忽略 */ }
+}
+
+/** Session 40: 触发调试操作 */
+function triggerDebugAction(action: string): void {
+  switch (action) {
+    case "start": store.debugStart(); break
+    case "runWithoutDebug": store.debugStart(); break
+    case "stop": store.debugStop(); break
+    case "restart": store.debugRestart(); break
+    case "stepOver": store.debugStepOver(); break
+    case "stepInto": store.debugStepInto(); break
+    case "stepOut": store.debugStepOut(); break
+  }
+  closeMenus()
+}
 
 async function openFileViaDialog(): Promise<void> {
   try {

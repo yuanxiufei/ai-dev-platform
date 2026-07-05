@@ -41,10 +41,13 @@
 | 项 | 典型值 |
 |---|---|
 | 操作系统 | Windows 10/11 + WSL2（Ubuntu-24.04） |
+| WSL 存储位置 | `D:\app\Docker\Ubuntu-24.04\ext4.vhdx`（已从 C 盘迁移） |
 | GPU | NVIDIA RTX A5000 / 23GB VRAM / CUDA 13.2 |
-| Docker | 29.1.3，data-root `/var/lib/docker`（WSL ext4） |
+| Docker | 29.1.3，data-root `/var/lib/docker`（WSL ext4，在 D 盘 vhdx 内） |
 | nvidia-container-toolkit | 1.19+ |
 | 默认 Runtime | `runc`，GPU 容器显式指定 `runtime: nvidia` |
+
+> 💡 **WSL 存储已从 C 盘迁移到 D 盘**，后续安装服务无需二次迁移。迁移方法见 [附录 E：WSL 迁移到其他盘](#附录-ewsl-迁移到其他盘)。
 
 ### 1.2 安装 Docker（WSL 内执行）
 
@@ -112,15 +115,15 @@ wsl -d Ubuntu-24.04
 # 2. 启动 Docker（每次重启 WSL 后执行一次）
 sudo dockerd &> /tmp/dockerd.log &
 
-# 3. 进入项目目录（假设镜像在 D 盘）
-cd /mnt/d/docker-images
+# 3. 进入项目目录（代码在 D 盘，WSL 内通过 /mnt/d 访问）
+cd /mnt/d/code/ai-fullstack-platform
 
-# 4. 加载离线镜像
-docker load -i infra-images-latest.tar          # PG + Redis + Qdrant
-docker load -i monitoring-images-latest.tar     # Prometheus + Alertmanager + Grafana
-docker load -i ollama-latest.tar
-docker load -i vllm-openai-latest.tar           # 可选
-docker load -i open-webui-main.tar
+# 4. 加载离线镜像（如有）
+docker load -i deploy/infra-images-latest.tar          # PG + Redis + Qdrant
+docker load -i deploy/monitoring-images-latest.tar     # Prometheus + Alertmanager + Grafana
+docker load -i deploy/ollama-latest.tar
+docker load -i deploy/vllm-openai-latest.tar           # 可选
+docker load -i deploy/open-webui-main.tar
 
 # 5. 创建网络 + 启动
 docker network create backend 2>/dev/null
@@ -138,6 +141,9 @@ docker ps
 ```
 ┌────────────────────────────────────────────────────────┐
 │                     Windows 宿主机                       │
+│  代码: D:\code\ai-fullstack-platform                    │
+│  WSL存储: D:\app\Docker\Ubuntu-24.04\ext4.vhdx          │
+│                                                        │
 │  :3090(WebUI) :11434(Ollama) :3080(vLLM)               │
 │  :5432(PG) :6379(Redis) :6333(Qdrant) :9091(Grafana)  │
 │                                                        │
@@ -673,3 +679,37 @@ D:\docker-images\          ← Windows
 | 模型文件 | 用 bind mount 共享，不 `docker cp` |
 | Docker volumes | `pgdata` 等命名卷不互通，跨系统共享改用 bind mount |
 | 换行符 | Git 在 Win 端可能改 CRLF → `git config --global core.autocrlf input` |
+
+---
+
+## 附录 E：WSL 迁移到其他盘
+
+当 WSL 发行版占用 C 盘空间过大时，可将其迁移到 D/E 盘。
+
+### 迁移步骤
+
+```powershell
+# 1. 关闭所有 WSL
+wsl --shutdown
+
+# 2. 导出当前发行版
+wsl --export Ubuntu-24.04 D:\app\Docker\Ubuntu-24.04.tar
+
+# 3. 注销旧发行版（释放 C 盘空间）
+wsl --unregister Ubuntu-24.04
+
+# 4. 导入到新位置
+wsl --import Ubuntu-24.04 D:\app\Docker\Ubuntu-24.04 D:\app\Docker\Ubuntu-24.04.tar
+
+# 5. 验证
+wsl -d Ubuntu-24.04 -- docker ps -a
+```
+
+### 注意事项
+
+| 项 | 说明 |
+|---|---|
+| 耗时 | ~50GB 发行版导出约 2 分钟，导入约 2 分钟 |
+| 数据安全 | 导出为完整 tar 快照，容器/卷/镜像全部保留 |
+| 后续安装 | 迁移后无需二次操作，新安装直接写入 D 盘 vhdx |
+| tar 清理 | `wsl --import` 完成后可删除 tar 文件释放空间 |

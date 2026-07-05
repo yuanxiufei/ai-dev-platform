@@ -12,14 +12,24 @@
           <div class="flex flex-1 overflow-hidden">
             <!-- Nav -->
             <nav class="w-56 shrink-0 border-r border-[var(--color-ide-border)] py-2 overflow-y-auto bg-[var(--color-ide-bg-tertiary)]">
-              <button v-for="t in tabs" :key="t.id" :class="['w-full flex items-center gap-3 px-5 py-2.5 text-sm text-left transition-colors',at===t.id?'bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-accent)] font-medium border-r-2 border-[var(--color-ide-accent)]':'text-[var(--color-ide-text-secondary)] hover:bg-[var(--color-ide-hover)] hover:text-[var(--color-ide-text)]']" @click="at=t.id"><component :is="t.icon" :size="16"/>{{ t.label }}</button>
+              <!-- Session 42: 设置搜索栏 -->
+              <div class="px-3 pb-2">
+                <div class="flex items-center gap-1.5 px-2 py-1.5 rounded-md border" :style="{ background: 'var(--color-ide-surface)', borderColor: 'var(--color-ide-border)' }">
+                  <Search :size="12" class="shrink-0" style="color: var(--color-ide-text-dim);" />
+                  <input v-model="searchQuery" type="text" class="flex-1 bg-transparent text-[12px] outline-none" style="color: var(--color-ide-text);" placeholder="搜索设置..." />
+                  <button v-if="searchQuery" class="shrink-0" @click="searchQuery = ''"><X :size="12" style="color: var(--color-ide-text-dim);"/></button>
+                </div>
+                <p v-if="searchQuery && filteredTabs.length === 0" class="text-[11px] mt-1.5" style="color: var(--color-ide-text-dim);">未找到相关设置</p>
+              </div>
+              <button v-for="t in filteredTabs" :key="t.id" :class="['w-full flex items-center gap-3 px-5 py-2.5 text-sm text-left transition-colors',at===t.id?'bg-[var(--color-ide-accent)]/10 text-[var(--color-ide-accent)] font-medium border-r-2 border-[var(--color-ide-accent)]':'text-[var(--color-ide-text-secondary)] hover:bg-[var(--color-ide-hover)] hover:text-[var(--color-ide-text)]']" @click="at=t.id"><component :is="t.icon" :size="16"/>{{ t.label }}</button>
             </nav>
             <!-- Content -->
             <div class="flex-1 overflow-y-auto p-6">
               <!-- General -->
               <section v-if="at==='general'">
                 <h3 class="text-base font-medium mb-6">通用</h3>
-                <SG title="外观"><SI label="颜色主题"><select v-model="themeStore.active" class="ss"><option v-for="t in themeStore.themes" :key="t.id" :value="t.id">{{ t.label }}</option></select></SI>
+                <SG title="外观"><SI label="颜色主题"><select v-model="themeStore.active" class="ss"><option v-for="t in themeStore.allThemes" :key="t.id" :value="t.id">{{ t.label }}</option></select></SI>
+                  <SI label="图标主题"><select :value="themeStore.activeIconTheme" @change="themeStore.setIconTheme(($event.target as HTMLSelectElement).value as any)" class="ss"><option v-for="it in themeStore.allIconThemes" :key="it.id" :value="it.id">{{ it.label }}</option></select></SI>
                   <SI label="缩放级别"><div class="flex items-center gap-2"><button @click="ls.appearance.zoomLevel=Math.max(0.5,ls.appearance.zoomLevel-0.1)" class="bi"><Minus :size="14"/></button><span class="w-16 text-center text-xs font-mono">{{Math.round(ls.appearance.zoomLevel*100)}}%</span><button @click="ls.appearance.zoomLevel=Math.min(2,ls.appearance.zoomLevel+0.1)" class="bi"><Plus :size="14"/></button></div></SI>
                   <SI label="字体家族"><select v-model="ls.editor.fontFamily" class="ss min-w-[220px]"><option value="'JetBrains Mono',monospace">JetBrains Mono</option><option value="'Fira Code',monospace">Fira Code</option></select></SI>
                   <SI :label="`字号: ${ls.editor.fontSize}px`"><input v-model.number="ls.editor.fontSize" type="range" min="10" max="28" step="1" class="sl"/></SI>
@@ -34,7 +44,90 @@
                   <SI label="自动换行"><select v-model="ls.editor.wordWrap" class="ss"><option value="off">关闭</option><option value="on">开启</option></select></SI>
                   <SI label="行号"><select v-model="ls.editor.lineNumbers" class="ss"><option value="on">显示</option><option value="off">隐藏</option></select></SI>
                   <SI label="小地图"><ToggleSwitch :model-value="ls.editor.minimap" @update:modelValue="ls.editor.minimap=$event"/></SI>
+                  <SI label="括号对着色"><ToggleSwitch :model-value="ls.editor.bracketColorization" @update:modelValue="ls.editor.bracketColorization=$event"/></SI>
+                  <SI label="粘性滚动"><ToggleSwitch :model-value="ls.editor.stickyScroll" @update:modelValue="ls.editor.stickyScroll=$event"/></SI>
+                  <SI label="缩进参考线"><ToggleSwitch :model-value="ls.editor.indentGuides" @update:modelValue="ls.editor.indentGuides=$event"/></SI>
+                  <SI label="参数提示"><ToggleSwitch :model-value="ls.editor.parameterHints" @update:modelValue="ls.editor.parameterHints=$event"/></SI>
+                  <SI label="显示空白字符"><select v-model="ls.editor.renderWhitespace" class="ss"><option value="none">无</option><option value="selection">选中时</option><option value="boundary">边界</option><option value="all">全部</option></select></SI>
                   <SI label="光标闪烁样式"><select v-model="ls.editor.cursorBlinking" class="ss"><option value="smooth">平滑</option><option value="blink">闪烁</option></select></SI>
+                </SG>
+                <!-- Session 45: Error Lens 配置 -->
+                <SG title="Error Lens (行内诊断)">
+                  <SI label="启用 Error Lens"><ToggleSwitch :model-value="ls.editor.errorLens" @update:modelValue="ls.editor.errorLens=$event"/></SI>
+                  <SI label="显示错误"><ToggleSwitch :model-value="ls.editor.showErrors" @update:modelValue="ls.editor.showErrors=$event"/></SI>
+                  <SI label="显示警告"><ToggleSwitch :model-value="ls.editor.showWarnings" @update:modelValue="ls.editor.showWarnings=$event"/></SI>
+                  <SI label="显示信息"><ToggleSwitch :model-value="ls.editor.showInfos" @update:modelValue="ls.editor.showInfos=$event"/></SI>
+                  <SI label="Selection Highlight"><ToggleSwitch :model-value="ls.editor.selectionHighlight" @update:modelValue="ls.editor.selectionHighlight=$event"/></SI>
+                </SG>
+                <!-- Session 45: Overview Ruler 配置 -->
+                <SG title="概览标尺 (Overview Ruler)">
+                  <SI label="显示概览标尺"><ToggleSwitch :model-value="ls.editor.overviewRuler" @update:modelValue="ls.editor.overviewRuler=$event"/></SI>
+                  <SI label="标尺通道数"><select v-model.number="ls.editor.overviewRulerLanes" class="ss"><option :value="1">1 条</option><option :value="2">2 条</option><option :value="3">3 条</option></select></SI>
+                  <SI label="Emmet 补全"><ToggleSwitch :model-value="ls.editor.emmetEnabled" @update:modelValue="ls.editor.emmetEnabled=$event"/></SI>
+                </SG>
+                <!-- Session 46: 编辑器增强功能 -->
+                <SG title="智能编辑 (Smart Editing)">
+                  <SI label="智能选区 (Smart Select)"><ToggleSwitch :model-value="ls.editor.smartSelect" @update:modelValue="ls.editor.smartSelect=$event"/></SI>
+                  <SI label="链接编辑 (Linked Editing)"><ToggleSwitch :model-value="ls.editor.linkedEditing" @update:modelValue="ls.editor.linkedEditing=$event"/></SI>
+                  <SI label="单词高亮 (Word Highlight)"><ToggleSwitch :model-value="ls.editor.wordHighlight" @update:modelValue="ls.editor.wordHighlight=$event"/></SI>
+                  <SI label="Unicode 高亮 (Unicode Highlight)"><ToggleSwitch :model-value="ls.editor.unicodeHighlight" @update:modelValue="ls.editor.unicodeHighlight=$event"/></SI>
+                  <SI label="长行指示 (Long Lines)"><ToggleSwitch :model-value="ls.editor.longLines" @update:modelValue="ls.editor.longLines=$event"/></SI>
+                </SG>
+                <!-- Session 46: 代码辅助 -->
+                <SG title="代码辅助 (Code Assistance)">
+                  <SI label="CodeLens"><ToggleSwitch :model-value="ls.editor.codeLens" @update:modelValue="ls.editor.codeLens=$event"/></SI>
+                  <SI label="内嵌提示 (Inlay Hints)"><ToggleSwitch :model-value="ls.editor.inlayHints" @update:modelValue="ls.editor.inlayHints=$event"/></SI>
+                  <SI label="代码折叠 (Folding)"><ToggleSwitch :model-value="ls.editor.folding" @update:modelValue="ls.editor.folding=$event"/></SI>
+                  <SI label="括号匹配 (Match Brackets)"><ToggleSwitch :model-value="ls.editor.matchBrackets" @update:modelValue="ls.editor.matchBrackets=$event"/></SI>
+                  <SI label="颜色装饰器 (Color Decorators)"><ToggleSwitch :model-value="ls.editor.colorDecorators" @update:modelValue="ls.editor.colorDecorators=$event"/></SI>
+                  <SI label="控制字符渲染"><ToggleSwitch :model-value="ls.editor.renderControlCharacters" @update:modelValue="ls.editor.renderControlCharacters=$event"/></SI>
+                </SG>
+                <SG title="格式化 (Formatting)">
+                  <SI label="保存时格式化 (Format On Save)"><ToggleSwitch :model-value="ls.editor.formatOnSave" @update:modelValue="ls.editor.formatOnSave=$event"/></SI>
+                  <SI label="粘贴时格式化 (Format On Paste)"><ToggleSwitch :model-value="ls.editor.formatOnPaste" @update:modelValue="ls.editor.formatOnPaste=$event"/></SI>
+                </SG>
+                <SG title="编辑器行为 (Editor Behavior)">
+                  <SI label="Tab 聚焦模式"><ToggleSwitch :model-value="ls.editor.tabFocusMode" @update:modelValue="ls.editor.tabFocusMode=$event"/></SI>
+                  <SI label="平滑滚动"><ToggleSwitch :model-value="ls.editor.smoothScrolling" @update:modelValue="ls.editor.smoothScrolling=$event"/></SI>
+                  <SI label="中键滚动 (Middle Scroll)"><ToggleSwitch :model-value="ls.editor.middleScroll" @update:modelValue="ls.editor.middleScroll=$event"/></SI>
+                  <SI label="占位文本 (Placeholder)">
+                    <input v-model="ls.editor.placeholderText" placeholder="输入占位文本..." class="si w-60"/>
+                  </SI>
+                </SG>
+              </section>
+              <!-- Layout — Session 57 -->
+              <section v-if="at==='layout'">
+                <h3 class="text-base font-medium mb-6">布局</h3>
+                <SG title="面板位置 (Panel Position)">
+                  <SI label="面板位置">
+                    <select v-model="store.layout.panelPosition" @change="store.setPanelPosition(($event.target as HTMLSelectElement).value as any)" class="ss">
+                      <option value="bottom">底部</option>
+                      <option value="left">左侧</option>
+                      <option value="right">右侧</option>
+                    </select>
+                  </SI>
+                  <SI label="面板对齐">
+                    <select v-model="store.layout.panelAlignment" @change="store.setPanelAlignment(($event.target as HTMLSelectElement).value as any)" class="ss">
+                      <option value="left">左对齐</option>
+                      <option value="center">居中</option>
+                      <option value="right">右对齐</option>
+                      <option value="justify">两端对齐</option>
+                    </select>
+                  </SI>
+                </SG>
+                <SG title="可见性">
+                  <SI label="菜单栏"><ToggleSwitch :model-value="store.layout.menuBarVisible" @update:modelValue="store.layout.menuBarVisible=$event"/></SI>
+                  <SI label="活动栏 (Activity Bar)"><ToggleSwitch :model-value="store.layout.activityBarVisible" @update:modelValue="store.layout.activityBarVisible=$event"/></SI>
+                  <SI label="状态栏 (Status Bar)"><ToggleSwitch :model-value="store.layout.statusBarVisible" @update:modelValue="store.layout.statusBarVisible=$event"/></SI>
+                  <SI label="侧栏 (Sidebar)"><ToggleSwitch :model-value="store.layout.fileTreeVisible" @update:modelValue="store.layout.fileTreeVisible=$event"/></SI>
+                  <SI label="底部面板 (Panel)"><ToggleSwitch :model-value="store.layout.bottomPanelVisible" @update:modelValue="store.layout.bottomPanelVisible=$event"/></SI>
+                  <SI label="右侧面板 (AuxBar)"><ToggleSwitch :model-value="store.layout.rightPanelVisible" @update:modelValue="store.layout.rightPanelVisible=$event"/></SI>
+                </SG>
+                <SG title="视图管理 (View Management)">
+                  <p class="text-xs mb-2" style="color: var(--color-ide-text-dim);">
+                    拖拽视图可在侧栏和面板间移动。当前仅支持通过 Activity Bar 切换。
+                  </p>
+                  <button class="btn btn-ghost text-xs" @click="store.resetAllViews()">重置所有视图位置</button>
                 </SG>
               </section>
               <!-- Terminal -->
@@ -130,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bot, BrainCircuit, Check, Globe, Minus, Moon, Plus, Puzzle, RotateCcw, Settings as LSettings, Shield, Sun, TerminalSquare, Type, X } from "lucide-vue-next"
+import { Bot, BrainCircuit, Check, Globe, Minus, Moon, Plus, Puzzle, RotateCcw, Search, Settings as LSettings, Shield, Sun, TerminalSquare, Type, X } from "lucide-vue-next"
 import { computed, reactive, ref } from "vue"
 import { usePlugins } from "@/composables/usePlugins"
 import { useThemeStore, type ThemeId } from "@/stores/useThemeStore"
@@ -150,30 +243,92 @@ const emit = defineEmits<(e: "update:visible", val: boolean) => void>()
 const { installedPlugins, enable, disable } = usePlugins()
 const themeStore = useThemeStore()
 const at = ref("general")
+/** Session 42: 设置搜索 */
+const searchQuery = ref("")
 const tabs = [
-  { id: "general", label: "通用", icon: Type },
-  { id: "editor", label: "编辑器", icon: Type },
-  { id: "terminal", label: "终端", icon: TerminalSquare },
-  { id: "ai", label: "AI 助手", icon: Bot },
-  { id: "extensions", label: "扩展", icon: Puzzle },
-  { id: "memory", label: "记忆", icon: BrainCircuit },
-  { id: "voice", label: "语音", icon: Bot },
-  { id: "proxy", label: "代理", icon: Globe },
-  { id: "session", label: "会话", icon: Shield },
-  { id: "privacy", label: "隐私", icon: Shield },
+  { id: "general", label: "通用", icon: Type, keywords: "主题 缩放 字体 自动保存 外观 图标 theme zoom font auto-save" },
+  { id: "editor", label: "编辑器", icon: Type, keywords: "制表符 换行 行号 小地图 括号 粘性 缩进 空白 智能选区 链接编辑 单词高亮 unicode 长行 codelens inlay 内嵌提示 代码折叠 颜色装饰 tab wrap line minimap bracket sticky indent whitespace smart linked highlight folding color 格式化 format save paste" },
+  { id: "layout", label: "布局", icon: Type, keywords: "面板 位置 底部 左侧 右侧 对齐 居中 左边 右边 panel position alignment bottom left right center justify sidebar statusbar activitybar" },
+  { id: "terminal", label: "终端", icon: TerminalSquare, keywords: "shell powershell bash 字号 光标 滚动 缓冲 terminal scrollback" },
+  { id: "ai", label: "AI 助手", icon: Bot, keywords: "api 密钥 模型 temperature token openai deepseek 提供商 provider model key" },
+  { id: "extensions", label: "扩展", icon: Puzzle, keywords: "插件 安装 启用 禁用 extensions plugins install" },
+  { id: "memory", label: "记忆", icon: BrainCircuit, keywords: "记忆 用户画像 限制 审批 memory profile limit approval" },
+  { id: "voice", label: "语音", icon: Bot, keywords: "tts stt 语音 语速 引擎 voice speech speed" },
+  { id: "proxy", label: "代理", icon: Globe, keywords: "https http socks 代理 proxy 白名单" },
+  { id: "session", label: "会话", icon: Shield, keywords: "重置 空闲 每日 会话 reset idle session" },
+  { id: "privacy", label: "隐私", icon: Shield, keywords: "脱敏 PII 隐私 privacy redact" },
 ]
+/** Session 42: 搜索过滤的标签页 */
+const filteredTabs = computed(() => {
+  if (!searchQuery.value.trim()) return tabs
+  const q = searchQuery.value.toLowerCase()
+  return tabs.filter(t =>
+    t.label.toLowerCase().includes(q) || t.keywords.toLowerCase().includes(q)
+  )
+})
+/** 搜索高亮当前标签 */
+const currentTabMatches = computed(() => {
+  if (!searchQuery.value.trim()) return true
+  return filteredTabs.value.some(t => t.id === at.value)
+})
+// ── Session 38: 从 localStorage 加载编辑器设置 ──
+const EDITOR_SETTINGS_KEY = "ide_editor_settings_v2"
+function loadEditorSettings() {
+  try {
+    const raw = localStorage.getItem(EDITOR_SETTINGS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return {}
+}
+function saveEditorSettings(settings: Record<string, unknown>) {
+  try { localStorage.setItem(EDITOR_SETTINGS_KEY, JSON.stringify(settings)) } catch { /* ignore */ }
+}
+
+const savedEditor = loadEditorSettings()
 const ls = reactive({
   editor: {
-    fontSize: 14,
-    fontFamily: "'JetBrains Mono',monospace",
-    tabSize: 4,
-    insertSpaces: true,
-    wordWrap: "off",
-    lineNumbers: "on",
-    minimap: true,
-    autoSave: "afterDelay",
-    formatOnSave: true,
-    cursorBlinking: "smooth",
+    fontSize: savedEditor.fontSize ?? 14,
+    fontFamily: savedEditor.fontFamily ?? "'JetBrains Mono',monospace",
+    tabSize: savedEditor.tabSize ?? 4,
+    insertSpaces: savedEditor.insertSpaces ?? true,
+    wordWrap: savedEditor.wordWrap ?? "off",
+    lineNumbers: savedEditor.lineNumbers ?? "on",
+    minimap: savedEditor.minimap ?? true,
+    autoSave: savedEditor.autoSave ?? "afterDelay",
+    formatOnSave: savedEditor.formatOnSave ?? true,
+    formatOnPaste: savedEditor.formatOnPaste ?? false,
+    cursorBlinking: savedEditor.cursorBlinking ?? "smooth",
+    /** Session 38: Monaco 编辑器高级特性 */
+    bracketColorization: savedEditor.bracketColorization ?? true,
+    stickyScroll: savedEditor.stickyScroll ?? true,
+    indentGuides: savedEditor.indentGuides ?? true,
+    parameterHints: savedEditor.parameterHints ?? true,
+    renderWhitespace: savedEditor.renderWhitespace ?? "selection",
+    /** Session 45: Error Lens + Overview Ruler 设置 */
+    errorLens: savedEditor.errorLens ?? true,
+    showErrors: savedEditor.showErrors ?? true,
+    showWarnings: savedEditor.showWarnings ?? true,
+    showInfos: savedEditor.showInfos ?? true,
+    selectionHighlight: savedEditor.selectionHighlight ?? true,
+    overviewRuler: savedEditor.overviewRuler ?? true,
+    overviewRulerLanes: savedEditor.overviewRulerLanes ?? 3,
+    emmetEnabled: savedEditor.emmetEnabled ?? true,
+    /** Session 46: 编辑器增强功能 */
+    smartSelect: savedEditor.smartSelect ?? true,
+    linkedEditing: savedEditor.linkedEditing ?? true,
+    wordHighlight: savedEditor.wordHighlight ?? true,
+    unicodeHighlight: savedEditor.unicodeHighlight ?? true,
+    longLines: savedEditor.longLines ?? true,
+    codeLens: savedEditor.codeLens ?? true,
+    inlayHints: savedEditor.inlayHints ?? true,
+    folding: savedEditor.folding ?? true,
+    matchBrackets: savedEditor.matchBrackets ?? true,
+    colorDecorators: savedEditor.colorDecorators ?? true,
+    renderControlCharacters: savedEditor.renderControlCharacters ?? false,
+    tabFocusMode: savedEditor.tabFocusMode ?? false,
+    smoothScrolling: savedEditor.smoothScrolling ?? true,
+    middleScroll: savedEditor.middleScroll ?? true,
+    placeholderText: savedEditor.placeholderText ?? "",
   },
   appearance: {
     theme: "codebuddy-dark",
@@ -227,10 +382,70 @@ function close() {
   emit("update:visible", false)
 }
 function apply() {
+  // Session 38: 保存编辑器设置到 localStorage，CodeEditor 实时读取
+  saveEditorSettings({
+    fontSize: ls.editor.fontSize,
+    fontFamily: ls.editor.fontFamily,
+    tabSize: ls.editor.tabSize,
+    insertSpaces: ls.editor.insertSpaces,
+    wordWrap: ls.editor.wordWrap,
+    lineNumbers: ls.editor.lineNumbers,
+    minimap: ls.editor.minimap,
+    autoSave: ls.editor.autoSave,
+    formatOnSave: ls.editor.formatOnSave,
+    formatOnPaste: ls.editor.formatOnPaste,
+    cursorBlinking: ls.editor.cursorBlinking,
+    bracketColorization: ls.editor.bracketColorization,
+    stickyScroll: ls.editor.stickyScroll,
+    indentGuides: ls.editor.indentGuides,
+    parameterHints: ls.editor.parameterHints,
+    renderWhitespace: ls.editor.renderWhitespace,
+    errorLens: ls.editor.errorLens,
+    showErrors: ls.editor.showErrors,
+    showWarnings: ls.editor.showWarnings,
+    showInfos: ls.editor.showInfos,
+    selectionHighlight: ls.editor.selectionHighlight,
+    overviewRuler: ls.editor.overviewRuler,
+    overviewRulerLanes: ls.editor.overviewRulerLanes,
+    emmetEnabled: ls.editor.emmetEnabled,
+    /** Session 46: 编辑器增强功能 */
+    smartSelect: ls.editor.smartSelect,
+    linkedEditing: ls.editor.linkedEditing,
+    wordHighlight: ls.editor.wordHighlight,
+    unicodeHighlight: ls.editor.unicodeHighlight,
+    longLines: ls.editor.longLines,
+    codeLens: ls.editor.codeLens,
+    inlayHints: ls.editor.inlayHints,
+    folding: ls.editor.folding,
+    matchBrackets: ls.editor.matchBrackets,
+    colorDecorators: ls.editor.colorDecorators,
+    renderControlCharacters: ls.editor.renderControlCharacters,
+    tabFocusMode: ls.editor.tabFocusMode,
+    smoothScrolling: ls.editor.smoothScrolling,
+    middleScroll: ls.editor.middleScroll,
+    placeholderText: ls.editor.placeholderText,
+  })
   close()
 }
+/** 编辑器默认值（用于重置） */
+const editorDefaults = {
+  fontSize: 14, fontFamily: "'JetBrains Mono',monospace", tabSize: 4,
+  insertSpaces: true, wordWrap: "off", lineNumbers: "on", minimap: true,
+  autoSave: "afterDelay", formatOnSave: true, formatOnPaste: false, cursorBlinking: "smooth",
+  bracketColorization: true, stickyScroll: true, indentGuides: true,
+  parameterHints: true, renderWhitespace: "selection",
+  errorLens: true, showErrors: true, showWarnings: true, showInfos: true,
+  selectionHighlight: true, overviewRuler: true, overviewRulerLanes: 3, emmetEnabled: true,
+  /** Session 46: 编辑器增强默认值 */
+  smartSelect: true, linkedEditing: true, wordHighlight: true,
+  unicodeHighlight: true, longLines: true, codeLens: true, inlayHints: true,
+  folding: true, matchBrackets: true, colorDecorators: true,
+  renderControlCharacters: false, tabFocusMode: false,
+  smoothScrolling: true, middleScroll: true, placeholderText: "",
+}
 function resetS() {
-  // Reset settings to defaults
+  Object.assign(ls.editor, editorDefaults)
+  saveEditorSettings(editorDefaults)
 }
 </script>
 
