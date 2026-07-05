@@ -1,12 +1,14 @@
 # 全栈 AI 平台部署指南 —— Linux
 
-> 在原生 Linux（Ubuntu/Debian/CentOS）上部署 9 容器全栈 AI 平台（PostgreSQL + Redis + Qdrant + Ollama + vLLM + Open WebUI + 监控栈），离线镜像一键导入。
+> 在原生 Linux（Ubuntu/Debian/CentOS）上通过 `compose.yml` 一键部署全栈 AI 平台（PostgreSQL + Redis + Qdrant + Backend API + 3 前端 + Ollama + vLLM + Open WebUI + 监控栈）。
 >
-> **📄 镜像来源与基础方案**：本文使用的所有 Docker 镜像及通用部署架构定义在 [`部署概览.md`](部署概览.md)（基础篇），请先阅读了解镜像清单和 Traefik/CI/CD/监控栈概览。
+> **📄 通用架构与 compose 文件说明**：先阅读 [`Docker快速启动.md`](Docker快速启动.md) 了解 3 个 compose 文件的关系、全部服务清单和端口速查。
+>
+> **📄 部署概览**：CI/CD、Traefik 网关、监控栈等进阶配置见 [`部署概览.md`](部署概览.md)。
 
 **适用人群**：Linux 服务器、双系统 Linux 用户、追求最佳性能的开发者。
 
-**前置条件**：NVIDIA GPU 驱动已安装，了解 Docker 基本用法。
+**前置条件**：NVIDIA GPU 驱动已安装，Docker 基本熟悉。
 
 ---
 
@@ -104,71 +106,83 @@ docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
 ## 二、快速部署
 
 ```bash
-# 1. 进入目录（直接本地路径，不需要 wsl 命令）
-cd /home/user/docker-images
-# 或 cd /data/docker-images
+# 1. 进入项目目录
+cd /path/to/ai-fullstack-platform
 
-# 2. 加载离线镜像
-docker load -i infra-images-latest.tar          # PG + Redis + Qdrant
-docker load -i monitoring-images-latest.tar     # Prometheus + Alertmanager + Grafana
-docker load -i ollama-latest.tar
-docker load -i vllm-openai-latest.tar           # 可选
-docker load -i open-webui-main.tar
+# 2. 首次构建所有镜像（~30 分钟，后续秒级）
+docker compose build
 
-# 3. 创建网络 + 启动
-docker network create backend 2>/dev/null
-docker network create llm-net 2>/dev/null
+# 3. 首次执行数据库迁移（仅一次）
+docker compose run --rm prestart
+
+# 4. 一键启动（compose.yml + compose.override.yml 自动合并）
 docker compose up -d
 
-# 4. 验证
+# 5. 验证
 docker ps
+curl http://localhost:18000/api/v1/system/health
 nvidia-smi
 ```
+
+> 💡 **Linux 最大优势**：`systemctl` 管理 dockerd，无需像 WSL2 那样每次手动 `sudo dockerd &`。`compose.yml` 定义全部 10 个 service，`docker compose up -d` 一站式启动。
 
 ---
 
 ## 三、架构概览
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                     Linux 宿主机                         │
-│  :3090(WebUI) :11434(Ollama) :3080(vLLM)               │
-│  :5432(PG) :6379(Redis) :6333(Qdrant) :9091(Grafana)  │
-│                                                        │
-│  ┌─────── llm-net ───────┐  ┌─────── backend ────────┐ │
-│  │ ollama :11434         │  │ postgres :5432         │ │
-│  │ vllm   :3080          │  │ redis    :6379         │ │
-│  │ open-webui :8080      │  │ qdrant   :6333/4       │ │
-│  └───────────────────────┘  │ prometheus :9090       │ │
-│                              │ alertmanager :9093     │ │
-│                              │ grafana :3000          │ │
-│                              └────────────────────────┘ │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         Linux 宿主机                               │
+│  :18000(API) :5175(Studio Admin) :5174(Video C) :5176(Video Admin)│
+│  :18080(Adminer) :18090(Traefik) :3090(WebUI) :11434(Ollama)     │
+│  :3080(vLLM) :5432(PG) :6379(Redis) :6333(Qdrant) :9091(Grafana) │
+│                                                                    │
+│  ┌───────────────── 全部 compose.yml service ──────────────────┐  │
+│  │  db(postgres)  redis  qdrant     ← 基础设施                  │  │
+│  │  ollama  vllm  open-webui        ← AI 推理（GPU）            │  │
+│  │  backend  celery-worker  prestart ← 核心 API + 任务队列       │  │
+│  │  video-client  video-admin  studio-admin ← 前端 Nginx 静态     │  │
+│  │  adminer  prometheus  grafana  alertmanager ← 辅助/监控       │  │
+│  │  proxy(traefik)  mailcatcher  playwright ← 开发叠加层         │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**网络隔离**：`llm-net`（AI 推理互访）+ `backend`（基础设施 + 监控）。
+> 📦 `compose.yml` 定义全部 10 个 service，`compose.override.yml` 叠加开发配置（端口映射/热重载/Traefik）。`docker compose up -d` 自动合并两个文件。完整服务清单见 [`Docker快速启动.md`](Docker快速启动.md)。
 
 ---
 
 ## 四、全部容器清单
 
-### 基础设施（`backend` 网络）
+### 应用服务（compose.yml 需构建）
 
 | 服务 | 镜像 | 端口 | 默认凭证 | 用途 |
 |---|---|---|---|---|
-| PostgreSQL 16 | `postgres:16-alpine` | 5432 | admin/admin123/studio | 关系数据库 |
-| Redis 7 | `redis:7-alpine` | 6379 | 无密码 | 缓存/队列 |
-| Qdrant | `qdrant/qdrant:latest` | 6333/6334 | — | 向量数据库(RAG) |
+| **Backend API** | `ai-platform-backend:latest` | 18000:8000 | admin@example.com/changethis | FastAPI 核心 API |
+| **Celery Worker** | `ai-platform-backend:latest` | — | — | 异步任务队列 |
+| **video-client** | `ai-platform-video-client:latest` | 5174:80 | — | Vue 3 视频浏览 C 端 |
+| **video-admin** | `ai-platform-video-admin:latest` | 5176:80 | — | React 19 视频管理后台 |
+| **studio-admin** | `ai-platform-studio-admin:latest` | 5175:80 | — | Vue 3 Studio 管理后台 |
+| Adminer | `adminer` | 18080:8080 | — | 数据库可视化管理 |
+| Traefik (proxy) | `traefik:3.6` | 80, 18090 | — | 反向代理（叠加层） |
 
-### AI 服务（`llm-net` 网络）
+### 基础设施（官方镜像）
+
+| 服务 | 镜像 | 端口 | 默认凭证 |
+|---|---|---|---|
+| PostgreSQL 16 | `postgres:16-alpine` | 5432 | admin/admin123/studio |
+| Redis 7 | `redis:7-alpine` | 6379 | 无密码 |
+| Qdrant | `qdrant/qdrant:latest` | 6333/6334 | — |
+
+### AI 服务（GPU，可选）
 
 | 服务 | 镜像 | 端口 | GPU | 用途 |
 |---|---|---|---|---|
-| **Ollama** ⭐ | `ollama/ollama:latest` | 11434 | ✅ | **主力**：多模型管理，API 热切换 |
-| vLLM | `vllm/vllm-openai:latest` | 3080 | ✅ | 可选：单模型高并发。**Linux 无需 UVA patch** |
+| **Ollama** ⭐ | `ollama/ollama:latest` | 11434 | ✅ | 多模型管理，API 热切换 |
+| vLLM | `vllm/vllm-openai:latest` | 3080 | ✅ | 单模型高并发 |
 | Open WebUI | `ghcr.io/open-webui/open-webui:main` | 3090 | ❌ | AI 对话界面 |
 
-### 监控（`backend` 网络）
+### 监控
 
 | 服务 | 镜像 | 端口 | 凭证 |
 |---|---|---|---|
@@ -179,11 +193,17 @@ nvidia-smi
 ### 地址速查
 
 ```
+Backend API    → http://localhost:18000/api/v1/system/health
+Studio Admin   → http://localhost:5175             (Vue 3 管理端)
+Video Client   → http://localhost:5174             (Vue 3 C 端)
+Video Admin    → http://localhost:5176             (React 19 管理端)
 Open WebUI     → http://localhost:3090
 Ollama API     → http://localhost:11434
 vLLM API       → http://localhost:3080/v1
-Grafana        → http://localhost:9091    (admin/admin)
-PostgreSQL     → localhost:5432           (admin/admin123/studio)
+Grafana        → http://localhost:9091             (admin/admin)
+Traefik        → http://localhost:18090            (Dashboard)
+Adminer        → http://localhost:18080
+PostgreSQL     → localhost:5432                    (admin/admin123/studio)
 Redis          → localhost:6379
 Qdrant HTTP    → http://localhost:6334
 Prometheus     → http://localhost:9090
@@ -193,165 +213,60 @@ Prometheus     → http://localhost:9090
 
 ## 五、基础设施部署
 
+> 📦 `compose.yml` 已配置全部基础设施（db/redis/qdrant），无需手动编写。以下是各服务手动部署参考（了解即可）。
+
 ### 5.1 PostgreSQL 16
 
-```yaml
-postgres:
-  image: postgres:16-alpine
-  container_name: postgres
-  restart: unless-stopped
-  environment:
-    POSTGRES_USER: admin
-    POSTGRES_PASSWORD: admin123
-    POSTGRES_DB: studio
-  ports:
-    - "5432:5432"
-  volumes:
-    - pgdata:/var/lib/postgresql/data
-  networks:
-    - backend
-```
+compose.yml 中对应 service 名 `db`，环境变量来自 `.env` 文件。
 
-**验证**：`docker exec -it postgres psql -U admin -d studio`
+**验证**：`docker exec ai-fullstack-platform-db-1 psql -U admin -d studio`
 
 **备份恢复**：
 ```bash
-docker exec postgres pg_dump -U admin studio > backup.sql      # 备份
-docker exec -i postgres psql -U admin -d studio < backup.sql   # 恢复
+docker exec ai-fullstack-platform-db-1 pg_dump -U admin studio > backup.sql       # 备份
+docker exec -i ai-fullstack-platform-db-1 psql -U admin -d studio < backup.sql    # 恢复
 ```
 
-> ⚠️ 生产必改密码，数据在 volume `pgdata` 中，删容器不丢数据。
+> ⚠️ 生产必改 `.env` 中密码，数据在 Docker volume `app-db-data` 中。
 
 ### 5.2 Redis 7
 
-```yaml
-redis:
-  image: redis:7-alpine
-  container_name: redis
-  restart: unless-stopped
-  ports:
-    - "6379:6379"
-  volumes:
-    - redisdata:/data
-  networks:
-    - backend
-```
+**验证**：`docker exec ai-fullstack-platform-redis-1 redis-cli ping` → PONG
 
-**验证**：`docker exec redis redis-cli ping` → PONG
-
-> ⚠️ 默认无密码，公网暴露前加 `command: redis-server --requirepass 密码`。
+> ⚠️ 默认无密码，公网暴露前在 compose.yml 加 `command: redis-server --requirepass 密码`。
 
 ### 5.3 Qdrant 向量数据库
 
-```yaml
-qdrant:
-  image: qdrant/qdrant:latest
-  container_name: qdrant
-  restart: unless-stopped
-  ports:
-    - "6333:6333"    # gRPC
-    - "6334:6334"    # HTTP REST
-  volumes:
-    - qdrantdata:/qdrant/storage
-  networks:
-    - backend
-```
-
 **验证**：`curl http://localhost:6334/collections`
-
-### 5.4 Volume 声明
-
-```yaml
-volumes:
-  pgdata:
-  redisdata:
-  qdrantdata:
-  ollamadata:
-  webuidata:
-  promdata:
-  amdata:
-  grafanadata:
-```
 
 ---
 
 ## 六、监控部署
 
+> 📦 `compose.yml` 已配置全部监控服务（prometheus/alertmanager/grafana），自动采集指标。以下是各服务手动部署参考。
+
 ### 6.1 Prometheus
 
-```yaml
-prometheus:
-  image: prom/prometheus:latest
-  container_name: prometheus
-  restart: unless-stopped
-  ports:
-    - "9090:9090"
-  volumes:
-    - promdata:/prometheus
-  networks:
-    - backend
-```
+**访问**：`http://localhost:9090`
 
 ### 6.2 Alertmanager
 
-```yaml
-alertmanager:
-  image: prom/alertmanager:latest
-  container_name: alertmanager
-  restart: unless-stopped
-  ports:
-    - "9093:9093"
-  volumes:
-    - amdata:/alertmanager
-  networks:
-    - backend
-```
+**访问**：`http://localhost:9093`
 
 ### 6.3 Grafana
 
-```yaml
-grafana:
-  image: grafana/grafana:latest
-  container_name: grafana
-  restart: unless-stopped
-  depends_on:
-    - prometheus
-  ports:
-    - "9091:3000"
-  volumes:
-    - grafanadata:/var/lib/grafana
-  environment:
-    GF_SECURITY_ADMIN_USER: admin
-    GF_SECURITY_ADMIN_PASSWORD: admin
-  networks:
-    - backend
-```
-
-**首次配置**：打开 `http://localhost:9091`，admin/admin → Data Sources → Prometheus → URL: `http://prometheus:9090`。
+**访问**：`http://localhost:9091`，默认 admin/admin。
+**首次配置**：Data Sources → Prometheus → URL: `http://prometheus:9090`。
 
 ---
 
 ## 七、AI 服务部署
 
+> 📦 `compose.yml` 已配置 Ollama/vLLM/Open WebUI。以下是手动部署和模型管理参考。
+
 ### 7.1 Ollama ⭐（主力后端）
 
 多模型并存，API 按名称切模型无需重启，空闲 5 分钟自动释放显存。
-
-```yaml
-ollama:
-  image: ollama/ollama:latest
-  container_name: ollama
-  restart: unless-stopped
-  ports:
-    - "11434:11434"
-  volumes:
-    - ollamadata:/root/.ollama
-  networks:
-    - llm-net
-  runtime: nvidia
-  environment:
-    - NVIDIA_VISIBLE_DEVICES=all
-```
 
 **拉模型**：
 
@@ -382,37 +297,9 @@ docker cp /tmp/Modelfile ollama:/tmp/Modelfile
 docker exec ollama ollama create qwen2-local:1.5b -f /tmp/Modelfile
 ```
 
-### 7.2 vLLM（可选，Linux 专属优势）
+### 7.2 vLLM（可选，高并发场景）
 
-> 💡 仅高并发(100+ QPS)场景需要。日常用 Ollama 即可。
-
-**Linux 上无需 UVA 补丁**！`vllm_entrypoint.sh` 是 WSL2 特有的 workaround，原生 Linux 上直接用官方 vLLM 镜像：
-
-```yaml
-vllm:
-  image: vllm/vllm-openai:latest
-  container_name: vllm
-  restart: unless-stopped
-  runtime: nvidia
-  ports:
-    - "3080:3080"
-  networks:
-    - llm-net
-  # entrypoint: ["/vllm_entrypoint.sh"]  ← Linux 不！需！要！
-  environment:
-    - NVIDIA_VISIBLE_DEVICES=all
-    - HF_HUB_OFFLINE=1
-    - TRANSFORMERS_OFFLINE=1
-  volumes:
-    - /home/user/models:/root/.cache/huggingface:ro
-  command:
-    - "--model"
-    - "/root/.cache/huggingface/models/qwen2"
-    - "--port"
-    - "3080"
-    - "--host"
-    - "0.0.0.0"
-```
+> 💡 Linux 上无需 UVA 补丁，直接用官方 `vllm/vllm-openai:latest` 镜像。日常用 Ollama 即可。
 
 **验证**：
 
@@ -425,25 +312,7 @@ curl http://localhost:3080/v1/models       # 模型列表
 
 ### 7.3 Open WebUI
 
-```yaml
-open-webui:
-  image: ghcr.io/open-webui/open-webui:main
-  container_name: open-webui
-  restart: unless-stopped
-  depends_on:
-    - ollama
-  ports:
-    - "3090:8080"
-  volumes:
-    - webuidata:/app/backend/data
-  environment:
-    OLLAMA_BASE_URL: http://ollama:11434
-    OPENAI_API_BASE_URLS: http://vllm:3080/v1
-  networks:
-    - llm-net
-```
-
-> Open WebUI 已配置 `RAG_EMBEDDING_ENGINE=ollama`，无需额外配置即可启动。
+> compose.yml 已配置，绑定 Ollama (`OLLAMA_BASE_URL: http://ollama:11434`)，访问 `http://localhost:3090`。
 
 ---
 
@@ -487,15 +356,26 @@ Nginx 配置详见 [附录 A](#附录-anginx-反向代理配置)。
 ## 十、常用操作
 
 ```bash
-docker ps                                    # 查看状态
-docker logs -f ollama                        # 实时日志
-docker compose restart open-webui            # 重启单个
-docker compose down && docker compose up -d  # 全部重建
-docker exec -it postgres psql -U admin       # 进数据库
-docker exec ollama ollama list               # 已安装模型
-docker exec ollama ollama pull 模型名          # 下载新模型
-nvidia-smi                                    # GPU 占用
-sudo systemctl restart docker                 # 重启 Docker
+# 核心操作
+docker compose up -d                          # 启动所有服务
+docker compose down                           # 停止所有服务
+docker compose build                          # 重新构建所有镜像
+docker compose restart <service>              # 重启单个服务（如 backend）
+docker compose logs -f backend                # 实时日志
+
+# 数据库
+docker compose exec db psql -U admin -d studio                  # 进 PostgreSQL
+docker compose exec db pg_dump -U admin studio > backup.sql     # 备份
+
+# AI 模型管理
+docker compose exec ollama ollama list          # 已安装模型
+docker compose exec ollama ollama pull qwen2.5-coder:7b  # 下载新模型
+
+# 系统监控
+docker ps                                       # 容器状态
+nvidia-smi                                      # GPU 占用
+docker stats                                    # 资源使用
+sudo systemctl restart docker                   # 重启 Docker 引擎
 ```
 
 ---
@@ -506,9 +386,9 @@ sudo systemctl restart docker                 # 重启 Docker
 
 | 现象 | 原因 | 解决 |
 |---|---|---|
-| postgres/redis 启动崩溃 | 非 nvidia 容器走 nvidia runtime | 去掉 `default-runtime: nvidia` 或不使用它 |
-| `deploy.resources...devices` 不生效 | Swarm 语法 | 改用 `runtime: nvidia` |
-| 3090 无响应 | 容器名冲突 | `docker compose down --remove-orphans` |
+| `docker compose up -d` 报端口冲突 | 端口已被占用 | `lsof -i :端口号` 查占用进程 |
+| prestart 失败 | 数据库未就绪 | 等 db 健康检查通过后重试 |
+| backend 启动后立即退出 | 数据库连接失败 | 检查 `.env` 中 `POSTGRES_SERVER=db`（非 localhost） |
 
 ### AI 服务
 
@@ -565,37 +445,36 @@ ingress:
 
 ## 附录 B：双系统共享数据（Windows + Linux）
 
-把镜像/model/compose 放 **NTFS 分区**，两个系统共用：
+项目代码放 **NTFS 分区**，Docker 数据（镜像层+数据库+缓存）用 ext4 loopback 镜像共享：
 
 ```
-D:\docker-images\          ← Windows
-    ├── compose.yml
-    ├── *.tar
-    ├── models\
-    └── docker-data\
+D:\app\Docker\docker-volumes.img (70GB ext4)        ← WSL2: /mnt/d/app/Docker/
+         ↕ 同一个文件，切换系统自动挂载 ↕
+Linux: /run/media/用户名/Software/app/Docker/docker-volumes.img
 
-/mnt/d/docker-images/      ← Linux 挂载后
+挂载到 → /mnt/dockervol/
+           ├── docker/         ← Docker data-root
+           ├── postgres/       ← 数据库数据
+           ├── redis/          ← 缓存
+           ├── qdrant/         ← 向量库
+           └── ...             ← 其他服务数据
 ```
 
-### 挂载 NTFS 分区
-
+### WSL2 启动
 ```bash
-# 查看 NTFS 分区
-sudo fdisk -l | grep NTFS
-
-# 编辑 /etc/fstab 自动挂载
-UUID=你的NTFS分区UUID  /mnt/d  ntfs-3g  defaults,uid=1000,gid=1000,umask=022  0  0
-
-# 手动挂载
-sudo mount -t ntfs-3g /dev/nvme0n1p4 /mnt/d
+wsl -d Ubuntu-24.04
+sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
+sudo dockerd &> /tmp/dockerd.log &
+cd /mnt/d/code/ai-fullstack-platform
+docker compose up -d
 ```
 
-### 注意事项
+### 双系统 Linux 启动
+```bash
+sudo mount -o loop /run/media/用户名/Software/app/Docker/docker-volumes.img /mnt/dockervol
+sudo systemctl start docker
+cd /run/media/用户名/Software/code/ai-fullstack-platform
+docker compose up -d
+```
 
-| 项目 | 说明 |
-|---|---|
-| docker load | 每个系统各执行一次（镜像在 docker 内部独立存储） |
-| 模型文件 | 用 bind mount 共享：`/mnt/d/docker-images/models:/root/.cache/huggingface:ro` |
-| Docker volumes | `pgdata` 等命名卷不互通，跨系统共享改用 bind mount |
-| 换行符 | `git config --global core.autocrlf input` 防 CRLF 污染 |
-| 符号链接 | NTFS 不支持，模型目录只能用实体文件 |
+> 📖 完整双系统架构细节 → [`多系统共享Docker架构.md`](../development/多系统共享Docker架构.md)
