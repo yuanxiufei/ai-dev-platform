@@ -3,7 +3,21 @@ import { cn } from '@/lib/utils'
 
 defineProps<{
   class?: string
+  modelValue: string
+  tabs: TabItem[]
 }>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
+</script>
+
+<script lang="ts">
+export interface TabItem {
+  value: string
+  label: string
+  icon?: any
+}
 </script>
 
 <template>
@@ -25,23 +39,3 @@ defineProps<{
     <slot name="default" :activeTab="modelValue" />
   </div>
 </template>
-
-<script lang="ts">
-export interface TabItem {
-  value: string
-  label: string
-  icon?: any
-}
-</script>
-
-<script setup lang="ts">
-defineProps<{
-  class?: string
-  modelValue: string
-  tabs: TabItem[]
-}>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
-</script>

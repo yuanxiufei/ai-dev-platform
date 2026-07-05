@@ -3,6 +3,20 @@ import axios from "axios"
 import { toast } from "@/composables/useToast"
 
 /**
+ * Show a success toast message.
+ */
+export function showSuccessToast(message: string) {
+  toast(message, "success")
+}
+
+/**
+ * Show an error toast message.
+ */
+export function showErrorToast(message: string) {
+  toast(message, "error")
+}
+
+/**
  * Extract a human-readable error message from an Axios error or API error response.
  */
 export function extractErrorMessage(
