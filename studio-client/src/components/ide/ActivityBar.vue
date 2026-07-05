@@ -261,14 +261,14 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
   >
     <!-- ─── 顶部 Logo / 资源管理器 (固定第一项) ─── -->
     <button
-      class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+      class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
       :class="activeItemId === 'explorer' ? 'text-white' : 'text-[var(--color-ide-text-dim)]/40'"
       title="资源管理器 (Ctrl+Shift+E)"
       aria-label="资源管理器"
       @click="onActivityClick('explorer')"
     >
       <div v-if="activeItemId === 'explorer'" class="activity-indicator absolute left-0" />
-      <span class="w-6 h-6 inline-flex items-center justify-center" v-html="iconSvgs['Files'] || ''" />
+      <span class="w-5 h-5 inline-flex items-center justify-center" v-html="iconSvgs['Files'] || ''" />
       <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
             :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
         资源管理器
@@ -278,12 +278,12 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
     <!-- 分隔线 -->
     <div class="separator" />
 
-    <!-- ─── 中部: 标准视图 (可拖拽重排) ─── -->
-    <div class="flex flex-col w-full">
+    <!-- ─── 中部: 标准视图 (可拖拽重排, 可滚动) ─── -->
+    <div class="flex flex-col w-full overflow-y-auto activity-scroll" style="max-height: calc(100vh - 260px)">
       <button
         v-for="item in standardItems"
         :key="item.id"
-        class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+        class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
         :class="item.id === activeItemId ? 'text-white' : 'text-[var(--color-ide-text-dim)]/40'"
         :title="item.label"
         :aria-label="item.label"
@@ -304,7 +304,7 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
           style="height: 2px; background: var(--color-ide-accent); border-radius: 1px"
         />
 
-        <span class="w-6 h-6 inline-flex items-center justify-center" v-html="iconSvgs[item.icon] || ''" />
+        <span class="w-5 h-5 inline-flex items-center justify-center" v-html="iconSvgs[item.icon] || ''" />
 
         <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
               :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
@@ -327,28 +327,28 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
     <!-- ─── AI 快捷工具 (ai-chat → ChatPanel, ai-studio → StudioPanel) ─── -->
     <div class="flex flex-col w-full">
       <button
-        class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+        class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
         :class="activeItemId === 'ai-chat' ? 'text-white ai-active' : 'text-[var(--color-ide-text-dim)]/40'"
         title="AI 对话"
         aria-label="AI 对话"
         @click="onActivityClick('ai-chat')"
       >
         <div v-if="activeItemId === 'ai-chat'" class="activity-indicator absolute left-0 ai-indicator" />
-        <span class="w-6 h-6 inline-flex items-center justify-center" v-html="iconSvgs['MessageSquare'] || ''" />
+        <span class="w-5 h-5 inline-flex items-center justify-center" v-html="iconSvgs['MessageSquare'] || ''" />
         <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
               :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
           AI 对话
         </span>
       </button>
       <button
-        class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+        class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
         :class="activeItemId === 'ai-studio' ? 'text-white ai-active' : 'text-[var(--color-ide-text-dim)]/40'"
         title="AI Studio 面板"
         aria-label="AI Studio 面板"
         @click="onActivityClick('ai-studio')"
       >
         <div v-if="activeItemId === 'ai-studio'" class="activity-indicator absolute left-0 ai-indicator" />
-        <span class="w-6 h-6 inline-flex items-center justify-center" v-html="iconSvgs['LayoutDashboard'] || ''" />
+        <span class="w-5 h-5 inline-flex items-center justify-center" v-html="iconSvgs['LayoutDashboard'] || ''" />
         <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
               :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
           AI Studio 面板
@@ -359,12 +359,12 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
     <!-- 分隔线 -->
     <div class="separator" />
 
-    <!-- ─── AI 工具分组 (固定顺序, 不可拖拽) ─── -->
-    <div class="flex flex-col w-full">
+    <!-- ─── AI 工具分组 (固定顺序, 不可拖拽, 可滚动) ─── -->
+    <div class="flex flex-col w-full overflow-y-auto activity-scroll" style="max-height: calc(100vh - 360px)">
       <button
         v-for="item in aiItems"
         :key="item.id"
-        class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+        class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
         :class="item.id === activeItemId ? 'text-white ai-active' : 'text-[var(--color-ide-text-dim)]/40'"
         :title="item.label"
         :aria-label="item.label"
@@ -372,7 +372,7 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
         @click="onActivityClick(item.id)"
       >
         <div v-if="item.id === activeItemId" class="activity-indicator absolute left-0 ai-indicator" />
-        <span class="w-6 h-6 inline-flex items-center justify-center" v-html="iconSvgs[item.icon] || ''" />
+        <span class="w-5 h-5 inline-flex items-center justify-center" v-html="iconSvgs[item.icon] || ''" />
         <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
               :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
           {{ item.label }}
@@ -386,14 +386,14 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
     <!-- ─── 底部管理 ─── -->
     <div class="w-full" style="border-top: 1px solid var(--color-ide-border)">
       <button
-        class="activity-item group relative w-full h-12 flex items-center justify-center transition-colors"
+        class="activity-item group relative w-full h-10 flex items-center justify-center transition-colors"
         :class="activeItemId === 'settings' ? 'text-white' : 'text-[var(--color-ide-text-dim)]/40'"
         title="管理 (Ctrl+,)"
         aria-label="管理设置"
         @click="onActivityClick('settings')"
       >
         <div v-if="activeItemId === 'settings'" class="activity-indicator absolute left-0" />
-        <Settings :size="22" />
+        <Settings :size="20" />
         <span class="activity-tooltip absolute left-full ml-1.5 px-2 py-1 rounded-[3px] text-xs whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
               :style="{ background: 'var(--color-ide-surface)', border: '1px solid var(--color-ide-border)', color: 'var(--color-ide-text)' }">
           管理
@@ -480,5 +480,15 @@ const aiItems = computed(() => store.activityItems.filter((it) => !!it.route))
   height: 1px;
   background: var(--color-ide-border);
   margin: 4px 0;
+}
+
+/* ── 滚动条（隐藏原生滚动条但保留滚动能力） ── */
+.activity-scroll {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge */
+  scroll-behavior: smooth;
+}
+.activity-scroll::-webkit-scrollbar {
+  display: none;                  /* Chrome/Safari */
 }
 </style>
