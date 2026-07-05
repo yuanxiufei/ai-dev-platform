@@ -3,15 +3,13 @@ FROM python:3.12
 ENV PYTHONUNBUFFERED=1
 
 # ── 下载加速 ──
-# PyPI 镜像源，可通过 --build-arg UV_INDEX_URL=... 切换
-# 阿里云（已测试通过）: https://mirrors.aliyun.com/pypi/simple/
-# 腾讯云（备选）: https://mirrors.cloud.tencent.com/pypi/simple/
-# 清华（nvidia大包慢）: https://pypi.tuna.tsinghua.edu.cn/simple
-# 官方（nvidia直连CDN）: https://pypi.org/simple/
-ARG UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+# 清华源（PyPI包国内最快）: https://pypi.tuna.tsinghua.edu.cn/simple
+# 阿里云: https://mirrors.aliyun.com/pypi/simple/
+# 腾讯云: https://mirrors.cloud.tencent.com/pypi/simple/
+ARG UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ENV UV_INDEX_URL=${UV_INDEX_URL}
 ENV UV_HTTP_TIMEOUT=600
-ENV UV_CONCURRENT_DOWNLOADS=8
+ENV UV_CONCURRENT_DOWNLOADS=16
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
