@@ -1,0 +1,17 @@
+{
+  "data-root": "/mnt/dockervol/docker",
+  "features": {
+    "buildkit": true
+  },
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerhub.timeweb.cloud",
+    "https://mirror.ccs.tencentyun.com"
+  ],
+  "runtimes": {
+    "nvidia": {
+      "path": "nvidia-container-runtime",
+      "runtimeArgs": []
+    }
+  }
+}

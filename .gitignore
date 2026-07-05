@@ -43,6 +43,9 @@ data/
 .codebase-memory/
 backend/.codebase-memory/
 
+# IDE / CodeBuddy
+.codebuddy/
+
 # Build artifacts
 studio-client/.vite/
 
