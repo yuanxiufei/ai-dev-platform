@@ -1,0 +1,337 @@
+# ============================================================
+# deploy/compose.shared.yml — 双系统 Docker 共享部署
+#
+# 同一份 compose + 同一份 ext4 镜像数据 = 切系统不丢数据
+#
+# 启动:
+#   Linux:  bash setup.sh
+#   WSL2:   bash setup.sh
+#
+# 数据分布:
+#   /data/docker-volumes/docker/        Docker 镜像层 (ext4, 共享)
+#   /data/docker-volumes/postgres/      数据库 (ext4, 共享)
+#   /data/docker-volumes/*              其他服务数据 (ext4, 共享)
+#   ${MODELS_DIR:-models}/ollama/       模型 (NTFS bind mount, 共享)
+#   ${MODELS_DIR:-models}/huggingface/  模型 (NTFS bind mount, 共享)
+# ============================================================
+
+services:
+  # ══════════════════ 基础设施 ══════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-studio}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-studio}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - /data/docker-volumes/postgres:/var/lib/postgresql/data
+    networks:
+      ai-platform-net:
+        aliases:
+          - db
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "6379:6379"
+    volumes:
+      - /data/docker-volumes/redis:/data
+    networks:
+      - ai-platform-net
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      retries: 5
+      start_period: 15s
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - /data/docker-volumes/qdrant:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__HTTP_PORT: 6333
+    networks:
+      - ai-platform-net
+
+  # ══════════════════ AI 模型服务 ══════════════════
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "11434:11434"
+    volumes:
+      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/ollama:/root/.ollama
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - ai-platform-net
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "3080:3080"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+    volumes:
+      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/huggingface:/root/.cache/huggingface:ro
+    command:
+      - "--model"
+      - "/root/.cache/huggingface/models/qwen2"
+      - "--port"
+      - "3080"
+      - "--host"
+      - "0.0.0.0"
+    networks:
+      - ai-platform-net
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - "3090:8080"
+    volumes:
+      - /data/docker-volumes/open-webui:/app/backend/data
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OPENAI_API_BASE_URLS: http://vllm:3080/v1
+    networks:
+      - ai-platform-net
+
+  # ══════════════════ 监控 ══════════════════
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - /data/docker-volumes/prometheus:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - ai-platform-net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - /data/docker-volumes/alertmanager:/alertmanager
+    networks:
+      - ai-platform-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - "9091:3000"
+    volumes:
+      - /data/docker-volumes/grafana:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    networks:
+      - ai-platform-net
+
+  # ══════════════════ 应用层 (来自 ai-fullstack-platform) ══════════════════
+  prestart:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ${DOCKER_IMAGE_BACKEND:-ai-platform-backend}:${TAG:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+    command: bash scripts/prestart.sh
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - SECRET_KEY=${SECRET_KEY:-changethis}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER:-admin@example.com}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-changethis}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-studio}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:5173}
+      - FRONTEND_HOST=${FRONTEND_HOST:-http://localhost:5173}
+    networks:
+      - ai-platform-net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ${DOCKER_IMAGE_BACKEND:-ai-platform-backend}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "18000:8000"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - PROJECT_NAME=${PROJECT_NAME:-AI Fullstack Platform}
+      - SECRET_KEY=${SECRET_KEY:-changethis}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER:-admin@example.com}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-changethis}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-studio}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
+      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    volumes:
+      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/huggingface:/data/models:ro
+    networks:
+      - ai-platform-net
+
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ${DOCKER_IMAGE_BACKEND:-ai-platform-backend}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    working_dir: /app
+    command: celery -A task_queue.celery_app worker --loglevel=info${CELERY_POOL:+ --pool=$CELERY_POOL}
+    environment:
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-studio}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
+      - SECRET_KEY=${SECRET_KEY:-changethis}
+    volumes:
+      - ../workers:/app/workers:ro
+      - ../task_queue:/app/task_queue:ro
+    networks:
+      - ai-platform-net
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "18080:18080"
+    environment:
+      - ADMINER_DESIGN=pepa-linha-dark
+    networks:
+      - ai-platform-net
+
+  # ══════════════════ 前端 (Nginx) ══════════════════
+  studio-client:
+    build:
+      context: ..
+      dockerfile: studio-client/Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:18000}
+        - NODE_ENV=production
+    image: ${DOCKER_IMAGE_STUDIO_CLIENT:-ai-platform-studio-client}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - ai-platform-net
+
+  studio-admin:
+    build:
+      context: ..
+      dockerfile: studio-admin/Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:18000}
+        - NODE_ENV=production
+    image: ${DOCKER_IMAGE_STUDIO_ADMIN:-ai-platform-studio-admin}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5175:80"
+    networks:
+      - ai-platform-net
+
+  video-admin:
+    build:
+      context: ..
+      dockerfile: video-admin/Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:18000}
+        - NODE_ENV=production
+    image: ${DOCKER_IMAGE_VIDEO_ADMIN:-ai-platform-video-admin}:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5176:80"
+    networks:
+      - ai-platform-net
+
+networks:
+  ai-platform-net:
+    driver: bridge
+    name: ai-platform-net
