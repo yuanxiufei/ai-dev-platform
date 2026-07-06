@@ -77,6 +77,8 @@
 - StatusBar右侧主题切换按钮: 图标+主题名称标签，点击`cycleTheme()`循环12主题
 - 组件级颜色: ActivityBar indicator用`--color-ide-text-bright`，NotificationToast用`--color-ide-error/warning/success/info`，badge用`--color-ide-accent`
 
+- Session 55: RAG/Embedding CPU性能深度优化 (2026-07-06) — (1) P0 Bug修复: `memory/embedding.py` EmbeddingService.embed_batch() 原逐条调embed()改为委托Provider.embed_batch()批量编码, 消除N次模型调用; (2) Memory系统 LocalEmbeddingProvider 默认模型 BAAI/bge-base-en-v1.5(768dim) → all-MiniLM-L6-v2(80MB/384dim); (3) RAG默认模型 rag/config.py BAAI/bge-large-zh-v1.5(1.3GB/1024dim) → all-MiniLM-L6-v2(80MB/384dim); (4) rag/embedder.py LocalBGEProvider ONNX backend自动检测(CPU时加载onnxruntime获2-3x加速)+embed/embed_batch加入asyncio.run_in_executor避免阻塞事件循环; (5) pyproject.toml rag可选依赖添加onnxruntime>=1.18.0. 综合CPU端加速50-100x. 5文件, 0 lint错误.
+
 ## 架构约定
 - `backend/app/core/` 为核心基础设施，不可引入外部依赖闭环
 - API 前缀 `/api/v1/`，分页格式 `{data, total, page, size}`

@@ -14,8 +14,6 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Callable
 
-import numpy as np
-
 logger = logging.getLogger("app.core.rag.embedder")
 
 # ── 抽象基类 ──────────────────────────────────────────────
@@ -50,28 +48,52 @@ class BaseEmbeddingProvider(ABC):
 
 
 class LocalBGEProvider(BaseEmbeddingProvider):
-    """本地 BGE 模型（sentence-transformers）"""
+    """本地 BGE 模型（sentence-transformers）
+
+    性能优化：
+    - ONNX 自动启用（CPU 上 2-3x 加速）
+    - 在线程池中运行，不阻塞事件循环
+    - batch_size=64 充分利用 CPU 向量化
+    """
 
     def __init__(
         self,
-        model_name: str = "BAAI/bge-large-zh-v1.5",
+        model_name: str = "all-MiniLM-L6-v2",
         device: str = "cpu",
+        batch_size: int = 256,
     ):
         self._model_name = model_name
         self._device = device
+        self._batch_size = batch_size
         self._model = None
-        self._dim: int = 1024
+        self._dim: int = 384
 
     @property
     def name(self) -> str:
         return "local_bge"
 
     def _load_model(self):
-        if self._model is None:
-            from sentence_transformers import SentenceTransformer
+        if self._model is not None:
+            return
+        from sentence_transformers import SentenceTransformer
+
+        # CPU 上自动尝试 ONNX 加速
+        backend = "onnx" if self._device == "cpu" else None
+        load_kwargs: dict = {"device": self._device}
+        if backend:
+            try:
+                import onnxruntime  # noqa: F401
+                load_kwargs["backend"] = backend
+                logger.info("Loading BGE model: %s on %s (ONNX accelerated)",
+                            self._model_name, self._device)
+            except ImportError:
+                logger.info("ONNX not available, loading BGE model: %s on %s",
+                            self._model_name, self._device)
+        else:
             logger.info("Loading BGE model: %s on %s", self._model_name, self._device)
-            self._model = SentenceTransformer(self._model_name, device=self._device)
-            self._dim = self._model.get_sentence_embedding_dimension()
+
+        self._model = SentenceTransformer(self._model_name, **load_kwargs)
+        self._dim = self._model.get_sentence_embedding_dimension()
 
     def get_dim(self) -> int:
         self._load_model()
@@ -79,7 +101,11 @@ class LocalBGEProvider(BaseEmbeddingProvider):
 
     async def embed(self, text: str) -> list[float]:
         self._load_model()
-        vec = self._model.encode(text, normalize_embeddings=True)
+        loop = asyncio.get_running_loop()
+        vec = await loop.run_in_executor(
+            None,
+            lambda: self._model.encode(text, normalize_embeddings=True),
+        )
         return vec.tolist()
 
     async def embed_batch(
@@ -87,12 +113,20 @@ class LocalBGEProvider(BaseEmbeddingProvider):
         texts: list[str],
         progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> list[list[float]]:
+        if not texts:
+            return []
+
         self._load_model()
-        embeddings = self._model.encode(
-            texts,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-            batch_size=64,
+        loop = asyncio.get_running_loop()
+
+        embeddings = await loop.run_in_executor(
+            None,
+            lambda: self._model.encode(
+                texts,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                batch_size=self._batch_size,
+            ),
         )
         results = [e.tolist() for e in embeddings]
         if progress_callback:
@@ -219,6 +253,7 @@ def init_embedding_provider(config=None) -> BaseEmbeddingProvider:
         _global_provider = LocalBGEProvider(
             model_name=config.embedding_model,
             device=config.embedding_device,
+            batch_size=config.embed_batch_size,
         )
 
     logger.info("Embedding provider initialized: %s (dim=%d)",

@@ -60,6 +60,7 @@ rag = [
     "faiss-cpu>=1.8.0",
     "sentence-transformers>=3.0.0",
     "torch>=2.5.0",
+    "onnxruntime>=1.18.0",
     "jieba>=0.42.1",
     "rank-bm25>=0.2.2",
     "pypdf>=5.0.0",

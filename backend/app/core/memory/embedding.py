@@ -105,23 +105,43 @@ class LocalEmbeddingProvider(EmbeddingProvider):
     """本地 sentence-transformers / BGE Provider
 
     需要安装: pip install sentence-transformers
+    默认使用 all-MiniLM-L6-v2（80MB）
+    自动检测 GPU（CUDA），GPU 上 batch_size=256 大幅加速批量入库
     """
 
     name = "local"
-    dim = 768  # BGE-base-en-v1.5 default
+    dim = 384  # all-MiniLM-L6-v2 default
 
-    def __init__(self, model_name: str = "BAAI/bge-base-en-v1.5") -> None:
+    def __init__(
+        self,
+        model_name: str = "all-MiniLM-L6-v2",
+        device: str | None = None,
+        batch_size: int = 256,
+    ) -> None:
         self.model_name = model_name
+        self._device = device or self._detect_device()
+        self._batch_size = batch_size
         self._model: Any = None
+
+    @staticmethod
+    def _detect_device() -> str:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+        except ImportError:
+            pass
+        return "cpu"
 
     def _ensure_model(self) -> None:
         if self._model is not None:
             return
         try:
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.model_name)
+            self._model = SentenceTransformer(self.model_name, device=self._device)
             self.dim = self._model.get_sentence_embedding_dimension()
-            logger.info("Local embedding model loaded: %s (dim=%d)", self.model_name, self.dim)
+            logger.info("Local embedding model loaded: %s on %s (dim=%d)",
+                         self.model_name, self._device, self.dim)
         except ImportError:
             raise ImportError(
                 "sentence-transformers not installed. Run: pip install sentence-transformers"
@@ -129,7 +149,6 @@ class LocalEmbeddingProvider(EmbeddingProvider):
 
     async def embed(self, text: str) -> list[float]:
         self._ensure_model()
-        # sentence-transformers 是同步的，在线程池中运行
         import asyncio
         loop = asyncio.get_running_loop()
         embedding = await loop.run_in_executor(
@@ -143,7 +162,9 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         loop = asyncio.get_running_loop()
         embeddings = await loop.run_in_executor(
             None,
-            lambda: self._model.encode(texts, normalize_embeddings=True).tolist(),
+            lambda: self._model.encode(
+                texts, normalize_embeddings=True, batch_size=self._batch_size
+            ).tolist(),
         )
         return embeddings
 
@@ -236,10 +257,25 @@ class EmbeddingService:
         return _hash_embedding(text)
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        result: list[list[float]] = []
-        for text in texts:
-            result.append(await self.embed(text))
-        return result
+        """批量生成嵌入（委托给 Provider 真正的 batch 实现，避免 1-by-1）"""
+        if not texts:
+            return []
+
+        # 优先通过 fallback chain 尝试真正的 batch
+        last_error: Exception | None = None
+        for name in self._fallback_chain:
+            provider = self._providers.get(name)
+            if not provider:
+                continue
+            try:
+                return await provider.embed_batch(texts)
+            except Exception as e:
+                last_error = e
+                logger.debug("Embedding batch provider '%s' failed: %s", name, e)
+
+        # 最终回退到 hash
+        logger.warning("All embedding providers failed for batch, using hash fallback")
+        return [_hash_embedding(t) for t in texts]
 
     @property
     def provider_name(self) -> str:

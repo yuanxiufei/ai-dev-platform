@@ -9,6 +9,17 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+def _detect_device() -> str:
+    """自动检测 GPU 可用性"""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except ImportError:
+        pass
+    return "cpu"
+
+
 @dataclass
 class RAGConfig:
     """RAG 系统配置"""
@@ -19,9 +30,9 @@ class RAGConfig:
 
     # ── Embedding ──
     embedding_provider: str = "local"  # local | openai | ollama | bailian
-    embedding_model: str = "BAAI/bge-large-zh-v1.5"  # 本地模型名
-    embedding_dim: int = 1024
-    embedding_device: str = "cpu"  # cpu | cuda
+    embedding_model: str = "all-MiniLM-L6-v2"  # 本地模型名（轻量 80MB, CPU 友好）
+    embedding_dim: int = 384
+    embedding_device: str = field(default_factory=_detect_device)  # cpu | cuda (auto-detect)
 
     # openai-compatible 配置
     embedding_api_base: str = "https://api.openai.com/v1"
@@ -46,7 +57,7 @@ class RAGConfig:
     rerank_enabled: bool = True
     rerank_provider: str = "local"  # local | openai | bailian | none
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
-    rerank_device: str = "cpu"
+    rerank_device: str = field(default_factory=_detect_device)
     rerank_top_k: int = 5
 
     # ── 检索混合权重 ──
@@ -54,7 +65,7 @@ class RAGConfig:
     sparse_weight: float = 0.4
 
     # ── 性能 ──
-    embed_batch_size: int = 32
+    embed_batch_size: int = 256  # GPU: 256, CPU: 32-64 可自行下调
     embed_max_concurrency: int = 4
     embed_max_retries: int = 3
 
