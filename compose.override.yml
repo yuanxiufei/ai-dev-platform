@@ -108,17 +108,12 @@ services:
     # TODO: remove once coverage is done locally
     volumes:
       - ./backend/htmlcov:/app/backend/htmlcov
-    environment:
-      SMTP_HOST: "mailcatcher"
-      SMTP_PORT: "1025"
-      SMTP_TLS: "false"
-      EMAILS_FROM_EMAIL: "noreply@example.com"
-
-  mailcatcher:
-    image: schickling/mailcatcher
-    ports:
-      - "1080:1080"
-      - "1025:1025"
+  # mailcatcher 不需要发邮件，已禁用
+  # mailcatcher:
+  #   image: schickling/mailcatcher
+  #   ports:
+  #     - "1080:1080"
+  #     - "1025:1025"
 
   # ===== 四个前端本地开发 =====
 
@@ -176,7 +171,6 @@ services:
     ipc: host
     depends_on:
       - backend
-      - mailcatcher
     env_file:
       - .env
     environment:
