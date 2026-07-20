@@ -1,3 +1,8 @@
+# compose.override.yml — Traefik 反向代理 + 本地开发覆盖
+# 自动叠加到 compose.yml 上；使用 compose.shared.yml 时此文件被排除，不受影响
+# 启用方式: docker compose up（默认自动加载 override）
+# 前置条件: .env 中设置 DOMAIN=localhost.tiangolo.com
+
 services:
 
   # Local services are available on their ports, but also available on:
@@ -48,7 +53,7 @@ services:
       - traefik-public
       - default
 
-  db:
+  postgres:  # compose.yml 依赖此服务（来自共享网络），本地开发暴露端口
     restart: "no"
     ports:
       - "5432:5432"
@@ -78,7 +83,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      db:
+      postgres:
         condition: service_healthy
 
   backend:
@@ -87,7 +92,7 @@ services:
       - "18000:8000"
     # 跳过 prestart（首次部署需手动执行 docker compose run --rm prestart）
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     # command: sleep infinity  # Infinite loop to keep container alive doing nothing
     command:

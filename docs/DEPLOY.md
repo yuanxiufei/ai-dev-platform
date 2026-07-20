@@ -20,8 +20,14 @@
 │        └── alertmanager/   ← 告警                │
 │                                                  │
 │  app/LLM/models/                                  │
-│    ├── ollama/             ← LLM 模型 (bind)      │
-│    └── huggingface/        ← vLLM 模型 (bind)     │
+│    ├── ollama/             ← LLM 模型实际存储       │
+│    ├── huggingface/        ← vLLM 模型实际存储      │
+│    └── gguf/               ← llama-cpp 模型        │
+│                                                    │
+│  项目 models/                                      │
+│    ├── ollama → 实际存储    ← 目录链接 (Junction)  │
+│    ├── huggingface → 实际存储                      │
+│    └── gguf → 实际存储                             │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -35,12 +41,24 @@
 # WSL2
 sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
 sudo dockerd &> /tmp/dockerd.log &
+
+# 首次使用需创建模型目录链接（仅一次）
 cd /mnt/d/code/ai-fullstack-platform
+ln -s /mnt/d/app/LLM/models/gguf models/gguf
+ln -s /mnt/d/app/LLM/models/huggingface models/huggingface
+ln -s /mnt/d/app/LLM/models/ollama models/ollama
+
 docker compose up -d
 
 # 双系统 Linux
 sudo mount -o loop /media/.../docker-volumes.img /mnt/dockervol
 cd /path/to/ai-fullstack-platform
+
+# 首次使用需创建模型目录链接（仅一次）
+ln -s /media/.../app/LLM/models/gguf models/gguf
+ln -s /media/.../app/LLM/models/huggingface models/huggingface
+ln -s /media/.../app/LLM/models/ollama models/ollama
+
 docker compose up -d
 ```
 
@@ -106,8 +124,10 @@ sudo mount -o loop /mnt/d/app/Docker/docker-volumes.img /mnt/dockervol
 |------|-------|------|
 | 项目代码 | `/run/media/reginyuan/Software/code/ai-fullstack-platform` | `/mnt/d/code/ai-fullstack-platform` |
 | ext4 镜像 | `/run/media/reginyuan/Software/app/Docker/docker-volumes.img` | `/mnt/d/app/Docker/docker-volumes.img` |
-| Ollama 模型 | `/run/media/reginyuan/Software/app/LLM/models/ollama` | `/mnt/d/app/LLM/models/ollama` |
-| HuggingFace 模型 | `/run/media/reginyuan/Software/app/LLM/models/huggingface` | `/mnt/d/app/LLM/models/huggingface` |
+| 模型实际存储 | `/run/media/reginyuan/Software/app/LLM/models/` | `/mnt/d/app/LLM/models/` |
+| 项目 models/ 链接 | `models/gguf → 实际存储/gguf` 等 | `models/gguf → /mnt/d/app/LLM/models/gguf` 等 |
+
+> `.env` 不设 `MODELS_DIR`，compose 回退 `${MODELS_DIR:-../models}`，`models/` 内子目录通过平台原生链接指向实际存储。
 
 ---
 

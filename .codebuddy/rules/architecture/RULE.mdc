@@ -1,136 +1,22 @@
 ---
-description: AI全栈平台项目架构总览、目录结构、核心设计原则、模型调度回退链、闭环系统架构
+description: AI全栈平台架构总览
 alwaysApply: true
 enabled: true
-updatedAt: 2026-06-29T22:00:00.000Z
+updatedAt: 2026-07-19T16:00:00.000Z
 provider: 
 ---
 
-# AI Fullstack Platform — 项目架构与核心设计规范
+# 架构与设计规范
 
-## 项目定位
+## 定位与原则
+AI全栈平台：Studio(AI编程/截图转代码/对话) + Video(文字/UI转视频) + 四闭环。能力导向(按能力不按厂商)、五层回退(本地→第三方→内置)、统一接口(ModelRequest/ModelResponse)、MIT自研零外部依赖。闭环联动详见 closed-loop。
 
-AI Fullstack Platform 是一个全栈AI平台，包含：
-- **Studio**: AI编程工具（截图转代码、自然语言生成全栈项目、AI对话辅助编程）
-- **Video**: 视频生成工具（文字转视频、UI演示视频、视频管理平台）
-- **闭环系统**: CodebaseMemory + LongTermMemory + Agent协同 + AutoCLI (2026-06-29 实现)
+## 核心目录
+`backend/app/core/` — model_router(入口), api_gateway(多Provider), fallback_chain(回退), codebase_memory/(闭环1), agent/(闭环3), memory/(闭环2), tools/autocli.py(闭环4), skills/
+`backend/app/api/routes/` — agent/studio/video/system/memory/skills
+`tests/`
 
-## 目录结构
-
-```
-backend/app/core/          — 核心基础设施
-  model_router.py          — ModelRouter + UnifiedModelInterface (模型调度入口)
-  api_gateway.py           — ApiGateway + 多Provider适配器
-  fallback_chain.py        — FallbackChain 五层回退逻辑
-  config.py                — 全局配置
-
-  codebase_memory/         — 【闭环1】自研代码知识图谱
-    graph.py               —   CodeGraph + Node/Edge + SQLite 持久化
-    parser.py              —   PythonParser (AST) + TreeSitterParser (三层回退)
-    indexer.py             —   FileIndexer (增量索引 + 哈希去重)
-    tools.py               —   8 个查询工具 (search_graph/trace_path/...)
-
-  agent/                   — 【闭环3】Agent 系统
-    orchestrator.py        —   AgentOrchestrator (Planner→Coder→Reviewer)
-    tool_priority.py       —   PrioritizedToolSet (HIGH/MEDIUM/LOW)
-    agent_runner.py        —   AgentRunner (多轮工具调用循环)
-    agent_modes.py         —   6 modes × skills 绑定
-    tool_executor.py       —   ToolExecutor (Sandbox + Middleware)
-    handoff.py             —   SubAgent 委派
-    reflection.py          —   Agent 自省/反思
-    middleware.py           —   LoopDetection/Summarization/Guardrail
-
-  memory/                  — 【闭环2】长期记忆系统
-    memory_store.py        —   MemoryNode/Edge + SQLite 持久化 + 衰减算法
-    memory_extractor.py    —   对话/代码/反思 → 结构化记忆
-    memory_retriever.py    —   关键词+图遍历综合检索
-    store.py               —   向量记忆 (语义搜索) [原有]
-    embedding.py           —   多 Provider embedding [原有]
-
-  tools/                   — Tool 执行层
-    autocli.py             —   【闭环4】AutoCLI 安全命令行 (5级白名单+注入检测)
-    registry.py            —   ToolRegistry [原有]
-    schema.py              —   FunctionTool/ToolSchema [原有]
-
-  skills/                  — Skills 技能系统
-    skill_manager.py       —   SkillManager (发现/CRUD/激活/prompt生成)
-
-  mcp/                     — MCP 客户端 [原有]
-    __init__.py            —   MCPClient + MCPManager (SSE/HTTP/Stdio 三传输)
-
-backend/app/api/routes/    — API路由
-  agent/                   — Agent 路由
-    ckg.py                 —   代码知识图谱 API (已迁移到 CodebaseMemory)
-    chat.py                —   Agent 对话
-    modes/                 —   Agent 模式管理
-    tools/                 —   工具管理
-    mcp/                   —   MCP 服务器管理
-  studio/                  — Studio路由
-  video/                   — Video路由
-  system/                  — 系统路由
-  memory/                  — 记忆 API
-  skills/                  — 技能 API
-
-ai_models/                 — 模型管理层
-tests/                     — 测试
-  test_closed_loop.py      — 闭环端到端测试 (59 项)
-```
-
-## 核心设计原则
-
-1. **能力导向**：模型按能力分类，不按厂商分类
-2. **回退链**：本地模型 → 第三方API → 内置基础模型，五层回退
-3. **统一接口**：所有模型调用走 ModelRequest/ModelResponse 契约
-4. **自主实现**：所有代码自研，MIT许可证，零外部依赖闭环
-5. **闭环联动**：CodebaseMemory → MemoryStore → AgentOrchestrator → AutoCLI 四系统互通
-
-## Closed-Loop 联动流程
-
-```
-用户请求 → AgentOrchestrator
-  1. SkillsManager 加载对应技能
-  2. PrioritizedToolSet 排序工具 (HIGH→MEDIUM→LOW)
-  3. CodebaseMemory 提供代码结构上下文
-  4. MemoryRetriever 注入历史记忆
-  5. ModelRouter 调度模型 (回退链)
-  6. AutoCLI 安全执行命令
-  7. MemoryExtractor 保存决策/教训
-```
-
-## 模型调度回退链
-
-```
-Layer 1: 用户指定模型 → 直接使用
-Layer 2: 本地最优模型 (DynamicScore 前3)
-Layer 3: 本地次优模型 (降级)
-Layer 4: 第三方API (OpenAI→Claude→DeepSeek→Replicate→智谱→通义千问)
-Layer 5: 内置基础模型 (永远可用)
-```
-
-## DynamicScore 评分公式
-
-```
-DynamicScore = base_priority × availability_factor × performance_factor
-- availability_factor: 0=不可用, 0.5=降级, 1=完全可用
-- performance_factor: 成功率(60%) × 速度因子(40%)
-```
-
-## 数据流
-
-```
-用户请求 → FastAPI路由 → ModelRouter.generate(ModelRequest) → Scheduler.rank(capability) → FallbackChain执行 → 返回ModelResponse
-```
-
-## API 前缀
-
-所有API挂载在 `/api/v1/` 下。
-
-## 支持的第三方API提供商
-
-- **openai**: GPT-4o, GPT-4-turbo, GPT-3.5, o1, o3
-- **anthropic**: Claude Sonnet 4, Claude 3 Opus
-- **deepseek**: DeepSeek-V3, DeepSeek-Coder
-- **azure**: Azure OpenAI Service
-- **replicate**: CogVideoX, Stable Video Diffusion
-- **zhipu**: GLM-4 Plus, GLM-4V
-- **qwen**: 通义千问 Max/Plus
+## 模型调度
+回退链：用户指定 > 本地最优(DynamicScore前3) > 本地次优 > 第三方(OpenAI/Claude/DeepSeek/智谱等) > 内置基础
+数据流：路由 → ModelRouter.generate(ModelRequest) → Scheduler.rank(capability) → FallbackChain → ModelResponse
+API前缀：`/api/v1/`

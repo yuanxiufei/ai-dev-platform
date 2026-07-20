@@ -34,7 +34,15 @@ Windows 宿主机 (D: 盘)
 │   └── Ubuntu-24.04\
 │       └── ext4.vhdx                       ← WSL 发行版存储
 │
-└── D:\app\LLM\models\                      ← AI 模型权重（bind mount 共享）
+└── D:\app\LLM\models\                      ← AI 模型权重实际存储
+    ├── gguf/                                 ←   llama-cpp GGUF 模型
+    ├── huggingface/                          ←   vLLM HuggingFace 缓存
+    └── ollama/                               ←   Ollama 模型
+
+└── D:\code\ai-fullstack-platform\models\    ← 项目内 models/（目录链接）
+    ├── gguf → D:\app\LLM\models\gguf         ←   Windows: NTFS Junction (mklink /J)
+    ├── huggingface → D:\app\LLM\models\huggingface
+    └── ollama → D:\app\LLM\models\ollama
 ```
 
 **核心原则**：两系统使用完全相同的 `compose.yml` + `compose.override.yml` + `.env`，零本地差异化配置。
@@ -111,7 +119,74 @@ docker compose down
 | **项目代码** | `/mnt/d/code/ai-fullstack-platform` | `/media/用户名/Data/code/ai-fullstack-platform` |
 | **数据镜像** | `/mnt/d/app/Docker/docker-volumes.img` | `/media/用户名/Data/app/Docker/docker-volumes.img` |
 | **挂载点** | `/mnt/dockervol` | `/mnt/dockervol` |
-| **AI 模型** | `/mnt/d/app/LLM/models/huggingface` | `/media/用户名/Data/app/LLM/models/huggingface` |
+| **AI 模型实际存储** | `/mnt/d/app/LLM/models/`（含 gguf/huggingface/ollama） | `/media/用户名/Data/app/LLM/models/` |
+| **项目内 models/ 链接** | `models/gguf → /mnt/d/app/LLM/models/gguf`（等 3 个） | `models/gguf → /media/.../app/LLM/models/gguf`（等 3 个） |
+
+---
+
+## 模型目录链接机制
+
+### 为什么需要目录链接？
+
+AI 模型权重文件体积巨大（数十 GB），不适合放在项目 Git 仓库中。模型文件实际存储在 `D:/app/LLM/models/`（Windows）或对应的 Linux 路径，但 Docker Compose 卷挂载使用项目相对路径 `${MODELS_DIR:-../models}`。
+
+**解决方案**：在项目 `models/` 目录下创建指向实际存储的目录链接。
+
+### .env 配置说明
+
+`.env` **不再设置 `MODELS_DIR`**，Docker Compose 自行回退为 `../models`（即项目根目录的 `models/`）。`models/` 内的子目录通过平台原生的目录链接解析到实际存储位置：
+
+```
+项目 models/
+├── gguf → /实际路径/LLM/models/gguf        (各系统自行创建)
+├── huggingface → /实际路径/LLM/models/huggingface
+└── ollama → /实际路径/LLM/models/ollama
+```
+
+Docker Compose 的卷挂载写法（`deploy/compose.shared.yml`）：
+
+```yaml
+volumes:
+  - ${MODELS_DIR:-../models}/gguf:/models:ro
+```
+
+Compose 解析 `${MODELS_DIR:-../models}` → 取 `../models`（默认值）→ 通过 `models/gguf` 目录链接 → 最终读到实际模型文件。
+
+### 各平台创建命令
+
+#### Windows（NTFS Junction，在项目根目录执行）
+
+```batch
+cd D:\code\ai-fullstack-platform
+mklink /J models\gguf D:\app\LLM\models\gguf
+mklink /J models\huggingface D:\app\LLM\models\huggingface
+mklink /J models\ollama D:\app\LLM\models\ollama
+```
+
+#### 双系统 Linux / WSL2（符号链接，在项目根目录执行）
+
+```bash
+cd /mnt/d/code/ai-fullstack-platform   # WSL2
+# 或
+cd /media/用户名/Data/code/ai-fullstack-platform  # 双系统
+
+ln -s /mnt/d/app/LLM/models/gguf models/gguf
+ln -s /mnt/d/app/LLM/models/huggingface models/huggingface
+ln -s /mnt/d/app/LLM/models/ollama models/ollama
+```
+
+> **注意**：Linux 下 `ln -s` 的目标路径必须是该 Linux 环境内可访问的路径（WSL2 用 `/mnt/d/...`，双系统用 `/media/.../...`）。
+> 如果实际存储路径不同，请根据各自系统的挂载点调整。
+
+### 验证链接
+
+```bash
+# Windows
+dir /AL models
+
+# Linux
+ls -la models/
+```
 
 ---
 
@@ -147,7 +222,8 @@ docker compose down
 | 规则 | 说明 |
 |---|---|
 | **退出前必须 `docker compose down`** | 否则另一系统启动时容器状态不一致 |
-| **`.env` 两系统通用** | `POSTGRES_SERVER=db` / `REDIS_URL=redis://redis:6379/0` 用 Docker 服务名 |
+| **`.env` 两系统通用** | `POSTGRES_SERVER=db` / `REDIS_URL=redis://redis:6379/0` 用 Docker 服务名，不设 `MODELS_DIR` |
+| **模型目录链接** | 每个系统需自行创建 `models/` 下的目录链接指向实际存储路径 |
 | **镜像可能需重建** | overlay2 驱动版本差异时，`docker compose build --no-cache` |
 | **ext4 镜像挂载失败** | `sudo fsck.ext4 -y /path/to/docker-volumes.img` 修复后重新挂载 |
 

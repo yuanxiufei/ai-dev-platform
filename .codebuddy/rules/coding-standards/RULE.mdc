@@ -1,9 +1,10 @@
 ---
 description: Python后端代码规范、FastAPI启动初始化流程、环境变量配置、全局单例模式
-alwaysApply: true
+alwaysApply: false
 enabled: true
 updatedAt: 2026-06-13T12:17:00.000Z
 provider: 
+globs: "**/*.py"
 ---
 
 # 代码规范与启动配置规则

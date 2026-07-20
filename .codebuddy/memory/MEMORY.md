@@ -6,81 +6,52 @@
 - Python 后端使用 FastAPI + SQLite 原生持久化，零外部向量数据库
 - 代码风格：类型标注 + 全局单例 + 回退链设计
 
-## 技术决策
-- 2026-06-29: 完成四大闭环系统自主实现（CodebaseMemory / LongTermMemory / Agent / AutoCLI），59 项测试通过
-- Session 05-08: 参考 6 个开源项目深度借鉴，实现预算追踪/SKILL.md v2/模型健康检查/Pipeline/Session树/前端UX增强
-- Session 11: 视频系统前后端打通（video-client + video-admin，共 14 文件）
-- Session 12: Agent封闭环增强（WorkflowGraph + ContextWindow + CrewAI上下文链），参考 LangGraph/SWE-agent/CrewAI/OpenHands
-- Session 13: 客户端增强（ToolCallCard + ChatMetricsBar + useChatScroll + ChatSessionManager + 轨迹API），参考 Cline/RooCode/Continue/OpenInterpreter
-- Session 14: Git-Native Agent + Human Input + Memory 图（FuzzyDiffer + Git Auto-Commit + HumanInputMode + MemoryGraphPanel），参考 Aider/AutoGen/HermesStudio
-- Session 15: 智能审批+文件检查点+提示词模板（FileCheckpoint + AutoApprovalEngine + PromptBuilder），参考 RooCode/Cline/OpenInterpreter/OpenHands
-- Session 16: ContextProvider插件+FIM前端集成（ContextProvider 插件系统 + FIM 幽灵文本 + Multi-File 上下文），参考 Continue/Tabby/Zed
-- Session 17: 前端缺陷修复+Tauri功能补全（ProjectNew路由修复 + AtMention真实API + GlobalSearch Web搜索 + 插件安装 + Git Diff完整解析）
-- Session 18: 代码质量与基础设施加固（Vite端口修正 + 硬编码密钥移除 + package.json清理 + lint修复 + MCP auth + SQLite持久化后端）
-- Session 19: 持久化缺口补全+配置修复+测试扩展（SQLite store集成/前端模型自动选择/model_health Ollama配置化/后端175项测试/前端ANSI测试）
-- Session 20: 客户端完善（Studio导航菜单/ProjectDetail工作区/TemplatesBrowse模板流/AgentChat欢迎页重做+Tauri启动修复）
-- Session 21: VSCode+Hermes全量抄写（SCM Git面板/通知系统/ChatPanel增强-Session置顶归档批量删除NewChatDrawer/终端14主题/Diff工作台集成/i18n国际化/12主题系统），14文件，零lint错误
-- Session 22: 12主题CSS变量补全+视觉增强（index.css补全9个缺失主题块~450行CSS变量/修复useThemeStore applyHtmlClass+cycleTheme/notransitions防闪烁/组件硬编码颜色→CSS变量），零lint错误
-- Session 23: VSCode Multi-Editor-Group 分屏编辑器（EditorGroup类型/useEditorStore splitEditor/groups/TabBar groupId过滤/EditorArea组间sash拖拽/面包屑Bar/Monaco配置find+breadcrumbs+右键菜单+useKeybindingStore），零lint错误
-- Session 24: 键盘快捷键集成+DebugPanel+ZenMode（useKeybindingStore注册回调到App.vue/补充IDEStore facade/DebugPanel.vue断点调用栈变量监视/Zen Mode Ctrl+K Z全屏编辑），零lint错误
-- Session 25: VSCode/hermes功能对标继续（OutlinePanel.vue文档符号树~300行/Sidebar集成大纲区域/WelcomePage.vue欢迎页6快捷操作/useMarkdown.ts自研MD渲染引擎Mermaid+KaTeX+代码高亮/ChatPanel集成Markdown/Monaco增强rulers+行高亮+whitespace/7文件），零lint错误
-- Session 26: VSCode/hermes功能对标（PeekView.vue悬浮预览~140行/useQuickDiff.ts行内差异~110行/ChatOutlinePanel.vue对话大纲~150行/GlobalSearch文件分组树形搜索/useMarkdown headingPrefix增强/8文件），零lint错误
-- Session 27: 修复新建文件打不开编辑器问题（useFileTreeStore.ts browser fallback + Sidebar/FileTree auto-openFile/3文件），零lint错误
-- Session 28: 替换浏览器原生 prompt() 为 VS Code 风格 InputDialog (InputDialog/InputDialogHost 双组件 + 全局命令式 API inputDialog() + 字符校验 + App.vue 全局挂载/5文件), 全部 0 lint 错误
-- Session 27: VS Code ActivityBar分离+面板全量补齐（ActivityBar.vue独立48px活动栏~220行/SearchPanel.vue搜索替换面板~440行/ExtensionsPanel.vue扩展管理器~680行含12个模拟扩展/TestingPanel.vue测试资源管理器~420行/Sidebar.vue重构纯内容区/Terminal.vue增强多终端新建分割重命名Shell类型14主题/App.vue布局适配ActivityBar+测试快捷键/useLayoutStore添加testing活动项/useTerminalStore新增createTerminal/closeTerminal/switchToTerminal/duplicateTerminal/renameTerminal/useIDEStore facade暴露），10文件，零lint错误
-- Session 28: 快捷键管理+SCM增强+时间线+任务系统（KeybindingsPage.vue快捷键管理页~430行64条默认快捷键搜索编辑录制冲突检测/ScmPanel.vue分支切换5个分支创建+Stash暂存弹出丢弃/TimelinePanel.vue文件历史时间线8条目按时间分组恢复对比/TasksPanel.vue任务系统11个任务自动检测npm/shell运行状态/TasksPanel集成RightPanel/CodeEditor启用CodeLens语义高亮/ProblemsPanel搜索折叠分组/路由添加/keybindings/App.vue命令入口/ide.ts类型扩展），10文件，零lint错误
-- Session 29: 修复 IDE 关键bug — (1) `useIDEStore` facade 反应性丢失,改用 `storeToRefs` (6 个子 store 统一) — Pinia setup store 中直接 `subStore.ref` 拿的是 unwrap 快照值, 不会响应后续更新; (2) Monaco 0.52 ESM 兼容 `(mod.default ?? mod)`; (3) `onCursorPositionChanged` 0.50+ 重命名为 `onDidChangeCursorPosition`; (4) group 模式 CodeEditor 重渲染竞态, initMonaco 加 `nextTick` 等待 DOM. 验证: 文件树正常渲染 + 点击文件能开 Monaco 编辑器, 零 lint 错误
-- Session 30: ActivityBar 新增"项目"入口 (Briefcase SVG 图标) + 新建 `ProjectsPanel.vue` (~230行) — 顶部搜索/刷新/新建 + 列表/状态徽章(草稿/构建中/部署中/运行中/失败) + hover 打开/删除操作 + 底部"新建项目"按钮. `useLayoutStore.ts` activityItems 第1位插入 projects, `Sidebar.vue` 标题和内容区加 projects 分支. 验证: 点击后 Sidebar 切换到"项目"面板, 后端 500 时优雅显示"重试", 零 lint 错误
-- Session 31: 修复 FileTree 选中态黑色方块 + ProjectsPanel 渐变背景 — **Tauri WebView2 不支持 `color-mix()`** 和 Tailwind v4 `from-{color}/{alpha}` JIT 渐变, 都 fallback 成纯黑. 改用 `rgba(0,122,204,0.18)` 替代 `color-mix(in srgb, var(--color-ide-accent) 18%, transparent)`, 用 inline `style="background: linear-gradient(...)"` 替代 `bg-gradient-to-br from-brand-500/15`. **关键经验**: IDE 桌面端 UI 关键样式优先用原生 CSS 变量 + rgba + inline style, 不依赖 Tailwind JIT. 同时 FileTree 缩进 8→12px 加深层级. 验证: 选中行半透明蓝色高亮 + ProjectsPanel 渐变图标正常, 零 lint 错误
-- Session 32: FileTree 缩进深度对齐 + MenuBar 终端顶级菜单 + 合并 ChatPanel 重复 terminal — (1) FileTree paddingLeft `*12+8` → `*14+18`, 引导线 left `(i-1)*12+18` → `(i-1)*14+25` (中线对齐), 引导线颜色 `rgba(60,60,60,0.55)` → `rgba(120,120,120,0.35)` 更柔和. (2) MenuBar 顶部新增 `终端` 顶级菜单 (新建/分割/清空/关闭/显示), 菜单 min-width 220→260px 防 `Ctrl+Shift+`` 换行. (3) ChatPanel 顶部"工具面板"删除 Terminal tab 只保留 Files, 移除 `Terminal` icon import + `toolPanelTab` ref. **关键经验**: VSCode 风格 FileTree 引导线公式 `left = (depth - 1) * step + (paddingBase + step/2)`, 其中 step=缩进步长, paddingBase=根级 paddingLeft. 验证: 文件树 `my-ai-app > src > {package.json...}` 父子缩进明显 + 顶部菜单 `终端` 菜单完整渲染 + 点击新建终端后 RightPanel 自动切到终端 tab, 零 lint 错误
-    37|- Session 33: VSCode对标修复6项 — (1) P0 底部面板重复渲染: 删除 EditorArea 内嵌面板(~80行), 只保留 App.vue 全局面板; (2) P0 router-view被isEditingFile隐藏: 路由页面改为 overlay 全屏渲染在编辑器上层, 删除 closeAll() 破坏性调用, ActivityBar/MenuBar 不再关闭编辑标签页; (3) P1 RightPanel onMounted 强制覆盖布局偏好已移除, 改为 localStorage 恢复; (4) P1 FileTree Git 状态从 mock 改为 useIDEStore.gitChanges 真实数据; (5) P2 WelcomePage "打开文件夹"实现 Tauri dialog.open + Browser showDirectoryPicker; (6) P2 Settings 按钮 hover 样式移除 + 重复 ::-moz-focus-inner 删除. 全部零 lint 错误.
-- Session 34: VSCode 像素级视觉对齐 (2026-07-04) — (1) 4 个 CSS 高度变量归位: --menubar-height 38→35, --statusbar-height 28→22, --tabbar-height 38→35, --panel-title-height 38→35; (2) StatusBar font-size 14→12, 图标 :size 14→12, item 高度 28→22; (3) CodeEditor fontSize 13→14, wordWrap on→off, scrollBeyondLastLine false→true, padding {8,8}→{0,0}, 背景 #0F131D→#1E1E1E, Cascadia Code 字体置顶, lineNumbersMinChars 4→5; (4) RightPanel 活动指示器 1→2px; (5) 6 处硬编码 35/38px 高度统一为 var(--panel-title-height); (6) MenuBar 菜单项字体 14→13px. 9 文件 26 处改动, 零 lint 错误.
-- Session 35-39: VSCode 功能全量迁移 — (1) 已创建: CommentsPanel.vue (代码评审评论系统, 线程对话/解决/建议接受), FindWidget.vue (Monaco 查找替换控件), MergeEditor.vue (3-way 合并冲突编辑器, 三栏布局), CallHierarchyPanel.vue (传入/传出调用树), LocalHistoryPanel.vue (文件本地历史时间线~7KB), NotebookPanel.vue (代码/Markdown 笔记本~9KB), TypeHierarchyPanel.vue (父/子类型层次结构~4KB), useCommentsStore.ts (评论持久化 localStorage), useEditorLinks.ts (URL/文件/NPM 链接检测), useColorPicker.ts (hex/rgb/hsl 颜色提取), useInlayHints.ts (参数名/返回类型提示), SnippetsPanel.vue (代码片段管理~13KB), GoToSymbol.vue (符号跳转~15KB), CodeActionsMenu.vue (代码操作菜单), RenameInput.vue (F2 重命名), MarkdownPreview.vue (MD 预览~8KB), FloatingDebugToolbar.vue (浮动调试工具栏). (2) Session 39 集成: CodeEditor.vue Ctrl+F/Ctrl+H Monaco addAction 绑定, ScmPanel.vue MergeEditor 导入+冲突状态管理, Sidebar.vue 5 个新面板注册 (callhierarchy/localhistory/typehierarchy/comments/notebook), useLayoutStore.ts 5 个新 activityItems, useIDEStore.ts commentsStore facade (storeToRefs), useKeybindingStore.ts 5 个新快捷键 (Ctrl+Shift+T/Y/C/M, Ctrl+K Ctrl+H), i18n 中英文 6 个新模块 (comments/callHierarchy/localHistory/notebook/typeHierarchy/mergeEditor, 各~15 项), ide.ts 6 个新类型定义. 零引入的 lint 错误.
-- Session 40: VSCode 补充迁移 (2026-07-04) — (1) MenuBar 新增 3 个顶级菜单: 选择 (Select All/Expand/Shrink/AddCursor/ColumnMode), 转到 (GoTo Def/Decl/Ref/Impl/Line/Symbol/Bracket/F8), 运行 (F5/F10/F11/断点/重启); (2) Git Blame: useGitBlame.ts composable (git blame --porcelain 解析, 相对时间计算, 行归因数据), CodeEditor.vue 集成 blame 标注 (glyphMargin 显示作者+hash, hover 查看提交说明, overviewRuler 彩色标记); (3) 文件对比: FileTree 右键菜单 "选择以进行比较" / "与 XX 进行比较" / "取消", Sidebar.vue onCompareFiles handler (splitEditor + openFile 双栏对比); (4) i18n 中英文各 5 个新模块 (blame/compare/selection/go/run, 各~15 项), ide.ts 2 个新类型 (BlameAnnotation/FileCompareState), useKeybindingStore Ctrl+Shift+B toggleBlame. 10 文件, 零 lint 错误.
-- Session 41: Ports 面板 + 搜索替换增强 (2026-07-04) — (1) PortsPanel.vue (~230行): 自动扫描终端输出检测端口(http://localhost:PORT), 每5秒刷新, 端口列表含转发状态指示器/地址/来源(终端/调试/手动), hover 显示操作按钮(打开浏览器/复制地址/移除), 手动添加端口表单, 底部统计栏; (2) 注册: Sidebar.vue ports 分支, useLayoutStore.ts activityItems 新增 ports(Globe 图标), ActivityBar.vue iconSvgs 新增 Globe SVG; (3) SearchPanel.vue 全部替换增强: replaceOne 实际文件内容替换(打开文件→替换行内容→标记修改), replaceAll 确认对话框(Teleport body, 显示匹配数和文件名, 预览替换前后, 取消/全部替换按钮), executeReplaceAll 批量文件逐行替换; (4) i18n 中英文各 2 个新模块(ports 18项/searchReplace 8项), ide.ts 2 个新类型(PortEntry/ReplaceResult). 8 文件, 零 lint 错误.
-- Session 42: VSCode 13 项缺失功能全量对标 (2026-07-04) — (1) Tier1: InlineChatWidget(Ctrl+I内嵌AI对话)/Emmet支持(Monaco配置)/MultiDiffPanel(多文件差异一览)/SearchEditorTab(搜索结果持久化编辑器); (2) Tier2: Language Status(StatusBar)/Settings搜索(9 tab keywords)/Welcome Walkthrough(3步引导+完成追踪); (3) Tier3: BrowserPreview(URL导航+设备模拟)/ProcessExplorer(GUI进程管理)/Snippets InsertSnippet命令面板+TabStop/$1$2$0提示/CustomEditorPanel(6内置编辑器类型)/EditSessionsPanel(会话CRUD+同步)/useSmartDropPaste(优先级拖放粘贴handler); (4) 支撑: useKeybindingStore 3新快捷键(Ctrl+I/Ctrl+Shift+U/Ctrl+Shift+D), useLayoutStore 2新activityItems, Sidebar+ActivityBar面板注册, types/ide.ts 6新接口, i18n 12新模块(~155项). ~27文件, 净增~2200+行, 0 lint 错误.
-- Session 43: VSCode 功能对标收尾 (2026-07-04) — (1) InteractivePanel.vue (~220行) Jupyter/REPL 交互窗口含代码/Markdown单元格+Python模拟执行+内核状态; (2) OnboardingTips.vue (~230行) 5步入门引导+localStorage持久化+Teleport模态框; (3) 面板注册: Sidebar.vue/useLayoutStore.ts/ActivityBar.vue 新增 tasks/ListTodo + interactive/Terminal 条目; (4) 快捷键修正: Ctrl+Shift+B 从 toggleBlame → focusTasks (对齐VSCode Run Build Task), toggleBlame → Ctrl+Shift+Alt+B; (5) InlayHints 集成: useInlayHints composable → CodeEditor.vue 500ms防抖刷新+5 语言类型推断; (6) Terminal FindWidget: Ctrl+F 终端内查找, 缓冲区扫描+导航+大小写/全词/正则选项; (7) types/ide.ts 新增 TaskDefinition/TaskRun/InteractiveCell/InlayHint/BulkEditPreview 5接口; (8) i18n 中英文各5新模块(tasks/interactive/onboarding/inlayHints/bulkEdit, ~55项). 8文件, 零lint错误.
-- Session 44: 快捷键系统修复——双系统竞态 + P0 Bug (2026-07-04) — (1) useShortcuts.ts: 修复3个TS类型错误(CommandPaletteItem._recent可选/keywords类型string/on()缺key字段); (2) App.vue P0: onCommandExecute只处理2个命令→添加shortcutManager.execute(cmdId)回退, 命令面板60+个命令全部可执行; (3) Mac Cmd键映射: normalizeKeyEvent新增isMac检测(userAgentData+userAgent回退), macOS上Meta→Ctrl映射, 快捷键定义统一Ctrl基准; (4) 2文件修改, 0 lint错误.
-- Session 46: VSCode编辑器功能对标 (2026-07-04) — (1) 3新composables: useSmartSelect(6级语义选区)/useLinkedEditing(HTML/XML标签对同步)/useWordHighlighter(全文档单词高亮); (2) CodeEditor.vue 9个Editor Actions+6辅助函数+Event分离架构; (3) SettingsPanel 3新SG分组14新设置; (4) i18n 58新key(29×2)全量中英文; (5) 功能覆盖: P0 StickyScroll/SmartSelect/LinkedEditing/ParameterHints, P1 WordHighlighter/AnchorSelect/CursorUndo/FontZoom/CodeLens等, P2 Unicode/LongLines/MiddleScroll等. 7文件, 0 lint错误.
-- Session 47: VSCode深度对标收尾 (2026-07-04) — VS Code editor/contrib 59模块+workbench/contrib 99模块+terminalContrib 25模块逐项对比后, 修复剩余5缺口+1配置同步: (1) WordPartOperations: Ctrl+Alt+←/→/Backspace/Delete子词导航, 4个Editor Action调用Monaco内置cursorWordPartLeft/Right/deleteWordPartLeft/Right; (2) Minimap SectionHeaders: showRegionSectionHeaders启用, 小地图显示#region注释段落标题; (3) InlayHints设置同步: SettingsPanel新增InlayHints toggle+ls.editor默认值+apply持久化, CodeEditor applyEditorSettings同步Monaco选项; (4) ReadOnlyMessage: onDidAttemptReadOnlyEdit事件拦截提示; (5) UnusualLineTerminators: detectUnusualLineTerminators+autoRemoveUnusualTerminators LS/PS字符检测自动清理; (6) Editor Contrib最终覆盖率53/59(89.8%), 剩余6项为基础设施/依赖语言服务端/极低优. 2文件, 0 lint错误.
-- Session 47 (Part 3) 后端+前端全量对标 (2026-07-04) — VSCode workbench 99模块全量交叉对比后: (1) 后端新建format.py(7语言格式化器+3路由,零外部依赖)+terminal_quickfix.py(20错误模式+2路由); (2) 前端Terminal.vue SplitPane(三态循环)+QuickFix(防抖检测+彩色按钮); (3) CodeEditor.vue formatWithAPI(API优先→Monaco回退)+formatOnPaste+formatDocument注册到window.__formatActiveDocument; (4) App.vue saveFile formatOnSave联动(读localStorage→调format→等50ms→save); (5) SettingsPanel 新增Formatting分组(formatOnSave+formatOnPaste toggles); (6) Workbench 最终覆盖率89/99(89.9%)基础功能 + 本次4/99修复 → 全量99%(排除6个基础设施/WebView/Electron模块). 8文件, 0 lint错误.
-- Session 48: Platform/Services 对标 + 后端3API (2026-07-04) — VSCode platform 71模块 + workbench/services 92模块 + editor/common/services 29模块交叉对比: (1) 后端 language_detection.py: 30语言注册表+三层回退(扩展名0.9→Shebang0.95→Token频次0.5-0.85)+2路由; (2) 后端 code_actions.py: QuickFix/Source/Refactor 3类操作+30+规则码策略+10+execute_fix函数+2路由; (3) 后端 symbols.py: 10语言符号提取器+CodebaseMemory图集成+3路由; (4) 前端 QuickOpen.vue #符号搜索模式+Ctrl+T快捷+防抖API调用+openSymbol跳转; (5) 前端 CodeEditor.vue autoDetectLanguage未知文件检测+showCodeActionsMenu后端API融合+onCodeAction扩展; (6) useKeybindingStore.ts+App.vue Ctrl+T全局快捷键注册. 9文件, 0 lint错误.
-- Session 49: Problem Matchers + Diff Computer (2026-07-04) — VSCode workbench/browser/parts 12模块 + editor/browser 7模块 + editor/common 12模块深度扫描后: (1) 后端 problem_matchers.py: 16内置标准匹配器(SingleLine/MultiLine双模式+自动检测)+自定义注册+磁盘持久化+4路由; (2) 后端 diff.py: 4格式(unified/context/line/side)+python difflib+patching engine+4路由; (3) 前端 TasksPanel.vue: parseOutputWithMatcher自动解析+诊断列表(严重级别颜色条+图标+点击跳转文件行)+"解析问题"按钮. 6文件, 0 lint错误. 全量覆盖率: editor/contrib ~90%, workbench/contrib ~95%, terminalContrib 100%, platform/services ~99%.
-- Session 50: 4大功能接口填坑 (2026-07-04) — editor/contrib 59模块全量对比(15遗漏全为纯前端) + workbench/contrib 确认4核心缺口: (1) 后端 hierarchy.py: CallHierarchy+TypeHierarchy 6路由,CodebaseMemory CALLS/INHERITS边+AST+正则三层回退; (2) 后端 notebook.py: python3/js/shell/sqlite 4Kernel asyncio.subprocess执行+3路由; (3) 后端 testing.py: pytest/jest AST发现+subprocess执行+输出解析+3路由; (4) 前端 useCallHierarchyStore/useTypeHierarchyStore/useNotebookStore/TestingPanel 全部从JS正则/mock升级为后端API调用. 9文件, 0 lint错误. editor/contrib覆盖率 → 100%.
-- Session 51: 4大后端API空窗填补 (2026-07-04) — platform 103目录+workbench/services 92目录+editor/common全量扫描确认4缺口: (1) search.py: ripgrep+grep+Python re三层引擎+4路由,前端 useSearchStore 从Tauri only升级为双模式; (2) snippets.py: 15内置+CRUD+导入导出+7路由,前端 useSnippetsStore 从localStorage升级为API+localStorage同步; (3) lsp_bridge.py: completion/hover/definition/references/symbols/signature-help 6路由,CodebaseMemory+AST+关键词补全; (4) filesystem.py: list/read/write/mkdir/move/copy/delete/info 8路由. 8文件, 0 lint错误. LSP Providers首次从0%→30%.
-- Session 52: platform收尾+3大后端API (2026-07-04) — platform 103中32待审/workspace.services 92/workbench.contrib 99全量扫描: (1) backup.py: DataExporter/DataImporter封装为5 REST路由(POST export/GET download/POST import/GET status/GET files)+异步BackgroundTasks+500MB限制; (2) sync.py: 6类数据跨设备同步(settings/keybindings/snippets/extensions/globalState/tasks) +5路由(manifest/push/pull/merge/reset)+版本号增量+三方deep merge+SQLite持久化; (3) feature_flags.py: boolean/percentage/experiment 3种开关类型+SHA256确定性hash分组+5路由(list/get/create/delete/evaluate)+6内置开关. 5文件, 0 lint错误. platform覆盖率→98%, workbench/services→73%.
-- Session 53: 全量LSP Provider扩展+前后端联动 (2026-07-04) — editor/common 31个Provider扫描: 后端lsp_bridge.py从6→21 Provider (P0:rename/codeActions/formatting/semanticTokens, P1:typeDef/decl/impl/inlayHints/codeLens/folding, P2:docHighlights/links/inlineComp/onTypeFmt), 全部AST+Regex+CodebaseMemory三层分析; 前端: api/lsp.ts全量客户端(21 API方法), useSemanticTokens(26种token type→Monaco装饰), useCodeLens(引用计数+行数标注), useFolding(Monaco foldingProvider), CodeEditor.vue集成(重命名API/代码操作API/格式化API/语义高亮+透镜+折叠实时刷新). 6文件, 0 lint错误. editor/common LSP Providers→87%, 全5层级→100%.
-- Session 54: 6大缺口后端+前端Store双模式迁移 (2026-07-04) — (1) 后端5个新API模块: git.py(17端点+diff/blame解析器), debug_api.py(14端点+DAP桥接+sys.settrace), comments.py(CRUD+线程树+SQLite), tasks.py(5种任务引擎+WebSocket输出+自动检测), extensions.py(18个扩展+市场) → 全部注册到api/main.py; (2) 前端4个Store全面接入后端API + Tauri/Web双模式并存: useGitStore.ts 9个方法(AI fallback模式: stageFile→commit→push→pull→discard→getDiff→listBranches→checkoutBranch→getLog→stash, 移除_warnDesktopOnly), useDebugStore.ts(DAP→REST API+mock回退+sessionId管理+断点同步+变量展开), useCommentsStore.ts(composable→defineStore+API+localStorage后备+workspaceId), useGitBlame.ts(loadBlame双模式+available扩大范围). 13文件, 0 lint错误. 前端覆盖率: 新增3个api客户端(git/debug/comments ~540行).
+## 关键里程碑
+- 2026-06-29: 四大闭环系统自主实现（CodebaseMemory/LongTermMemory/Agent/AutoCLI），59 项测试通过
+- Session 05-20 (6月): 视频系统前后端、Agent封闭环增强、客户端UX全量增强、代码质量加固
+- Session 21-54 (7月): VSCode/hermes 全量对标迁移 — 编辑/终端/Git/调试/搜索/主题/Settings/LSP/格式化/Notebook 等全部面板和功能，累计 200+ 文件，零 lint 错误
+- Session 55 (2026-07-06): RAG/Embedding CPU 性能优化 — embed_batch 批量编码 + MiniLM 小模型替代 + ONNX CPU 加速
 
-## 顶部菜单 (Session 40 9 个)
+## 重要技术经验
+- **Tauri WebView2 不支持 `color-mix()` / Tailwind JIT 渐变** → 用 CSS 变量 + rgba + inline style 替代
+- **Pinia setup store 中 `subStore.ref` 是 unwrap 快照**，需 `storeToRefs()` 保持反应性
+- **Monaco 0.50+** `onCursorPositionChanged` → `onDidChangeCursorPosition`; ESM 需 `mod.default ?? mod`
+- **FileTree 引导线公式**: `left=(depth-1)*step+(paddingBase+step/2)`, 缩进 `depth*step+paddingBase`
+- **IDE 关键样式** 优先原生 CSS 变量 + rgba + inline style，不依赖编译产物
+- **本地开发后端** POSTGRES_SERVER=localhost, REDIS=localhost:6379, QDRANT=localhost, 端口 18000
+- **CodeBuddy 自定义模型**: deepseek-v4-flash 和 deepseek-v4-pro 是有效 ID
+- **llama-cpp (A5000 24G)**: n_gpu_layers -1, n_ctx 32768, cache_type q8_0, 端口 3081
+
+## Docker 服务配置
+- **vLLM**: `webhie/Qwen3.6-27B-int4-AutoRound-Code` (代码场景校准, OpenCodeInstruct 数据集, auto-round-best 量化), GPU 推理, dtype=auto, quantization=auto_round, max-model-len 24576, gpu-memory-utilization 0.85, max-num-seqs 4, **enforce-eager** (禁用 CUDA Graph, Ampere sm_86 兼容), **无 fp8 kv-cache** (需 sm_89+, A5000 不支持), **无 flashinfer** (需 sm_90+), 端口 3080。vLLM v0.24.0 使用 CUDA 13.2，Docker Desktop WSL2 GPU 直通下 RTX A5000 driver 596.72 兼容。模型路径: `/mnt/d/app/LLM/models/huggingface/hub/models--webhie--Qwen3.6-27B-int4-AutoRound-Code:/models/vllm:ro`
+- **llama-cpp**: `Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf` (16.3GB), n_gpu_layers -1, n_ctx 32768, n_batch 512, cache_type q8_0, chat_format chatml, verbose false, 端口 3081。模型位于 `gguf/qwen3.6-27b/` 子目录，卷挂载 `${MODELS_DIR:-../models}/gguf:/models:ro`，容器路径 `/models/qwen3.6-27b/Qwen3.6-27B-...gguf`
+- **Ollama**: 本地 CPU/GPU 推理, qwen3:32b 等模型
+- **模型目录链接** (2026-07-19): `.env` 已移除 `MODELS_DIR`/`HF_HOME`/`HF_HUB_CACHE` 硬编码路径，改为 `models/` 下目录链接 → `D:/app/LLM/models/`（gguf/huggingface/ollama 三个 Junction）。Linux 原生启动时需手动创建 symlink: `ln -s /mnt/d/app/LLM/models/gguf models/gguf` 等
+
+## 顶部菜单结构 (Session 40+)
 `文件 / 编辑 / 选择 / 查看 / 转到 / 运行 / 终端 / Studio / 帮助`
-- "选择" 是 Session 40 新增 (VSCode 选区菜单): Select All/Expand/Shrink/AddCursor/NextMatch/AllMatches/ColumnMode
-- "转到" 是 Session 40 新增 (VSCode 导航菜单): Back/Forward/Def/Decl/Ref/Impl/Line/Symbol/Bracket/F8/Shift+F8
-- "运行" 是 Session 40 新增 (VSCode 调试菜单): Start/Stop/Restart/ToggleBP/StepOver/Into/Out
-
-## 终端入口汇总 (避免重复)
-- **顶部菜单** → `终端` → `新建终端 Ctrl+Shift+`` (Session 32 新增, VSCode 主入口)
-- **顶部菜单** → `查看` → `终端 Ctrl+`` (兼容入口)
-- **RightPanel** 标题栏 → `终端` tab (原有, 切换视图)
-- **ChatPanel** 顶部 → ❌ Session 32 移除 (避免重复)
-
-## 跨平台兼容经验 (重要)
-- **Tauri WebView2 / 老 WebView 不支持 `color-mix()`** → fallback 纯黑. 替代: `rgba()` / `color-mix` 检测
-- **Tailwind v4 `from-{color}/{alpha}` JIT 渐变** 在 .vue 单文件组件中可能未扫描到 → 编译为空 class → 元素无背景. 替代: inline `style="background: linear-gradient(135deg, rgba(R,G,B,A), rgba(R,G,B,A))"`
-- **IDE 关键 UI 样式 (选中态/品牌渐变/激活边框)** 优先用 CSS 变量 + rgba + inline style, 不依赖 Tailwind JIT 编译产物
-- 通用回退: `text-{color}` 自定义色 → `style="color: #XXX"`; `border-{color}/{alpha}` → `style="border: 1px solid rgba(...)"`
-
-## 前端视觉规范
-- 所有UI颜色必须通过CSS变量引用(`var(--color-ide-*)`)，禁止硬编码色值
-- 主题切换流程: `useThemeStore.applyHtmlClass()` → 清除所有`theme-*`类 → 添加新主题类 → dark-category非dark主题额外添加`theme-dark`回退
-- 首页加载: `<html>`添加`no-transitions`类，2个`requestAnimationFrame`后移除，防止主题闪烁
-- StatusBar右侧主题切换按钮: 图标+主题名称标签，点击`cycleTheme()`循环12主题
-- 组件级颜色: ActivityBar indicator用`--color-ide-text-bright`，NotificationToast用`--color-ide-error/warning/success/info`，badge用`--color-ide-accent`
-
-- Session 55: RAG/Embedding CPU性能深度优化 (2026-07-06) — (1) P0 Bug修复: `memory/embedding.py` EmbeddingService.embed_batch() 原逐条调embed()改为委托Provider.embed_batch()批量编码, 消除N次模型调用; (2) Memory系统 LocalEmbeddingProvider 默认模型 BAAI/bge-base-en-v1.5(768dim) → all-MiniLM-L6-v2(80MB/384dim); (3) RAG默认模型 rag/config.py BAAI/bge-large-zh-v1.5(1.3GB/1024dim) → all-MiniLM-L6-v2(80MB/384dim); (4) rag/embedder.py LocalBGEProvider ONNX backend自动检测(CPU时加载onnxruntime获2-3x加速)+embed/embed_batch加入asyncio.run_in_executor避免阻塞事件循环; (5) pyproject.toml rag可选依赖添加onnxruntime>=1.18.0. 综合CPU端加速50-100x. 5文件, 0 lint错误.
 
 ## 架构约定
 - `backend/app/core/` 为核心基础设施，不可引入外部依赖闭环
 - API 前缀 `/api/v1/`，分页格式 `{data, total, page, size}`
 - Agent 流水线顺序不可变: Planner → Coder → Reviewer → Memory
 - 模型回退链: 本地最优 → 本地次优 → 第三方 API → 内置基础
+- UI 颜色通过 CSS 变量引用 `var(--color-ide-*)`，禁止硬编码
+- 主题切换流程: applyHtmlClass() → 清除旧类 → 添加新主题 → no-transitions 防闪烁
+
+## Docker Compose 生产部署 (2026-07-19)
+- **统一文件**：`deploy/compose.shared.yml` 为全栈服务定义，`compose.yml` 仅引用外部网络 `ai-platform-net`
+- **模型卷默认路径**：已清理硬编码路径，`.env` 不设 `MODELS_DIR`，compose fallback `${MODELS_DIR:-../models}` 通过目录链接自动解析，Windows/Linux 双平台统一
+- **启动命令**：`COMPOSE_FILE=deploy/compose.shared.yml docker compose -f deploy/compose.shared.yml up -d`（排除 `compose.override.yml` 避免 DNS/db 冲突）
+- **prestart 修复**：需添加 `PROJECT_NAME=${PROJECT_NAME:-AI Fullstack Platform}` 环境变量（config.py 必填字段）
+- **卷挂载**：backend 不可挂载 `${MODELS_DIR}/huggingface:/data/models:ro`（Windows 路径 `D:/` 冒号冲突），后端通过 API 网关访问模型
+- **监控服务**：prometheus/grafana 需 `user: root`（named/bind volume 写权限），alertmanager 正常无此问题
+- **GPU 服务**：ollama/vLLM/open-webui 用 `docker run --runtime=nvidia --gpus all` 直接启动（绕过 compose pull 镜像源不可达问题）
+- **已知问题**：Docker daemon 腾讯镜像 `mirror.ccs.tencentyun.com` DNS 不可达，需切换为无镜像配置（`docker-daemon-nomirror.json`），但需重启 Docker Desktop 生效；open-webui 无法从 HuggingFace 拉取 `all-MiniLM-L6-v2`（WSL/Docker 网络不可达）
+
+## 禁止事项
+1. 不可重建 `backend/app/core/ckg/` 目录
+2. 不可在 Memory 中引入外部向量数据库（Qdrant/Pinecone）
+3. 不可绕过 AutoCLI 安全检测直接执行命令
+4. 不可删除 Agent Mode 的 skills 绑定
+5. 不可在 codebase_memory 中引入非标准库依赖

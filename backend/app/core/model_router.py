@@ -264,6 +264,57 @@ class ModelRouter:
             return self.api_gateway.get_candidates()
         return []
 
+    # ── 模型上下文窗口默认值（token）──
+    DEFAULT_CONTEXT_WINDOW = 24576  # vLLM / llama-cpp 默认配置
+    MIN_CONTEXT_WINDOW = 4096       # 最低兜底（8K 以下模型）
+    SAFETY_MARGIN = 200             # 预留安全边界
+
+    def _estimate_input_tokens(self, request: ModelRequest) -> int:
+        """简易 token 估算（字符数 / 3.5，中英混合场景下近似 token 数）。
+
+        不依赖 tokenizer，仅在未提供精确 token 数时做兜底估算。
+        """
+        text = request.prompt
+        if request.system_prompt:
+            text += "\n" + request.system_prompt
+        if request.history:
+            for msg in request.history:
+                text += "\n" + str(msg.get("content", ""))
+        # 中英混合平均 ≈ 3.5 chars/token
+        return max(1, len(text) // 3.5)
+
+    def _clamp_max_tokens(self, request: ModelRequest, context_window: int | None = None):
+        """Token 预算保护：确保 input + max_tokens ≤ 模型上下文窗口。
+
+        若估算的输入 token 数 + max_tokens 超出窗口上限，则自动裁剪 max_tokens。
+        context_window 默认使用 DEFAULT_CONTEXT_WINDOW（与 vLLM / llama-cpp 对齐）。
+        """
+        if context_window is None:
+            context_window = self.DEFAULT_CONTEXT_WINDOW
+
+        estimated_input = self._estimate_input_tokens(request)
+        max_allowed_output = max(
+            context_window - estimated_input - self.SAFETY_MARGIN,
+            self.MIN_CONTEXT_WINDOW - estimated_input - self.SAFETY_MARGIN,
+        )
+
+        if max_allowed_output <= 0:
+            # 输入本身就超出窗口了 → 保留最少输出，让模型侧报错
+            logger.warning(
+                "Token budget: input ~%d tokens exceeds context window %d, "
+                "keeping max_tokens=%d (model may still error)",
+                estimated_input, context_window, request.max_tokens,
+            )
+            return
+
+        if request.max_tokens > max_allowed_output:
+            logger.warning(
+                "Token budget: input ~%d + max_tokens=%d > context=%d, "
+                "clamping max_tokens → %d",
+                estimated_input, request.max_tokens, context_window, max_allowed_output,
+            )
+            request.max_tokens = max_allowed_output
+
     def _apply_task_boost(self, task_type: str):
         """根据子任务类型，给匹配的模型 dynamic_score 加成。
 
@@ -374,6 +425,9 @@ class ModelRouter:
 
         # 3. 重建回退链
         self._rebuild_chain()
+
+        # 3.5. Token 预算保护：避免 input + max_tokens 超出模型上下文窗口
+        self._clamp_max_tokens(request)
 
         # 诊断：打印回退链状态
         for node in self._fallback_chain:

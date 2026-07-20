@@ -126,6 +126,31 @@ nvidia-smi
 
 > 💡 **Linux 最大优势**：`systemctl` 管理 dockerd，无需像 WSL2 那样每次手动 `sudo dockerd &`。`compose.yml` 定义全部 10 个 service，`docker compose up -d` 一站式启动。
 
+### 2.1 模型目录链接（首次使用，仅一次）
+
+`.env` **不设置 `MODELS_DIR`**，Docker Compose 使用默认值 `${MODELS_DIR:-../models}` 解析为项目根目录下的 `models/`。需创建符号链接指向实际模型存储位置：
+
+```bash
+cd /path/to/ai-fullstack-platform
+
+# 根据实际存储路径调整目标路径
+ln -s /mnt/d/app/LLM/models/gguf models/gguf           # WSL2 路径示例
+ln -s /mnt/d/app/LLM/models/huggingface models/huggingface
+ln -s /mnt/d/app/LLM/models/ollama models/ollama
+
+# 双系统 Linux 路径示例（替换为实际路径）
+# ln -s /media/用户名/Data/app/LLM/models/gguf models/gguf
+# ln -s /media/用户名/Data/app/LLM/models/huggingface models/huggingface
+# ln -s /media/用户名/Data/app/LLM/models/ollama models/ollama
+```
+
+**验证**：
+```bash
+ls -la models/    # 应显示 gguf -> /实际路径/..., huggingface -> ..., ollama -> ...
+```
+
+> 💡 如果模型存储就在项目 `models/` 目录内（非链接场景），无需执行此步骤。链接的好处是 `.env` + compose 配置跨平台通用。
+
 ---
 
 ## 三、架构概览

@@ -128,22 +128,26 @@ sudo dockerd &> /tmp/dockerd.log &
 # 4. 进入项目目录（代码在 D 盘，WSL 内通过 /mnt/d 访问）
 cd /mnt/d/code/ai-fullstack-platform
 
-# 5. 构建所有镜像（首次 ~30 分钟，后续秒级）
+# 5. 首次使用：创建模型目录链接（只需一次，在 Windows PowerShell 执行）
+#    mklink /J models\gguf D:\app\LLM\models\gguf
+#    mklink /J models\huggingface D:\app\LLM\models\huggingface
+#    mklink /J models\ollama D:\app\LLM\models\ollama
+
+# 6. 构建所有镜像（首次 ~30 分钟，后续秒级）
 docker compose build
 
-# 6. 首次部署执行数据库迁移
+# 7. 首次部署执行数据库迁移
 docker compose run --rm prestart
 
-# 7. 启动全部服务（compose.yml + compose.override.yml 自动合并）
+# 8. 启动全部服务（compose.yml + compose.override.yml 自动合并）
 docker compose up -d
 
-# 8. 验证
+# 9. 验证
 docker ps
 curl http://localhost:18000/api/v1/system/health
 ```
 
 > 💡 更详细的 compose 文件说明和端口速查 → [`Docker快速启动.md`](Docker快速启动.md)
-```
 
 ---
 
@@ -380,6 +384,26 @@ Docker Compose 会自动合并 `compose.yml` + `compose.override.yml`（无需�
 - **prestart 跳过**：日常开发不依赖 prestart，首次部署需手动 `docker compose run --rm prestart`
 
 > 📖 完整 compose 文件说明见 [`Docker快速启动.md`](Docker快速启动.md)。
+
+### 6.6 模型目录链接
+
+`.env` **不设置 `MODELS_DIR`**，Docker Compose 使用默认值 `${MODELS_DIR:-../models}` 解析为项目根目录下的 `models/`。`models/` 内的子目录通过 **NTFS Junction** 指向实际模型存储位置（`D:\app\LLM\models\`）。
+
+**首次使用前创建 Junction（只需一次）**：
+
+```batch
+cd D:\code\ai-fullstack-platform
+mklink /J models\gguf D:\app\LLM\models\gguf
+mklink /J models\huggingface D:\app\LLM\models\huggingface
+mklink /J models\ollama D:\app\LLM\models\ollama
+```
+
+**验证**：
+```batch
+dir /AL models
+```
+
+> 💡 Junction 是 NTFS 目录级硬链接，Docker 容器通过 bind mount 访问时直接读取实际文件。无需在 `.env` 中硬编码 `D:` 路径，compose 配置跨平台通用。
 
 ---
 

@@ -86,7 +86,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/ollama:/root/.ollama
+      - ${MODELS_DIR:-../models}/ollama:/root/.ollama
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - OLLAMA_KEEP_ALIVE=24h
@@ -105,15 +105,75 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - HF_HUB_OFFLINE=1
       - TRANSFORMERS_OFFLINE=1
+      - VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
+      - VLLM_FLOAT32_MATMUL_PRECISION=high
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512
+      - OMP_NUM_THREADS=1
     volumes:
-      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/huggingface:/root/.cache/huggingface:ro
+      - ${MODELS_DIR:-../models}/huggingface/hub:/root/.cache/huggingface:ro
+      - ${MODELS_DIR:-../models}/huggingface/hub/models--webhie--Qwen3.6-27B-int4-AutoRound-Code:/models/vllm:ro
     command:
       - "--model"
-      - "/root/.cache/huggingface/models/qwen2"
+      - "/models/vllm"
       - "--port"
       - "3080"
       - "--host"
       - "0.0.0.0"
+      - "--trust-remote-code"
+      - "--dtype"
+      - "auto"
+      - "--quantization"
+      - "auto_round"
+      - "--max-model-len"
+      - "24576"
+      - "--gpu-memory-utilization"
+      - "0.85"
+      - "--max-num-seqs"
+      - "4"
+      - "--max-num-batched-tokens"
+      - "2048"
+      - "--enforce-eager"
+      - "--enable-chunked-prefill"
+      - "--enable-auto-tool-choice"
+      - "--performance-mode"
+      - "throughput"
+      - "--tool-call-parser"
+      - "qwen3_coder"
+      - "--reasoning-parser"
+      - "qwen3"
+    networks:
+      - ai-platform-net
+
+  llama-cpp:
+    image: ghcr.io/abetlen/llama-cpp-python:latest
+    container_name: llama-cpp
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "3081:3081"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ${MODELS_DIR:-../models}/gguf:/models:ro
+    command:
+      - "--model"
+      - "/models/qwen3.6-27b/Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "3081"
+      - "--n_gpu_layers"
+      - "-1"
+      - "--n_ctx"
+      - "32768"
+      - "--cache_type"
+      - "q8_0"
+      - "--n_batch"
+      - "512"
+      - "--chat_format"
+      - "chatml"
+      - "--verbose"
+      - "false"
     networks:
       - ai-platform-net
 
@@ -129,7 +189,7 @@ services:
       - /data/docker-volumes/open-webui:/app/backend/data
     environment:
       OLLAMA_BASE_URL: http://ollama:11434
-      OPENAI_API_BASE_URLS: http://vllm:3080/v1
+      OPENAI_API_BASE_URLS: http://vllm:3080/v1;http://llama-cpp:3081/v1
       RAG_EMBEDDING_ENGINE: ollama
     networks:
       - ai-platform-net
@@ -139,6 +199,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
+    user: root  # named/bind volume 写权限
     ports:
       - "9090:9090"
     volumes:
@@ -164,6 +225,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
+    user: root  # named/bind volume 写权限
     depends_on:
       - prometheus
     ports:
@@ -190,6 +252,7 @@ services:
     environment:
       - DOMAIN=${DOMAIN:-localhost}
       - ENVIRONMENT=${ENVIRONMENT:-local}
+      - PROJECT_NAME=${PROJECT_NAME:-AI Fullstack Platform}
       - SECRET_KEY=${SECRET_KEY:-changethis}
       - FIRST_SUPERUSER=${FIRST_SUPERUSER:-admin@example.com}
       - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-changethis}
@@ -237,8 +300,8 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - CELERY_BROKER_URL=redis://redis:6379/1
-    volumes:
-      - ${MODELS_DIR:-/run/media/reginyuan/Software/app/LLM/models}/huggingface:/data/models:ro
+    # volumes:  # 后端通过 API 网关访问模型，不需要本地模型挂载
+    #   - ${MODELS_DIR:-../models}/huggingface:/data/models:ro
     networks:
       - ai-platform-net
 
