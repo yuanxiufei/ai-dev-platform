@@ -4,7 +4,22 @@ from app import crud
 from app.core.config import settings
 from app.models import User, UserCreate
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+# 根据数据库类型设置 connect_args
+_database_url = str(settings.SQLALCHEMY_DATABASE_URI)
+_connect_args: dict = {}
+if "postgresql" in _database_url or "postgres" in _database_url:
+    _connect_args = {"connect_timeout": 10}
+else:
+    # SQLite：允许多线程访问（FastAPI 异步上下文）
+    _connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    _database_url,
+    pool_pre_ping=True if "postgresql" in _database_url else False,
+    pool_size=5,
+    max_overflow=10,
+    connect_args=_connect_args,
+)
 
 
 # make sure all SQLModel models are imported (app.models) before initializing DB

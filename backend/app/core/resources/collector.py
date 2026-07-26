@@ -90,8 +90,8 @@ class ResourceCollector:
 
         gpus: list[GPUDeviceInfo] = []
         try:
-            from app.core.gpu.detector import GPUDetector
-            detector = GPUDetector()
+            from app.core.gpu.detector import get_gpu_detector
+            detector = get_gpu_detector()
             gpus = await loop.run_in_executor(None, detector.detect_all)
         except Exception as e:
             logger.debug("GPU detection in collector: %s", e)

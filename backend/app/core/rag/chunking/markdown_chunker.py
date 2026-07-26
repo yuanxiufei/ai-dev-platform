@@ -24,8 +24,18 @@ class MarkdownChunker(BaseChunker):
     HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
     FENCE_PATTERN = re.compile(r"```[\s\S]*?```", re.MULTILINE)
 
-    def __init__(self, chunk_size: int = 1024, chunk_overlap: int = 200):
-        super().__init__(chunk_size, chunk_overlap)
+    def __init__(
+        self,
+        chunk_size: int = 1024,
+        chunk_overlap: int = 200,
+        context_header: Optional[str] = None,
+        token_budget: int = 0,
+    ):
+        super().__init__(
+            chunk_size, chunk_overlap,
+            context_header=context_header,
+            token_budget=token_budget,
+        )
         self._min_chunk_size = max(50, chunk_size // 4)  # 短块合并阈值
 
     @property
@@ -39,7 +49,9 @@ class MarkdownChunker(BaseChunker):
         meta = metadata or {}
         sections = self._split_by_headings(text)
         merged = self._merge_short_sections(sections)
-        return self._build_chunks(merged, meta)
+        chunks = self._build_chunks(merged, meta)
+        chunks = self._apply_context_header(chunks)
+        return self._apply_token_budget(chunks)
 
     def _split_by_headings(self, text: str) -> list[dict]:
         """按标题层级分割，保护围栏代码块"""

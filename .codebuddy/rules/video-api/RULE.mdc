@@ -1,8 +1,8 @@
 ---
 description: Video视频生成工具的后端API设计规范、功能模块、视频生成流程与WebSocket实时进度
 alwaysApply: false
-enabled: true
-updatedAt: 2026-06-13T12:17:00.000Z
+enabled: false
+updatedAt: 2026-07-25T08:03:40.553Z
 provider: 
 ---
 

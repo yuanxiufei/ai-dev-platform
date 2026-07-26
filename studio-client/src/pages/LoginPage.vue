@@ -96,13 +96,13 @@
         <form @submit.prevent="login" class="space-y-5">
           <!-- 邮箱 -->
           <div class="field-group">
-            <label class="field-label">邮箱地址</label>
+            <label class="field-label">用户名</label>
             <div class="input-wrapper">
               <input
                 v-model="username"
-                type="email"
-                autocomplete="email"
-                placeholder="name@company.com"
+                type="text"
+                autocomplete="username"
+                placeholder="请输入用户名"
                 class="login-input"
               />
               <div class="input-icon">
@@ -208,8 +208,8 @@ import { useAuthStore } from '@/stores/useAuthStore'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const username = ref('admin@example.com')
-const password = ref('changethis')
+const username = ref('admin')
+const password = ref('admin')
 const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)

@@ -1,57 +1,65 @@
 # AI Fullstack Platform — 长期记忆
 
-## 项目偏好
-- 所有代码使用中文注释和文档
-- 遵循闭环系统开发规范（不可破坏四层联动）
-- Python 后端使用 FastAPI + SQLite 原生持久化，零外部向量数据库
-- 代码风格：类型标注 + 全局单例 + 回退链设计
+## 项目约定
+- 中文注释 | 闭环四层不可破 | FastAPI + SQLite 零外部向量库 | 类型标注 + 单例 + 回退链
 
-## 关键里程碑
-- 2026-06-29: 四大闭环系统自主实现（CodebaseMemory/LongTermMemory/Agent/AutoCLI），59 项测试通过
-- Session 05-20 (6月): 视频系统前后端、Agent封闭环增强、客户端UX全量增强、代码质量加固
-- Session 21-54 (7月): VSCode/hermes 全量对标迁移 — 编辑/终端/Git/调试/搜索/主题/Settings/LSP/格式化/Notebook 等全部面板和功能，累计 200+ 文件，零 lint 错误
-- Session 55 (2026-07-06): RAG/Embedding CPU 性能优化 — embed_batch 批量编码 + MiniLM 小模型替代 + ONNX CPU 加速
+## 本地开发
+- 后端: port `18000` (uvicorn, backend目录)
+- 前端: studio-client `5173`, studio-admin `5175`, 均代理到 `localhost:18000`
+- 基础服务: Docker 本地运行 PostgreSQL 16/Redis 7/Qdrant/Ollama，容器名 postgres/redis/qdrant/ollama
+- 数据库: PostgreSQL (`localhost:5432`, admin/admin123/studio) 为默认目标。本地开发若 Docker PG 不稳定可切回 SQLite (`DATABASE_URL=sqlite:///./test_platform.db`，注释掉 POSTGRES_* 变量)。所有 PG DSN 必须追加 `?sslmode=disable`
+- **NTFS 挂载**: 项目代码位于 NTFS 分区（fuseblk 挂载），`chmod +x` 不生效。需将 esbuild 等二进制复制到 Linux ext4 分区（`~/.workbuddy/binaries/`）+ 设置 `ESBUILD_BINARY_PATH` 环境变量。vite 通过 `node <pnpm-store>/vite@6.4.3.../node_modules/vite/bin/vite.js` 启动
+- **Node 版本**: 需要 >=20.19.0 或 >=22.12.0（vite 6.4.3 要求），当前用 22.12.0 (路径: `~/.workbuddy/binaries/node/versions/22.12.0/bin/node`)。esbuild 二进制从 `node/versions/<v>/lib/node_modules/esbuild/` 复制到 `~/.workbuddy/binaries/esbuild`
+- 登录: admin/admin, `type="text"` 非 email
+- `/chat` 走 IDE Shell overlay 模式, `/group-chat` 独立全屏
 
-## 重要技术经验
-- **Tauri WebView2 不支持 `color-mix()` / Tailwind JIT 渐变** → 用 CSS 变量 + rgba + inline style 替代
-- **Pinia setup store 中 `subStore.ref` 是 unwrap 快照**，需 `storeToRefs()` 保持反应性
-- **Monaco 0.50+** `onCursorPositionChanged` → `onDidChangeCursorPosition`; ESM 需 `mod.default ?? mod`
-- **FileTree 引导线公式**: `left=(depth-1)*step+(paddingBase+step/2)`, 缩进 `depth*step+paddingBase`
-- **IDE 关键样式** 优先原生 CSS 变量 + rgba + inline style，不依赖编译产物
-- **本地开发后端** POSTGRES_SERVER=localhost, REDIS=localhost:6379, QDRANT=localhost, 端口 18000
-- **CodeBuddy 自定义模型**: deepseek-v4-flash 和 deepseek-v4-pro 是有效 ID
-- **llama-cpp (A5000 24G)**: n_gpu_layers -1, n_ctx 32768, cache_type q8_0, 端口 3081
+## 架构
+- API `/api/v1/`, 分页 `{data,total,page,size}`
+- Agent: Planner→Coder→Reviewer→Memory(不可变)
+- 模型回退: 本地最优→次优→第三方→内置
+- UI: CSS变量 `var(--color-ide-*)` 禁硬编码
 
-## Docker 服务配置
-- **vLLM**: `webhie/Qwen3.6-27B-int4-AutoRound-Code` (代码场景校准, OpenCodeInstruct 数据集, auto-round-best 量化), GPU 推理, dtype=auto, quantization=auto_round, max-model-len 24576, gpu-memory-utilization 0.85, max-num-seqs 4, **enforce-eager** (禁用 CUDA Graph, Ampere sm_86 兼容), **无 fp8 kv-cache** (需 sm_89+, A5000 不支持), **无 flashinfer** (需 sm_90+), 端口 3080。vLLM v0.24.0 使用 CUDA 13.2，Docker Desktop WSL2 GPU 直通下 RTX A5000 driver 596.72 兼容。模型路径: `/mnt/d/app/LLM/models/huggingface/hub/models--webhie--Qwen3.6-27B-int4-AutoRound-Code:/models/vllm:ro`
-- **llama-cpp**: `Qwen3.6-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf` (16.3GB), n_gpu_layers -1, n_ctx 32768, n_batch 512, cache_type q8_0, chat_format chatml, verbose false, 端口 3081。模型位于 `gguf/qwen3.6-27b/` 子目录，卷挂载 `${MODELS_DIR:-../models}/gguf:/models:ro`，容器路径 `/models/qwen3.6-27b/Qwen3.6-27B-...gguf`
-- **Ollama**: 本地 CPU/GPU 推理, qwen3:32b 等模型
-- **模型目录链接** (2026-07-19): `.env` 已移除 `MODELS_DIR`/`HF_HOME`/`HF_HUB_CACHE` 硬编码路径，改为 `models/` 下目录链接 → `D:/app/LLM/models/`（gguf/huggingface/ollama 三个 Junction）。Linux 原生启动时需手动创建 symlink: `ln -s /mnt/d/app/LLM/models/gguf models/gguf` 等
+## GPU/Docker
+- vLLM(3080)/llama-cpp(3081)/Ollama GPU独占 (A5000 23GB), 用哪个启哪个
+- 模型路径: `models/{gguf,huggingface,ollama}` symlink → 外部目录
+- MODELS_DIR=models 永不改, 换OS只建符号链接
+- **Docker 服务统一对接 (2026-07-25)**: 
+  - `providers/vllm.py` (VLLMProvider, 端口 3080, 复用 OpenAI 兼容 API)
+  - `providers/llama_cpp.py` 端口修复 18082→3081
+  - `config.py` 新增 `VLLM_BASE_URL` / `LLAMA_CPP_BASE_URL`
+  - `providers/__init__.py` ProviderRegistry 注册 vllm/llama_cpp (no_auth_required)
+  - `ai_models/registry.py` 注册 2×vLLM + 2×llama.cpp 远程模型配置
+  - `model_health.py` 新增 `_ping_vllm()` / `_ping_llama_cpp()` (GET /health 回退 /v1/models)
+  - `model_downloader.py` 新增 `_execute_ollama_pull()` (POST /api/pull 流式 NDJSON) + 6 个 Ollama 模型配置
+  - 全链路验证: 10 个 Provider 自动发现, 28 个 ModelRouter Adapter
+  - **vLLM/llama.cpp 自动发现(2026-07-25)**: 新增 sync_models_sync() / sync_models(), 启动时通过 GET /v1/models 自动拉取模型列表, API refresh-provider 通用支持 ollama/vllm/llama_cpp
+- **前端模型管理(2026-07-25)**: `/models` 页面 (ModelManager.vue), 前端API层 `modelManagerApi` 覆盖下载/删除/加载/卸载/进度轮询, 4 下载源 (HF-mirror/ModelScope/Ollama/HF直连), 10 预定义模型
 
-## 顶部菜单结构 (Session 40+)
-`文件 / 编辑 / 选择 / 查看 / 转到 / 运行 / 终端 / Studio / 帮助`
+## RAG
+- BGE MiniLM(384dim) + FAISS + PostgreSQL tsvector
+- Dify桥接(1536dim独立) 文本+元数据重嵌入
+- 多策略爬取(`crawler/`), OCR双引擎(SmolDocling/MinerU)
+- 本地开发: `pip install sentence-transformers faiss-cpu psycopg[binary] aiohttp aiosqlite` (否则 RAG API 500 + PostgreSQL 连接失败 + 站点爬取 500 + KBStore 初始化失败)
+- **psycopg 统一 (2026-07-26)**: 移除 psycopg2-binary 冗余依赖，vector_store.py / metadata_segment.py 全部迁移到 psycopg v3 (`autocommit=False` 显式设置，原 v2 默认值)
+- **重要**: 当前本地开发使用 SQLite (`backend/.env` 中 `DATABASE_URL=sqlite:///./test_platform.db`)。`SQLModel.create_all` 不会给已存在表加新列，模型新增字段需手动 `ALTER TABLE` 补齐。添加字段后可能需要重启后端才能生效
+- **注意**: `knowledge-data/` 必须是目录，若 git clone 后变成空文件需手动删除重建目录，否则 `os.makedirs` 报 OSError 导致 RAG 全模块 500
+- **P2 Chunk CRUD + Job 队列(2026-07-25)**:
+  - models.py: KBJob(`kb_jobs`) job_id/uuid4, status(pending→running→completed|failed), progress 0~1
+  - vector_store.py: DocumentStore.list_chunks_paginated/delete_chunk
+  - kb_manager.py: list_chunks/delete_chunks/create_job/run_job/get_job/list_jobs
+  - API: GET/DELETE /{kb_id}/chunks, POST/GET /{kb_id}/jobs
+  - 前端 KnowledgeBaseDetail.vue: 文档行点击展开 chunk 面板（分页、勾选批量删除）
+  - run_job 同步 blocking，需调用方放后台线程；FAISS 不支持单删除，仅从 ID 映射移除
+- **双管理器统一(2026-07-25)**: HybridStorage → SegmentManager 完成。SegmentManager 补齐 list_chunks/delete_chunk/ghost_stats/compact/remove_by_doc_id/get_all_ids；VectorSegment 新增 ghost_stats/rebuild_index；MetadataSegment 新增 list_chunks_paginated；retrieval_manager/kb_manager/dify_bridge 全部迁移；HybridStorage 保留在 vector_store.py (不再使用)
+- **RAG 修复(2026-07-25)**: ① MetadataSegment.list_chunks_paginated LIKE子串→json_extract精确匹配；② retrieval_manager._bm25_fallback storage.metadata.→storage. 绕过抽象层修复；③ vector_store.py $.doc_id→$._doc_id 命名一致；④ SegmentManager 补齐 get_all_ids() 委托；⑤ _bm25_fallback 修复 doc_id/文本错位 + BM25 结果 metadata 注入 _doc_id 使后过滤生效
 
-## 架构约定
-- `backend/app/core/` 为核心基础设施，不可引入外部依赖闭环
-- API 前缀 `/api/v1/`，分页格式 `{data, total, page, size}`
-- Agent 流水线顺序不可变: Planner → Coder → Reviewer → Memory
-- 模型回退链: 本地最优 → 本地次优 → 第三方 API → 内置基础
-- UI 颜色通过 CSS 变量引用 `var(--color-ide-*)`，禁止硬编码
-- 主题切换流程: applyHtmlClass() → 清除旧类 → 添加新主题 → no-transitions 防闪烁
+## 前端 (studio-client)
+- **前端 API 对齐 (2026-07-25)**: 后端 15+ 路由模块已就绪，前端分批补齐 Vue 页面
+  - P1 Agent: AgentTraces(列表+详情), AgentReflection(自省评估)
+  - P2 DevTools: WorktreeManager, SessionSummary(Lakeview), CodeKnowledgeGraph, BackupManager, FeatureFlags
+  - P3 Advanced: BenchmarksPage, ModelCatalog, CLIPipeline, ConfigResolver, StateManager, RemoteSessions, CLIHistoryPage, MemoryGraph, ProblemMatchers
+  - 总计: 15 API 模块(`api/*.ts`) + 17 Vue 页面(`pages/*.vue`) + 17 路由(`router/index.ts`)
 
-## Docker Compose 生产部署 (2026-07-19)
-- **统一文件**：`deploy/compose.shared.yml` 为全栈服务定义，`compose.yml` 仅引用外部网络 `ai-platform-net`
-- **模型卷默认路径**：已清理硬编码路径，`.env` 不设 `MODELS_DIR`，compose fallback `${MODELS_DIR:-../models}` 通过目录链接自动解析，Windows/Linux 双平台统一
-- **启动命令**：`COMPOSE_FILE=deploy/compose.shared.yml docker compose -f deploy/compose.shared.yml up -d`（排除 `compose.override.yml` 避免 DNS/db 冲突）
-- **prestart 修复**：需添加 `PROJECT_NAME=${PROJECT_NAME:-AI Fullstack Platform}` 环境变量（config.py 必填字段）
-- **卷挂载**：backend 不可挂载 `${MODELS_DIR}/huggingface:/data/models:ro`（Windows 路径 `D:/` 冒号冲突），后端通过 API 网关访问模型
-- **监控服务**：prometheus/grafana 需 `user: root`（named/bind volume 写权限），alertmanager 正常无此问题
-- **GPU 服务**：ollama/vLLM/open-webui 用 `docker run --runtime=nvidia --gpus all` 直接启动（绕过 compose pull 镜像源不可达问题）
-- **已知问题**：Docker daemon 腾讯镜像 `mirror.ccs.tencentyun.com` DNS 不可达，需切换为无镜像配置（`docker-daemon-nomirror.json`），但需重启 Docker Desktop 生效；open-webui 无法从 HuggingFace 拉取 `all-MiniLM-L6-v2`（WSL/Docker 网络不可达）
-
-## 禁止事项
-1. 不可重建 `backend/app/core/ckg/` 目录
-2. 不可在 Memory 中引入外部向量数据库（Qdrant/Pinecone）
-3. 不可绕过 AutoCLI 安全检测直接执行命令
-4. 不可删除 Agent Mode 的 skills 绑定
-5. 不可在 codebase_memory 中引入非标准库依赖
+## 规则
+- 镜像只构建一次, 环境差异走 env/symlink/volume
+- 不可引入外部向量库 | 不可绕过AutoCLI | codebase_memory零非标准库依赖

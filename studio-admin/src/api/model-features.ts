@@ -786,3 +786,155 @@ export const kgApi = {
   orphans: () =>
     apiClient.get<{ orphans: string[]; count: number; total: number }>('/knowledge-graph/orphans'),
 }
+
+// ── 模型下载与管理 ──────────────────────────────────────
+
+/** 模型列表项 */
+export interface ModelItem {
+  name: string
+  provider: string
+  type: string
+  size_bytes: number | null
+  local: boolean
+  downloaded: boolean
+  loaded: boolean
+  status: string
+  version: string | null
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 模型详情 */
+export interface ModelDetail extends ModelItem {
+  config: Record<string, unknown>
+  provider_name: string
+  provider_type: string
+  model_path: string | null
+}
+
+/** 下载源信息 */
+export interface DownloadSource {
+  key: string
+  name: string
+  base_url: string
+  available: boolean
+}
+
+/** 下载请求 */
+export interface DownloadRequest {
+  model_name: string
+  source?: string
+  force?: boolean
+}
+
+/** 下载响应 */
+export interface DownloadResponse {
+  model_name: string
+  task_id: string
+  source: string
+  status: string
+  message: string
+  eta_seconds: number | null
+}
+
+/** 下载进度 */
+export interface DownloadProgress {
+  task_id: string
+  model_name: string
+  status: string
+  progress: number
+  speed_bps: number | null
+  speed_human: string | null
+  downloaded_bytes: number | null
+  total_bytes: number | null
+  elapsed_seconds: number
+  eta_seconds: number | null
+  error: string | null
+}
+
+/** API 服务商信息 */
+export interface ApiProviderInfo {
+  name: string
+  display_name: string
+  description: string
+  models_count: number
+  is_available: boolean
+  is_local: boolean
+  base_url: string | null
+  auth_required: boolean
+}
+
+/** 已加载模型 */
+export interface LoadedModel {
+  name: string
+  provider: string
+  loaded_at: string
+}
+
+/** 用能统计 */
+export interface ModelUsageStats {
+  total_models: number
+  downloaded_models: number
+  loaded_models: number
+  total_storage_bytes: number
+  total_storage_human: string
+}
+
+export const modelManagerApi = {
+  /** 列出所有模型 */
+  list: (params?: { type?: string; status?: string; page?: number; size?: number }) =>
+    apiClient.get<ApiPageResponse<ModelItem>>('/system/models', { params }),
+
+  /** 模型详情 */
+  detail: (name: string) =>
+    apiClient.get<ModelDetail>(`/system/models/${name}`),
+
+  /** 获取下载源列表 */
+  sources: () =>
+    apiClient.get<{ sources: DownloadSource[] }>('/system/models/download/sources'),
+
+  /** 预定义模型目录 */
+  catalog: (params?: { source?: string; type?: string }) =>
+    apiClient.get<{ models: { name: string; type: string; size_bytes: number; size_human: string; source: string; description: string }[] }>('/system/models/catalog', { params }),
+
+  /** 开始下载模型 */
+  download: (data: DownloadRequest) =>
+    apiClient.post<DownloadResponse>('/system/models/download', data),
+
+  /** 查询下载进度 */
+  downloadProgress: (taskId: string) =>
+    apiClient.get<DownloadProgress>(`/system/models/download/${taskId}`),
+
+  /** 删除模型 */
+  remove: (name: string) =>
+    apiClient.delete(`/system/models/${name}`),
+
+  /** 加载模型到内存 */
+  load: (name: string) =>
+    apiClient.post<{ message: string; model_name: string }>(`/system/models/${name}/load`),
+
+  /** 卸载模型 */
+  unload: (name: string) =>
+    apiClient.post<{ message: string; model_name: string }>(`/system/models/${name}/unload`),
+
+  /** 已加载模型列表 */
+  loadedModels: () =>
+    apiClient.get<{ models: LoadedModel[] }>('/system/models/loaded'),
+
+  /** API 服务商列表 */
+  providers: () =>
+    apiClient.get<{ providers: ApiProviderInfo[] }>('/system/models/providers'),
+
+  /** 服务商详情 */
+  providerDetail: (name: string) =>
+    apiClient.get<ApiProviderInfo>(`/system/models/providers/${name}`),
+
+  /** 用能统计 */
+  usageStats: () =>
+    apiClient.get<ModelUsageStats>('/system/models/usage-stats'),
+
+  /** 自动调优 */
+  optimize: () =>
+    apiClient.post<{ message: string; adjustments: Record<string, unknown> }>('/system/models/optimize'),
+}

@@ -387,6 +387,66 @@ register_remote(RemoteModelConfig(
     extra={"is_local_api": True},
 ))
 
+# ═════ Docker vLLM / llama-cpp 推理服务（本地 Docker，无需 API 密钥）═════
+
+register_remote(RemoteModelConfig(
+    name="vllm-qwen36-27b",
+    display_name="Qwen3.6-27B AutoRound (vLLM·Docker)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="vllm",
+    api_model_id="vllm-model",  # vLLM /v1/models 返回的实际模型名
+    priority=55,  # 高优先级（比 Ollama 还快，GPU 直连）
+    max_tokens=8192,
+    temperature=0.3,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value, ModelStrength.BACKEND_CODE.value],
+    extra={"is_local_api": True},
+))
+
+register_remote(RemoteModelConfig(
+    name="llamacpp-qwen36-27b",
+    display_name="Qwen3.6-27B GGUF Q4_K_P (llama.cpp·Docker)",
+    model_type=ModelType.CODE_GENERATION,
+    provider="llama_cpp",
+    api_model_id="llama-cpp-model",
+    priority=52,  # 比 Ollama 稍高（Docker 直连，零开销）
+    max_tokens=8192,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+# 通用对话 — vLLM
+register_remote(RemoteModelConfig(
+    name="vllm-qwen36-27b-chat",
+    display_name="Qwen3.6-27B Chat (vLLM·Docker)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="vllm",
+    api_model_id="vllm-model",
+    priority=52,
+    max_tokens=8192,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
+# 通用对话 — llama.cpp
+register_remote(RemoteModelConfig(
+    name="llamacpp-qwen36-27b-chat",
+    display_name="Qwen3.6-27B Chat (llama.cpp·Docker)",
+    model_type=ModelType.TEXT_GENERATION,
+    provider="llama_cpp",
+    api_model_id="llama-cpp-model",
+    priority=49,
+    max_tokens=8192,
+    temperature=0.5,
+    requires_api_key=False,
+    strengths=[ModelStrength.GENERAL_CODE.value],
+    extra={"is_local_api": True},
+))
+
 register_remote(RemoteModelConfig(
     name="ollama-gemma3-27b",
     display_name="Gemma3 27B (Ollama·备用)",

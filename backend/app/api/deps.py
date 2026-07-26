@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import Annotated
+import uuid
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -57,7 +58,9 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-    user = session.get(User, token_data.sub)
+    # SQLite 不支持原生 UUID，需要将字符串 ID 转为 uuid.UUID 对象
+    user_id = uuid.UUID(token_data.sub)
+    user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:
@@ -85,7 +88,9 @@ async def get_current_user_ws(token: str) -> User:
             detail="Could not validate credentials",
         )
     with Session(engine) as session:
-        user = session.get(User, token_data.sub)
+        # SQLite 不支持原生 UUID，需要将字符串 ID 转为 uuid.UUID 对象
+        user_id = uuid.UUID(token_data.sub)
+        user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:

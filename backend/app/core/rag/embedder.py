@@ -43,6 +43,16 @@ class BaseEmbeddingProvider(ABC):
     def name(self) -> str:
         """Provider 名称"""
 
+    @property
+    def max_chunk_tokens(self) -> int:
+        """单 chunk 最大 token 数（借鉴 embedder 能力声明模式）
+
+        用于自适应截断：chunk 超过此值时自动裁剪，
+        防止 input 超出模型的 max_seq_length。
+        子类按实际模型能力覆盖。
+        """
+        return 512  # 安全默认值
+
 
 # ── 本地 BGE 模型 ─────────────────────────────────────────
 
@@ -75,7 +85,16 @@ class LocalBGEProvider(BaseEmbeddingProvider):
     def _load_model(self):
         if self._model is not None:
             return
-        from sentence_transformers import SentenceTransformer
+        import os
+
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError(
+                "sentence-transformers 未安装，无法使用本地 BGE 向量模型。"
+                "请执行: pip install sentence-transformers "
+                "或在 pyproject.toml 中启用 rag 可选依赖: pip install -e '.[rag]'"
+            )
 
         # CPU 上自动尝试 ONNX 加速
         backend = "onnx" if self._device == "cpu" else None
@@ -92,12 +111,65 @@ class LocalBGEProvider(BaseEmbeddingProvider):
         else:
             logger.info("Loading BGE model: %s on %s", self._model_name, self._device)
 
-        self._model = SentenceTransformer(self._model_name, **load_kwargs)
+        # 优先使用本地缓存，避免 HuggingFace Hub 网络超时
+        # HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE 环境变量强制离线
+        force_offline = os.getenv("HF_HUB_OFFLINE", "") in ("1", "true", "True") \
+            or os.getenv("TRANSFORMERS_OFFLINE", "") in ("1", "true", "True")
+
+        # 自动检测 HF 镜像（国内加速），不覆盖用户已设的值
+        mirror = os.getenv("HF_ENDPOINT", "")
+        if mirror:
+            logger.info("Using HF mirror: %s", mirror)
+
+        try:
+            if force_offline:
+                logger.info("HF offline mode enabled, loading from local cache only")
+                self._model = SentenceTransformer(
+                    self._model_name, local_files_only=True, **load_kwargs
+                )
+            else:
+                # 先尝试本地缓存（快速路径，无网络请求）
+                try:
+                    self._model = SentenceTransformer(
+                        self._model_name, local_files_only=True, **load_kwargs
+                    )
+                    logger.info("BGE model loaded from local cache")
+                except Exception:
+                    if mirror:
+                        logger.info(
+                            "Model not in local cache, downloading via mirror %s...",
+                            mirror,
+                        )
+                    else:
+                        logger.warning(
+                            "Model not in local cache, attempting download from HuggingFace. "
+                            "Set HF_ENDPOINT=https://hf-mirror.com for faster download in China."
+                        )
+                    self._model = SentenceTransformer(self._model_name, **load_kwargs)
+        except Exception as e:
+            raise RuntimeError(
+                f"无法加载本地 BGE 模型 '{self._model_name}'。"
+                f"请确认模型已下载到 ~/.cache/huggingface/hub/，"
+                f"或设置 HF_ENDPOINT=https://hf-mirror.com 使用国内镜像下载。"
+                f"手动下载命令: python -c \"from sentence_transformers import SentenceTransformer; "
+                f"SentenceTransformer('{self._model_name}')\""
+                f"\n原始错误: {e}"
+            ) from e
+
         self._dim = self._model.get_sentence_embedding_dimension()
 
     def get_dim(self) -> int:
         self._load_model()
         return self._dim
+
+    @property
+    def max_chunk_tokens(self) -> int:
+        """all-MiniLM-L6-v2 最大 256 wordpiece tokens"""
+        self._load_model()
+        try:
+            return self._model.max_seq_length
+        except Exception:
+            return 256
 
     async def embed(self, text: str) -> list[float]:
         self._load_model()
@@ -174,6 +246,11 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
 
     def get_dim(self) -> int:
         return self._dim
+
+    @property
+    def max_chunk_tokens(self) -> int:
+        """text-embedding-3-small: 最大输入 8191 tokens"""
+        return 8191
 
     async def embed(self, text: str) -> list[float]:
         results = await self.embed_batch([text])
@@ -256,8 +333,7 @@ def init_embedding_provider(config=None) -> BaseEmbeddingProvider:
             batch_size=config.embed_batch_size,
         )
 
-    logger.info("Embedding provider initialized: %s (dim=%d)",
-                 _global_provider.name, _global_provider.get_dim())
+    logger.info("Embedding provider initialized: %s", _global_provider.name)
     return _global_provider
 
 

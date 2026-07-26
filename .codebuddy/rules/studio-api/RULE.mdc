@@ -1,8 +1,8 @@
 ---
 description: Studio AI编程工具的后端API设计规范、功能模块、对话流程与模型注册
 alwaysApply: false
-enabled: true
-updatedAt: 2026-06-13T12:17:00.000Z
+enabled: false
+updatedAt: 2026-07-25T08:03:39.960Z
 provider: 
 ---
 

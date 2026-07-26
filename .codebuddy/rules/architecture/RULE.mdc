@@ -1,22 +1,13 @@
 ---
-description: AI全栈平台架构总览
+description: 
 alwaysApply: true
-enabled: true
-updatedAt: 2026-07-19T16:00:00.000Z
+enabled: false
+updatedAt: 2026-07-25T08:03:42.223Z
 provider: 
 ---
 
-# 架构与设计规范
-
-## 定位与原则
-AI全栈平台：Studio(AI编程/截图转代码/对话) + Video(文字/UI转视频) + 四闭环。能力导向(按能力不按厂商)、五层回退(本地→第三方→内置)、统一接口(ModelRequest/ModelResponse)、MIT自研零外部依赖。闭环联动详见 closed-loop。
-
-## 核心目录
-`backend/app/core/` — model_router(入口), api_gateway(多Provider), fallback_chain(回退), codebase_memory/(闭环1), agent/(闭环3), memory/(闭环2), tools/autocli.py(闭环4), skills/
-`backend/app/api/routes/` — agent/studio/video/system/memory/skills
-`tests/`
-
-## 模型调度
-回退链：用户指定 > 本地最优(DynamicScore前3) > 本地次优 > 第三方(OpenAI/Claude/DeepSeek/智谱等) > 内置基础
-数据流：路由 → ModelRouter.generate(ModelRequest) → Scheduler.rank(capability) → FallbackChain → ModelResponse
-API前缀：`/api/v1/`
+# 架构概要
+AI全栈平台：Studio(AI编程/截图转代码/对话) + Video(文字/UI转视频) + 四闭环。
+API前缀：`/api/v1/`，分页格式 `{data, total, page, size}`
+核心目录：`backend/app/core/`（基础设施）、`backend/app/api/routes/`（路由层）、`tests/`
+模型回退：本地最优 → 本地次优 → 第三方API → 内置基础

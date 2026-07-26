@@ -17,6 +17,7 @@
 .data/
 .codebuddy/
 models/
+knowledge-data
 # Frontend build artifacts (covered by **/node_modules/ and **/dist/ above)
 # ── Do NOT exclude frontend source directories ──
 # studio-client/studio-admin/video-client/video-admin Dockerfiles need them.

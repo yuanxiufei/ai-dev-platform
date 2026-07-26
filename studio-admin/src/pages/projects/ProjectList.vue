@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { listProjects, deleteProject } from '@/api/studio'
 import type { Project } from '@/types/studio'
 import { Plus, Trash2, ExternalLink } from 'lucide-vue-next'
-import AppLayout from '@/components/layout/AppLayout.vue'
 
 const router = useRouter()
 const projects = ref<Project[]>([])
@@ -49,7 +48,6 @@ const goCreate = () => {
 </script>
 
 <template>
-  <AppLayout>
     <div class="space-y-6">
       <!-- 标题栏 -->
       <div class="flex items-center justify-between">
@@ -132,7 +130,6 @@ const goCreate = () => {
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script lang="ts">

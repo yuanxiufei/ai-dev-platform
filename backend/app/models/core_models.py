@@ -58,14 +58,14 @@ class TenantUpdate(SQLModel):
 # ── User ─────────────────────────────────────────────
 
 class UserBase(SQLModel):
-    email: EmailStr = Field(unique=True, index=True, max_length=255)
+    email: str = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
 
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
     tenant_id: uuid.UUID | None = None
 
 

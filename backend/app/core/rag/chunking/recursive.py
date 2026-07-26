@@ -45,7 +45,9 @@ class RecursiveCharacterChunker(BaseChunker):
 
         meta = metadata or {}
         chunks_raw = self._split_recursive(text, self.SEPARATORS)
-        return self._merge_chunks(chunks_raw, meta)
+        chunks = self._merge_chunks(chunks_raw, meta)
+        chunks = self._apply_context_header(chunks)
+        return self._apply_token_budget(chunks)
 
     def _split_recursive(
         self, text: str, separators: list[str]

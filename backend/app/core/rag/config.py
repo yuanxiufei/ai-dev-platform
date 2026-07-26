@@ -25,7 +25,14 @@ class RAGConfig:
     """RAG 系统配置"""
 
     # ── 路径 ──
-    data_dir: str = field(default_factory=lambda: os.getenv("RAG_DATA_DIR", "rag_data"))
+    # 统一使用 KNOWLEDGE_DATA_DIR 作为根目录（与 Dify 桥接共享存储 D:\app\knowledge-base）
+    # 优先级: RAG_DATA_DIR > KNOWLEDGE_DATA_DIR/rag_data > knowledge-data/rag_data
+    data_dir: str = field(
+        default_factory=lambda: os.getenv(
+            "RAG_DATA_DIR",
+            os.path.join(os.getenv("KNOWLEDGE_DATA_DIR", "knowledge-data"), "rag_data")
+        )
+    )
     kb_dir: str = ""  # 将在 __post_init__ 中设置
 
     # ── Embedding ──
@@ -70,7 +77,7 @@ class RAGConfig:
     embed_max_retries: int = 3
 
     # ── Compound Vault (借鉴 claude-obsidian) ──
-    compound_dir: str = "rag_data/compound"
+    compound_dir: str = ""  # 将在 __post_init__ 中基于 data_dir 设置
     compound_enabled: bool = True
 
     # Contextual prefix
@@ -105,10 +112,25 @@ class RAGConfig:
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
 
+    # ── Segment 抽象层 (Phase 3, 借鉴 Chroma) ──
+    segment_metadata_type: str = "pg"        # 元数据存储后端 (pg=PostgreSQL tsvector)
+    segment_vector_type: str = "faiss"       # 向量存储后端
+    segment_record_type: str = "blockfile"   # 记录存储后端
+
+    # ── RAPTOR 摘要树 (Phase 3) ──
+    raptor_enabled: bool = False
+    raptor_max_chunks_per_summary: int = 5
+    raptor_max_summary_levels: int = 3
+    raptor_llm_model: str = ""  # 空则走 llm_model
+
     def __post_init__(self):
         if not self.kb_dir:
             self.kb_dir = os.path.join(self.data_dir, "knowledge_bases")
         os.makedirs(self.kb_dir, exist_ok=True)
+
+        if not self.compound_dir:
+            self.compound_dir = os.path.join(self.data_dir, "compound")
+        os.makedirs(self.compound_dir, exist_ok=True)
 
         # 加载环境变量
         if not self.embedding_api_key:

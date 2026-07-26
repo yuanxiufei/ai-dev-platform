@@ -86,9 +86,13 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - CELERY_BROKER_URL=redis://redis:6379/1
+      - KNOWLEDGE_DATA_DIR=/app/knowledge-data
+      - RAG_DATA_DIR=${RAG_DATA_DIR:-/app/knowledge-data/rag_data}
     volumes:
       # Windows 路径 D:/... 中冒号与 Docker 卷挂载分隔符冲突，后端通过 API 网关访问模型
       # - ${MODELS_DIR:-./models}:/data/models:ro
+      - ${MODELS_DIR:-./models}/huggingface/hub:/root/.cache/huggingface:ro
+      - ./knowledge-data:/app/knowledge-data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
       interval: 10s

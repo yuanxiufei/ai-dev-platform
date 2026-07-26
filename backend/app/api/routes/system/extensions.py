@@ -531,7 +531,7 @@ async def disable_extension(extension_id: str) -> dict:
 @router.get("/gallery/list", response_model=list[ExtensionInfo])
 async def gallery_list(
     category: str | None = Query(None),
-    sort_by: str = Query("popular", regex="^(popular|name|recent|rating)$"),
+    sort_by: str = Query("popular", pattern="^(popular|name|recent|rating)$"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
 ) -> list[ExtensionInfo]:

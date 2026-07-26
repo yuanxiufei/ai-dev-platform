@@ -7,11 +7,12 @@ llama.cpp Server Provider — 适配 llama.cpp 内置 HTTP Server
 - /v1/embeddings
 - /v1/models
 
-llama.cpp server 启动方式:
-  ./llama-server -m models/7B/ggml-model.gguf -c 4096 --host 0.0.0.0 --port 18082
+Docker 服务（compose.shared.yml）：
+  llama-cpp 容器运行在 3081 端口，提供 OpenAI 兼容 /v1/chat/completions
+  加载模型: Qwen3.6-27B GGUF Q4_K_P 量化
 
 环境变量:
-  LLAMA_CPP_BASE_URL=http://localhost:18082/v1
+  LLAMA_CPP_BASE_URL=http://localhost:3081
 """
 
 from __future__ import annotations
@@ -132,6 +133,32 @@ class LlamaCppProvider(BaseProvider):
         except Exception:
             pass
         return []
+
+    def sync_models_sync(self) -> list[str]:
+        """同步拉取 llama.cpp 已加载模型列表（启动时自动发现用）"""
+        try:
+            import httpx
+            resp = httpx.get(
+                f"{self.config.base_url}/v1/models",
+                timeout=5.0,
+                trust_env=False,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m["id"] for m in data.get("data", [])]
+                if models:
+                    self.config.models = models
+                    logger.info("llama.cpp auto-discovered %d models: %s", len(models), models)
+                    return models
+            logger.debug("llama.cpp GET /v1/models returned %s, keeping hardcoded list", resp.status_code)
+        except Exception as e:
+            logger.debug("llama.cpp sync_models_sync() skipped (%s), keeping hardcoded list", e)
+        return list(self.config.models)
+
+    async def sync_models(self) -> list[str]:
+        """异步拉取 llama.cpp 已加载模型列表（API 刷新用）"""
+        models_data = await self.get_models()
+        return [m["id"] for m in models_data] if models_data else list(self.config.models)
 
     async def get_health_details(self) -> dict:
         """获取详细健康信息（含 slot 状态）"""

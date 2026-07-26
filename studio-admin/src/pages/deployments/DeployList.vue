@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import AppLayout from '@/components/layout/AppLayout.vue'
 </script>
 
 <template>
-  <AppLayout>
     <div class="space-y-6">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">部署管理</h1>
@@ -18,7 +16,6 @@ import AppLayout from '@/components/layout/AppLayout.vue'
         <p class="text-gray-600 text-sm mt-1">敬请期待</p>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script lang="ts">

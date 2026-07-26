@@ -15,7 +15,8 @@ const router = createRouter({
     },
     {
       path: "/chat",
-      redirect: "/projects",
+      name: "chat",
+      component: () => import("@/pages/AgentChat.vue"),
     },
     {
       path: "/projects",
@@ -146,6 +147,91 @@ const router = createRouter({
       path: "/trajectory",
       name: "trajectory",
       component: () => import("@/pages/TrajectoryPage.vue"),
+    },
+    {
+      path: "/traces",
+      name: "agent-traces",
+      component: () => import("@/pages/AgentTraces.vue"),
+    },
+    {
+      path: "/traces/:traceId",
+      name: "agent-trace-detail",
+      component: () => import("@/pages/AgentTraceDetail.vue"),
+    },
+    {
+      path: "/reflection",
+      name: "agent-reflection",
+      component: () => import("@/pages/AgentReflection.vue"),
+    },
+    {
+      path: "/worktree",
+      name: "worktree",
+      component: () => import("@/pages/WorktreeManager.vue"),
+    },
+    {
+      path: "/sessions",
+      name: "session-summary",
+      component: () => import("@/pages/SessionSummary.vue"),
+    },
+    {
+      path: "/ckg",
+      name: "code-kg",
+      component: () => import("@/pages/CodeKnowledgeGraph.vue"),
+    },
+    {
+      path: "/backup",
+      name: "backup",
+      component: () => import("@/pages/BackupManager.vue"),
+    },
+    {
+      path: "/feature-flags",
+      name: "feature-flags",
+      component: () => import("@/pages/FeatureFlags.vue"),
+    },
+    {
+      path: "/benchmarks",
+      name: "benchmarks",
+      component: () => import("@/pages/BenchmarksPage.vue"),
+    },
+    {
+      path: "/catalog",
+      name: "model-catalog",
+      component: () => import("@/pages/ModelCatalog.vue"),
+    },
+    {
+      path: "/cli-pipeline",
+      name: "cli-pipeline",
+      component: () => import("@/pages/CLIPipeline.vue"),
+    },
+    {
+      path: "/config-resolver",
+      name: "config-resolver",
+      component: () => import("@/pages/ConfigResolver.vue"),
+    },
+    {
+      path: "/state",
+      name: "state-manager",
+      component: () => import("@/pages/StateManager.vue"),
+    },
+    {
+      path: "/remote-sessions",
+      name: "remote-sessions",
+      component: () => import("@/pages/RemoteSessions.vue"),
+    },
+    {
+      path: "/cli-history",
+      name: "cli-history",
+      component: () => import("@/pages/CLIHistoryPage.vue"),
+    },
+    {
+      path: "/memory-graph",
+      name: "memory-graph",
+      component: () => import("@/pages/MemoryGraph.vue"),
+    },
+    {
+      path: "/problem-matchers",
+      name: "problem-matchers",
+      component: () => import("@/pages/ProblemMatchers.vue"),
     },
     {
       path: "/storage",

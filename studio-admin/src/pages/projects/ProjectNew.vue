@@ -5,7 +5,6 @@ import { createProject } from '@/api/studio'
 import { listTemplates } from '@/api/studio'
 import type { Template } from '@/types/studio'
 import { ArrowLeft, Plus, Sparkles } from 'lucide-vue-next'
-import AppLayout from '@/components/layout/AppLayout.vue'
 
 const router = useRouter()
 
@@ -79,7 +78,6 @@ const quickPrompts = [
 </script>
 
 <template>
-  <AppLayout>
     <div class="space-y-6 max-w-2xl">
       <!-- 返回 -->
       <button
@@ -221,5 +219,4 @@ const quickPrompts = [
         </button>
       </form>
     </div>
-  </AppLayout>
 </template>

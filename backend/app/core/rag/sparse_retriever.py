@@ -1,9 +1,9 @@
 """
-稀疏检索器 — FTS5 优先 / BM25 内存回退
+稀疏检索器 — PostgreSQL tsvector 优先 / BM25 内存回退
 
 借鉴 AstrBot SparseRetriever:
-- 优先使用 SQLite FTS5（内置 BM25 评分）
-- FTS5 不可用时回退到 rank-bm25 内存计算
+- 优先使用 PostgreSQL tsvector（ts_rank 评分）
+- 不可用时回退到 rank-bm25 内存计算
 - jieba 中文分词 + 去停用词
 """
 
@@ -50,18 +50,22 @@ def tokenize_text(text: str, max_tokens: int = 20) -> list[str]:
     ][:max_tokens]
 
 
-def build_fts5_query(query: str) -> Optional[str]:
-    """构建 FTS5 OR 查询"""
+def build_ts_query(query: str) -> Optional[str]:
+    """构建 PostgreSQL tsquery (OR 语义)：token1 | token2 | token3"""
     tokens = tokenize_text(query)
     if not tokens:
         return None
-    # 转义特殊字符
-    safe = [t.replace('"', '""') for t in tokens]
-    return " OR ".join(f'"{t}"' for t in safe)
+    # 转义单引号和反斜杠
+    safe = [t.replace("'", "''").replace("\\", "\\\\") for t in tokens]
+    return " | ".join(safe)
+
+
+# 向后兼容别名
+build_fts5_query = build_ts_query
 
 
 class BM25SparseRetriever:
-    """BM25 内存检索器（FTS5 回退）"""
+    """BM25 内存检索器（全文索引回退）"""
 
     def __init__(self):
         self._corpus: list[str] = []

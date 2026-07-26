@@ -40,6 +40,8 @@ _BUILTIN_PROVIDERS: dict[str, str] = {
     "zhipu": "ZhipuProvider",
     "qwen": "QwenProvider",
     "ollama": "OllamaProvider",
+    "vllm": "VLLMProvider",
+    "llama_cpp": "LlamaCppProvider",
 }
 
 
@@ -68,6 +70,8 @@ def _default_configs() -> list[ProviderConfig]:
         "qwen": os.getenv("QWEN_API_KEY", ""),
         "ollama": os.getenv("OLLAMA_API_KEY", ""),
         "azure": os.getenv("AZURE_OPENAI_API_KEY", ""),
+        "vllm": os.getenv("VLLM_API_KEY", ""),
+        "llama_cpp": os.getenv("LLAMA_CPP_API_KEY", ""),
     }
 
     configs = [
@@ -110,6 +114,24 @@ def _default_configs() -> list[ProviderConfig]:
             models=["llama3.1:8b", "qwen2.5-coder:7b", "gemma2:27b"],
             priority=60,
             strengths=["ui_design", "frontend_code", "general_code"],
+            extra_config={"no_auth_required": True},
+        ),
+        ProviderConfig(
+            name="vllm",
+            display_name="vLLM (Docker)",
+            base_url=os.getenv("VLLM_BASE_URL", "http://localhost:3080"),
+            models=["vllm-model"],
+            priority=85,
+            strengths=["general_code", "backend_code"],
+            extra_config={"no_auth_required": True},
+        ),
+        ProviderConfig(
+            name="llama_cpp",
+            display_name="llama.cpp (Docker)",
+            base_url=os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:3081"),
+            models=["llama-cpp-model"],
+            priority=80,
+            strengths=["general_code"],
             extra_config={"no_auth_required": True},
         ),
         ProviderConfig(
@@ -252,6 +274,16 @@ class ProviderRegistry:
                     provider = cls(config)
                     self._providers.append(provider)
                     self._provider_map[config.name] = provider
+
+                    # 本地 Docker 推理服务自动发现：从 /v1/models 动态拉取已加载模型列表
+                    if config.name in ("ollama", "vllm", "llama_cpp") and hasattr(provider, "sync_models_sync"):
+                        try:
+                            provider.sync_models_sync()
+                        except Exception as sync_err:
+                            logger.debug(
+                                "%s sync_models_sync skipped: %s", config.name, sync_err,
+                            )
+
                     logger.info(
                         "Provider '%s' loaded: priority=%d, models=%s",
                         config.name, config.priority, config.models,
@@ -282,6 +314,8 @@ class ProviderRegistry:
             "zhipu": "app.core.providers.zhipu",
             "qwen": "app.core.providers.qwen",
             "ollama": "app.core.providers.ollama",
+            "vllm": "app.core.providers.vllm",
+            "llama_cpp": "app.core.providers.llama_cpp",
         }
 
         for name, module_path in provider_imports.items():
@@ -565,6 +599,8 @@ def _get_provider_class_map() -> dict[str, Type[BaseProvider]]:
             "zhipu": "app.core.providers.zhipu",
             "qwen": "app.core.providers.qwen",
             "ollama": "app.core.providers.ollama",
+            "vllm": "app.core.providers.vllm",
+            "llama_cpp": "app.core.providers.llama_cpp",
         }
         for name, module_path in provider_imports.items():
             try:

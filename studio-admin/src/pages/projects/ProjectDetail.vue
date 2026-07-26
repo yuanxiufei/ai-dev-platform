@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { getProject, buildProject, deployProject } from '@/api/studio'
 import type { Project } from '@/types/studio'
 import { ArrowLeft, Play, Rocket } from 'lucide-vue-next'
-import AppLayout from '@/components/layout/AppLayout.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +36,6 @@ const handleDeploy = async () => {
 </script>
 
 <template>
-  <AppLayout>
     <div v-if="loading" class="py-20 text-center text-gray-500">
       <div class="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto" />
     </div>
@@ -100,5 +98,4 @@ const handleDeploy = async () => {
     <div v-else class="py-20 text-center text-gray-500">
       项目不存在
     </div>
-  </AppLayout>
 </template>

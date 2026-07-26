@@ -22,6 +22,7 @@ import {
   Network, Brain, Trophy, Users as UsersIcon, ScrollText,
   BarChart3, HardDrive, Activity, Globe, Webhook, Trello,
   GitBranch, Calendar, Settings as SettingsIcon, Keyboard, Bot,
+  MessageSquare,
 } from "lucide-vue-next"
 
 interface StudioItem {
@@ -59,8 +60,9 @@ const groups: StudioGroup[] = [
     ],
   },
   {
-    // Agent 与模型: Agent 管理已在 ActivityBar → 只留竞技场/Rules
+    // Agent 与模型: Agent 管理已在 ActivityBar → 只留竞技场/Rules/AgentChat
     id: "agent", label: "Agent 与模型", icon: Bot, items: [
+      { id: "agent-chat", path: "/chat", label: "Agent 对话", desc: "完整 AI 编程 Agent (SSE流式/工具调用/会话历史)", icon: MessageSquare },
       { id: "arena", path: "/arena", label: "模型竞技场", desc: "多模型对比", icon: Trophy },
       { id: "rules", path: "/rules", label: "Rules 配置", desc: "Agent 行为规则", icon: ScrollText },
     ],

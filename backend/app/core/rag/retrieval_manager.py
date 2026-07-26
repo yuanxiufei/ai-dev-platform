@@ -2,12 +2,12 @@
 检索引擎 — 混合检索编排器
 
 全流程：
-  Query → Embed → DenseSearch (FAISS) + SparseSearch (FTS5/BM25)
+  Query → Embed → DenseSearch (FAISS) + SparseSearch (tsvector/BM25)
         → RRF Fusion → Rerank → Final Top-K
 
 借鉴 AstrBot RetrievalManager：
 - 协调多知识库独立检索 + 结果合并
-- 优雅降级：FTS5 不可用→BM25；Rerank 失败→跳过
+- 优雅降级：全文索引不可用→BM25；Rerank 失败→跳过
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from app.core.rag.config import get_rag_config
 from app.core.rag.embedder import get_embedding_provider, BaseEmbeddingProvider
 from app.core.rag.rank_fusion import RankFusion
 from app.core.rag.reranker import get_reranker, BaseReranker
+from app.core.rag.segments import SegmentManager
 from app.core.rag.sparse_retriever import BM25SparseRetriever
-from app.core.rag.vector_store import HybridStorage
 
 logger = logging.getLogger("app.core.rag.retrieval")
 
@@ -29,7 +29,7 @@ class RetrievalManager:
     """
     混合检索编排器
 
-    每个知识库的 HybridStorage 自行管理 Dense + Sparse 索引，
+    每个知识库的 SegmentManager 自行管理 Dense + Sparse 索引，
     RetrievalManager 负责跨 KB 的编排 + 融合 + Rerank。
     """
 
@@ -47,32 +47,47 @@ class RetrievalManager:
     async def search(
         self,
         query: str,
-        kb_storage: HybridStorage,
+        kb_storage: SegmentManager,
         top_k: int = 5,
+        filter_dict: dict | None = None,
     ) -> list[dict]:
         """
         对单个知识库执行混合检索
 
         流程:
           1. Query 向量化
-          2. Dense: FAISS L2 搜索
-          3. Sparse: FTS5 搜索（回退 BM25）
+          2. Dense: FAISS L2 搜索 → 后过滤
+          3. Sparse: tsvector 全文搜索 (含 SQL WHERE) → 回退 BM25
           4. RRF 融合
           5. Rerank 重排序
           6. 返回 top-k
+
+        Args:
+            filter_dict: WhereFilter DSL 元数据过滤条件
         """
         # 1. 向量化
         query_vec = await self._embedder.embed(query)
 
-        # 2. 稠密检索
-        dense = kb_storage.dense_search(query_vec, k=self._config.dense_top_k)
+        # 2. 稠密检索（含后过滤）
+        dense = kb_storage.dense_search(
+            query_vec, k=self._config.dense_top_k, filter_dict=filter_dict,
+        )
 
-        # 3. 稀疏检索
-        sparse = kb_storage.sparse_search(query, limit=self._config.sparse_top_k)
+        # 3. 稀疏检索（tsvector 全文搜索）
+        sparse = kb_storage.sparse_search(
+            query, limit=self._config.sparse_top_k, filter_dict=filter_dict,
+        )
 
-        # FTS5 回退到 BM25
+        # 全文搜索回退到 BM25
         if not sparse:
             sparse = await self._bm25_fallback(query, kb_storage)
+            # BM25 不支持 SQL WHERE，后过滤
+            if sparse and filter_dict:
+                from app.core.rag.filters import WhereFilter
+                sparse = [
+                    r for r in sparse
+                    if WhereFilter.match(r.get("metadata", {}), filter_dict)
+                ]
 
         logger.debug("Retrieval: dense=%d sparse=%d", len(dense), len(sparse))
 
@@ -97,8 +112,9 @@ class RetrievalManager:
     async def search_multi(
         self,
         query: str,
-        kb_storages: dict[str, HybridStorage],
+        kb_storages: dict[str, SegmentManager],
         top_k: int = 5,
+        filter_dict: dict | None = None,
     ) -> list[dict]:
         """
         跨多知识库检索
@@ -109,7 +125,9 @@ class RetrievalManager:
 
         for kb_name, storage in kb_storages.items():
             try:
-                results = await self.search(query, storage, top_k=top_k)
+                results = await self.search(
+                    query, storage, top_k=top_k, filter_dict=filter_dict,
+                )
                 for r in results:
                     r["kb_name"] = kb_name
                 all_results.extend(results)
@@ -124,27 +142,33 @@ class RetrievalManager:
         return all_results[:top_k]
 
     async def _bm25_fallback(
-        self, query: str, storage: HybridStorage
+        self, query: str, storage: SegmentManager
     ) -> list[dict]:
         """BM25 内存回退"""
-        # 从存储中加载所有文档
-        doc_ids = storage._doc_store.get_all_ids()
-        texts = []
+        doc_ids = storage.get_all_ids()
+
+        # 保持 (doc_id, text) 配对，避免空文本导致错位
+        pairs: list[tuple[str, str]] = []
         for did in doc_ids[:500]:  # 限制 500 防止内存爆炸
             t = storage.get_text(did)
             if t:
-                texts.append(t)
+                pairs.append((did, t))
 
-        if not texts:
+        if not pairs:
             return []
 
         # 构建内存 BM25
         from app.core.rag.sparse_retriever import BM25SparseRetriever
         bm25 = BM25SparseRetriever()
-        chunks = [{"text": t, "metadata": {"_doc_id": d}}
-                  for t, d in zip(texts, doc_ids[:len(texts)])]
+        chunks = [{"text": t, "metadata": {"_doc_id": d}} for d, t in pairs]
         bm25.index(chunks)
-        return bm25.search(query, top_k=self._config.sparse_top_k)
+
+        # BM25SparseRetriever.search() 返回 metadata: {} 空字典，
+        # 需注入 _doc_id 让上层 filter_dict 后过滤能正确匹配
+        results = bm25.search(query, top_k=self._config.sparse_top_k)
+        for r in results:
+            r["metadata"]["_doc_id"] = r.get("doc_id", "")
+        return results
 
     @staticmethod
     def _format_results(results: list[dict]) -> list[dict]:

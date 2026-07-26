@@ -35,6 +35,9 @@ class GPUDetector:
     INTEL_GPU_TOP = "intel_gpu_top"
     SYSTEM_PROFILER = "system_profiler"  # macOS
 
+    def __init__(self):
+        self._cpu_fallback_logged = False  # 去重：CPU fallback 仅 log 一次
+
     @classmethod
     def _find_tool(cls, name: str) -> Optional[str]:
         """Locate a CLI tool in PATH."""
@@ -77,7 +80,11 @@ class GPUDetector:
                 logger.debug("GPU detection (%s) failed: %s", detect_fn.__name__, e)
 
         if not devices:
-            logger.info("No discrete GPU detected; using CPU fallback.")
+            if not self._cpu_fallback_logged:
+                logger.info("No discrete GPU detected; using CPU fallback.")
+                self._cpu_fallback_logged = True
+            else:
+                logger.debug("No discrete GPU detected (cached).")
         return devices
 
     # ── NVIDIA via nvidia-smi ─────────────────────

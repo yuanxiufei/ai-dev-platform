@@ -68,8 +68,18 @@ def detect_language(filepath: str) -> str:
 class CodeChunker(BaseChunker):
     """代码感知分块器 — 优先使用 AST，回退到正则"""
 
-    def __init__(self, chunk_size: int = 2048, chunk_overlap: int = 300):
-        super().__init__(chunk_size, chunk_overlap)
+    def __init__(
+        self,
+        chunk_size: int = 2048,
+        chunk_overlap: int = 300,
+        context_header: Optional[str] = None,
+        token_budget: int = 0,
+    ):
+        super().__init__(
+            chunk_size, chunk_overlap,
+            context_header=context_header,
+            token_budget=token_budget,
+        )
 
     @property
     def name(self) -> str:
@@ -86,12 +96,16 @@ class CodeChunker(BaseChunker):
         # 尝试 Python AST 分块
         if language == "python" and filepath.endswith(".py"):
             try:
-                return self._chunk_python_ast(text, meta)
+                chunks = self._chunk_python_ast(text, meta)
+                chunks = self._apply_context_header(chunks)
+                return self._apply_token_budget(chunks)
             except Exception:
                 logger.debug("AST chunking failed, fallback to regex")
 
         # 正则边界分块
-        return self._chunk_by_boundary(text, language, meta)
+        chunks = self._chunk_by_boundary(text, language, meta)
+        chunks = self._apply_context_header(chunks)
+        return self._apply_token_budget(chunks)
 
     def _chunk_python_ast(
         self, text: str, metadata: dict

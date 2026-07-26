@@ -64,17 +64,84 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
 
+    # 可选：直接指定完整数据库 URI，覆盖 POSTGRES_* 拼接
+    DATABASE_URL: str | None = None
+
+    # Windows↔WSL 网络环境 SSL 握手间歇超时，统一禁用 SSL
+    PG_SSLMODE: str = "disable"
+
+    def _append_sslmode(self, uri: str) -> str:
+        """给 URI 追加 ?sslmode=disable，已有则不重复"""
+        if "?sslmode=" in uri or "&sslmode=" in uri:
+            return uri
+        sep = "&" if "?" in uri else "?"
+        return f"{uri}{sep}sslmode={self.PG_SSLMODE}"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        return PostgresDsn.build(
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        if self.DATABASE_URL:
+            return self._append_sslmode(self.DATABASE_URL)
+        return self._append_sslmode(str(PostgresDsn.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
-            port=self.POSTGRES_PORT,
+            port=int(self.POSTGRES_PORT),
             path=self.POSTGRES_DB,
-        )
+        )))
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ASYNC_SQLALCHEMY_DATABASE_URI(self) -> str:
+        """异步引擎 URI（PostgreSQL: asyncpg，SQLite: aiosqlite），用于 RAG KB 异步存储层"""
+        if self.DATABASE_URL:
+            url = self.DATABASE_URL
+            for scheme in ("postgresql+psycopg://", "postgresql://"):
+                if url.startswith(scheme):
+                    url = "postgresql+asyncpg://" + url[len(scheme):]
+                    return self._append_sslmode(url)
+            # SQLite URL：需要 +aiosqlite 驱动以支持 create_async_engine
+            if url.startswith("sqlite:///"):
+                url = "sqlite+aiosqlite:///" + url[len("sqlite:///"):]
+            return self._append_sslmode(url)
+        return self._append_sslmode(str(PostgresDsn.build(
+            scheme="postgresql+asyncpg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=int(self.POSTGRES_PORT),
+            path=self.POSTGRES_DB,
+        )))
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def PG_DSN(self) -> str:
+        """psycopg 兼容的同步 PostgreSQL DSN（用于 MetadataSegment/DocumentStore 同步访问）"""
+        if self.DATABASE_URL:
+            url = self.DATABASE_URL
+            for scheme in ("postgresql+asyncpg://", "postgresql+psycopg://"):
+                if url.startswith(scheme):
+                    return self._append_sslmode("postgresql://" + url[len(scheme):])
+            # 非 PostgreSQL URL（如 sqlite:///...），忽略并用 POSTGRES_* 构建
+            if not url.startswith("postgresql://") and not url.startswith("postgresql+"):
+                return self._append_sslmode(str(PostgresDsn.build(
+                    scheme="postgresql",
+                    username=self.POSTGRES_USER,
+                    password=self.POSTGRES_PASSWORD,
+                    host=self.POSTGRES_SERVER,
+                    port=int(self.POSTGRES_PORT),
+                    path=self.POSTGRES_DB,
+                )))
+            return self._append_sslmode(url)
+        return self._append_sslmode(str(PostgresDsn.build(
+            scheme="postgresql",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=int(self.POSTGRES_PORT),
+            path=self.POSTGRES_DB,
+        )))
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
@@ -99,7 +166,7 @@ class Settings(BaseSettings):
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
     EMAIL_TEST_USER: EmailStr = "test@example.com"
-    FIRST_SUPERUSER: EmailStr
+    FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
 
     # ── AI 模型相关配置 ──────────────────────────────
@@ -116,6 +183,10 @@ class Settings(BaseSettings):
     ZHIPU_API_KEY: str = ""
     QWEN_API_KEY: str = ""
     OLLAMA_API_KEY: str = "ollama-local"  # Ollama 本地运行无需密钥，使用占位值
+
+    # Docker 推理服务地址（compose.shared.yml）
+    VLLM_BASE_URL: str = "http://localhost:3080"      # vLLM OpenAI 兼容 API
+    LLAMA_CPP_BASE_URL: str = "http://localhost:3081" # llama-cpp OpenAI 兼容 API
 
     # 模型调度配置
     MODEL_REQUEST_TIMEOUT: int = 30          # 单次请求超时（秒）
@@ -179,7 +250,7 @@ class Settings(BaseSettings):
     MCP_SERVERS: str = "[]"                  # MCP 服务器配置 JSON
 
     # ── 知识库配置 ────────────────────────────────
-    KB_SQLITE_PATH: str = "data/kb_metadata.db"  # KB 元数据 SQLite 路径
+    KB_SQLITE_PATH: str = "data/kb_metadata.db"  # [已废弃] KB 元数据已迁移至 PostgreSQL
     KB_REPAIR_ENABLED: bool = True           # 是否启用 LLM 文本修复
     KB_URL_PARSER_ENABLED: bool = True       # 是否启用 URL 导入
 

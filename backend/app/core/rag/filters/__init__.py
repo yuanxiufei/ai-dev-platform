@@ -308,6 +308,210 @@ def create_webpage_clean_chain() -> FilterChain:
     ])
 
 
+# ── 元数据过滤 DSL ──────────────────────────────────────────
+# 借鉴 RAGFlow Where 过滤设计，支持复合条件"
+
+
+class WhereFilter:
+    """
+    统一元数据过滤 DSL — 支持复合条件查询
+
+    运算符:
+        $eq / 隐式  — 等于
+        $ne         — 不等于
+        $gt/$gte    — 大于/大于等于
+        $lt/$lte    — 小于/小于等于
+        $in/$nin   — 在列表中 / 不在列表中
+        $contains   — LIKE %value%
+        $regex      — SQLite REGEXP
+        $exists     — 字段存在(true) / 不存在(false)
+        $and / $or  — 逻辑组合
+
+    Example:
+        {
+            "source": "docs",
+            "date": {"$gte": "2024-01-01"},
+            "$or": [{"category": "python"}, {"category": "fastapi"}]
+        }
+    """
+
+    _OPS = {
+        "$eq": "=",
+        "$ne": "!=",
+        "$gt": ">",
+        "$gte": ">=",
+        "$lt": "<",
+        "$lte": "<=",
+    }
+
+    @classmethod
+    def to_sql(cls, filter_dict: dict | None) -> tuple[str, list]:
+        """
+        将 filter 字典转换为 SQL WHERE 子句和参数列表。
+
+        Returns:
+            ("WHERE ...", [params]) 或 ("", [])（无过滤条件时）
+        """
+        if not filter_dict:
+            return "", []
+
+        clauses, params = cls._build_clauses(filter_dict)
+        if not clauses:
+            return "", []
+        return "WHERE " + " AND ".join(clauses), params
+
+    @classmethod
+    def _build_clauses(cls, filter_dict: dict) -> tuple[list[str], list]:
+        """递归构建 SQL 子句"""
+        clauses: list[str] = []
+        params: list = []
+
+        for key, value in filter_dict.items():
+            if key == "$or":
+                or_clauses, or_params = cls._build_logical(value, "OR")
+                if or_clauses:
+                    clauses.append("(" + " OR ".join(or_clauses) + ")")
+                    params.extend(or_params)
+            elif key == "$and":
+                and_clauses, and_params = cls._build_logical(value, "AND")
+                if and_clauses:
+                    clauses.append("(" + " AND ".join(and_clauses) + ")")
+                    params.extend(and_params)
+            elif isinstance(value, dict):
+                # 运算符风格键过滤: {field: {$op: val}}
+                for op, op_val in value.items():
+                    sql, p = cls._op_to_sql(key, op, op_val)
+                    if sql:
+                        clauses.append(sql)
+                        params.extend(p)
+            else:
+                # 简单等值: {field: value}
+                clauses.append(f"metadata->>'{key}' = %s")
+                params.append(str(value))
+
+        return clauses, params
+
+    @classmethod
+    def _build_logical(
+        cls, conditions: list[dict], operator: str
+    ) -> tuple[list[str], list]:
+        """构建 $and / $or 逻辑组合"""
+        sub_clauses: list[str] = []
+        all_params: list = []
+        for cond in conditions:
+            inner, inner_params = cls._build_clauses(cond)
+            if inner:
+                sub_clauses.append("(" + " AND ".join(inner) + ")")
+                all_params.extend(inner_params)
+        return sub_clauses, all_params
+
+    @classmethod
+    def _op_to_sql(cls, field: str, op: str, value) -> tuple[str, list]:
+        """将单个运算符转为 SQL 片段（PostgreSQL jsonb 语法）"""
+        col = f"metadata->>'{field}'"
+
+        if op in cls._OPS:
+            return f"{col} {cls._OPS[op]} %s", [str(value)]
+
+        if op == "$in":
+            if not isinstance(value, list) or not value:
+                return "", []
+            placeholders = ",".join(["%s"] * len(value))
+            return f"{col} IN ({placeholders})", [str(v) for v in value]
+
+        if op == "$nin":
+            if not isinstance(value, list) or not value:
+                return "", []
+            placeholders = ",".join(["%s"] * len(value))
+            return f"{col} NOT IN ({placeholders})", [str(v) for v in value]
+
+        if op == "$contains":
+            return f"{col} LIKE %s", [f"%{value}%"]
+
+        if op == "$regex":
+            return f"{col} ~ %s", [str(value)]
+
+        if op == "$exists":
+            if value:
+                return (
+                    f"(metadata->>'{field}' IS NOT NULL "
+                    f"AND metadata->>'{field}' != '')",
+                    [],
+                )
+            return (
+                f"(metadata->>'{field}' IS NULL "
+                f"OR metadata->>'{field}' = '')",
+                [],
+            )
+
+        logger.warning("Unknown filter operator: %s on field '%s'", op, field)
+        return "", []
+
+    # ── 向量后过滤（内存匹配）────────────────────────────────
+
+    @classmethod
+    def match(cls, metadata: dict, filter_dict: dict | None) -> bool:
+        """
+        检查 metadata 是否匹配 filter dict。
+        用于向量搜索后的内存级别后过滤。
+        """
+        if not filter_dict:
+            return True
+
+        for key, value in filter_dict.items():
+            if key == "$or":
+                if not any(cls.match(metadata, cond) for cond in value):
+                    return False
+            elif key == "$and":
+                if not all(cls.match(metadata, cond) for cond in value):
+                    return False
+            elif isinstance(value, dict):
+                for op, op_val in value.items():
+                    if not cls._eval_op(metadata.get(key), op, op_val):
+                        return False
+            else:
+                # 简单等值比较
+                if str(metadata.get(key, "")) != str(value):
+                    return False
+
+        return True
+
+    @classmethod
+    def _eval_op(cls, field_val, op: str, target_val) -> bool:
+        """内存评估单个运算符"""
+        try:
+            if op == "$eq" or op not in {
+                "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin",
+                "$contains", "$regex", "$exists",
+            }:
+                return str(field_val) == str(target_val)
+            if op == "$ne":
+                return str(field_val) != str(target_val)
+            if op == "$gt":
+                return float(field_val) > float(target_val)
+            if op == "$gte":
+                return float(field_val) >= float(target_val)
+            if op == "$lt":
+                return float(field_val) < float(target_val)
+            if op == "$lte":
+                return float(field_val) <= float(target_val)
+            if op == "$in":
+                return str(field_val) in [str(v) for v in target_val]
+            if op == "$nin":
+                return str(field_val) not in [str(v) for v in target_val]
+            if op == "$contains":
+                return str(target_val) in str(field_val)
+            if op == "$regex":
+                return bool(re.search(str(target_val), str(field_val)))
+            if op == "$exists":
+                if target_val:
+                    return field_val is not None and str(field_val).strip() != ""
+                return field_val is None or str(field_val).strip() == ""
+        except (ValueError, TypeError):
+            return False
+        return False
+
+
 # ── 导出注册表 ─────────────────────────────────────────────
 
 BUILTIN_FILTERS: dict[str, type[BaseFilter]] = {

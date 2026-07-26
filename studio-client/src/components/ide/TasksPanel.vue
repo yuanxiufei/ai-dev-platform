@@ -208,13 +208,13 @@ function onRunFinished(run: any): void {
 
     <!-- 运行历史 / 输出 -->
     <div v-if="store.runs.length > 0" class="shrink-0 border-t" style="border-color:var(--color-ide-border)">
-      <button class="task-group-header" @click="showOutput = !showOutput">
+      <div class="task-group-header" @click="showOutput = !showOutput" role="button" tabindex="0">
         <ChevronRight :size="10" class="transition-transform" :class="{ 'rotate-90': showOutput }" />
         <Clock :size="12" />
         <span>运行历史</span>
         <span class="text-[10px] opacity-50">({{ store.runs.length }})</span>
         <button class="ml-auto text-[10px] text-[var(--color-ide-text-dim)] hover:text-red-400" @click.stop="store.clearRuns()">清除</button>
-      </button>
+      </div>
       <div v-if="showOutput" class="max-h-48 overflow-y-auto font-mono text-[11px] p-2"
         style="background: var(--color-editor-bg); border-top: 1px solid var(--color-ide-border)">
         <div v-for="run in store.runs" :key="run.id" class="mb-1">

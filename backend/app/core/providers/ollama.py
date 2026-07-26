@@ -19,7 +19,11 @@ logger = logging.getLogger("provider.ollama")
 
 
 class OllamaProvider(BaseProvider):
-    """Ollama 本地推理服务适配器"""
+    """Ollama 本地推理服务适配器
+
+    ProviderRegistry 初始化时自动调用 sync_models_sync() 从 /api/tags
+    动态拉取本地已安装的模型列表，替换硬编码的默认列表。
+    """
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         model_name = self._get_model_name(request)
@@ -96,6 +100,78 @@ class OllamaProvider(BaseProvider):
     def _build_headers(self) -> dict[str, str]:
         # Ollama 本地运行无需认证
         return {"Content-Type": "application/json"}
+
+    def sync_models_sync(self) -> list[str]:
+        """
+        同步版本 — 在 ProviderRegistry 初始化时调用
+
+        连接失败时保留硬编码兜底列表，不抛异常。
+        """
+        try:
+            import httpx as sync_httpx
+            url = f"{self.config.base_url.rstrip('/')}/api/tags"
+            resp = sync_httpx.get(url, timeout=5.0)
+            resp.raise_for_status()
+            data = resp.json()
+            models_raw = data.get("models", [])
+            if not models_raw:
+                logger.warning("Ollama /api/tags 返回空模型列表（Ollama 运行中但未安装任何模型）")
+                return list(self.config.models)
+
+            discovered: list[str] = []
+            for m in models_raw:
+                name = m.get("name", "")
+                if name:
+                    discovered.append(name)
+
+            if discovered:
+                old_models = list(self.config.models)
+                self.config.models = discovered
+                logger.info(
+                    "Ollama 自动发现 %d 个本地模型: %s (之前硬编码: %s)",
+                    len(discovered), discovered, old_models,
+                )
+            return discovered
+        except Exception:
+            logger.debug("Ollama 自动发现模型列表失败，保留硬编码列表: %s", self.config.models)
+            return list(self.config.models)
+
+    async def sync_models(self) -> list[str]:
+        """
+        从 Ollama 自动发现本地已安装的模型列表
+
+        调用 GET /api/tags 获取所有已 pull 的模型名，
+        并更新 self.config.models。连接失败时保留既有列表不变。
+        """
+        try:
+            resp = await self.client.get("/api/tags")
+            resp.raise_for_status()
+            data = resp.json()
+            models_raw = data.get("models", [])
+            if not models_raw:
+                logger.warning("Ollama /api/tags 返回空模型列表（Ollama 运行中但未安装任何模型）")
+                return list(self.config.models)
+
+            discovered: list[str] = []
+            for m in models_raw:
+                name = m.get("name", "")
+                if name:
+                    discovered.append(name)
+
+            if discovered:
+                old_models = list(self.config.models)
+                self.config.models = discovered
+                logger.info(
+                    "Ollama 自动发现 %d 个本地模型: %s (之前硬编码: %s)",
+                    len(discovered), discovered, old_models,
+                )
+            return discovered
+        except httpx.ConnectError:
+            logger.debug("Ollama 服务未运行，保留硬编码模型列表: %s", self.config.models)
+            return list(self.config.models)
+        except Exception as e:
+            logger.warning("Ollama 自动发现模型列表失败: %s, 保留硬编码列表", e)
+            return list(self.config.models)
 
     async def health_check(self) -> bool:
         """检查 Ollama 服务是否可达"""

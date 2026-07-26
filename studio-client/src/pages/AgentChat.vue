@@ -221,12 +221,31 @@ async function loadModels() {
     }
     if (token) headers.Authorization = `Bearer ${token}`
     const res = await fetch("/api/v1/system/models", { headers })
-    if (!res.ok) return
-    const data = await res.json()
-    availableModels.value = data.models || []
-  } catch {
-    // 静默失败
+    if (res.ok) {
+      const data = await res.json()
+      availableModels.value = (data.models || []).map((m: { name: string; display_name: string; capability: string; is_local: boolean; is_downloaded?: boolean }) => ({
+        ...m,
+        provider: m.is_local ? '本地' : '远程',
+        is_remote: !m.is_local,
+      }))
+    } else {
+      console.warn("[AgentChat] 模型列表加载失败: HTTP", res.status)
+      loadFallbackModels()
+    }
+  } catch (e: any) {
+    console.warn("[AgentChat] 模型列表加载异常:", e.message || e)
+    loadFallbackModels()
   }
+}
+
+/** 无法从后端获取模型列表时，提供本地基础兜底 */
+function loadFallbackModels() {
+  availableModels.value = [
+    { name: "qwen3:32b", display_name: "Qwen3 32B (Ollama)", capability: "text", is_local: true, is_remote: false, provider: "Ollama" },
+    { name: "gpt-4o", display_name: "GPT-4o (OpenAI)", capability: "text", is_local: false, is_remote: true, provider: "OpenAI" },
+    { name: "claude-sonnet-4", display_name: "Claude Sonnet 4 (Anthropic)", capability: "text", is_local: false, is_remote: true, provider: "Anthropic" },
+    { name: "deepseek-v3", display_name: "DeepSeek V3", capability: "text", is_local: false, is_remote: true, provider: "DeepSeek" },
+  ]
 }
 
 function selectModel(name: string) {

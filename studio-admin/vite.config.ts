@@ -17,6 +17,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:18000',
         changeOrigin: true,
+        ws: true,
+        timeout: 600000,      // 10min — 代理连接超时
+        proxyTimeout: 600000, // 10min — 代理响应超时（默认 30s 对大请求不够）
       },
     },
   },

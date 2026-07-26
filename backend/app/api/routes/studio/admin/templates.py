@@ -11,6 +11,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep, commit_or_rollback

@@ -7,8 +7,6 @@
 - 预览过滤效果
 """
 
-from __future__ import annotations
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 

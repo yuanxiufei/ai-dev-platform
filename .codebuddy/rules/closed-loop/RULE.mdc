@@ -1,8 +1,8 @@
 ---
-description: 闭环开发规范（四闭环约束）
-alwaysApply: true
-enabled: true
-updatedAt: 2026-07-19T16:00:00.000Z
+description: 闭环开发规范（四闭环约束 — 修改闭环代码时须加载）
+alwaysApply: false
+enabled: false
+updatedAt: 2026-07-25T08:03:41.575Z
 provider: 
 ---
 

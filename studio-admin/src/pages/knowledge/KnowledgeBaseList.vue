@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   listKnowledgeBases,
   createKnowledgeBase,
@@ -8,11 +9,12 @@ import {
   type KnowledgeBase,
   type CreateKBRequest,
 } from '@/api/rag'
-import { BookOpen, Plus, Trash2, Upload, Link, FileText, Loader2, X } from 'lucide-vue-next'
+import { BookOpen, Plus, Trash2, Upload, Link, FileText, Loader2, X, ExternalLink } from 'lucide-vue-next'
 
 const kbs = ref<KnowledgeBase[]>([])
 const loading = ref(true)
 const error = ref('')
+const router = useRouter()
 
 // 创建表单
 const showCreateForm = ref(false)
@@ -240,7 +242,12 @@ const strategies = [
                 <BookOpen class="w-4 h-4 text-brand-400" />
               </div>
               <div>
-                <h3 class="text-sm font-semibold text-gray-200">{{ kb.name }}</h3>
+                <router-link
+                  :to="`/knowledge/${kb.kb_id}`"
+                  class="text-sm font-semibold text-gray-200 hover:text-brand-400 transition-colors"
+                >
+                  {{ kb.name }}
+                </router-link>
                 <p class="text-xs text-gray-500 mt-0.5">{{ kb.description || '暂无描述' }}</p>
                 <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
                   <span>{{ kb.stats?.documents || 0 }} 文档</span>
@@ -252,7 +259,14 @@ const strategies = [
             <div class="flex items-center gap-2">
               <button
                 class="rounded-lg p-2 text-gray-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
-                title="上传文档"
+                title="查看详情"
+                @click="router.push(`/knowledge/${kb.kb_id}`)"
+              >
+                <ExternalLink class="w-4 h-4" />
+              </button>
+              <button
+                class="rounded-lg p-2 text-gray-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                title="快速上传"
                 @click="activeKb = kb.kb_id"
               >
                 <Upload class="w-4 h-4" />

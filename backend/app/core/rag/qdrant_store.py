@@ -287,11 +287,11 @@ class QdrantVectorStore:
 
 class QdrantHybridStorage:
     """
-    Qdrant 混合存储 — 替换 HybridStorage (FAISS + SQLite FTS5)
+    Qdrant 混合存储 — 替换 HybridStorage (FAISS + PostgreSQL tsvector)
 
     实现与 HybridStorage 相同的 add_chunks / dense_search / sparse_search / remove_by_doc_id 接口。
 
-    稀疏搜索依赖 SQLite FTS5（从 DocumentStore 继承），
+    稀疏搜索依赖 PostgreSQL tsvector（从 DocumentStore 继承），
     稠密搜索使用 QdrantVectorStore。
     """
 
@@ -299,6 +299,7 @@ class QdrantHybridStorage:
         self,
         kb_path: str,
         dim: int,
+        pg_dsn: str,
         collection_name: str | None = None,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
@@ -309,9 +310,9 @@ class QdrantHybridStorage:
         self._dim = dim
         self._kb_name = collection_name or _os.path.basename(kb_path.rstrip("/\\"))
 
-        # 文档元数据存储（SQLite + FTS5）
+        # 文档元数据存储（PostgreSQL + tsvector）
         from app.core.rag.vector_store import DocumentStore
-        self._doc_store = DocumentStore(_os.path.join(kb_path, "docs.db"))
+        self._doc_store = DocumentStore(pg_dsn)
 
         # Qdrant 稠密向量存储
         self._vec_store = QdrantVectorStore(

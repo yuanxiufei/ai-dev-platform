@@ -81,5 +81,5 @@ apiClient.interceptors.response.use(
   },
 )
 
-export { showToast }
+export { showToast, apiClient as client }
 export default apiClient

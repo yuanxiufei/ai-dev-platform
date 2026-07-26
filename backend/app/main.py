@@ -187,18 +187,40 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Scheduler init skipped: %s", e)
 
-    # 初始化数据库 + 创建初始超级用户
+    # 确保 RAG 模型预先导入 — 注册 KB 表到 SQLModel.metadata，init_db 统一建表
     try:
-        from app.core.db import engine, init_db
-        from sqlmodel import Session
+        import app.core.rag.models  # noqa: F401  # 副作用：注册 KB 表到 metadata
+        sys.stderr.write("TRACE: RAG models imported\n"); sys.stderr.flush()
+    except ImportError:
+        logger.debug("RAG model import skipped (dependency not available)")
+        sys.stderr.write("TRACE: RAG model import SKIPPED\n"); sys.stderr.flush()
 
-        with Session(engine) as session:
-            init_db(session)
-        logger.info("Database initialized (tables created + first superuser)")
-    except Exception as e:
-        logger.warning("Database init skipped: %s", e)
+    # 初始化数据库 + 创建初始超级用户（带重试，Windows↔WSL 网络偶发超时）
+    import time as _time
+    _db_retries = 3
+    _db_last_err = None
+    for _attempt in range(1, _db_retries + 1):
+        try:
+            sys.stderr.write(f"TRACE: DB init starting (attempt {_attempt}/{_db_retries})...\n"); sys.stderr.flush()
+            from app.core.db import engine, init_db
+            from sqlmodel import Session
+
+            with Session(engine) as session:
+                init_db(session)
+            logger.info("Database initialized (tables created + first superuser)")
+            sys.stderr.write("TRACE: DB init DONE\n"); sys.stderr.flush()
+            break
+        except Exception as e:
+            _db_last_err = e
+            sys.stderr.write(f"TRACE: DB init attempt {_attempt} FAILED: {e}\n"); sys.stderr.flush()
+            if _attempt < _db_retries:
+                _time.sleep(2)
+    else:
+        logger.warning("Database init skipped after %d retries: %s", _db_retries, _db_last_err)
+        sys.stderr.write(f"TRACE: DB init FAILED (all {_db_retries} attempts): {_db_last_err}\n"); sys.stderr.flush()
     # 初始化全局模型路由器
     try:
+        sys.stderr.write("TRACE: ModelRouter init starting...\n"); sys.stderr.flush()
         from app.core.model_router import (
             init_model_router,
             build_local_model_adapters,
@@ -208,7 +230,9 @@ async def lifespan(app: FastAPI):
         from app.core.api_gateway import get_api_gateway
 
         gateway = get_api_gateway()
+        sys.stderr.write("TRACE: building local adapters...\n"); sys.stderr.flush()
         local_models = build_local_model_adapters()
+        sys.stderr.write("TRACE: building API adapters...\n"); sys.stderr.flush()
         api_models = build_api_model_adapters(api_gateway=gateway)
         init_model_router(
             local_models=local_models,
@@ -217,6 +241,7 @@ async def lifespan(app: FastAPI):
             api_models=api_models,
         )
         logger.info("ModelRouter initialized with %d local + %d API models", len(local_models), len(api_models))
+        sys.stderr.write(f"TRACE: ModelRouter DONE ({len(local_models)} local + {len(api_models)} API)\n"); sys.stderr.flush()
 
         # 🆕 模型健康检查器（借鉴 Agent-Reach Channel.check() 设计）
         try:
@@ -392,8 +417,7 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.tools.code_completion import init_completion_engine, register_code_completion_tools
 
-        engine = init_completion_engine()
-        register_code_completion_tools()
+        engine = init_completion_engine()  # register_code_completion_tools called internally
         logger.info("CodeCompletion engine initialized (FIM + ContextAssembler + Ranker + Cache)")
     except Exception as e:
         logger.warning("CodeCompletion engine init skipped: %s", e)
@@ -410,6 +434,44 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         logger.warning("MemoryStore init skipped: %s", e)
+
+    # 初始化 KB 元数据存储（知识库分块/文档 CRUD — 统一 PostgreSQL 后端）
+    try:
+        sys.stderr.write("TRACE: KBStore init starting...\n"); sys.stderr.flush()
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from app.core.rag.kb_store import init_kb_store, get_kb_store
+
+        # 根据数据库类型设置异步引擎 connect_args
+        _async_url = settings.ASYNC_SQLALCHEMY_DATABASE_URI
+        _async_connect_args: dict = {}
+        if "postgresql" in _async_url:
+            _async_connect_args = {"timeout": 10, "command_timeout": 30}
+
+        kb_async_engine = create_async_engine(
+            _async_url,
+            pool_size=5,
+            max_overflow=10,
+            echo=False,
+            connect_args=_async_connect_args,
+        )
+        sys.stderr.write("TRACE: async engine created, awaiting init_kb_store...\n"); sys.stderr.flush()
+        await init_kb_store(engine=kb_async_engine)
+        logger.info("KBStore initialized (PostgreSQL via async engine)")
+        sys.stderr.write("TRACE: KBStore DONE\n"); sys.stderr.flush()
+
+        # 初始化 KBManagerV2 — 从数据库加载已有 KB 到内存缓存（防重启丢 KB 列表）
+        try:
+            from app.core.rag.kb_manager import init_kb_manager_v2
+            kb_mgr = init_kb_manager_v2(store=get_kb_store())
+            await kb_mgr.initialize()
+            logger.info("KBManagerV2 initialized (loaded %d KBs from store)", len(kb_mgr._instances))
+            sys.stderr.write(f"TRACE: KBManagerV2 DONE (loaded {len(kb_mgr._instances)} KBs)\n"); sys.stderr.flush()
+        except Exception as e2:
+            logger.warning("KBManagerV2 init skipped: %s", e2)
+            sys.stderr.write(f"TRACE: KBManagerV2 FAILED: {e2}\n"); sys.stderr.flush()
+    except Exception as e:
+        logger.warning("KBStore init skipped: %s", e)
+        sys.stderr.write(f"TRACE: KBStore FAILED: {e}\n"); sys.stderr.flush()
 
     # 初始化平台消息历史 & 对话管理器（SQLite 持久化，防重启丢数据）
     try:
@@ -484,7 +546,7 @@ async def lifespan(app: FastAPI):
                 try:
                     _update_sys_gauges()
                 except Exception:
-                    pass
+                    logger.debug("Metrics updater failed", exc_info=True)
                 await asyncio.sleep(15)
         task = asyncio.create_task(_metrics_updater())
         _bg_tasks.add(task)
@@ -695,6 +757,7 @@ async def lifespan(app: FastAPI):
         logger.warning("StandaloneManager init skipped: %s", e)
 
     logger.info("✓ All components initialized. Server ready.")
+    sys.stderr.write("TRACE: === STARTUP COMPLETE ===\n"); sys.stderr.flush()
     yield
     # ═══ SHUTDOWN ═══
     logger.info("Shutting down...")
@@ -705,13 +768,11 @@ async def lifespan(app: FastAPI):
         from app.core.api_gateway import get_api_gateway
 
         gateway = get_api_gateway()
-        import asyncio
         asyncio.ensure_future(gateway.close())
     except Exception:
         logger.warning("Failed to shutdown API Gateway", exc_info=True)
     try:
         from app.core.cache import close_redis_client
-        import asyncio
         asyncio.ensure_future(close_redis_client())
     except Exception:
         logger.warning("Failed to shutdown Redis client", exc_info=True)

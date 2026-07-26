@@ -60,6 +60,7 @@ class RAGPipeline:
         top_k: int = 5,
         include_sources: bool = True,
         max_context_tokens: int = 3000,
+        filter_dict: dict | None = None,
     ) -> dict:
         """
         执行 RAG 查询
@@ -77,6 +78,7 @@ class RAGPipeline:
             top_k: 检索返回数
             include_sources: 是否包含引用来源
             max_context_tokens: 上下文最大 token 数
+            filter_dict: WhereFilter DSL 元数据过滤条件
 
         Returns:
             {
@@ -91,9 +93,13 @@ class RAGPipeline:
         """
         # ── 1. 检索（内部含 Rerank） ──
         if isinstance(kb_or_ids, KnowledgeBase):
-            results = await self._kb_manager.query(kb_or_ids, question, top_k)
+            results = await self._kb_manager.query(
+                kb_or_ids, question, top_k, filter_dict=filter_dict,
+            )
         elif isinstance(kb_or_ids, list):
-            results = await self._kb_manager.query_multi(kb_or_ids, question, top_k)
+            results = await self._kb_manager.query_multi(
+                kb_or_ids, question, top_k, filter_dict=filter_dict,
+            )
         else:
             all_kbs = self._kb_manager.list_all()
             kb_ids = [kb.kb_id for kb in all_kbs]
@@ -103,7 +109,9 @@ class RAGPipeline:
                     "sources": [], "context": "", "query": question,
                     "compressed": False, "original_chunks": 0, "final_chunks": 0,
                 }
-            results = await self._kb_manager.query_multi(kb_ids, question, top_k)
+            results = await self._kb_manager.query_multi(
+                kb_ids, question, top_k, filter_dict=filter_dict,
+            )
 
         if not results:
             return {
@@ -214,27 +222,35 @@ async def rag_query(
     question: str,
     kb_ids: Optional[list[str]] = None,
     top_k: int = 5,
+    filter_dict: dict | None = None,
 ) -> dict:
-    """RAG 快速查询入口"""
+    """RAG 快速查询入口，支持 WhereFilter 元数据过滤"""
     pipeline = RAGPipeline()
-    return await pipeline.query(question, kb_or_ids=kb_ids, top_k=top_k)
+    return await pipeline.query(
+        question, kb_or_ids=kb_ids, top_k=top_k, filter_dict=filter_dict,
+    )
 
 
 async def rag_search(
     query: str,
     kb_ids: Optional[list[str]] = None,
     top_k: int = 5,
+    filter_dict: dict | None = None,
 ) -> list[dict]:
     """
-    纯检索接口（不生成回答）
+    纯检索接口（不生成回答），支持 WhereFilter 元数据过滤
     作为 Agent Tool 使用
     """
     mgr = get_knowledge_base()
 
     if kb_ids:
-        return await mgr.query_multi(kb_ids, query, top_k)
+        return await mgr.query_multi(
+            kb_ids, query, top_k, filter_dict=filter_dict,
+        )
 
     all_kbs = mgr.list_all()
     if not all_kbs:
         return []
-    return await mgr.query_multi([kb.kb_id for kb in all_kbs], query, top_k)
+    return await mgr.query_multi(
+        [kb.kb_id for kb in all_kbs], query, top_k, filter_dict=filter_dict,
+    )

@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { LayoutGrid, Layers, Play, BookOpen, Wrench, Server, Store, Package, BarChart3, Swords, MemoryStick, Sliders, Brain, Image, Mic, Webhook, FileText, Command, ListChecks, Globe, GitGraph, Settings, HardDrive, MessageCircle } from '@/components/icons'
+import { useAuthStore } from '@/stores/auth'
+import { LayoutGrid, Layers, Play, BookOpen, Wrench, Server, Store, Package, BarChart3, Swords, MemoryStick, Sliders, Brain, Image, Mic, Webhook, FileText, Command, ListChecks, Globe, GitGraph, Settings, HardDrive, MessageCircle, Cpu } from '@/components/icons'
+import { LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 
 const navItems = [
   { path: '/chat', name: '对话测试台', icon: MessageCircle },
   { path: '/projects', name: '项目管理', icon: LayoutGrid },
   { path: '/templates', name: '模板市场', icon: Layers },
   { path: '/knowledge', name: '知识库', icon: BookOpen },
+  { path: '/rag-test', name: 'RAG 测试', icon: Cpu },
   { path: '/tools', name: '工具管理', icon: Wrench },
   { path: '/mcp', name: 'MCP 服务器', icon: Server },
   { path: '/plugins', name: '插件市场', icon: Store },
@@ -32,6 +42,7 @@ const navItems = [
   { path: '/screenshot-to-code', name: '截图转代码', icon: LayoutGrid },
   { path: '/system', name: '系统管理', icon: Settings },
   { path: '/storage', name: '存储管理', icon: HardDrive },
+  { path: '/models', name: '模型管理', icon: Package },
 ]
 </script>
 
@@ -87,15 +98,29 @@ const navItems = [
     </nav>
 
     <!-- Footer -->
-    <div class="border-t border-white/10 p-4">
+    <div class="border-t border-white/10 p-4 space-y-3">
       <span
         :class="[
-          'text-xs text-gray-500 transition-opacity',
+          'text-xs text-gray-500 transition-opacity block',
           appStore.sidebarCollapsed ? 'opacity-0' : 'opacity-100',
         ]"
       >
         v0.2.0
       </span>
+      <button
+        class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors w-full"
+        @click="handleLogout"
+      >
+        <LogOut class="w-4 h-4 shrink-0" />
+        <span
+          :class="[
+            'whitespace-nowrap transition-opacity',
+            appStore.sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100',
+          ]"
+        >
+          退出登录
+        </span>
+      </button>
     </div>
   </aside>
 </template>

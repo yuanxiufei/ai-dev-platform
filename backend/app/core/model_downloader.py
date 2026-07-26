@@ -76,6 +76,13 @@ MODELSCOPE_SOURCE = DownloadSource(
     mirror_urls=[],
 )
 
+# Ollama 下载源（通过 Ollama API 拉取模型）
+OLLAMA_SOURCE = DownloadSource(
+    name="ollama",
+    base_url="http://localhost:11434",
+    mirror_urls=[],
+)
+
 
 # ── 文件下载器 ────────────────────────────────────────────
 
@@ -293,6 +300,61 @@ class ModelDownloadManager:
                 "capability": "vision",
                 "approx_size_gb": 14.5,
             },
+            # ── Ollama 可拉取模型（通过 /api/pull 流式下载）────────
+            "ollama:llama3.1:8b": {
+                "display_name": "Llama 3.1 8B (Ollama)",
+                "ollama_model": "llama3.1:8b",
+                "files": [],
+                "format": "ollama",
+                "capability": "general",
+                "approx_size_gb": 4.7,
+                "source": "ollama",
+            },
+            "ollama:qwen3:14b": {
+                "display_name": "Qwen3 14B (Ollama)",
+                "ollama_model": "qwen3:14b",
+                "files": [],
+                "format": "ollama",
+                "capability": "general",
+                "approx_size_gb": 8.5,
+                "source": "ollama",
+            },
+            "ollama:qwen2.5-coder:7b": {
+                "display_name": "Qwen2.5-Coder-7B (Ollama)",
+                "ollama_model": "qwen2.5-coder:7b",
+                "files": [],
+                "format": "ollama",
+                "capability": "code_gen",
+                "approx_size_gb": 4.7,
+                "source": "ollama",
+            },
+            "ollama:gemma3:12b": {
+                "display_name": "Gemma 3 12B (Ollama)",
+                "ollama_model": "gemma3:12b",
+                "files": [],
+                "format": "ollama",
+                "capability": "general",
+                "approx_size_gb": 7.4,
+                "source": "ollama",
+            },
+            "ollama:codellama:13b": {
+                "display_name": "CodeLlama 13B (Ollama)",
+                "ollama_model": "codellama:13b",
+                "files": [],
+                "format": "ollama",
+                "capability": "code_gen",
+                "approx_size_gb": 7.4,
+                "source": "ollama",
+            },
+            "ollama:deepseek-coder": {
+                "display_name": "DeepSeek-Coder (Ollama)",
+                "ollama_model": "deepseek-coder",
+                "files": [],
+                "format": "ollama",
+                "capability": "code_gen",
+                "approx_size_gb": 7.8,
+                "source": "ollama",
+            },
         }
 
     def get_model_list(self) -> list[dict]:
@@ -323,6 +385,8 @@ class ModelDownloadManager:
             sources.append("huggingface")
         if config.get("ms_id"):
             sources.append("modelscope")
+        if config.get("source") == "ollama" or config.get("ollama_model"):
+            sources.append("ollama")
         return sources
 
     async def start_download(
@@ -368,6 +432,17 @@ class ModelDownloadManager:
 
         async with self._semaphore:
             try:
+                # Ollama 拉取走独立路径
+                if config.get("source") == "ollama":
+                    await self._execute_ollama_pull(task_id, model_name, config, progress)
+                    if progress.state == DownloadState.CANCELLED:
+                        return
+                    progress.state = DownloadState.COMPLETED
+                    progress.progress_pct = 100.0
+                    self._notify_progress(progress)
+                    logger.info(f"Ollama model '{model_name}' pulled successfully")
+                    return
+
                 model_dir = self.models_dir / model_name
                 model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -544,6 +619,83 @@ class ModelDownloadManager:
                     f"or modelscope to download. Please install them or "
                     f"manually place the model files in {model_dir}."
                 )
+
+    async def _execute_ollama_pull(
+        self,
+        task_id: str,
+        model_name: str,
+        config: dict,
+        progress: DownloadProgress,
+    ):
+        """通过 Ollama /api/pull 拉取模型（流式 NDJSON 解析进度）"""
+        import aiohttp
+        import json as _json
+        import os
+
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        ollama_model = config.get("ollama_model", model_name.replace("ollama:", ""))
+        url = f"{ollama_host}/api/pull"
+
+        logger.info(f"Pulling Ollama model: {ollama_model} from {ollama_host}")
+
+        timeout = aiohttp.ClientTimeout(total=None, connect=30, sock_read=None)
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json={"name": ollama_model, "stream": True}) as resp:
+                    resp.raise_for_status()
+                    line_count = 0
+                    async for line_bytes in resp.content:
+                        if progress.state == DownloadState.CANCELLED:
+                            logger.info(f"Ollama pull cancelled for {ollama_model}")
+                            return
+
+                        line = line_bytes.decode("utf-8", errors="replace").strip()
+                        if not line:
+                            continue
+
+                        try:
+                            data = _json.loads(line)
+                        except _json.JSONDecodeError:
+                            continue
+
+                        line_count += 1
+
+                        # 提取进度信息
+                        status = data.get("status", "")
+                        if "completed" in data:
+                            total = data.get("total", 0)
+                            completed = data.get("completed", 0)
+                            if total > 0:
+                                progress.progress_pct = min((completed / total) * 100, 99.0)
+                                progress.downloaded_bytes = completed
+                                progress.total_bytes = total
+                            progress.current_file = ollama_model
+                            self._notify_progress(progress)
+                        elif status:
+                            # 状态文本更新（如 "pulling manifest", "downloading ..."）
+                            progress.current_file = f"{ollama_model}: {status}"
+                            # 粗略进度估算
+                            if status.startswith("pulling"):
+                                progress.progress_pct = 5.0
+                            elif status.startswith("verifying"):
+                                progress.progress_pct = 90.0
+                            elif status.startswith("writing"):
+                                progress.progress_pct = 95.0
+                            elif "downloading" in status.lower():
+                                # 中间进度区间
+                                progress.progress_pct = max(progress.progress_pct or 10.0, 10.0)
+                            self._notify_progress(progress)
+
+                    logger.info(
+                        f"Ollama pull completed: {ollama_model} "
+                        f"({line_count} status lines)"
+                    )
+
+        except aiohttp.ClientError as e:
+            raise RuntimeError(f"Ollama pull failed (connection error): {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"Ollama pull failed: {e}") from e
 
     def _estimate_file_size(self, config: dict, source: str, filename: str) -> int:
         """估算单个文件大小（粗略估计）"""

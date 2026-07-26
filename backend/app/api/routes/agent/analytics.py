@@ -136,7 +136,7 @@ async def analytics_by_model(
 @router.get("/analytics/trends")
 async def analytics_trends(
     days: int = Query(7, ge=1, le=90),
-    granularity: str = Query("day", regex="^(hour|day)$"),
+    granularity: str = Query("day", pattern="^(hour|day)$"),
     db: Session = Depends(get_db),
 ) -> dict:
     """使用趋势 — 按小时/天聚合"""

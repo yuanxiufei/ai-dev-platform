@@ -9,8 +9,6 @@ Compound Vault Routes — 借鉴 claude-obsidian 知识引擎
 - 索引统计与维护
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import os

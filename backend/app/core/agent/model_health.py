@@ -63,6 +63,7 @@ class MonitoredModel:
     failure_count: int = 0        # 连续失败次数
     success_count: int = 0        # 连续成功次数
     model_adapter: Any = None     # 关联的 ICandidateModel 适配器引用（弱引用）
+    _unhealthy_warned: bool = False  # 去重：只在首次标记 unhealthy 时打 warning
 
     @property
     def is_healthy(self) -> bool:
@@ -71,6 +72,7 @@ class MonitoredModel:
     def mark_healthy(self, latency_ms: float = 0.0) -> None:
         self.failure_count = 0
         self.success_count += 1
+        self._unhealthy_warned = False  # 恢复时重置 warning 标记
         self.health = HealthCheckResult(
             status=HealthStatus.HEALTHY,
             message="OK",
@@ -243,6 +245,10 @@ class ModelHealthChecker:
             # 策略选择
             if model.provider == "ollama":
                 success, msg, latency = self._ping_ollama(model)
+            elif model.provider == "vllm":
+                success, msg, latency = self._ping_vllm(model)
+            elif model.provider == "llama_cpp":
+                success, msg, latency = self._ping_llama_cpp(model)
             elif model.provider in ("openai", "anthropic", "deepseek"):
                 success, msg, latency = self._ping_http(model)
             elif model.provider == "local":
@@ -262,8 +268,11 @@ class ModelHealthChecker:
             else:
                 if model.failure_count >= self._max_failures:
                     model.mark_unhealthy(msg)
-                    logger.warning("ModelHealth: %s unhealthy after %d failures: %s",
-                                   model.name, model.failure_count, msg)
+                    # 去重：只在首次转换到 unhealthy 或状态变化时打 warning
+                    if not model._unhealthy_warned:
+                        model._unhealthy_warned = True
+                        logger.warning("ModelHealth: %s unhealthy after %d failures: %s",
+                                       model.name, model.failure_count, msg)
                 else:
                     # 失败次数不足时保持之前的状态
                     model.failure_count += 1
@@ -320,6 +329,66 @@ class ModelHealthChecker:
                     return False, f"Ollama reachable but model '{target_id}' not found", latency
         except Exception as e:
             return False, f"Ollama unreachable: {e}", 0
+
+    def _ping_vllm(self, model: MonitoredModel) -> tuple[bool, str, float]:
+        """探测 vLLM Docker 服务（HTTP GET /health 或 /v1/models）"""
+        try:
+            import urllib.request
+            import json
+            import os
+
+            base_url = model.endpoint or os.getenv("VLLM_BASE_URL", "http://localhost:3080")
+            url = f"{base_url}/health"
+            req = urllib.request.Request(url)
+            start = _time.perf_counter()
+            with urllib.request.urlopen(req, timeout=self._ping_timeout) as resp:
+                latency = (_time.perf_counter() - start) * 1000
+                if resp.status == 200:
+                    return True, "vLLM healthy", latency
+
+            # /health 不可用时回退到 /v1/models
+            url = f"{base_url}/v1/models"
+            req = urllib.request.Request(url)
+            start = _time.perf_counter()
+            with urllib.request.urlopen(req, timeout=self._ping_timeout) as resp:
+                data = json.loads(resp.read().decode())
+                latency = (_time.perf_counter() - start) * 1000
+                models_list = data.get("data", [])
+                if models_list:
+                    return True, f"vLLM reachable ({len(models_list)} models)", latency
+                return False, "vLLM reachable but no models loaded", latency
+        except Exception as e:
+            return False, f"vLLM unreachable: {e}", 0
+
+    def _ping_llama_cpp(self, model: MonitoredModel) -> tuple[bool, str, float]:
+        """探测 llama.cpp Docker 服务（HTTP GET /v1/models）"""
+        try:
+            import urllib.request
+            import json
+            import os
+
+            base_url = model.endpoint or os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:3081")
+            url = f"{base_url}/health"
+            req = urllib.request.Request(url)
+            start = _time.perf_counter()
+            with urllib.request.urlopen(req, timeout=self._ping_timeout) as resp:
+                latency = (_time.perf_counter() - start) * 1000
+                if resp.status == 200:
+                    return True, "llama.cpp healthy", latency
+
+            # /health 不可用时回退到 /v1/models
+            url = f"{base_url}/v1/models"
+            req = urllib.request.Request(url)
+            start = _time.perf_counter()
+            with urllib.request.urlopen(req, timeout=self._ping_timeout) as resp:
+                data = json.loads(resp.read().decode())
+                latency = (_time.perf_counter() - start) * 1000
+                models_list = data.get("data", [])
+                if models_list:
+                    return True, f"llama.cpp reachable ({len(models_list)} models)", latency
+                return False, "llama.cpp reachable but no models loaded", latency
+        except Exception as e:
+            return False, f"llama.cpp unreachable: {e}", 0
 
     def _ping_http(self, model: MonitoredModel) -> tuple[bool, str, float]:
         """探测 HTTP API 模型（通过 API key 环境变量检查）"""

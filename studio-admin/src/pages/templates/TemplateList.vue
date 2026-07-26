@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { listTemplates, useTemplate } from '@/api/studio'
 import type { Template } from '@/types/studio'
 import { ExternalLink, Play } from 'lucide-vue-next'
-import AppLayout from '@/components/layout/AppLayout.vue'
 
 const router = useRouter()
 const templates = ref<Template[]>([])
@@ -33,7 +32,6 @@ const handleUse = async (template: Template) => {
 </script>
 
 <template>
-  <AppLayout>
     <div class="space-y-6">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">模板市场</h1>
@@ -89,7 +87,6 @@ const handleUse = async (template: Template) => {
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <script lang="ts">

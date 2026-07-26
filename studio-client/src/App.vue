@@ -265,7 +265,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <RouterView v-if="$route.path === '/login'" />
+  <RouterView v-if="['/login', '/group-chat'].includes($route.path)" />
   <!-- VSCode Workbench Shell -->
   <div v-else class="workbench h-full w-full flex flex-col overflow-hidden select-none"
     style="background: var(--color-ide-bg);">

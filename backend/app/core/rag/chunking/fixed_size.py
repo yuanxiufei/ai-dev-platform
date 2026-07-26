@@ -17,8 +17,19 @@ from . import BaseChunker
 class FixedSizeChunker(BaseChunker):
     """固定大小分块器"""
 
-    def __init__(self, chunk_size: int = 512, chunk_overlap: int = 50):
-        super().__init__(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    def __init__(
+        self,
+        chunk_size: int = 512,
+        chunk_overlap: int = 50,
+        context_header: Optional[str] = None,
+        token_budget: int = 0,
+    ):
+        super().__init__(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            context_header=context_header,
+            token_budget=token_budget,
+        )
 
     @property
     def name(self) -> str:
@@ -55,4 +66,5 @@ class FixedSizeChunker(BaseChunker):
             if start >= text_len:
                 break
 
-        return chunks
+        chunks = self._apply_context_header(chunks)
+        return self._apply_token_budget(chunks)
