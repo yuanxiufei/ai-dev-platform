@@ -208,6 +208,20 @@ export const deleteChunks = (kbId: string, chunkIds: string[]) =>
     { data: { chunk_ids: chunkIds } },
   )
 
+/* ========== 文档结构树 ========== */
+
+export interface StructureNode {
+  level: number
+  text: string
+  position: number
+  children: StructureNode[]
+}
+
+export const getDocumentStructure = (kbId: string, docId: string) =>
+  apiClient.get<{ data: StructureNode[] | null; message?: string }>(
+    `/rag/knowledge-bases/${kbId}/documents/${docId}/structure`,
+  )
+
 /* ========== Job 管理 ========== */
 
 export interface KBJob {
@@ -275,3 +289,38 @@ export const ragHealth = () =>
     kb_names: string[]
     ready: boolean
   }>("/rag/health")
+
+/* ========== 检索命中测试 ========== */
+
+export interface HitTestResult {
+  content: string
+  score: number
+  rank: number
+  doc_id: string
+  metadata: Record<string, unknown>
+  kb_name: string
+  source: string
+}
+
+export interface HitTestResponse {
+  query: string
+  kb_id: string
+  kb_name: string
+  total_hits: number
+  hits: HitTestResult[]
+}
+
+export const hitTestKnowledgeBase = (
+  kbId: string,
+  query: string,
+  topK?: number,
+  similarityThreshold?: number,
+) =>
+  apiClient.post<{ data: HitTestResponse }>(
+    `/rag/knowledge-bases/${kbId}/hit-test`,
+    {
+      query,
+      top_k: topK ?? 5,
+      similarity_threshold: similarityThreshold ?? 0,
+    },
+  )

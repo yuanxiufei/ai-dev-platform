@@ -44,6 +44,11 @@ const router = createRouter({
       component: () => import("@/pages/KnowledgeBaseDetail.vue"),
     },
     {
+      path: "/knowledge/:id/hit-test",
+      name: "knowledge-hit-test",
+      component: () => import("@/pages/HitTesting.vue"),
+    },
+    {
       path: "/tools",
       name: "tools",
       component: () => import("@/pages/ToolsBrowser.vue"),
@@ -272,6 +277,42 @@ const router = createRouter({
       path: "/snippets",
       name: "snippets",
       component: () => import("@/components/ide/SnippetsPanel.vue"),
+    },
+    /* ===== 系统工具页面 (7 个新API模块) ===== */
+    {
+      path: "/models",
+      name: "model-manager",
+      component: () => import("@/pages/ModelManager.vue"),
+    },
+    {
+      path: "/gpu",
+      name: "gpu-monitor",
+      component: () => import("@/pages/GpuMonitor.vue"),
+    },
+    {
+      path: "/global-search",
+      name: "global-search",
+      component: () => import("@/pages/GlobalSearchPage.vue"),
+    },
+    {
+      path: "/file-explorer",
+      name: "file-explorer",
+      component: () => import("@/pages/FileExplorerPage.vue"),
+    },
+    {
+      path: "/diagnostics",
+      name: "diagnostics",
+      component: () => import("@/pages/DiagnosticsPage.vue"),
+    },
+    {
+      path: "/terminal",
+      name: "terminal-page",
+      component: () => import("@/pages/TerminalPage.vue"),
+    },
+    {
+      path: "/testing",
+      name: "testing-page",
+      component: () => import("@/pages/TestingPage.vue"),
     },
     {
       path: "/:pathMatch(.*)*",

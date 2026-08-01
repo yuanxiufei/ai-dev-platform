@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import uuid
@@ -23,10 +24,17 @@ from app.core.rag.models import KnowledgeBase as KBModel, KBDocument, KBMedia, K
 from app.core.rag.embedder import get_embedding_provider
 from app.core.rag.retrieval_manager import get_retrieval_manager
 from app.core.rag.segments import SegmentManager
-from app.core.rag.parsers import select_parser, select_parser as discover_parser
+from app.core.rag.parsers import (
+    ImageRef, lazy_load_image, select_parser,
+)
+discover_parser = select_parser
 from app.core.rag.chunking import get_chunker
 from app.core.rag.kb_repair import repair_chunk_with_retry, should_repair
 from app.core.rag.config import get_rag_config
+from app.core.rag.structure_tree import (
+    extract_headings, build_tree, annotate_chunks_with_headings,
+    get_heading_path_for_chunk,
+)
 
 logger = logging.getLogger("app.core.rag.kb_manager")
 
@@ -223,7 +231,10 @@ class KnowledgeBaseManagerV2:
                 file_size=file_size,
                 file_path=filepath,
                 chunk_count=0,
-                media_count=len(parsed.images) if parsed.images else 0,
+                media_count=(
+                    (len(parsed.images) if parsed.images else 0)
+                    + (len(getattr(parsed, "image_refs", []) or []))
+                ),
                 embedding_status="embedding",
             )
             doc = await self._store.create_document(doc)
@@ -251,10 +262,16 @@ class KnowledgeBaseManagerV2:
                 chunk_overlap = inst.model.chunk_overlap
                 strategy = "markdown" if file_ext in (".md", ".markdown", ".rst", ".adoc") else "recursive"
 
+                # 文档上下文头 — 借鉴 AnythingLLM chunkHeader
+                context_header = parsed.title or file_name
                 chunker = get_chunker(
                     strategy=strategy,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
+                    context_header=(
+                        f"[文档: {context_header}]\n[类型: {file_ext}]\n[解析器: {parser.name}]"
+                    ),
+                    embedder=self._embedder,
                 )
                 chunks = chunker.chunk(
                     raw_text,
@@ -266,6 +283,19 @@ class KnowledgeBaseManagerV2:
                         **parsed.metadata,
                     },
                 )
+
+                # 4.5 标题路径标注 — 借鉴 RAGFlow 文档结构树
+                headings = extract_headings(raw_text)
+                if headings:
+                    heading_map = annotate_chunks_with_headings(raw_text, headings)
+                    for chunk in chunks:
+                        start = chunk.get("start_position", 0)
+                        heading_path = get_heading_path_for_chunk(start, heading_map)
+                        if heading_path:
+                            chunk["metadata"]["_heading_path"] = heading_path
+                    # 存储结构树到文件（避免 SQLite 迁移）
+                    tree = build_tree(headings)
+                    self._save_structure_tree(doc.doc_id, kb_id, [n.to_dict() for n in tree])
 
                 if not chunks:
                     logger.warning("No chunks from: %s", filepath)
@@ -288,9 +318,12 @@ class KnowledgeBaseManagerV2:
                 await self._store.update_document_embedding(
                     doc.doc_id, status="completed", chunk_count=len(chunks))
 
-                # 8. 保存媒体文件
-                if parsed.images:
-                    await self._save_media(inst, doc.doc_id, parsed.images, file_name)
+                # 8. 保存媒体文件（含懒加载路径）
+                if parsed.images or getattr(parsed, "image_refs", None):
+                    await self._save_media(
+                        inst, doc.doc_id, parsed.images, file_name,
+                        image_refs=getattr(parsed, "image_refs", None),
+                    )
 
                 # 9. 更新统计
                 await self._sync_stats(kb_id)
@@ -330,10 +363,13 @@ class KnowledgeBaseManagerV2:
         doc_id = doc.doc_id  # 保存到局部变量，防止 session 分离后属性不可访问
 
         try:
+            context_header = title or "text_input"
             chunker = get_chunker(
                 strategy="recursive",
                 chunk_size=inst.model.chunk_size,
                 chunk_overlap=inst.model.chunk_overlap,
+                context_header=f"[文档: {context_header}]\n[类型: text]",
+                embedder=self._embedder,
             )
             chunks = chunker.chunk(text, metadata={
                 "source": "text",
@@ -341,6 +377,18 @@ class KnowledgeBaseManagerV2:
                 "doc_id": doc_id,
                 **(metadata or {}),
             })
+            # 标题路径标注
+            headings = extract_headings(text)
+            if headings:
+                heading_map = annotate_chunks_with_headings(text, headings)
+                for chunk in chunks:
+                    start = chunk.get("start_position", 0)
+                    heading_path = get_heading_path_for_chunk(start, heading_map)
+                    if heading_path:
+                        chunk["metadata"]["_heading_path"] = heading_path
+                tree = build_tree(headings)
+                self._save_structure_tree(doc_id, kb_id, [n.to_dict() for n in tree])
+
             if not chunks:
                 await self._store.update_document_embedding(
                     doc_id, status="completed", chunk_count=0)
@@ -393,7 +441,10 @@ class KnowledgeBaseManagerV2:
                 file_path=url,
                 file_size=len(parsed.text.encode("utf-8")) if parsed.text else 0,
                 chunk_count=0,
-                media_count=len(parsed.images) if parsed.images else 0,
+                media_count=(
+                    (len(parsed.images) if parsed.images else 0)
+                    + (len(getattr(parsed, "image_refs", []) or []))
+                ),
                 embedding_status="embedding",
             )
             doc = await self._store.create_document(doc)
@@ -405,10 +456,15 @@ class KnowledgeBaseManagerV2:
                 # 3. 分块
                 chunk_size = inst.model.chunk_size
                 chunk_overlap = inst.model.chunk_overlap
+                context_header = parsed.title or doc_name
                 chunker = get_chunker(
                     strategy="recursive",
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
+                    context_header=(
+                        f"[文档: {context_header}]\n[来源: {url}]\n[解析器: {parser.name}]"
+                    ),
+                    embedder=self._embedder,
                 )
                 chunks = chunker.chunk(
                     parsed.text,
@@ -420,6 +476,18 @@ class KnowledgeBaseManagerV2:
                         "url": url,
                     },
                 )
+
+                # 4.5 标题路径标注
+                headings = extract_headings(parsed.text)
+                if headings:
+                    heading_map = annotate_chunks_with_headings(parsed.text, headings)
+                    for chunk in chunks:
+                        start = chunk.get("start_position", 0)
+                        heading_path = get_heading_path_for_chunk(start, heading_map)
+                        if heading_path:
+                            chunk["metadata"]["_heading_path"] = heading_path
+                    tree = build_tree(headings)
+                    self._save_structure_tree(doc_id, kb_id, [n.to_dict() for n in tree])
 
                 if not chunks:
                     logger.warning("No chunks from URL: %s", url)
@@ -440,9 +508,12 @@ class KnowledgeBaseManagerV2:
                 await self._store.update_document_embedding(
                     doc_id, status="completed", chunk_count=len(chunks))
 
-                # 6. 保存媒体
-                if parsed.images:
-                    await self._save_media(inst, doc_id, parsed.images, doc_name)
+                # 6. 保存媒体（含懒加载路径）
+                if parsed.images or getattr(parsed, "image_refs", None):
+                    await self._save_media(
+                        inst, doc_id, parsed.images, doc_name,
+                        image_refs=getattr(parsed, "image_refs", None),
+                    )
 
                 # 7. 更新统计
                 await self._sync_stats(kb_id)
@@ -820,6 +891,33 @@ class KnowledgeBaseManagerV2:
 
     # ── 工具方法 ────────────────────────────────
 
+    def _structure_tree_path(self, kb_id: str, doc_id: str) -> str:
+        """文档结构树 JSON 文件路径"""
+        kb_dir = os.path.join(self._config.kb_dir, kb_id)
+        return os.path.join(kb_dir, f"{doc_id}_structure.json")
+
+    def _save_structure_tree(self, doc_id: str, kb_id: str, tree_data: list[dict]) -> None:
+        """将文档结构树保存为 JSON 文件"""
+        try:
+            path = self._structure_tree_path(kb_id, doc_id)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(tree_data, f, ensure_ascii=False, indent=2)
+            logger.debug("Structure tree saved: %s (%d headings)", doc_id, len(tree_data))
+        except Exception as e:
+            logger.warning("Failed to save structure tree for %s: %s", doc_id, e)
+
+    def get_structure_tree(self, kb_id: str, doc_id: str) -> Optional[list[dict]]:
+        """读取文档结构树（失败返回 None）"""
+        try:
+            path = self._structure_tree_path(kb_id, doc_id)
+            if not os.path.exists(path):
+                return None
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
     @staticmethod
     def _format_context(results: list[dict]) -> str:
         """将检索结果格式化为上下文文本"""
@@ -840,12 +938,14 @@ class KnowledgeBaseManagerV2:
         doc_id: str,
         images: list[bytes],
         file_name: str,
+        image_refs: Optional[list[ImageRef]] = None,
     ) -> None:
-        """保存文档中的多媒体资源"""
+        """保存文档中的多媒体资源（支持懒加载路径）"""
         kb_dir = os.path.join(self._config.kb_dir, inst.model.kb_id)
         media_dir = os.path.join(kb_dir, "media")
         os.makedirs(media_dir, exist_ok=True)
 
+        # 1) 已解析的图片字节
         for i, img_data in enumerate(images):
             ext = self._detect_image_format(img_data)
             media_name = f"{file_name}_{i}.{ext}"
@@ -864,6 +964,35 @@ class KnowledgeBaseManagerV2:
                 mime_type=f"image/{ext}",
             )
             await self._store.create_media(media)
+
+        # 2) 懒加载图片引用 — 按需加载保存
+        if image_refs:
+            for i, ref in enumerate(image_refs):
+                try:
+                    img_data = lazy_load_image(ref)
+                    if img_data is None:
+                        continue
+                except Exception:
+                    logger.warning(f"懒加载图片失败: {ref.src or '?'}")
+                    continue
+                ext = ref.ext or self._detect_image_format(img_data)
+                idx = len(images) + i
+                media_name = f"{file_name}_{idx}.{ext}"
+                media_path = os.path.join(media_dir, media_name)
+
+                with open(media_path, "wb") as f:
+                    f.write(img_data)
+
+                media = KBMedia(
+                    doc_id=doc_id,
+                    kb_id=inst.model.kb_id,
+                    media_type="image",
+                    file_name=media_name,
+                    file_path=media_path,
+                    file_size=len(img_data),
+                    mime_type=f"image/{ext}",
+                )
+                await self._store.create_media(media)
 
     @staticmethod
     def _detect_image_format(data: bytes) -> str:

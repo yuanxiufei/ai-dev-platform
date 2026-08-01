@@ -1147,6 +1147,20 @@ async def get_ghost_stats(kb_id: str):
     return stats
 
 
+@router.get("/{kb_id}/documents/{doc_id}/structure")
+async def get_document_structure(kb_id: str, doc_id: str):
+    """获取文档的结构树（标题层级）
+
+    返回：标题节点列表，每个节点含 level/text/position/children。
+    借鉴 RAGFlow 文档结构树。
+    """
+    mgr = get_kb_manager_v2()
+    tree = mgr.get_structure_tree(kb_id, doc_id)
+    if tree is None:
+        return {"data": None, "message": "该文档未提取到结构树"}
+    return {"data": tree}
+
+
 @router.post("/{kb_id}/compact")
 async def compact_knowledge_base(kb_id: str):
     """压缩 FAISS 索引：重新嵌入所有有效 chunk 并重建索引
@@ -1178,3 +1192,64 @@ async def compact_knowledge_base(kb_id: str):
         raise HTTPException(500, str(e)) from e
 
     return result
+
+
+# ── 检索命中测试 ──────────────────────────────────────────
+
+
+class HitTestRequest(BaseModel):
+    """检索命中测试请求"""
+    query: str
+    top_k: int = 5
+    similarity_threshold: float = 0.0
+
+
+@router.post("/{kb_id}/hit-test")
+async def hit_test(kb_id: str, req: HitTestRequest):
+    """对指定知识库执行检索命中测试
+
+    借鉴 Dify/RAGFlow 检索命中测试页：
+    - 输入 query + 检索参数 (top_k, similarity_threshold)
+    - 返回命中 chunks 列表 (content, score, metadata, doc_name)
+
+    使用 KBManagerV2.retrieve() 复用现有检索管线
+    """
+    mgr = get_kb_manager_v2()
+    inst = mgr.get(kb_id)
+    if not inst:
+        raise HTTPException(404, f"知识库 {kb_id} 不存在")
+
+    try:
+        result = await mgr.retrieve(
+            query=req.query,
+            kb_ids=[kb_id],
+            top_m_final=req.top_k,
+        )
+    except Exception as e:
+        logger.exception("Hit test KB %s failed: %s", kb_id, e)
+        raise HTTPException(500, f"检索失败: {str(e)}") from e
+
+    # 过滤低分结果 + 格式化输出
+    hits = []
+    for r in result.get("results", []):
+        score = r.get("score", 0)
+        if score < req.similarity_threshold:
+            continue
+        meta = r.get("metadata", {})
+        hits.append({
+            "content": r.get("content", ""),
+            "score": round(score, 4),
+            "rank": r.get("rank", len(hits) + 1),
+            "doc_id": r.get("doc_id", ""),
+            "metadata": meta,
+            "kb_name": r.get("kb_name", inst.name),
+            "source": meta.get("source", meta.get("file_path", "")),
+        })
+
+    return {
+        "query": req.query,
+        "kb_id": kb_id,
+        "kb_name": inst.name,
+        "total_hits": len(hits),
+        "hits": hits,
+    }

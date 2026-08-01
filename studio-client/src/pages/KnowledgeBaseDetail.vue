@@ -33,6 +33,12 @@
             {{ retraining ? "训练中..." : "重新训练" }}
           </button>
           <button
+            class="kb-detail__btn kb-detail__btn--outline"
+            @click="$router.push(`/knowledge/${kbId}/hit-test`)"
+          >
+            🔬 检索命中测试
+          </button>
+          <button
             class="kb-detail__btn kb-detail__btn--danger"
             @click="doDeleteKb"
           >
@@ -123,9 +129,10 @@
         <div v-else class="kb-detail__empty">暂无文档</div>
 
         <!-- 分块面板 -->
-        <div v-if="expandedDoc" class="kb-detail__chunks-panel">
-          <div class="kb-detail__chunks-header">
-            <span>分块列表 (共 {{ chunkTotal }} 条)</span>
+        <div v-if="expandedDoc" class="kb-detail__chunks-layout">
+          <div class="kb-detail__chunks-panel">
+            <div class="kb-detail__chunks-header">
+              <span>分块列表 (共 {{ chunkTotal }} 条)</span>
             <div class="kb-detail__chunks-actions">
               <button
                 v-if="selectedChunks.size > 0"
@@ -173,38 +180,32 @@
             </button>
           </div>
         </div>
+        <!-- 结构树侧边栏 — 借鉴 RAGFlow 文档结构树 -->
+        <div v-if="structureTree" class="kb-detail__structure-panel">
+          <div class="kb-detail__chunks-header">
+            <span>📑 文档结构</span>
+          </div>
+          <div class="kb-detail__structure-tree">
+            <StructureTreeNode
+              v-for="(node, i) in structureTree"
+              :key="i"
+              :node="node"
+            />
+          </div>
+        </div>
+        <div v-else-if="structureLoading" class="kb-detail__structure-panel kb-detail__structure-panel--loading">
+          加载结构中...
+        </div>
       </div>
 
       <!-- Tab: 批量上传 -->
       <div v-if="activeTab === 'batch-upload'" class="kb-detail__panel">
-        <div class="kb-detail__upload-zone" @dragover.prevent @drop.prevent="handleDrop">
-          <p>拖拽文件到此处，或点击下方选择文件</p>
-          <input
-            ref="batchInput"
-            type="file"
-            multiple
-            accept=".txt,.md,.pdf,.html,.htm,.json,.csv,.docx"
-            @change="handleBatchFiles"
-          />
-          <button
-            class="kb-detail__btn kb-detail__btn--primary"
-            :disabled="batchFiles.length === 0 || batchUploading"
-            @click="doBatchUpload"
-          >
-            {{ batchUploading ? "上传中..." : `上传 ${batchFiles.length} 个文件` }}
-          </button>
-          <ul v-if="batchFiles.length > 0" class="kb-detail__file-list">
-            <li v-for="(f, i) in batchFiles" :key="i">{{ f.name }} ({{ formatSize(f.size) }})</li>
-          </ul>
-        </div>
-        <div v-if="batchResults.length > 0" class="kb-detail__batch-results">
-          <h4>上传结果</h4>
-          <div v-for="r in batchResults" :key="r.filename" :class="['kb-detail__result-item', r.status === 'ok' ? 'kb-detail__result--ok' : 'kb-detail__result--fail']">
-            <span>{{ r.filename }}</span>
-            <span v-if="r.status === 'ok'">{{ r.chunks }} 分块</span>
-            <span v-else class="kb-detail__error-text">{{ r.error }}</span>
-          </div>
-        </div>
+        <FileUploader
+          accept=".txt,.md,.pdf,.html,.htm,.json,.csv,.docx,.pptx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp"
+          :max-size-mb="10"
+          :on-upload="doUploadFiles"
+          @complete="onUploadComplete"
+        />
       </div>
 
       <!-- Tab: 网站导入 -->
@@ -269,6 +270,7 @@ import {
 import {
   batchUploadDocuments,
 } from "@/api/rag"
+import FileUploader from "@/components/FileUploader.vue"
 import {
   listChunks,
   deleteChunks,
@@ -277,6 +279,10 @@ import {
 import {
   importFromSite,
   type SiteImportResponse,
+} from "@/api/rag"
+import {
+  getDocumentStructure,
+  type StructureNode,
 } from "@/api/rag"
 import { retrainKb } from "@/api/rag"
 import { useTrainingProgress } from "@/composables/useTrainingProgress"
@@ -292,7 +298,7 @@ const kb = ref<KnowledgeBaseDetail | null>(null)
 async function loadKb() {
   loading.value = true
   try {
-    kb.value = await getKnowledgeBase(kbId)
+    kb.value = (await getKnowledgeBase(kbId)).data
   } catch {
     kb.value = null
   } finally {
@@ -351,8 +357,8 @@ const docTotal = ref(0)
 async function loadDocuments() {
   try {
     const res = await listDocuments(kbId)
-    documents.value = res.data
-    docTotal.value = res.total
+    documents.value = res.data.data
+    docTotal.value = res.data.total
   } catch {
     // ignore
   }
@@ -400,11 +406,13 @@ function toggleDoc(docId: string) {
     expandedDoc.value = null
     chunks.value = []
     selectedChunks.value = new Set()
+    structureTree.value = null
   } else {
     expandedDoc.value = docId
     chunkPage.value = 1
     selectedChunks.value = new Set()
     loadChunks()
+    loadStructureTree(docId)
   }
 }
 
@@ -417,8 +425,8 @@ async function loadChunks() {
       chunkPage.value,
       chunkSize.value,
     )
-    chunks.value = res.data
-    chunkTotal.value = res.total
+    chunks.value = res.data.data
+    chunkTotal.value = res.data.total
   } catch {
     // ignore
   }
@@ -447,37 +455,37 @@ async function doDeleteSelectedChunks() {
   }
 }
 
-/* ========== 批量上传 ========== */
-const batchInput = ref<HTMLInputElement | null>(null)
-const batchFiles = ref<File[]>([])
-const batchUploading = ref(false)
-const batchResults = ref<{ filename: string; chunks: number; status: string; error?: string }[]>([])
+/* ========== 文档结构树 ========== */
+const structureTree = ref<StructureNode[] | null>(null)
+const structureLoading = ref(false)
 
-function handleBatchFiles(e: Event) {
-  const input = e.target as HTMLInputElement
-  batchFiles.value = Array.from(input.files || [])
-}
-
-function handleDrop(e: DragEvent) {
-  batchFiles.value = Array.from(e.dataTransfer?.files || [])
-}
-
-async function doBatchUpload() {
-  if (batchFiles.value.length === 0) return
-  batchUploading.value = true
-  batchResults.value = []
+async function loadStructureTree(docId: string) {
+  structureLoading.value = true
+  structureTree.value = null
   try {
-    const res = await batchUploadDocuments(kbId, batchFiles.value)
-    batchResults.value = res.results
-    batchFiles.value = []
-    if (batchInput.value) batchInput.value.value = ""
-    loadDocuments()
-    loadKb()
+    const res = await getDocumentStructure(kbId, docId)
+    structureTree.value = res.data?.data ?? null
   } catch {
-    alert("批量上传失败")
+    // ignore
   } finally {
-    batchUploading.value = false
+    structureLoading.value = false
   }
+}
+
+/* ========== 批量上传 (增强版 FileUploader) ========== */
+
+async function doUploadFiles(files: File[]): Promise<{ ok: number; errors: { filename: string; error: string }[] }> {
+  const res = await batchUploadDocuments(kbId, files)
+  const ok = res.data.results.filter((r: { status: string }) => r.status === "ok").length
+  const errors = res.data.results
+    .filter((r: { status: string }) => r.status === "fail")
+    .map((r: { filename: string; error?: string }) => ({ filename: r.filename, error: r.error ?? "未知错误" }))
+  return { ok, errors }
+}
+
+function onUploadComplete(_result: { ok: number; errors: { filename: string; error: string }[] }) {
+  loadDocuments()
+  loadKb()
 }
 
 /* ========== 网站导入 ========== */
@@ -504,7 +512,7 @@ async function doImportSite() {
       urls: urls.length > 0 ? urls : undefined,
       max_pages: siteMaxPages.value,
     })
-    siteResult.value = res
+    siteResult.value = res.data
     loadDocuments()
     loadKb()
   } catch {
@@ -644,6 +652,14 @@ onMounted(() => {
   border-color: var(--color-ide-error);
   color: var(--color-ide-error);
 }
+.kb-detail__btn--outline {
+  border-color: var(--color-ide-accent, #007acc);
+  color: var(--color-ide-accent, #007acc);
+}
+.kb-detail__btn--outline:hover {
+  background: var(--color-ide-accent, #007acc);
+  color: #fff;
+}
 .kb-detail__btn--small {
   padding: 4px 10px;
   font-size: 12px;
@@ -772,6 +788,37 @@ onMounted(() => {
 .kb-detail__doc-actions {
   display: flex;
   gap: 6px;
+}
+
+/* ---- 分块+结构树并排布局 ---- */
+.kb-detail__chunks-layout {
+  display: flex;
+  gap: 12px;
+}
+.kb-detail__chunks-layout > .kb-detail__chunks-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- 结构树面板 ---- */
+.kb-detail__structure-panel {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 12px;
+  border: 1px solid var(--color-ide-border);
+  border-radius: 8px;
+  background: var(--color-ide-bg);
+  max-height: 480px;
+  overflow-y: auto;
+}
+.kb-detail__structure-panel--loading {
+  color: var(--color-ide-fg-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding-top: 24px;
+}
+.kb-detail__structure-tree {
+  margin-top: 4px;
 }
 
 /* ---- 分块面板 ---- */
