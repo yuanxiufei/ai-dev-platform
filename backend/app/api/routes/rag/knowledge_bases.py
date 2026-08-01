@@ -25,6 +25,7 @@ from app.core.rag.kb_manager import get_kb_manager_v2
 class CreateKBRequest(BaseModel):
     name: str
     description: str = ""
+    summary: str = ""
     chunk_strategy: str = "recursive"  # recursive | markdown | code | fixed
     chunk_size: int = 512
     chunk_overlap: int = 100
@@ -41,6 +42,7 @@ async def list_knowledge_bases():
                 "kb_id": inst.model.kb_id,
                 "name": inst.model.kb_name,
                 "description": inst.model.description,
+                "summary": inst.model.summary,
                 "chunk_size": inst.model.chunk_size,
                 "chunk_overlap": inst.model.chunk_overlap,
                 "document_count": inst.model.doc_count,
@@ -61,6 +63,7 @@ async def create_knowledge_base(body: CreateKBRequest):
         inst = await mgr.create(
             name=body.name,
             description=body.description,
+            summary=body.summary,
             chunk_size=body.chunk_size,
             chunk_overlap=body.chunk_overlap,
         )
@@ -71,6 +74,7 @@ async def create_knowledge_base(body: CreateKBRequest):
         "kb_id": inst.model.kb_id,
         "name": inst.model.kb_name,
         "description": inst.model.description,
+        "summary": inst.model.summary,
         "chunk_size": inst.model.chunk_size,
         "chunk_overlap": inst.model.chunk_overlap,
         "document_count": inst.model.doc_count,
@@ -90,6 +94,7 @@ async def get_knowledge_base(kb_id: str):
         "kb_id": inst.model.kb_id,
         "name": inst.model.kb_name,
         "description": inst.model.description,
+        "summary": inst.model.summary,
         "chunk_size": inst.model.chunk_size,
         "chunk_overlap": inst.model.chunk_overlap,
         "document_count": inst.model.doc_count,

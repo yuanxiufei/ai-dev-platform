@@ -36,6 +36,7 @@ class KnowledgeBase(SQLModel, table=True):
     kb_name: str = Field(unique=True, index=True)
     description: str = Field(default="")
     emoji: str = Field(default="")
+    summary: str = Field(default="")
 
     # Provider 配置
     embedding_provider_id: Optional[str] = Field(default=None)

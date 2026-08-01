@@ -6,6 +6,7 @@ export interface KnowledgeBase {
   kb_id: string
   name: string
   description: string
+  summary: string
   document_count?: number
   chunk_count?: number
   chunk_size?: number
@@ -31,6 +32,7 @@ export interface KBDocument {
 export interface CreateKBRequest {
   name: string
   description?: string
+  summary?: string
   chunk_strategy?: string
   chunk_size?: number
   chunk_overlap?: number

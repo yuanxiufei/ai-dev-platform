@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
 import {
   type KnowledgeBase,
   listKnowledgeBases,
@@ -7,6 +8,8 @@ import {
   ragSearch,
 } from "@/api/rag"
 import { BookOpen, Database, FileText, Loader2, Search } from "lucide-vue-next"
+
+const router = useRouter()
 
 const kbs = ref<KnowledgeBase[]>([])
 const loading = ref(true)
@@ -104,7 +107,7 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
                 ? 'border-brand-500/40 bg-brand-500/10'
                 : 'border-[var(--color-ide-border)] bg-surface-800 hover:border-[var(--color-ide-border)]',
             ]"
-            @click="selectedKb = kb.kb_id"
+            @click.exact="router.push(`/knowledge/${kb.kb_id}`)"
           >
             <div class="flex items-start gap-3">
               <div class="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
@@ -113,6 +116,11 @@ const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
               <div class="min-w-0">
                 <h4 class="text-sm font-medium text-[var(--color-ide-text)] truncate">{{ kb.name }}</h4>
                 <p class="text-xs text-[var(--color-ide-text-dim)] mt-0.5 line-clamp-2">{{ kb.description || '暂无描述' }}</p>
+                <p
+                  v-if="kb.summary"
+                  class="text-xs leading-relaxed mt-1.5 line-clamp-3"
+                  style="color: var(--color-ide-text-secondary)"
+                >{{ kb.summary }}</p>
                 <div class="flex items-center gap-3 mt-2 text-xs text-[var(--color-ide-text-dim)]">
                   <span>{{ kb.stats?.documents || 0 }} 文档</span>
                   <span>{{ kb.stats?.chunks || 0 }} 片段</span>

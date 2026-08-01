@@ -20,6 +20,7 @@ const router = useRouter()
 const showCreateForm = ref(false)
 const newName = ref('')
 const newDesc = ref('')
+const newSummary = ref('')
 const newChunkSize = ref(512)
 const newChunkOverlap = ref(100)
 const newChunkStrategy = ref('recursive')
@@ -57,6 +58,7 @@ const handleCreate = async () => {
     const data: CreateKBRequest = {
       name: newName.value,
       description: newDesc.value,
+      summary: newSummary.value,
       chunk_size: newChunkSize.value,
       chunk_overlap: newChunkOverlap.value,
       chunk_strategy: newChunkStrategy.value,
@@ -65,6 +67,7 @@ const handleCreate = async () => {
     showCreateForm.value = false
     newName.value = ''
     newDesc.value = ''
+    newSummary.value = ''
     await refresh()
   } catch (e: unknown) {
     error.value = (e as Error).message || '创建失败'
@@ -197,6 +200,15 @@ const strategies = [
           placeholder="知识库用途说明..."
         />
       </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-400 mb-1">摘要</label>
+        <textarea
+          v-model="newSummary"
+          rows="2"
+          class="w-full rounded-lg border border-white/10 bg-surface-900 px-3 py-2 text-sm placeholder-gray-600 focus:border-brand-500/50 focus:outline-none resize-none"
+          placeholder="知识库内容摘要..."
+        />
+      </div>
       <div class="flex gap-3">
         <button
           :disabled="creating || !newName.trim()"
@@ -249,6 +261,10 @@ const strategies = [
                   {{ kb.name }}
                 </router-link>
                 <p class="text-xs text-gray-500 mt-0.5">{{ kb.description || '暂无描述' }}</p>
+                <p
+                  v-if="kb.summary"
+                  class="text-xs text-gray-400 mt-1.5 line-clamp-2 italic"
+                >{{ kb.summary }}</p>
                 <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
                   <span>{{ kb.stats?.documents || 0 }} 文档</span>
                   <span>{{ kb.stats?.chunks || 0 }} 片段</span>
