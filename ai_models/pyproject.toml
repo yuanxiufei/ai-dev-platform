@@ -23,7 +23,7 @@ dependencies = [
 gpu = [
     # safetensors 格式（GPU 模型）─ Qwen-VL / Qwen-Coder / CogVideoX
     # 需要 NVIDIA GPU + CUDA，约 ~5GB 磁盘空间
-    "torch>=2.4.0",
+    "torch>=2.13.0",
     "transformers>=4.45.0",
     "diffusers>=0.30.0",
     "accelerate>=0.33.0",
