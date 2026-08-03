@@ -1,53 +1,80 @@
-import apiClient from "./client"
+/**
+ * 代码诊断 API 模块 — 代码分析与问题诊断
+ * 对应后端: /system/diagnostics
+ */
 
-// ============================================
-// 代码诊断 API — 静态分析 / 批量分析 / 支持语言
-// ============================================
+import { apiClient } from "./client"
 
-export interface DiagnosticItem {
-  file: string
-  line: number
-  column: number
-  message: string
-  severity: "error" | "warning" | "info"
-  code?: string
-}
+/* ── 类型 ────────────────────────────────────── */
 
 export interface DiagnosticRequest {
-  content: string
+  code: string
   language: string
   file_path?: string
+  check_types?: string[] /* lint | type | security | style | performance */
+}
+
+export interface DiagnosticIssue {
+  line: number
+  column?: number
+  end_line?: number
+  end_column?: number
+  severity: "error" | "warning" | "info" | "hint"
+  code: string
+  message: string
+  source: string
+  fix?: string
 }
 
 export interface DiagnosticResponse {
-  diagnostics: DiagnosticItem[]
-  summary: { error: number; warning: number; info: number }
-}
-
-export interface BatchDiagnosticItem {
-  content: string
+  file_path?: string
   language: string
-  file_path: string
+  issues: DiagnosticIssue[]
+  summary: {
+    errors: number
+    warnings: number
+    info: number
+    hints: number
+    total: number
+  }
+  duration_ms: number
 }
 
 export interface BatchDiagnosticRequest {
-  files: BatchDiagnosticItem[]
+  files: Array<{
+    code: string
+    language: string
+    file_path: string
+  }>
+  check_types?: string[]
 }
 
 export interface BatchDiagnosticResponse {
-  results: Record<string, { diagnostics: DiagnosticItem[]; summary: { error: number; warning: number; info: number } }>
+  results: DiagnosticResponse[]
+  total_files: number
+  total_issues: number
+  duration_ms: number
 }
 
-export const diagnosticsApi = {
-  /** 分析单文件代码，返回诊断列表（Error Lens / Problems Panel 使用） */
-  analyze: (req: DiagnosticRequest) =>
-    apiClient.post("/system/diagnostics/analyze", req),
+/* ── 端点 ────────────────────────────────────── */
 
-  /** 批量分析多个文件 */
-  analyzeBatch: (req: BatchDiagnosticRequest) =>
-    apiClient.post("/system/diagnostics/analyze-batch", req),
+/** 分析代码 */
+export function analyzeCode(data: DiagnosticRequest) {
+  return apiClient.post<DiagnosticResponse>(
+    "/system/diagnostics/analyze",
+    data,
+  )
+}
 
-  /** 列出支持诊断的语言 */
-  listLanguages: () =>
-    apiClient.get("/system/diagnostics/languages"),
+/** 批量分析 */
+export function analyzeBatch(data: BatchDiagnosticRequest) {
+  return apiClient.post<BatchDiagnosticResponse>(
+    "/system/diagnostics/analyze-batch",
+    data,
+  )
+}
+
+/** 获取支持的语言列表 */
+export function listSupportedLanguages() {
+  return apiClient.get<string[]>("/system/diagnostics/languages")
 }

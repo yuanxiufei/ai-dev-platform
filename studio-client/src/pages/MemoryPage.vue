@@ -1,320 +1,60 @@
-<script setup lang="ts">
-import { Brain, Clock, Edit3, Hash, Layers, Loader2, Plus, Search, Sparkles, Star, Trash2, Check } from "lucide-vue-next"
-import { computed, onMounted, ref } from "vue"
-import { type MemoryEntry, memoryApi } from "@/api/model-features"
-
-const memories = ref<MemoryEntry[]>([])
-const loading = ref(true)
-const page = ref(1)
-const sizeVal = ref(20)
-const total = ref(0)
-const filterDomain = ref("")
-const domains = ["", "general", "personal", "project", "code"]
-const domainLabels: Record<string, string> = {
-  "": "全部",
-  general: "通用",
-  personal: "个人",
-  project: "项目",
-  code: "代码",
-}
-const domainIcons: Record<string, any> = {
-  "": Layers,
-  general: Brain,
-  personal: Star,
-  project: Hash,
-  code: Sparkles,
-}
-
-const searchQuery = ref("")
-const searchResults = ref<
-  {
-    id: string
-    domain: string
-    key: string
-    value: string
-    similarity: number
-  }[]
->([])
-
-const editingId = ref<string | null>(null)
-const editKey = ref("")
-const editValue = ref("")
-const editDomain = ref("general")
-const editImportance = ref(0.5)
-
-const newKey = ref("")
-const newValue = ref("")
-const newDomain = ref("general")
-const newImportance = ref(0.5)
-
-const loadingStats = ref(false)
-const memoryStats = ref({
-  total_memories: 0,
-  total_accesses: 0,
-  by_domain: {} as Record<string, number>,
-})
-
-const toast = ref("")
-function showToast(msg: string) {
-  toast.value = msg
-  setTimeout(() => {
-    toast.value = ""
-  }, 3000)
-}
-
-async function fetchMemories() {
-  loading.value = true
-  try {
-    const res = await memoryApi.list({
-      page: page.value,
-      size: sizeVal.value,
-      domain: filterDomain.value || undefined,
-    })
-    memories.value = res.data.data || []
-    total.value = res.data.total || 0
-  } catch {
-    /* */
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchStats() {
-  loadingStats.value = true
-  try {
-    const res = await memoryApi.stats()
-    memoryStats.value = res.data || {
-      total_memories: 0,
-      total_accesses: 0,
-      by_domain: {},
-    }
-  } catch {
-    /* */
-  } finally {
-    loadingStats.value = false
-  }
-}
-
-async function doSearch() {
-  if (!searchQuery.value) return
-  try {
-    const res = await memoryApi.search(
-      searchQuery.value,
-      filterDomain.value || undefined,
-    )
-    searchResults.value = res.data.results || []
-  } catch {
-    /* */
-  }
-}
-
-async function addMemory() {
-  if (!newKey.value || !newValue.value) return
-  try {
-    await memoryApi.create({
-      key: newKey.value,
-      value: newValue.value,
-      domain: newDomain.value,
-      importance: newImportance.value,
-    })
-    newKey.value = ""
-    newValue.value = ""
-    showToast("记忆已添加")
-    await Promise.all([fetchMemories(), fetchStats()])
-  } catch (e: any) {
-    showToast(e?.response?.data?.detail || "添加失败")
-  }
-}
-
-async function deleteMemory(id: string) {
-  if (!confirm("确定删除此记忆？")) return
-  try {
-    await memoryApi.delete(id)
-    showToast("记忆已删除")
-    await Promise.all([fetchMemories(), fetchStats()])
-  } catch {
-    /* */
-  }
-}
-
-function startEdit(m: MemoryEntry) {
-  editingId.value = m.id
-  editKey.value = m.key
-  editValue.value = m.value
-  editDomain.value = m.domain || "general"
-  editImportance.value = m.importance || 0.5
-}
-
-async function saveEdit() {
-  if (!editingId.value) return
-  try {
-    await memoryApi.update(editingId.value, {
-      key: editKey.value,
-      value: editValue.value,
-      domain: editDomain.value,
-      importance: editImportance.value,
-    })
-    editingId.value = null
-    showToast("记忆已更新")
-    await fetchMemories()
-  } catch (e: any) {
-    showToast(e?.response?.data?.detail || "更新失败")
-  }
-}
-
-function cancelEdit() {
-  editingId.value = null
-}
-
-onMounted(() => {
-  Promise.all([fetchMemories(), fetchStats()])
-})
-
-const domainCounts = computed(() => {
-  const map: Record<string, number> = { total: total.value }
-  for (const d of domains.slice(1))
-    map[d] = memoryStats.value.by_domain?.[d] || 0
-  return map
-})
-</script>
-
 <template>
-  <div class="h-full flex flex-col">
-    <Transition name="toast">
-      <div v-if="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-sm font-medium bg-green-500/15 border border-green-500/25 text-green-400 backdrop-blur-xl shadow-xl">
-        {{ toast }}
-      </div>
-    </Transition>
+  <div class="mem-page">
+    <header class="page-header"><div><Brain class="h-5 w-5"/><h2>记忆管理</h2></div>
+      <div class="h-actions"><button class="btn btn-primary btn-sm" @click="showCreate=true"><Plus class="h-4 w-4"/>新建</button><button class="btn btn-ghost btn-sm" @click="load"><RefreshCw :class="['h-4 w-4',{spin:loading}]"/>刷新</button></div>
+    </header>
 
-    <!-- Header -->
-    <div class="flex items-center justify-between px-8 pt-8 pb-6 border-b border-[var(--color-ide-border)]">
-      <div>
-        <h1 class="text-2xl font-bold text-white flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border border-teal-500/20 flex items-center justify-center">
-            <Brain class="w-5 h-5 text-teal-400" />
-          </div>
-          长期记忆
-        </h1>
-        <p class="text-sm text-[var(--color-ide-text-dim)] mt-1.5 ml-[3.25rem]">让 AI 记住你的偏好和重要信息，跨对话共享</p>
-      </div>
-      <div class="flex items-center gap-3 text-xs text-[var(--color-ide-text-dim)]">
-        <span class="flex items-center gap-1"><Brain class="w-3 h-3" /> {{ memoryStats.total_memories }} 条记忆</span>
-        <span class="flex items-center gap-1"><Clock class="w-3 h-3" /> {{ memoryStats.total_accesses }} 次访问</span>
+    <!-- 统计栏 -->
+    <div class="stats-bar" v-if="stats"><div class="st-item"><span class="st-label">总记忆</span><span class="st-val">{{stats.total_memories}}</span></div><div class="st-item"><span class="st-label">总访问</span><span class="st-val">{{stats.total_accesses}}</span></div><div class="st-item" v-for="(v,k) in stats.by_domain" :key="k"><span class="st-label">{{k}}</span><span class="st-val">{{v}}</span></div></div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar"><input v-model="q" placeholder="语义检索记忆..." class="input" @keyup.enter="doSearch"/><button class="btn btn-primary btn-sm" @click="doSearch" :disabled="!q"><Search class="h-4 w-4"/>搜索</button></div>
+
+    <!-- 搜索结果 -->
+    <div v-if="results.length" class="results-panel"><h3>搜索结果 ({{results.length}})</h3>
+      <div v-for="r in results" :key="r.id" class="result-card">
+        <div class="rc-head"><span class="rc-key">{{r.key}}</span><span class="rc-score">{{(r.similarity*100).toFixed(0)}}% 相似</span></div>
+        <p class="rc-val">{{r.value}}</p><div class="rc-meta">{{r.domain}} · 重要度 {{r.importance}}</div>
       </div>
     </div>
 
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Left sidebar -->
-      <div class="w-52 shrink-0 border-r border-[var(--color-ide-border)] p-4 space-y-1 overflow-y-auto">
-        <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-3">作用域</p>
-        <button v-for="d in domains" :key="d || '__all'" @click="filterDomain = d; page = 1; fetchMemories()"
-          :class="['w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200 text-left', filterDomain === d ? 'bg-brand-500/10 text-brand-400 font-medium' : 'text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text)] hover:bg-[var(--color-ide-surface-hover)]']">
-          <component :is="domainIcons[d] || Layers" class="w-4 h-4 shrink-0" /> {{ domainLabels[d] || d }}
-          <span class="ml-auto text-xs text-[var(--color-ide-text-dim)]">{{ domainCounts[d] || 0 }}</span>
-        </button>
-        <div class="mt-6 pt-4 border-t border-[var(--color-ide-border)]">
-          <p class="text-[11px] font-medium text-[var(--color-ide-text-dim)] uppercase tracking-wider px-2 mb-3">快速添加</p>
-          <div class="space-y-2 px-2">
-            <input v-model="newKey" placeholder="摘要" class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-3 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-teal-500/40 transition-colors" />
-            <textarea v-model="newValue" rows="2" placeholder="内容..." class="w-full rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-3 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-teal-500/40 transition-colors resize-none"></textarea>
-            <div class="flex gap-1.5">
-              <select v-model="newDomain" class="flex-1 rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-2 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500/40 transition-colors">
-                <option value="general">通用</option>
-                <option value="personal">个人</option>
-                <option value="project">项目</option>
-                <option value="code">代码</option>
-              </select>
-              <button @click="addMemory" :disabled="!newKey || !newValue" class="p-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-400 disabled:opacity-30 transition-colors"><Plus class="w-4 h-4" /></button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- 记忆表格 -->
+    <div class="table-wrap"><table><thead><tr><th>Key</th><th>值</th><th>域</th><th>重要度</th><th>访问</th><th>操作</th></tr></thead>
+    <tbody><tr v-for="m in memories" :key="m.id">
+      <td class="fw6 mono">{{m.key}}</td><td class="ellip" :title="m.value">{{m.value.slice(0,80)}}{{m.value.length>80?'…':''}}</td>
+      <td><span class="tag">{{m.domain||'default'}}</span></td><td>{{m.importance}}</td><td>{{m.access_count}}</td>
+      <td class="td-actions"><button class="btn btn-ghost btn-sm" @click="editMem(m)">编辑</button><button class="btn btn-ghost btn-sm" @click="doDel(m.id)">删除</button></td>
+    </tr></tbody></table></div>
 
-      <!-- Main content -->
-      <div class="flex-1 overflow-y-auto p-6">
-        <!-- Search -->
-        <div class="relative max-w-lg mb-6">
-          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ide-text-dim)]" />
-          <input v-model="searchQuery" @keyup.enter="doSearch" placeholder="语义搜索记忆..." class="w-full bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-brand-500/40 focus:bg-[var(--color-ide-surface)] transition-all" />
-        </div>
-
-        <!-- Search results -->
-        <div v-if="searchResults.length" class="mb-6 space-y-2">
-          <p class="text-[11px] text-[var(--color-ide-text-dim)] mb-3">搜索结果 ({{ searchResults.length }} 条)</p>
-          <div v-for="r in searchResults" :key="r.id" class="p-3 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)]">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-400">{{ r.domain }}</span>
-              <span class="text-[10px] text-green-500">{{ (r.similarity * 100).toFixed(0) }}% 匹配</span>
-            </div>
-            <div class="text-xs font-medium text-white">{{ r.key }}</div>
-            <div class="text-[10px] text-[var(--color-ide-text-dim)] mt-0.5 line-clamp-2">{{ r.value }}</div>
-          </div>
-        </div>
-
-        <!-- Loading -->
-        <div v-if="loading" class="flex items-center justify-center py-24">
-          <Loader2 class="w-8 h-8 animate-spin text-teal-400" />
-        </div>
-
-        <!-- Empty -->
-        <div v-else-if="!memories.length" class="flex flex-col items-center justify-center py-24 text-[var(--color-ide-text-dim)]">
-          <Brain class="w-12 h-12 mb-4 opacity-30" />
-          <p class="text-sm">还没有记忆</p>
-          <p class="text-xs mt-1 opacity-70">在左侧快速添加第一条记忆</p>
-        </div>
-
-        <!-- Memory list -->
-        <div v-else class="space-y-2">
-          <div v-for="m in memories" :key="m.id"
-            class="flex items-start gap-3 p-3.5 rounded-xl bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] hover:border-[var(--color-ide-border)] transition-all duration-200 group">
-            <!-- Edit mode -->
-            <template v-if="editingId === m.id">
-              <div class="flex-1 space-y-2">
-                <input v-model="editKey" placeholder="摘要" class="w-full rounded-lg border border-teal-500/30 bg-[var(--color-ide-surface-hover)] px-3 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-teal-500/60 transition-all" />
-                <textarea v-model="editValue" rows="2" placeholder="内容" class="w-full rounded-lg border border-teal-500/30 bg-[var(--color-ide-surface-hover)] px-3 py-1.5 text-xs text-white placeholder-[var(--color-ide-text-dim)] focus:outline-none focus:border-teal-500/60 transition-all resize-none"></textarea>
-                <div class="flex gap-1.5">
-                  <select v-model="editDomain" class="rounded-lg border border-[var(--color-ide-border)] bg-[var(--color-ide-surface-hover)] px-2 py-1 text-xs text-white"><option value="general">通用</option><option value="personal">个人</option><option value="project">项目</option><option value="code">代码</option></select>
-                  <button @click="saveEdit" class="flex items-center gap-1 px-3 py-1 rounded-lg bg-teal-500/20 text-teal-400 text-xs font-medium hover:bg-teal-500/30 transition-colors"><Check class="w-3 h-3" />保存</button>
-                  <button @click="cancelEdit" class="px-3 py-1 rounded-lg text-xs text-[var(--color-ide-text-dim)] hover:text-white transition-colors">取消</button>
-                </div>
-              </div>
-            </template>
-
-            <!-- View mode -->
-            <template v-else>
-              <div :class="['w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-                m.domain === 'code' ? 'bg-blue-500/10' : m.domain === 'project' ? 'bg-purple-500/10' : m.domain === 'personal' ? 'bg-amber-500/10' : 'bg-teal-500/10']">
-                <component :is="domainIcons[m.domain] || Layers" :class="['w-4 h-4',
-                  m.domain === 'code' ? 'text-blue-400' : m.domain === 'project' ? 'text-purple-400' : m.domain === 'personal' ? 'text-amber-400' : 'text-teal-400']" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                  <span class="text-xs font-medium text-white truncate">{{ m.key }}</span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-ide-surface-hover)] border border-[var(--color-ide-border)] text-[var(--color-ide-text-dim)] shrink-0">{{ domainLabels[m.domain] || m.domain }}</span>
-                  <span class="text-[10px] text-[var(--color-ide-text-dim)] shrink-0">重要性 {{ (m.importance || 0).toFixed(1) }} · {{ m.access_count || 0 }} 次</span>
-                </div>
-                <p class="text-xs text-[var(--color-ide-text-dim)] line-clamp-2 leading-relaxed">{{ m.value }}</p>
-              </div>
-              <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
-                <button @click="startEdit(m)" class="p-1.5 rounded-lg text-[var(--color-ide-text-dim)] hover:text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] transition-colors"><Edit3 class="w-3.5 h-3.5" /></button>
-                <button @click="deleteMemory(m.id)" class="p-1.5 rounded-lg text-[var(--color-ide-text-dim)] hover:text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 class="w-3.5 h-3.5" /></button>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="total > sizeVal" class="flex items-center justify-center gap-3 pt-6 mt-6 border-t border-[var(--color-ide-border)]">
-          <button :disabled="page <= 1" @click="page--; fetchMemories()" class="px-3 py-1.5 rounded-lg bg-[var(--color-ide-surface-hover)] text-xs text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] disabled:opacity-30 transition-colors">&laquo;</button>
-          <span class="text-xs text-[var(--color-ide-text-dim)]">{{ page }} / {{ Math.max(1, Math.ceil(total / sizeVal)) }}</span>
-          <button :disabled="page >= Math.ceil(total / sizeVal)" @click="page++; fetchMemories()" class="px-3 py-1.5 rounded-lg bg-[var(--color-ide-surface-hover)] text-xs text-[var(--color-ide-text-dim)] hover:bg-[var(--color-ide-surface-hover)] disabled:opacity-30 transition-colors">&raquo;</button>
-        </div>
-      </div>
-    </div>
+    <!-- 创建/编辑弹窗 -->
+    <Teleport to="body" v-if="showCreate||editData">
+      <div class="modal-mask" @click.self="showCreate=false;editData=null"><div class="modal-box">
+        <div class="modal-h"><span>{{editData?'编辑记忆':'新建记忆'}}</span><button class="btn btn-ghost btn-sm" @click="showCreate=false;editData=null">✕</button></div>
+        <div class="form"><label>Key<input v-model="form.key" class="input"/></label><label>值<textarea v-model="form.value" class="input" rows="4"/></label><label>域<input v-model="form.domain" class="input" placeholder="default"/></label><label>重要度 (1-10)<input v-model.number="form.importance" type="number" min="1" max="10" class="input"/></label></div>
+        <div style="text-align:right;margin-top:12px"><button class="btn btn-primary btn-sm" @click="submitForm">{{editData?'更新':'创建'}}</button></div>
+      </div></div>
+    </Teleport>
   </div>
 </template>
 
+<script setup lang="ts">
+import { ref, onMounted } from "vue"
+import { Brain, Plus, RefreshCw, Search } from "lucide-vue-next"
+import { listMemories, createMemory, updateMemory, deleteMemory, searchMemories, memoryStats, MemoryEntry, MemorySearchResult, MemoryStats } from "@/api/memory"
+
+const memories=ref<MemoryEntry[]>([]), stats=ref<MemoryStats|null>(null), loading=ref(false)
+const results=ref<MemorySearchResult[]>([]), q=ref("")
+const showCreate=ref(false), editData=ref<MemoryEntry|null>(null)
+const form=ref({key:"",value:"",domain:"",importance:5})
+
+async function load(){loading.value=true;try{const[r,s]=await Promise.all([listMemories({size:100}),memoryStats()]);memories.value=r.data?.data||[];stats.value=s.data}catch{}finally{loading.value=false}}
+async function doSearch(){if(!q.value)return;try{const r=await searchMemories({query:q.value,top_k:20});results.value=r.data?.results||[]}catch{}}
+async function doDel(id:string){if(!confirm('删除记忆？'))return;try{await deleteMemory(id);load()}catch{}}
+function editMem(m:MemoryEntry){editData.value=m;form.value={key:m.key,value:m.value,domain:m.domain||"",importance:m.importance}}
+async function submitForm(){try{if(editData.value){await updateMemory(editData.value.id,form.value)}else{await createMemory(form.value)}showCreate.value=false;editData.value=null;load()}catch{}}
+onMounted(load)
+</script>
+
 <style scoped>
-.toast-enter-active, .toast-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-12px) translateX(-50%); }
+.mem-page{padding:20px}.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.page-header>div{display:flex;align-items:center;gap:8px}.page-header h2{font-size:18px;margin:0}.h-actions{display:flex;gap:8px}.stats-bar{display:flex;gap:16px;padding:12px 16px;margin-bottom:16px;background:var(--color-ide-bg);border:1px solid var(--color-ide-border);border-radius:10px;flex-wrap:wrap}.st-item{display:flex;flex-direction:column;gap:2px}.st-label{font-size:11px;color:var(--color-ide-text-secondary)}.st-val{font-size:18px;font-weight:700}.search-bar{display:flex;gap:8px;margin-bottom:16px}.search-bar .input{flex:1}.results-panel{margin-bottom:16px}.result-card{padding:10px 14px;border:1px solid var(--color-ide-border);border-radius:8px;margin-bottom:8px;background:var(--color-ide-bg)}.rc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.rc-key{font-weight:600;color:var(--color-ide-accent);font-size:13px}.rc-score{font-size:11px;color:var(--color-ide-text-secondary)}.rc-val{font-size:13px;margin:0 0 4px}.rc-meta{font-size:11px;color:var(--color-ide-text-secondary)}.table-wrap{overflow-x:auto;border:1px solid var(--color-ide-border);border-radius:10px;background:var(--color-ide-bg)}.table-wrap table{width:100%;border-collapse:collapse;font-size:13px}.table-wrap th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--color-ide-border);color:var(--color-ide-text-secondary);font-size:11px}.table-wrap td{padding:8px 12px;border-bottom:1px solid var(--color-ide-border);vertical-align:middle}.fw6{font-weight:600}.mono{font-family:monospace;font-size:12px}.tag{font-size:10px;padding:2px 6px;border-radius:99px;background:var(--color-ide-surface);color:var(--color-ide-text-secondary)}.td-actions{display:flex;gap:4px}.ellip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}.modal-mask{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}.modal-box{background:var(--color-ide-bg);border:1px solid var(--color-ide-border);border-radius:12px;padding:20px;min-width:420px;max-width:560px;max-height:80vh;overflow-y:auto}.modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-weight:600}.form{display:flex;flex-direction:column;gap:12px}.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--color-ide-text-secondary)}.input{width:100%;padding:8px 10px;border:1px solid var(--color-ide-border);border-radius:6px;font-size:13px;background:var(--color-ide-surface);color:var(--color-ide-text);box-sizing:border-box}.btn{display:inline-flex;align-items:center;gap:4px;border:none;cursor:pointer;border-radius:8px;font-size:13px;padding:8px 14px}.btn-primary{background:var(--color-ide-accent);color:#fff}.btn-ghost{background:transparent}.btn-sm{padding:4px 8px;font-size:12px}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 </style>

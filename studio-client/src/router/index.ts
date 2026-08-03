@@ -61,7 +61,7 @@ const router = createRouter({
     {
       path: "/arena",
       name: "arena",
-      component: () => import("@/pages/ArenaPage.vue"),
+      component: () => import("@/pages/ModelArenaPage.vue"),
     },
     {
       path: "/settings",
@@ -146,7 +146,7 @@ const router = createRouter({
     {
       path: "/openapi",
       name: "openapi-discovery",
-      component: () => import("@/pages/OpenAPIPage.vue"),
+      component: () => import("@/pages/OpenAPIDiscoveryPage.vue"),
     },
     {
       path: "/knowledge-graph",
@@ -287,7 +287,7 @@ const router = createRouter({
     {
       path: "/gpu",
       name: "gpu-monitor",
-      component: () => import("@/pages/GpuMonitor.vue"),
+      component: () => import("@/pages/GPUMonitorPage.vue"),
     },
     {
       path: "/global-search",
@@ -313,6 +313,89 @@ const router = createRouter({
       path: "/testing",
       name: "testing-page",
       component: () => import("@/pages/TestingPage.vue"),
+    },
+    {
+      path: "/videos",
+      name: "video-browser",
+      component: () => import("@/pages/VideoBrowser.vue"),
+    },
+    {
+      path: "/compound-vault",
+      name: "compound-vault",
+      component: () => import("@/pages/CompoundVault.vue"),
+    },
+    {
+      path: "/rag-filters",
+      name: "rag-filters",
+      component: () => import("@/pages/RagFilters.vue"),
+    },
+    {
+      path: "/model-presets",
+      name: "model-presets",
+      component: () => import("@/pages/ModelPresets.vue"),
+    },
+    {
+      path: "/video-admin",
+      name: "video-admin",
+      component: () => import("@/pages/VideoAdmin.vue"),
+    },
+    {
+      path: "/logs",
+      name: "logs-page",
+      component: () => import("@/pages/LogsPage.vue"),
+    },
+    {
+      path: "/extensions",
+      name: "extensions-page",
+      component: () => import("@/pages/ExtensionsPage.vue"),
+    },
+    {
+      path: "/notebook",
+      name: "notebook-page",
+      component: () => import("@/pages/NotebookPage.vue"),
+    },
+    /* ===== 安全护栏 + Agent 模式 + 会话树 + 系统配置 (P4-3~P4-6) ===== */
+    {
+      path: "/guardrails",
+      name: "guardrails",
+      component: () => import("@/pages/GuardrailsPage.vue"),
+    },
+    {
+      path: "/agent-modes",
+      name: "agent-modes",
+      component: () => import("@/pages/AgentModesPage.vue"),
+    },
+    {
+      path: "/session-tree",
+      name: "session-tree",
+      component: () => import("@/pages/SessionTreePage.vue"),
+    },
+    {
+      path: "/system-config",
+      name: "system-config",
+      component: () => import("@/pages/SystemConfigPage.vue"),
+    },
+    /* ===== P5: Chat / Arena / Structured Output / OpenAPI / Integrations / Diagnostics / GPU / Language Detection ===== */
+    {
+      path: "/language-detection",
+      name: "language-detection",
+      component: () => import("@/pages/LanguageDetectionPage.vue"),
+    },
+    /* ===== P6: Tasks / Diff / Code Actions ===== */
+    {
+      path: "/tasks",
+      name: "tasks-page",
+      component: () => import("@/pages/TasksPage.vue"),
+    },
+    {
+      path: "/diff",
+      name: "diff-page",
+      component: () => import("@/pages/DiffPage.vue"),
+    },
+    {
+      path: "/code-actions",
+      name: "code-actions",
+      component: () => import("@/pages/CodeActionsPage.vue"),
     },
     {
       path: "/:pathMatch(.*)*",

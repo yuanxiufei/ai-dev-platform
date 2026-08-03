@@ -54,11 +54,15 @@
 - **RAG 修复(2026-07-25)**: ① MetadataSegment.list_chunks_paginated LIKE子串→json_extract精确匹配；② retrieval_manager._bm25_fallback storage.metadata.→storage. 绕过抽象层修复；③ vector_store.py $.doc_id→$._doc_id 命名一致；④ SegmentManager 补齐 get_all_ids() 委托；⑤ _bm25_fallback 修复 doc_id/文本错位 + BM25 结果 metadata 注入 _doc_id 使后过滤生效
 
 ## 前端 (studio-client)
-- **前端 API 对齐 (2026-07-25)**: 后端 15+ 路由模块已就绪，前端分批补齐 Vue 页面
-  - P1 Agent: AgentTraces(列表+详情), AgentReflection(自省评估)
-  - P2 DevTools: WorktreeManager, SessionSummary(Lakeview), CodeKnowledgeGraph, BackupManager, FeatureFlags
+- **前端功能迁移进度 (2026-08-02)**: P1-P7 全部完成
+  - P1 Agent: AgentTraces, AgentReflection
+  - P2 DevTools: WorktreeManager, SessionSummary, CodeKnowledgeGraph, BackupManager, FeatureFlags
   - P3 Advanced: BenchmarksPage, ModelCatalog, CLIPipeline, ConfigResolver, StateManager, RemoteSessions, CLIHistoryPage, MemoryGraph, ProblemMatchers
-  - 总计: 15 API 模块(`api/*.ts`) + 17 Vue 页面(`pages/*.vue`) + 17 路由(`router/index.ts`)
+  - P4-P5: 中间批次 30+ API 模块 + 大量页面/路由
+  - P6: 8 API 模块 (tasks/memory/webhooks/analytics/templates/diff/codeActions/agentTools) + 2 页面
+  - P7: 填充 3 空 API (agentModes/gpuMonitor/modelArena) + 侧边栏 20 入口补齐
+  - **当前**: 77 API 模块, 55 侧边栏入口, 所有路由已注册
+  - **下一步 P8**: 类型校验/lint 修复, 或高级交互页面 (ImageGen/Voice/Benchmarks/CLIPipeline)
 
 ## 规则
 - 镜像只构建一次, 环境差异走 env/symlink/volume

@@ -1,162 +1,68 @@
-<script setup lang="ts">
-import { ref } from "vue"
-import {
-  type GBNFConvertResult,
-  type ResponseFormatPreviewResult,
-  structuredOutputApi,
-} from "@/api/model-features"
-import { FileJson, RotateCw } from "lucide-vue-next"
-
-const schemaText = ref("")
-const convertResult = ref<GBNFConvertResult | null>(null)
-const converting = ref(false)
-const error = ref("")
-
-const previewSchema = ref(
-  '{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}}}',
-)
-const previewProvider = ref("openai")
-const previewResult = ref<ResponseFormatPreviewResult | null>(null)
-const previewing = ref(false)
-
-const tab = ref<"convert" | "preview">("convert")
-
-const sampleSchemas = [
-  {
-    label: "用户对象",
-    json: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        email: { type: "string" },
-        age: { type: "integer" },
-      },
-      required: ["name", "email"],
-    },
-  },
-  {
-    label: "产品列表",
-    json: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "integer" },
-          title: { type: "string" },
-          price: { type: "number" },
-        },
-      },
-    },
-  },
-  {
-    label: "工具调用",
-    json: {
-      type: "object",
-      properties: { name: { type: "string" }, arguments: { type: "object" } },
-      required: ["name", "arguments"],
-    },
-  },
-]
-
-async function doConvert() {
-  if (!schemaText.value.trim()) return
-  converting.value = true
-  error.value = ""
-  try {
-    convertResult.value = (
-      await structuredOutputApi.schemaToGbnf(JSON.parse(schemaText.value))
-    ).data
-  } catch (e: any) {
-    error.value = e?.message || "转换失败"
-  } finally {
-    converting.value = false
-  }
-}
-
-function loadSample(s: (typeof sampleSchemas)[0]) {
-  schemaText.value = JSON.stringify(s.json, null, 2)
-  error.value = ""
-  convertResult.value = null
-}
-
-async function doPreview() {
-  previewing.value = true
-  try {
-    const schema = JSON.parse(previewSchema.value)
-    previewResult.value = (
-      await structuredOutputApi.previewResponseFormat(
-        {
-          type: "json_schema",
-          json_schema: { name: "response", schema, strict: true },
-        },
-        previewProvider.value,
-      )
-    ).data
-  } catch {
-  } finally {
-    previewing.value = false
-  }
-}
-</script>
-
 <template>
-  <div class="p-6 max-w-5xl mx-auto space-y-6">
-    <header>
-      <h1 class="text-3xl font-bold text-white">结构化输出</h1>
-      <p class="text-[var(--color-ide-text-dim)] mt-2">JSON Schema → GBNF 语法 · 多 Provider 格式适配</p>
+  <div class="so-page">
+    <header class="page-header">
+      <div><Braces class="h-5 w-5" /><h2>结构化输出</h2></div>
+      <div class="header-tabs">
+        <button :class="['tab', { active: tab==='convert' }]" @click="tab='convert'">转换</button>
+        <button :class="['tab', { active: tab==='validate' }]" @click="tab='validate'">验证</button>
+        <button :class="['tab', { active: tab==='templates' }]" @click="tab='templates'">模板</button>
+        <button :class="['tab', { active: tab==='preview' }]" @click="tab='preview'">预览</button>
+      </div>
     </header>
 
-    <div class="flex gap-1 bg-gray-800/50 rounded-xl p-1 w-fit">
-      <button v-for="t in [{ k: 'convert', l: 'Schema→GBNF' }, { k: 'preview', l: 'Provider 预览' }]" :key="t.k" @click="tab = t.k as typeof tab" :class="['px-4 py-2 rounded-lg text-sm font-medium transition', tab === t.k ? 'bg-brand-500 text-white' : 'text-[var(--color-ide-text-dim)] hover:text-white']">{{ t.l }}</button>
+    <div v-if="tab==='convert'" class="split-panel">
+      <div class="panel"><h3>JSON Schema</h3>
+        <textarea v-model="jsonSchema" placeholder='{"type":"object"}' rows="14" class="code-area mono"/><br/>
+        <button class="btn btn-primary" @click="doConvert" :disabled="!jsonSchema||converting"><Play class="h-4 w-4"/>转为 GBNF</button></div>
+      <div class="panel"><h3>GBNF</h3>
+        <button class="btn btn-sm btn-ghost" v-if="gbnf" @click="copyGbnf"><Copy class="h-3.5 w-3.5"/>复制</button>
+        <pre class="code-area mono">{{gbnf||'转换后显示'}}</pre>
+        <div v-if="warnings.length" class="warn"><AlertTriangle class="h-4 w-4"/><ul><li v-for="w in warnings" :key="w">{{w}}</li></ul></div></div>
     </div>
 
-    <div v-if="tab === 'convert'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-white">JSON Schema 输入</h3>
-          <div class="flex gap-1.5">
-            <button v-for="s in sampleSchemas" :key="s.label" @click="loadSample(s)" class="px-2.5 py-1 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-[var(--color-ide-text)] transition">{{ s.label }}</button>
-          </div>
-        </div>
-        <textarea v-model="schemaText" rows="12" class="w-full bg-gray-800 border border-gray-700/50 rounded-xl p-3 text-sm text-[var(--color-ide-text)] font-mono outline-none focus:border-brand-500/50 resize-none" placeholder='{"type":"object","properties":{"name":{"type":"string"}}}' />
-        <button @click="doConvert" :disabled="converting || !schemaText.trim()" class="w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-purple-500 text-white font-medium disabled:opacity-50">{{ converting ? '转换中...' : '转换为 GBNF' }}</button>
-        <p v-if="error" class="text-red-400 text-sm">{{ error }}</p>
-      </div>
-      <div class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 space-y-3">
-        <h3 class="font-semibold text-white">GBNF 输出</h3>
-        <div v-if="convertResult" class="space-y-3">
-          <span :class="['px-2 py-0.5 rounded text-xs', convertResult.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400']">{{ convertResult.valid ? '✓ 合法' : '✗ 不合法' }}</span>
-          <span class="ml-2 text-xs text-[var(--color-ide-text-dim)]">{{ convertResult.rules_count }} 条规则</span>
-          <pre class="bg-gray-800 rounded-xl p-4 text-xs text-green-400 font-mono overflow-auto max-h-96 whitespace-pre-wrap">{{ convertResult.gbnf }}</pre>
-        </div>
-        <div v-else class="text-[var(--color-ide-text-dim)] text-sm py-8 text-center">输入 JSON Schema 并点击转换</div>
-      </div>
+    <div v-if="tab==='validate'">
+      <h3>验证 GBNF 语法</h3>
+      <textarea v-model="gbnfValidate" placeholder="GBNF 语法..." rows="6" class="code-area mono"/><br/>
+      <input v-model="sampleOutput" placeholder="样例输出（可选）" class="input-field"/>&nbsp;
+      <button class="btn btn-primary" @click="doValidate" :disabled="!gbnfValidate||validating"><CheckCircle class="h-4 w-4"/>验证</button>
+      <div v-if="validateResult!==null" :class="['v-result',validateResult?'success':'fail']">
+        {{validateResult?'✅ 有效':`❌ ${validateErrors.join('; ')}`}}</div>
     </div>
 
-    <div v-if="tab === 'preview'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-white">JSON Schema</h3>
-          <select v-model="previewProvider" class="bg-gray-800 border border-gray-700/50 rounded-xl px-3 py-1.5 text-xs text-[var(--color-ide-text)] outline-none">
-            <option value="openai">OpenAI (原生)</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="anthropic">Claude</option>
-          </select>
-        </div>
-        <textarea v-model="previewSchema" rows="8" class="w-full bg-gray-800 border border-gray-700/50 rounded-xl p-3 text-sm text-[var(--color-ide-text)] font-mono outline-none resize-none" />
-        <button @click="doPreview" :disabled="previewing" class="w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-purple-500 text-white font-medium disabled:opacity-50">{{ previewing ? '预览中...' : '预览适配结果' }}</button>
-      </div>
-      <div class="bg-gray-900/50 rounded-2xl p-6 border border-gray-800/50 space-y-3">
-        <h3 class="font-semibold text-white">适配结果 ({{ previewResult?.provider_name || '-' }})</h3>
-        <div v-if="previewResult" class="space-y-4">
-          <pre class="bg-gray-800 rounded-xl p-3 text-xs text-blue-300 font-mono overflow-auto max-h-48">{{ JSON.stringify(previewResult.openai_format, null, 2) }}</pre>
-          <div v-if="previewResult.gbnf_grammar">
-            <p class="text-xs text-[var(--color-ide-text-dim)] mb-1">GBNF 语法</p>
-            <pre class="bg-gray-800 rounded-xl p-3 text-xs text-green-400 font-mono overflow-auto max-h-32">{{ previewResult.gbnf_grammar }}</pre>
-          </div>
-        </div>
-        <div v-else class="text-[var(--color-ide-text-dim)] text-sm py-8 text-center">选择 Provider 并点击预览</div>
-      </div>
+    <div v-if="tab==='templates'" class="t-grid">
+      <div v-for="t in templates" :key="t.name" class="t-card" @click="loadTemplate(t)">
+        <h4>{{t.name}}</h4><p>{{t.description}}</p><span>{{JSON.stringify(t.schema).length}} 字符</span></div>
+      <div v-if="!templates.length" class="empty">暂无模板</div>
+    </div>
+
+    <div v-if="tab==='preview'" class="split-panel">
+      <div class="panel"><h3>JSON Schema</h3>
+        <textarea v-model="previewSchema" placeholder='{"type":"object"}' rows="12" class="code-area mono"/><br/>
+        <input v-model="previewModel" placeholder="模型(可选)" class="input-field"/>&nbsp;
+        <button class="btn btn-primary" @click="doPreview" :disabled="!previewSchema||previewing"><Eye class="h-4 w-4"/>预览</button></div>
+      <div class="panel"><h3>预览结果</h3><pre class="code-area mono">{{previewOutput||'预览后显示'}}</pre></div>
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from "vue"
+import { Braces, Play, Copy, AlertTriangle, CheckCircle, Eye } from "lucide-vue-next"
+import { schemaToGbnf, validateGbnf, listTemplates, previewResponseFormat, TemplateItem } from "@/api/structuredOutput"
+
+const tab=ref<"convert"|"validate"|"templates"|"preview">("convert")
+const jsonSchema=ref(""),gbnf=ref(""),warnings=ref<string[]>([]),converting=ref(false)
+async function doConvert(){converting.value=true;try{const s=JSON.parse(jsonSchema.value);const r=await schemaToGbnf({json_schema:s});gbnf.value=r.data.gbnf;warnings.value=r.data.warnings||[]}catch(e){console.error(e)}finally{converting.value=false}}
+function copyGbnf(){navigator.clipboard.writeText(gbnf.value)}
+const gbnfValidate=ref(""),sampleOutput=ref(""),validating=ref(false),validateResult=ref<boolean|null>(null),validateErrors=ref<string[]>([])
+async function doValidate(){validating.value=true;try{const r=await validateGbnf({gbnf:gbnfValidate.value,sample_output:sampleOutput.value||undefined});validateResult.value=r.data.valid;validateErrors.value=r.data.errors||[]}catch(e){console.error(e)}finally{validating.value=false}}
+const templates=ref<TemplateItem[]>([])
+onMounted(async()=>{try{const r=await listTemplates();templates.value=r.data||[]}catch{}})
+function loadTemplate(t:TemplateItem){jsonSchema.value=JSON.stringify(t.schema,null,2);tab.value="convert"}
+const previewSchema=ref(""),previewModel=ref(""),previewOutput=ref(""),previewing=ref(false)
+async function doPreview(){previewing.value=true;try{const s=JSON.parse(previewSchema.value);const r=await previewResponseFormat({json_schema:s,model:previewModel.value||undefined});previewOutput.value=r.data.preview}catch(e){console.error(e)}finally{previewing.value=false}}
+</script>
+
+<style scoped>
+.so-page{padding:20px}.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.page-header>div{display:flex;align-items:center;gap:8px}.page-header h2{font-size:18px;margin:0}.header-tabs{display:flex;gap:4px;background:var(--color-ide-surface);border-radius:8px;padding:3px}.tab{padding:6px 14px;border:none;border-radius:6px;font-size:13px;cursor:pointer;background:transparent;color:var(--color-ide-text-secondary)}.tab.active{background:var(--color-ide-accent);color:#fff}.split-panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{background:var(--color-ide-bg);border:1px solid var(--color-ide-border);border-radius:10px;padding:14px}.panel h3{font-size:14px;margin:0 0 8px}.code-area{width:100%;box-sizing:border-box;border:1px solid var(--color-ide-border);border-radius:6px;padding:10px;background:var(--color-ide-surface);color:var(--color-ide-text);font-size:13px;resize:vertical;outline:none;white-space:pre-wrap}.mono{font-family:monospace}.warn{color:#f59e0b;margin-top:8px;font-size:12px}.v-result{padding:10px;border-radius:6px;margin-top:10px;font-size:13px}.v-result.success{background:#065f461a;color:#059669}.v-result.fail{background:#b91c1c1a;color:#dc2626}.t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}.t-card{padding:14px;border:1px solid var(--color-ide-border);border-radius:8px;cursor:pointer}.t-card:hover{border-color:var(--color-ide-accent)}.t-card h4{font-size:14px;margin:0 0 6px}.t-card p{font-size:12px;color:var(--color-ide-text-secondary);margin:0 0 4px}.t-card span{font-size:11px;color:var(--color-ide-text-secondary)}.empty{text-align:center;padding:40px;color:var(--color-ide-text-secondary)}.input-field{width:100%;box-sizing:border-box;border:1px solid var(--color-ide-border);border-radius:6px;padding:6px 10px;font-size:13px;background:var(--color-ide-surface);color:var(--color-ide-text);outline:none}.btn{display:inline-flex;align-items:center;gap:4px;border:none;cursor:pointer;border-radius:8px;font-size:13px;padding:8px 14px}.btn-primary{background:var(--color-ide-accent);color:#fff}.btn-primary:disabled{opacity:.5;cursor:not-allowed}.btn-ghost{background:transparent}.btn-sm{padding:4px 8px;font-size:12px}
+</style>

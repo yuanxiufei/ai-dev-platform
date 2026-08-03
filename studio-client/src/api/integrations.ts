@@ -1,78 +1,96 @@
 /**
- * Integrations API — 第三方服务集成管理
+ * 第三方集成 API 模块 — 外部服务连接管理
+ * 对应后端: /integrations
  */
-import apiClient from "./client"
 
-export interface IntegrationItem {
+import { apiClient } from "./client"
+
+/* ── 类型 ────────────────────────────────────── */
+
+export interface Integration {
   id: string
   name: string
-  display_name: string
-  description: string | null
   category: string
-  connected: boolean
-  status: string
-  error_message: string | null
-  config: Record<string, unknown> | null
-  last_connected_at: string | null
-  created_at: string | null
-  updated_at: string | null
+  provider: string
+  status: "connected" | "disconnected" | "error"
+  config: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  last_sync?: string
+  created_at: string
+  updated_at: string
 }
 
-export interface IntegrationCreatePayload {
+export interface IntegrationCreate {
   name: string
-  display_name: string
-  description?: string
-  category?: string
+  category: string
+  provider: string
   config?: Record<string, unknown>
 }
 
-export interface IntegrationUpdatePayload {
-  display_name?: string
-  description?: string
-  category?: string
+export interface IntegrationUpdate {
+  name?: string
   config?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
-export interface ConnectPayload {
-  api_key?: string
-  config?: Record<string, unknown>
+export interface ConnectRequest {
+  credentials: Record<string, string>
+  options?: Record<string, unknown>
 }
 
-// ── API Functions ────────────────────────────────────────
+export interface IntegrationStats {
+  total: number
+  connected: number
+  disconnected: number
+  error: number
+  by_category: Record<string, number>
+}
 
-export async function listIntegrations(category?: string) {
-  return apiClient.get("/integrations", {
-    params: category ? { category } : undefined,
+/* ── 端点 ────────────────────────────────────── */
+
+/** 列出所有集成 */
+export function listIntegrations(category?: string) {
+  return apiClient.get<Integration[]>("/integrations", {
+    params: category ? { category } : {},
   })
 }
 
-export async function getIntegration(id: string) {
-  return apiClient.get(`/integrations/${id}`)
+/** 获取集成详情 */
+export function getIntegration(integrationId: string) {
+  return apiClient.get<Integration>(`/integrations/${integrationId}`)
 }
 
-export async function createIntegration(payload: IntegrationCreatePayload) {
-  return apiClient.post("/integrations", payload)
+/** 创建集成 */
+export function createIntegration(data: IntegrationCreate) {
+  return apiClient.post<Integration>("/integrations", data)
 }
 
-export async function updateIntegration(
-  id: string,
-  payload: IntegrationUpdatePayload,
-) {
-  return apiClient.put(`/integrations/${id}`, payload)
+/** 更新集成 */
+export function updateIntegration(integrationId: string, data: IntegrationUpdate) {
+  return apiClient.put<Integration>(`/integrations/${integrationId}`, data)
 }
 
-export async function deleteIntegration(id: string) {
-  return apiClient.delete(`/integrations/${id}`)
+/** 删除集成 */
+export function deleteIntegration(integrationId: string) {
+  return apiClient.delete(`/integrations/${integrationId}`)
 }
 
-export async function connectIntegration(id: string, payload?: ConnectPayload) {
-  return apiClient.post(`/integrations/${id}/connect`, payload || {})
+/** 连接集成 */
+export function connectIntegration(integrationId: string, data: ConnectRequest) {
+  return apiClient.post<Integration>(
+    `/integrations/${integrationId}/connect`,
+    data,
+  )
 }
 
-export async function disconnectIntegration(id: string) {
-  return apiClient.post(`/integrations/${id}/disconnect`)
+/** 断开集成 */
+export function disconnectIntegration(integrationId: string) {
+  return apiClient.post<Integration>(
+    `/integrations/${integrationId}/disconnect`,
+  )
 }
 
-export async function getIntegrationStats() {
-  return apiClient.get("/integrations/stats")
+/** 获取集成统计 */
+export function integrationsStats() {
+  return apiClient.get<IntegrationStats>("/integrations/stats")
 }
